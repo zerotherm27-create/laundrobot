@@ -3,31 +3,33 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
-}));
-
+app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use('/auth',      require('./routes/auth'));
-app.use('/orders',    require('./routes/orders'));
-app.use('/services',  require('./routes/services'));
-app.use('/customers', require('./routes/customers'));
-app.use('/tenants',   require('./routes/tenants'));
-app.use('/messaging', require('./routes/messaging'));
-app.use('/users',     require('./routes/users'));
+const routes = [
+  ['/auth',      './routes/auth'],
+  ['/orders',    './routes/orders'],
+  ['/services',  './routes/services'],
+  ['/customers', './routes/customers'],
+  ['/tenants',   './routes/tenants'],
+  ['/messaging', './routes/messaging'],
+  ['/users',     './routes/users'],
+];
 
-app.use('/webhook/messenger', require('./webhooks/messenger'));
-app.use('/webhook/xendit',    require('./webhooks/xendit'));
+for (const [path, file] of routes) {
+  try {
+    app.use(path, require(file));
+    console.log('✓ loaded ' + path);
+  } catch(e) {
+    console.error('✗ FAILED ' + path + ': ' + e.message);
+  }
+}
 
-app.get('/', (req, res) => {
-  res.json({ status: 'LaundroBot API running' });
-});
+try { app.use('/webhook/messenger', require('./webhooks/messenger')); console.log('✓ webhook messenger'); } catch(e) { console.error('✗ webhook messenger: ' + e.message); }
+try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓ webhook xendit'); } catch(e) { console.error('✗ webhook xendit: ' + e.message); }
+
+app.get('/', (req, res) => res.json({ status: 'LaundroBot API running' }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('Server running on port ' + PORT);
-});// Sun Apr 12 02:15:04 PST 2026
+app.listen(PORT, '0.0.0.0', () => console.log('Server running on port ' + PORT));
