@@ -1,49 +1,68 @@
-cd ~/laundrobot/backend/routes
-rm messaging.js
-cat > messaging.js << 'EOF'
 const router = require('express').Router();
-const auth = require('../middleware/auth');
 const db = require('../db');
-const { sendMessage } = require('../utils/messenger');
+const { sendMessage, sendButtons } = require('../utils/messenger');
+const { createInvoice } = require('../utils/xendit');
 
-router.post('/blast', auth, async (req, res) => {
-  const { message, filter_status } = req.body;
-  const tenantId = req.user.tenant_id;
-  try {
+router.get('/', (req, res) => {
+  if (req.query['hub.verify_token'] === process.env.FB_VERIFY_TOKEN) {
+    return res.send(req.query['hub.challenge']);
+  }
+  res.sendStatus(403);
+});
+
+router.post('/', async (req, res) => {
+  res.sendStatus(200);
+  const { object, entry } = req.body;
+  if (object !== 'page') return;
+  for (const e of entry) {
+    const pageId = e.id;
     const { rows: [tenant] } = await db.query(
-      'SELECT fb_page_access_token FROM tenants WHERE id=$1', [tenantId]
+      'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
     );
-    let query = 'SELECT DISTINCT c.fb_id, c.name, o.id as order_id, o.status, o.pickup_date FROM customers c JOIN orders o ON o.customer_id = c.id WHERE c.tenant_id = $1';
-    const params = [tenantId];
-    if (filter_status) { query += ' AND o.status = $2'; params.push(filter_status); }
-    const { rows: customers } = await db.query(query, params);
-    let sent = 0;
-    for (const c of customers) {
-      const text = message
-        .replace('{name}', c.name || 'Customer')
-        .replace('{order_id}', c.order_id)
-        .replace('{status}', c.status)
-        .replace('{pickup_time}', c.pickup_date ? new Date(c.pickup_date).toLocaleString() : '');
-      await sendMessage(tenant.fb_page_access_token, c.fb_id, text);
-      sent++;
+    if (!tenant) continue;
+    for (const event of (e.messaging || [])) {
+      if (event.message || event.postback) {
+        await handleMessage(tenant, event.sender.id, event);
+      }
     }
+  }
+});
+
+async function handleMessage(tenant, senderId, event) {
+  const token = tenant.fb_page_access_token;
+  const text = event.message?.text || event.postback?.payload || '';
+  let { rows: [conv] } = await db.query(
+    'SELECT * FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2',
+    [tenant.id, senderId]
+  );
+  if (!conv) {
     await db.query(
-      'INSERT INTO blast_logs (tenant_id, message, filter_status, sent_count) VALUES ($1,$2,$3,$4)',
-      [tenantId, message, filter_status || 'ALL', sent]
+      'INSERT INTO conversations (tenant_id, fb_user_id, step, data) VALUES ($1,$2,$3,$4)',
+      [tenant.id, senderId, 'START', '{}']
     );
-    res.json({ sent });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-router.get('/blast/history', auth, async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      'SELECT * FROM blast_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 20',
-      [req.user.tenant_id]
+    conv = { step: 'START', data: {} };
+  }
+  const step = conv.step;
+  const data = conv.data || {};
+  async function setState(newStep, newData) {
+    await db.query(
+      'UPDATE conversations SET step=$1, data=$2, updated_at=NOW() WHERE tenant_id=$3 AND fb_user_id=$4',
+      [newStep, JSON.stringify({ ...data, ...(newData || {}) }), tenant.id, senderId]
     );
-    res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-module.exports = router;
-EOF
+  }
+  let { rows: [customer] } = await db.query(
+    'SELECT * FROM customers WHERE tenant_id=$1 AND fb_id=$2', [tenant.id, senderId]
+  );
+  if (!customer) {
+    const { rows: [c] } = await db.query(
+      'INSERT INTO customers (tenant_id, fb_id) VALUES ($1,$2) RETURNING *', [tenant.id, senderId]
+    );
+    customer = c;
+  }
+  const lc = text.toLowerCase();
+  if (step === 'START' || lc === 'hi' || lc === 'hello') {
+    await sendMessage(token, senderId, 'Hi! Welcome to ' + tenant.name + '! Type "book" to start or "services" to see prices.');
+    await setState('MENU');
+  } else if (lc === 'book' || step === 'MENU') {
+    const { rows: services } = await db.query(
+      'SELECT *
