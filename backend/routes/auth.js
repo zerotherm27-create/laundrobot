@@ -57,6 +57,10 @@ router.post('/login', async (req, res) => {
 router.post('/setup', async (req, res) => {
   const { email, password } = req.body;
   try {
+    const { rows } = await db.query(`SELECT id FROM users WHERE role = 'superadmin' LIMIT 1`);
+    if (rows.length > 0) {
+      return res.status(403).json({ error: 'Setup already completed' });
+    }
     const hash = await bcrypt.hash(password, 10);
     await db.query(
       `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'superadmin')`,

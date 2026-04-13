@@ -18,11 +18,17 @@ CREATE TABLE tenants (
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  name TEXT,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT DEFAULT 'admin', -- 'superadmin' | 'admin'
+  permissions TEXT DEFAULT '[]',
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Migration: run these if the table already exists
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
+-- ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT DEFAULT '[]';
 
 -- Customers (per tenant)
 CREATE TABLE customers (
