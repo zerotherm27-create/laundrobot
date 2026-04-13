@@ -29,7 +29,14 @@ for (const [path, file] of routes) {
 try { app.use('/webhook/messenger', require('./webhooks/messenger')); console.log('✓ webhook messenger'); } catch(e) { console.error('✗ webhook messenger: ' + e.message); }
 try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓ webhook xendit'); } catch(e) { console.error('✗ webhook xendit: ' + e.message); }
 
-app.get('/', (req, res) => res.json({ status: 'LaundroBot API running' }));
+app.get('/', (req, res) => res.json({
+  status: 'LaundroBot API running',
+  env: {
+    has_db: !!process.env.DATABASE_URL,
+    has_jwt: !!process.env.JWT_SECRET,
+    has_fb_token: !!process.env.FB_VERIFY_TOKEN,
+  }
+}));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => console.log('Server running on port ' + PORT));
