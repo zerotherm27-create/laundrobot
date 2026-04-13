@@ -13,16 +13,26 @@ router.get('/', (req, res) => {
 router.post('/', async (req, res) => {
   res.sendStatus(200);
   const { object, entry } = req.body;
+  console.log('[webhook] received object:', object, 'entries:', entry?.length);
   if (object !== 'page') return;
   for (const e of entry) {
     const pageId = e.id;
+    console.log('[webhook] page id:', pageId);
     const { rows: [tenant] } = await db.query(
       'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
     );
-    if (!tenant) continue;
+    if (!tenant) {
+      console.log('[webhook] no tenant found for page id:', pageId);
+      continue;
+    }
     for (const event of (e.messaging || [])) {
       if (event.message || event.postback) {
-        await handleMessage(tenant, event.sender.id, event);
+        console.log('[webhook] handling message from:', event.sender.id);
+        try {
+          await handleMessage(tenant, event.sender.id, event);
+        } catch (err) {
+          console.error('[webhook] handleMessage error:', err.response?.data || err.message);
+        }
       }
     }
   }
