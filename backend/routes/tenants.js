@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
+const { setupMessengerProfile } = require('../utils/messengerProfile');
 
 function superadminOnly(req, res, next) {
   if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Superadmin only' });
@@ -39,8 +40,25 @@ router.post('/', auth, superadminOnly, async (req, res) => {
        RETURNING id, name, fb_page_id, logo_url, active, created_at`,
       [name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url]
     );
+    // Auto-setup Messenger profile for the new page
+    try { await setupMessengerProfile(fb_page_access_token, name); } catch (e) { console.warn('[tenant] messenger profile setup failed:', e.message); }
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST setup Messenger profile manually (Get Started, greeting, persistent menu)
+router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
+  try {
+    const { rows: [tenant] } = await db.query(
+      `SELECT name, fb_page_access_token FROM tenants WHERE id=$1`, [req.params.id]
+    );
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name);
+    res.json({ message: 'Messenger profile configured successfully' });
+  } catch (err) {
+    console.error('[setup-messenger]', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
 });
 
 // PUT update tenant

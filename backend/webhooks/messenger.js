@@ -152,7 +152,7 @@ async function handleMessage(tenant, senderId, event) {
   const customer = await getOrCreateCustomer(tenant.id, senderId);
 
   // ── Global commands (work from any step) ─────────────────────────────
-  if (lc === 'hi' || lc === 'hello' || lc === 'start' || step === 'START') {
+  if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED' || step === 'START') {
     await sendButtons(token, senderId,
       `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
       [

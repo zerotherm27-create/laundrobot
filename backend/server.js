@@ -42,8 +42,24 @@ app.get('/', (req, res) => res.json({
 }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log('Server running on port ' + PORT);
+
+  // Auto-setup Messenger profile (Get Started, greeting, persistent menu) for all active tenants
+  try {
+    const db = require('./db');
+    const { setupMessengerProfile } = require('./utils/messengerProfile');
+    const { rows: tenants } = await db.query(`SELECT name, fb_page_access_token FROM tenants WHERE active=TRUE`);
+    for (const t of tenants) {
+      try {
+        await setupMessengerProfile(t.fb_page_access_token, t.name);
+      } catch (e) {
+        console.warn(`[startup] messenger profile failed for ${t.name}:`, e.response?.data?.error?.message || e.message);
+      }
+    }
+  } catch (e) {
+    console.warn('[startup] messenger profile setup skipped:', e.message);
+  }
 
   // Run follow-up job every 30 minutes for timely reminders
   cron.schedule('*/30 * * * *', () => {
