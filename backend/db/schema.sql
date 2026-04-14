@@ -42,14 +42,26 @@ CREATE TABLE customers (
   UNIQUE(tenant_id, fb_id)
 );
 
+-- Service categories (per tenant)
+CREATE TABLE service_categories (
+  id SERIAL PRIMARY KEY,
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort_order INT DEFAULT 0,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Services (per tenant)
 CREATE TABLE services (
   id SERIAL PRIMARY KEY,
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  category_id INT REFERENCES service_categories(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   price NUMERIC NOT NULL,
   unit TEXT DEFAULT 'per kg',
   description TEXT,
+  sort_order INT DEFAULT 0,
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT NOW()
 );

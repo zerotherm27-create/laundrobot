@@ -10,13 +10,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const routes = [
-  ['/auth',      './routes/auth'],
-  ['/orders',    './routes/orders'],
-  ['/services',  './routes/services'],
-  ['/customers', './routes/customers'],
-  ['/tenants',   './routes/tenants'],
-  ['/messaging', './routes/messaging'],
-  ['/users',     './routes/users'],
+  ['/auth',       './routes/auth'],
+  ['/orders',     './routes/orders'],
+  ['/services',   './routes/services'],
+  ['/categories', './routes/categories'],
+  ['/customers',  './routes/customers'],
+  ['/tenants',    './routes/tenants'],
+  ['/messaging',  './routes/messaging'],
+  ['/users',      './routes/users'],
 ];
 
 for (const [path, file] of routes) {

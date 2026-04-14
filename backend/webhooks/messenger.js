@@ -75,10 +75,15 @@ async function handleMessage(tenant, senderId, event) {
     await setState('MENU');
   } else if (lc === 'book' || step === 'MENU') {
     const { rows: services } = await db.query(
-      'SELECT * FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY name', [tenant.id]
+      `SELECT s.*, c.name AS category_name
+       FROM services s
+       LEFT JOIN service_categories c ON c.id = s.category_id
+       WHERE s.tenant_id=$1 AND s.active=TRUE
+       ORDER BY c.sort_order ASC NULLS LAST, s.sort_order ASC, s.name ASC`,
+      [tenant.id]
     );
     const buttons = services.slice(0, 3).map(s => ({
-      type: 'postback', title: s.name + ' P' + s.price, payload: 'SVC:' + s.id + ':' + s.name + ':' + s.price
+      type: 'postback', title: s.name + ' ₱' + s.price, payload: 'SVC:' + s.id + ':' + s.name + ':' + s.price
     }));
     await sendButtons(token, senderId, 'Choose a service:', buttons);
     await setState('SELECT_SERVICE');
@@ -132,10 +137,24 @@ async function handleMessage(tenant, senderId, event) {
     );
   } else if (lc === 'services') {
     const { rows: services } = await db.query(
-      'SELECT * FROM services WHERE tenant_id=$1 AND active=TRUE', [tenant.id]
+      `SELECT s.*, c.name AS category_name
+       FROM services s
+       LEFT JOIN service_categories c ON c.id = s.category_id
+       WHERE s.tenant_id=$1 AND s.active=TRUE
+       ORDER BY c.sort_order ASC NULLS LAST, s.sort_order ASC, s.name ASC`,
+      [tenant.id]
     );
-    const list = services.map(s => s.name + ': P' + s.price + ' ' + s.unit).join('\n');
-    await sendMessage(token, senderId, 'Our services:\n' + list + '\n\nType "book" to order.');
+    // Group by category
+    const grouped = {};
+    for (const s of services) {
+      const cat = s.category_name || 'Other Services';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(s);
+    }
+    const list = Object.entries(grouped).map(([cat, svcs]) =>
+      `📂 ${cat}\n` + svcs.map(s => `  • ${s.name}: ₱${s.price} ${s.unit}`).join('\n')
+    ).join('\n\n');
+    await sendMessage(token, senderId, 'Our services:\n\n' + list + '\n\nType "book" to order.');
   } else {
     await sendMessage(token, senderId, 'Type "hi" to book or "services" to see prices.');
   }

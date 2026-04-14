@@ -34,6 +34,11 @@ export const createService = data => api.post('/services', data);
 export const updateService = (id, data) => api.put(`/services/${id}`, data);
 export const deleteService = id => api.delete(`/services/${id}`);
 
+export const getCategories = () => api.get('/categories');
+export const createCategory = data => api.post('/categories', data);
+export const updateCategory = (id, data) => api.put(`/categories/${id}`, data);
+export const deleteCategory = id => api.delete(`/categories/${id}`);
+
 export const getCustomers = () => api.get('/customers');
 
 export const getTenants = () => api.get('/tenants');
