@@ -18,6 +18,7 @@ const routes = [
   ['/tenants',    './routes/tenants'],
   ['/messaging',  './routes/messaging'],
   ['/users',      './routes/users'],
+  ['/faqs',       './routes/faqs'],
 ];
 
 for (const [path, file] of routes) {

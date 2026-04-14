@@ -10,6 +10,7 @@ import Services from './pages/Services.jsx';
 import Messaging from './pages/Messaging.jsx';
 import SuperAdmin from './pages/SuperAdmin.jsx';
 import Reports from './pages/Reports.jsx';
+import FAQs from './pages/FAQs.jsx';
 
 const PAGES = {
   Overview,
@@ -18,6 +19,7 @@ const PAGES = {
   Customers,
   Services,
   Messaging,
+  FAQs,
   Reports,
   SuperAdmin,
 };

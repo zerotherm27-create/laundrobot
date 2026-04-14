@@ -49,6 +49,11 @@ export const sendBlast = (message, filter_status) =>
   api.post('/messaging/blast', { message, filter_status });
 export const getBlastHistory = () => api.get('/messaging/blast/history');
 
+export const getFaqs = () => api.get('/faqs');
+export const createFaq = data => api.post('/faqs', data);
+export const updateFaq = (id, data) => api.put(`/faqs/${id}`, data);
+export const deleteFaq = id => api.delete(`/faqs/${id}`);
+
 export const getUsers = () => api.get('/users');
 export const createUser = data => api.post('/users', data);
 export const updateUser = (id, data) => api.put(`/users/${id}`, data);

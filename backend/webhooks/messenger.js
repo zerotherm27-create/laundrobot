@@ -156,9 +156,9 @@ async function handleMessage(tenant, senderId, event) {
     await sendButtons(token, senderId,
       `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
       [
-        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK' },
+        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
-        { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
       ]
     );
     await setState('MENU', {}, {});
@@ -174,6 +174,55 @@ async function handleMessage(tenant, senderId, event) {
   if (lc === 'services' || text === 'SERVICES') {
     await setState('SELECT_CATEGORY', {}, {});
     await showCategoryMenu(token, senderId, tenant.id);
+    return;
+  }
+
+  // ── FAQs ────────────────────────────────────────────────────────────
+  if (text === 'FAQS' || lc === 'faq' || lc === 'faqs') {
+    const { rows: faqs } = await db.query(
+      `SELECT * FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC, id ASC LIMIT 11`,
+      [tenant.id]
+    );
+    if (!faqs.length) {
+      await sendMessage(token, senderId, "We don't have any FAQs set up yet. Type \"hi\" to go back to the menu.");
+      return;
+    }
+    const replies = faqs.map(f => ({ title: f.question.length > 20 ? f.question.slice(0, 19) + '…' : f.question, payload: `FAQ:${f.id}` }));
+    replies.push({ title: '🏠 Main Menu', payload: 'MAIN_MENU' });
+    await sendQuickReplies(token, senderId, '❓ What would you like to know?', replies);
+    await setState('FAQ_LIST', {}, {});
+    return;
+  }
+
+  if (text.startsWith('FAQ:')) {
+    const faqId = text.split(':')[1];
+    const { rows: [faq] } = await db.query(
+      `SELECT * FROM faqs WHERE id=$1 AND tenant_id=$2 AND active=TRUE`,
+      [faqId, tenant.id]
+    );
+    if (!faq) {
+      await sendMessage(token, senderId, 'FAQ not found. Type "hi" to go back.');
+      return;
+    }
+    await sendMessage(token, senderId, `❓ *${faq.question}*\n\n${faq.answer}`);
+    // Show quick reply to go back to FAQ list or main menu
+    await sendQuickReplies(token, senderId, 'Was that helpful?', [
+      { title: '❓ More FAQs', payload: 'FAQS' },
+      { title: '🏠 Main Menu', payload: 'MAIN_MENU' },
+    ]);
+    return;
+  }
+
+  if (text === 'MAIN_MENU') {
+    await sendButtons(token, senderId,
+      `What would you like to do?`,
+      [
+        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
+        { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
+        { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
+      ]
+    );
+    await setState('MENU', {}, {});
     return;
   }
 
@@ -326,8 +375,8 @@ async function handleMessage(tenant, senderId, event) {
     `I didn't quite get that. 😊 What would you like to do?`,
     [
       { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
-      { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
       { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS'},
+      { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
     ]
   );
 }

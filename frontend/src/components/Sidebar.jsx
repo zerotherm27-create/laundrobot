@@ -7,6 +7,7 @@ const NAV = [
   { key: 'Customers', icon: '👤', label: 'Customers' },
   { key: 'Services',  icon: '✦',  label: 'Services' },
   { key: 'Messaging', icon: '✉',  label: 'Messaging' },
+  { key: 'FAQs',      icon: '❓', label: 'FAQs' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
 ];
 

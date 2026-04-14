@@ -34,6 +34,7 @@ async function setupMessengerProfile(pageToken, tenantName) {
             { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'      },
             { type: 'postback', title: '📋 View Services', payload: 'SERVICES'  },
             { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
+            { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'      },
           ],
         },
       ],
