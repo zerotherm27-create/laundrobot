@@ -110,7 +110,7 @@ CREATE TABLE blast_logs (
 -- FAQs (customizable per tenant, shown in Messenger)
 CREATE TABLE IF NOT EXISTS faqs (
   id SERIAL PRIMARY KEY,
-  tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
   question TEXT NOT NULL,
   answer TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
