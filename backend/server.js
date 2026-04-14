@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cron = require('node-cron');
+const runFollowUp = require('./jobs/followup');
 const app = express();
 
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
@@ -39,4 +41,12 @@ app.get('/', (req, res) => res.json({
 }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log('Server running on port ' + PORT));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('Server running on port ' + PORT);
+
+  // Run follow-up job every hour at :00
+  cron.schedule('0 * * * *', () => {
+    runFollowUp().catch(err => console.error('[follow-up] unhandled error:', err.message));
+  });
+  console.log('✓ follow-up cron scheduled (every hour)');
+});

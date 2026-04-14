@@ -69,6 +69,8 @@ CREATE TABLE orders (
   xendit_invoice_id TEXT,
   xendit_invoice_url TEXT,
   notes TEXT,
+  reminder_count INT DEFAULT 0,
+  last_reminded_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
