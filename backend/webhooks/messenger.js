@@ -116,8 +116,20 @@ async function handleMessage(tenant, senderId, event) {
     await sendMessage(token, senderId, 'Booking confirmed! Order ID: ' + data.order_id + '. We will pick up on ' + data.pickup_date + '.');
     await setState('DONE');
   } else if (lc === 'cancel') {
+    // Cancel any active unpaid order for this customer
+    const { rows: activeOrders } = await db.query(
+      `UPDATE orders SET status='CANCELLED'
+       WHERE customer_id=$1 AND paid=FALSE AND status!='CANCELLED'
+       RETURNING id`,
+      [customer.id]
+    );
+    const cancelledIds = activeOrders.map(o => o.id).join(', ');
     await setState('START');
-    await sendMessage(token, senderId, 'Cancelled. Type "hi" to start again.');
+    await sendMessage(token, senderId,
+      activeOrders.length > 0
+        ? `Your order${activeOrders.length > 1 ? 's' : ''} (${cancelledIds}) ${activeOrders.length > 1 ? 'have' : 'has'} been cancelled. Type "hi" to place a new order. 😊`
+        : `No active orders to cancel. Type "hi" to start a new booking.`
+    );
   } else if (lc === 'services') {
     const { rows: services } = await db.query(
       'SELECT * FROM services WHERE tenant_id=$1 AND active=TRUE', [tenant.id]

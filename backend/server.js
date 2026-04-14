@@ -44,9 +44,9 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on port ' + PORT);
 
-  // Run follow-up job every hour at :00
-  cron.schedule('0 * * * *', () => {
+  // Run follow-up job every 30 minutes for timely reminders
+  cron.schedule('*/30 * * * *', () => {
     runFollowUp().catch(err => console.error('[follow-up] unhandled error:', err.message));
   });
-  console.log('✓ follow-up cron scheduled (every hour)');
+  console.log('✓ follow-up cron scheduled (every 30 min)');
 });
