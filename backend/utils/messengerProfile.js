@@ -11,13 +11,9 @@ const BASE = 'https://graph.facebook.com/v19.0/me/messenger_profile';
 async function setupMessengerProfile(pageToken, tenantName) {
   const name = tenantName || 'us';
 
-  // 1. Get Started button
+  // Set Get Started button + greeting in one call
   await axios.post(`${BASE}?access_token=${pageToken}`, {
     get_started: { payload: 'GET_STARTED' },
-  });
-
-  // 2. Greeting text (shown to new users before they message)
-  await axios.post(`${BASE}?access_token=${pageToken}`, {
     greeting: [
       {
         locale: 'default',
@@ -26,20 +22,26 @@ async function setupMessengerProfile(pageToken, tenantName) {
     ],
   });
 
-  // 3. Persistent menu (hamburger icon always visible in chat)
-  await axios.post(`${BASE}?access_token=${pageToken}`, {
-    persistent_menu: [
-      {
-        locale: 'default',
-        composer_input_disabled: false,
-        call_to_actions: [
-          { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'      },
-          { type: 'postback', title: '📋 View Services', payload: 'SERVICES'  },
-          { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
-        ],
-      },
-    ],
-  });
+  // Persistent menu — requires app to be primary receiver on the page.
+  // Try to set it; skip silently if the page hasn't granted that permission.
+  try {
+    await axios.post(`${BASE}?access_token=${pageToken}`, {
+      persistent_menu: [
+        {
+          locale: 'default',
+          composer_input_disabled: false,
+          call_to_actions: [
+            { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'      },
+            { type: 'postback', title: '📋 View Services', payload: 'SERVICES'  },
+            { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
+          ],
+        },
+      ],
+    });
+    console.log(`[messenger-profile] persistent menu set for ${name}`);
+  } catch (e) {
+    console.warn(`[messenger-profile] persistent menu skipped for ${name} (app not primary receiver):`, e.response?.data?.error?.message || e.message);
+  }
 
   console.log(`[messenger-profile] setup complete for ${name}`);
 }
