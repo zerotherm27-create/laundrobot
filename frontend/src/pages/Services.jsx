@@ -4,16 +4,23 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
+const emptyField    = { label: '', field_type: 'text', placeholder: '', required: false };
+
+const FIELD_TYPES = [
+  { value: 'text',   label: 'Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'select', label: 'Options (dropdown)' },
+];
 
 export default function Services() {
   const [categories,  setCategories]  = useState([]);
   const [services,    setServices]    = useState([]);
   const [loading,     setLoading]     = useState(true);
-  const [tab,         setTab]         = useState('services'); // 'services' | 'categories'
   const [svcForm,     setSvcForm]     = useState(null);
   const [catForm,     setCatForm]     = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [preview,     setPreview]     = useState(null);
+  const [fields,      setFields]      = useState([]);   // custom fields for open service
   const fileRef = useRef();
 
   useEffect(() => {
@@ -34,12 +41,56 @@ export default function Services() {
     reader.readAsDataURL(file);
   }
 
+  // ── Open service modal ────────────────────────────────────────────────
+  function openSvc(svc) {
+    setSvcForm({ ...svc, isNew: false });
+    setPreview(svc.image_url || null);
+    setFields((svc.custom_fields || []).map(f => ({ ...f })));
+  }
+
+  function openNewSvc(overrides = {}) {
+    setSvcForm({ ...emptyService, isNew: true, ...overrides });
+    setPreview(null);
+    setFields([]);
+  }
+
+  // ── Custom fields helpers ─────────────────────────────────────────────
+  function addField() {
+    setFields(prev => [...prev, { ...emptyField, _key: Date.now() }]);
+  }
+
+  function updateField(idx, key, val) {
+    setFields(prev => prev.map((f, i) => i === idx ? { ...f, [key]: val } : f));
+  }
+
+  function removeField(idx) {
+    setFields(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function moveField(idx, dir) {
+    setFields(prev => {
+      const arr = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= arr.length) return arr;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      return arr;
+    });
+  }
+
   // ── Service save ──────────────────────────────────────────────────────
   async function handleSvcSave() {
     if (!svcForm.name || !svcForm.price) return alert('Name and price are required.');
+    // Validate custom fields
+    for (const f of fields) {
+      if (!f.label.trim()) return alert('All custom field labels must be filled in.');
+    }
     setSaving(true);
     try {
-      const payload = { ...svcForm, category_id: svcForm.category_id || null };
+      const payload = {
+        ...svcForm,
+        category_id: svcForm.category_id || null,
+        custom_fields: fields.map((f, i) => ({ ...f, sort_order: i })),
+      };
       if (svcForm.isNew) {
         const { data } = await createService(payload);
         setServices(prev => [...prev, data]);
@@ -47,7 +98,7 @@ export default function Services() {
         const { data } = await updateService(svcForm.id, payload);
         setServices(prev => prev.map(s => s.id === svcForm.id ? data : s));
       }
-      setSvcForm(null); setPreview(null);
+      setSvcForm(null); setPreview(null); setFields([]);
     } catch (err) { alert('Error: ' + err.message); }
     finally { setSaving(false); }
   }
@@ -56,7 +107,7 @@ export default function Services() {
     if (!confirm('Delete this service?')) return;
     await deleteService(id);
     setServices(prev => prev.filter(s => s.id !== id));
-    setSvcForm(null);
+    setSvcForm(null); setFields([]);
   }
 
   // ── Category save ─────────────────────────────────────────────────────
@@ -94,17 +145,16 @@ export default function Services() {
 
   const sortedCats = [...categories].sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name));
 
-  // Sections: sorted categories + uncategorized at the end
   const sections = [
     ...sortedCats.map(c => ({ id: String(c.id), name: c.name, active: c.active, cat: c })),
     ...(grouped['__none__']?.length ? [{ id: '__none__', name: 'Uncategorized', active: true, cat: null }] : []),
   ];
 
   const S = {
-    label: { fontSize: 12, color: '#888', display: 'block', marginBottom: 4 },
-    input: { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', outline: 'none' },
+    label:  { fontSize: 12, color: '#888', display: 'block', marginBottom: 4 },
+    input:  { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', outline: 'none' },
     select: { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff' },
-    btn: (bg, color) => ({ padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: bg, color, border: 'none', fontWeight: 500, flex: 1 }),
+    btn:    (bg, color) => ({ padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: bg, color, border: 'none', fontWeight: 500, flex: 1 }),
   };
 
   return (
@@ -117,7 +167,7 @@ export default function Services() {
             style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc', fontWeight: 500 }}>
             + Category
           </button>
-          <button onClick={() => { setSvcForm({ ...emptyService, isNew: true }); setPreview(null); }}
+          <button onClick={() => openNewSvc()}
             style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
             + Service
           </button>
@@ -168,7 +218,12 @@ export default function Services() {
                             ₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#888' }}>{s.unit}</span>
                           </div>
                           {s.description && <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>{s.description}</div>}
-                          <button onClick={() => { setSvcForm({ ...s, isNew: false }); setPreview(s.image_url || null); }}
+                          {s.custom_fields?.length > 0 && (
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                              {s.custom_fields.length} custom field{s.custom_fields.length !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                          <button onClick={() => openSvc(s)}
                             style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#666', width: '100%' }}>
                             Edit
                           </button>
@@ -178,7 +233,7 @@ export default function Services() {
 
                     {/* Add service to this category shortcut */}
                     <div
-                      onClick={() => setSvcForm({ ...emptyService, isNew: true, category_id: id === '__none__' ? '' : id })}
+                      onClick={() => openNewSvc({ category_id: id === '__none__' ? '' : id })}
                       style={{ border: '1.5px dashed #ddd', borderRadius: 10, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#bbb', fontSize: 13, flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 22 }}>+</span>
                       <span>Add service</span>
@@ -194,7 +249,7 @@ export default function Services() {
       {/* ── Service Modal ──────────────────────────────────────────────── */}
       {svcForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 390, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 480, border: '0.5px solid #e8e8e0', maxHeight: '92vh', overflowY: 'auto' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{svcForm.isNew ? 'Add service' : 'Edit service'}</div>
 
             {/* Image */}
@@ -220,7 +275,7 @@ export default function Services() {
               </select>
             </div>
 
-            {/* Fields */}
+            {/* Core fields */}
             {[['name','Service name','text'],['price','Price (₱)','number'],['unit','Unit (e.g. per kg, per piece)','text'],['description','Description (optional)','text']].map(([field, label, type]) => (
               <div key={field} style={{ marginBottom: 12 }}>
                 <label style={S.label}>{label}</label>
@@ -234,14 +289,92 @@ export default function Services() {
               <input type="number" value={svcForm.sort_order} onChange={e => setSvcForm(p => ({ ...p, sort_order: +e.target.value }))} style={S.input} />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
               <input type="checkbox" id="svcActive" checked={svcForm.active} onChange={e => setSvcForm(p => ({ ...p, active: e.target.checked }))} />
               <label htmlFor="svcActive" style={{ fontSize: 13, cursor: 'pointer' }}>Active (visible to customers)</label>
             </div>
 
+            {/* ── Custom Fields ──────────────────────────────────────── */}
+            <div style={{ borderTop: '0.5px solid #eee', paddingTop: 16, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>Custom Fields</div>
+                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Extra info to collect when customers order this service</div>
+                </div>
+                <button onClick={addField}
+                  style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', background: '#f0f0ec', border: '0.5px solid #ccc', color: '#444', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  + Add field
+                </button>
+              </div>
+
+              {fields.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#bbb', textAlign: 'center', padding: '14px 0', border: '1px dashed #eee', borderRadius: 8 }}>
+                  No custom fields — click <b>+ Add field</b> to create one
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {fields.map((f, idx) => (
+                    <div key={f._key ?? f.id ?? idx}
+                      style={{ background: '#f9f9f7', border: '0.5px solid #e8e8e0', borderRadius: 8, padding: '10px 12px' }}>
+
+                      {/* Row 1: label + type */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <label style={{ ...S.label, marginBottom: 3 }}>Field label</label>
+                          <input
+                            value={f.label}
+                            onChange={e => updateField(idx, 'label', e.target.value)}
+                            placeholder="e.g. Weight (kg), Pieces, Notes…"
+                            style={{ ...S.input, fontSize: 12 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ ...S.label, marginBottom: 3 }}>Type</label>
+                          <select value={f.field_type} onChange={e => updateField(idx, 'field_type', e.target.value)}
+                            style={{ ...S.select, fontSize: 12 }}>
+                            {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Row 2: placeholder */}
+                      <div style={{ marginBottom: 8 }}>
+                        <label style={{ ...S.label, marginBottom: 3 }}>Placeholder (optional)</label>
+                        <input
+                          value={f.placeholder || ''}
+                          onChange={e => updateField(idx, 'placeholder', e.target.value)}
+                          placeholder="Hint shown inside the input"
+                          style={{ ...S.input, fontSize: 12 }}
+                        />
+                      </div>
+
+                      {/* Row 3: required + move/remove */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <label style={{ fontSize: 12, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <input type="checkbox" checked={f.required || false} onChange={e => updateField(idx, 'required', e.target.checked)} />
+                          Required
+                        </label>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => moveField(idx, -1)} disabled={idx === 0}
+                            title="Move up"
+                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === 0 ? '#ddd' : '#666' }}>↑</button>
+                          <button onClick={() => moveField(idx, 1)} disabled={idx === fields.length - 1}
+                            title="Move down"
+                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === fields.length - 1 ? '#ddd' : '#666' }}>↓</button>
+                          <button onClick={() => removeField(idx)}
+                            title="Remove field"
+                            style={{ fontSize: 12, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>✕</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleSvcSave} disabled={saving} style={S.btn('#378ADD', '#fff')}>{saving ? 'Saving…' : 'Save'}</button>
-              <button onClick={() => { setSvcForm(null); setPreview(null); }} style={S.btn('#f0f0ec', '#444')}>Cancel</button>
+              <button onClick={() => { setSvcForm(null); setPreview(null); setFields([]); }} style={S.btn('#f0f0ec', '#444')}>Cancel</button>
               {!svcForm.isNew && <button onClick={() => handleSvcDelete(svcForm.id)}
                 style={{ padding: '8px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>Delete</button>}
             </div>
