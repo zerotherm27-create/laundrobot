@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getFaqs, createFaq, updateFaq, deleteFaq } from '../api';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const btn = (bg, color, extra = {}) => ({
   background: bg, color, border: 'none', borderRadius: 6,
@@ -10,6 +11,7 @@ const btn = (bg, color, extra = {}) => ({
 const EMPTY = { question: '', answer: '', sort_order: 0, active: true };
 
 export default function FAQs() {
+  const { user } = useAuth();
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);   // null | 'add' | { faq }
@@ -53,6 +55,18 @@ export default function FAQs() {
     try { await updateFaq(faq.id, { ...faq, active: !faq.active }); await load(); }
     catch { /* ignore */ }
   };
+
+  if (user?.role === 'superadmin') {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', padding: '80px 20px' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>❓</div>
+        <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>FAQs are per-tenant</h2>
+        <p style={{ fontSize: 13, color: '#888', maxWidth: 380, margin: '0 auto' }}>
+          FAQs belong to each laundry shop's Messenger bot. Log in as a tenant admin to manage their FAQs.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
