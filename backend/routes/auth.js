@@ -28,7 +28,11 @@ router.post('/login', async (req, res) => {
     }
 
     let permissions = [];
-    try { permissions = JSON.parse(user.permissions || '[]'); } catch { }
+    try {
+      permissions = Array.isArray(user.permissions)
+        ? user.permissions
+        : JSON.parse(user.permissions || '[]');
+    } catch { permissions = []; }
 
     const token = jwt.sign(
       {
