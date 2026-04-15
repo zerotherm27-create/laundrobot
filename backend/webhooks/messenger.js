@@ -156,7 +156,7 @@ async function showServiceCatalog(token, senderId, tenantId, categoryId) {
 // ── Main message handler ────────────────────────────────────────────────────
 async function handleMessage(tenant, senderId, event) {
   const token    = tenant.fb_page_access_token;
-  const text     = event.message?.text || event.postback?.payload || '';
+  const text     = event.message?.quick_reply?.payload || event.postback?.payload || event.message?.text || '';
   const lc       = text.toLowerCase().trim();
   const conv     = await getConv(tenant.id, senderId);
   const step     = conv.step;
