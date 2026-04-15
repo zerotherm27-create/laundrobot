@@ -140,7 +140,7 @@ async function showServiceCatalog(token, senderId, tenantId, categoryId) {
   const elements = services.map(s => ({
     title: s.name,
     subtitle: `₱${Number(s.price).toLocaleString()} ${s.unit}` + (s.description ? `\n${s.description}` : ''),
-    imageUrl: s.image_url || null,
+    imageUrl: (s.image_url && !s.image_url.startsWith('data:')) ? s.image_url : null,
     buttons: [{ title: '🛒 Book This', payload: `SVC:${s.id}:${s.name}:${s.price}:${s.unit}` }],
   }));
 
