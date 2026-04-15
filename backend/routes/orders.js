@@ -8,7 +8,7 @@ router.get('/', auth, async (req, res) => {
     const { status, page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
     let query = `
-      SELECT o.*, c.name as customer_name, c.phone as customer_phone, s.name as service_name
+      SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, s.name as service_name
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
       LEFT JOIN services s ON s.id = o.service_id
@@ -27,7 +27,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.fb_id,
+      `SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.fb_id, c.address as customer_address,
               s.name as service_name
        FROM orders o
        LEFT JOIN customers c ON c.id = o.customer_id
