@@ -11,6 +11,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const routes = [
   ['/auth',       './routes/auth'],
+  ['/auth',       './routes/resetPassword'],
   ['/orders',     './routes/orders'],
   ['/services',   './routes/services'],
   ['/categories', './routes/categories'],

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LaundroBot — Messenger Mockup</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#e4e6eb;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:12px}
+
+    h1{font-size:13px;font-weight:500;color:#666;letter-spacing:.3px}
+
+    /* Step nav */
+    .steps{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+    .step-btn{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fff;font-size:12px;cursor:pointer;color:#555;transition:all .15s;white-space:nowrap}
+    .step-btn.active{background:#0084ff;color:#fff;border-color:#0084ff}
+    .step-btn:hover:not(.active){border-color:#0084ff;color:#0084ff}
+
+    /* Phone */
+    .phone{width:360px;background:#fff;border-radius:36px;box-shadow:0 28px 60px rgba(0,0,0,.22);overflow:hidden;border:7px solid #111;transition:all .3s}
+
+    /* Header */
+    .header{background:#fff;border-bottom:1px solid #e4e6ea;padding:10px 14px;display:flex;align-items:center;gap:9px}
+    .back{font-size:22px;color:#0084ff;font-weight:300;cursor:pointer}
+    .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#378ADD,#1a5fa8);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+    .page-name{font-size:14px;font-weight:600;color:#050505}
+    .page-sub{font-size:11px;color:#65676b}
+    .hicons{margin-left:auto;display:flex;gap:18px;color:#0084ff;font-size:17px}
+
+    /* Chat */
+    .chat{background:#fff;padding:14px 12px 8px;display:flex;flex-direction:column;gap:8px;min-height:520px;max-height:520px;overflow-y:auto;scroll-behavior:smooth}
+
+    /* Rows */
+    .row{display:flex;align-items:flex-end;gap:7px}
+    .row.user{flex-direction:row-reverse}
+    .bot-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#378ADD,#1a5fa8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+    .bot-av.hidden{opacity:0;pointer-events:none}
+
+    /* Bubbles */
+    .bubble{max-width:75%;padding:9px 13px;border-radius:18px;font-size:13.5px;line-height:1.45;white-space:pre-line}
+    .bubble.bot{background:#f0f2f5;color:#050505;border-bottom-left-radius:4px}
+    .bubble.user{background:#0084ff;color:#fff;border-bottom-right-radius:4px}
+
+    /* Button template */
+    .btn-template{max-width:82%;margin-left:33px}
+    .bt-text{background:#f0f2f5;border-radius:18px 18px 4px 18px;padding:9px 13px;font-size:13.5px;color:#050505;line-height:1.45;white-space:pre-line;margin-bottom:2px}
+    .fb-btns{display:flex;flex-direction:column;gap:2px}
+    .fb-btn{background:#fff;border:1.5px solid #0084ff;color:#0084ff;border-radius:20px;padding:8px 13px;font-size:13px;font-weight:500;text-align:center;cursor:pointer;transition:background .1s}
+    .fb-btn:hover{background:#e8f4ff}
+
+    /* Quick replies */
+    .qr-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-left:33px;padding:2px 0}
+    .qr{background:#fff;border:1.5px solid #0084ff;color:#0084ff;border-radius:20px;padding:7px 13px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .1s}
+    .qr:hover{background:#e8f4ff}
+
+    /* Catalog carousel */
+    .catalog-wrap{margin-left:33px;overflow-x:auto;padding-bottom:6px}
+    .catalog-wrap::-webkit-scrollbar{height:3px}
+    .catalog-wrap::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}
+    .catalog{display:flex;gap:8px;width:max-content}
+    .card{width:200px;border-radius:12px;border:1px solid #e4e6ea;overflow:hidden;background:#fff;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .card-img{width:100%;height:110px;object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:36px}
+    .card-body{padding:10px}
+    .card-title{font-size:13px;font-weight:600;color:#050505;margin-bottom:3px}
+    .card-sub{font-size:11.5px;color:#65676b;margin-bottom:8px;line-height:1.4}
+    .card-price{font-size:15px;font-weight:700;color:#185FA5;margin-bottom:8px}
+    .card-btn{width:100%;background:#fff;border:1.5px solid #0084ff;color:#0084ff;border-radius:20px;padding:7px;font-size:12px;font-weight:500;cursor:pointer;transition:background .1s}
+    .card-btn:hover{background:#e8f4ff}
+
+    /* Input bar */
+    .input-bar{background:#fff;border-top:1px solid #e4e6ea;padding:9px 12px;display:flex;align-items:center;gap:8px}
+    .input-field{flex:1;background:#f0f2f5;border:none;border-radius:20px;padding:8px 13px;font-size:13px;color:#65676b;outline:none}
+    .input-icon{font-size:22px;color:#0084ff;cursor:pointer}
+
+    /* Animations */
+    .msg{animation:fadeUp .25s ease both}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+
+<h1>LaundroBot — Messenger Flow Mockup</h1>
+
+<div class="steps">
+  <button class="step-btn active" onclick="show(0,this)">1 · Welcome</button>
+  <button class="step-btn" onclick="show(1,this)">2 · Categories</button>
+  <button class="step-btn" onclick="show(2,this)">3 · Catalog</button>
+  <button class="step-btn" onclick="show(3,this)">4 · Booking</button>
+  <button class="step-btn" onclick="show(4,this)">5 · Confirm</button>
+  <button class="step-btn" onclick="show(5,this)">6 · Done ✅</button>
+</div>
+
+<div class="phone">
+  <div class="header">
+    <span class="back">‹</span>
+    <div class="avatar">L</div>
+    <div>
+      <div class="page-name">The Laundry Project</div>
+      <div class="page-sub">Typically replies instantly</div>
+    </div>
+    <div class="hicons">📞 🎥</div>
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="input-bar">
+    <span class="input-icon">➕</span>
+    <input class="input-field" placeholder="Aa" readonly/>
+    <span class="input-icon">👍</span>
+  </div>
+</div>
+
+<p style="font-size:11px;color:#aaa">Tap the step buttons above to navigate · Scroll cards horizontally</p>
+
+<script>
+const SCREENS = [
+
+  // 0 — Welcome
+  [
+    { type:'user', text:'hi' },
+    { type:'btn-template', text:'👋 Hi! Welcome to TLP SAMPALOC!\n\nWhat would you like to do?', btns:['🛒 Book Now','📋 View Services','📦 My Orders'] },
+  ],
+
+  // 1 — Categories
+  [
+    { type:'user', text:'🛒 Book Now' },
+    { type:'bubble-bot', text:'🧺 What type of laundry service are you looking for?' },
+    { type:'quick-replies', replies:['Basic Services','Dry Cleaning','Special Items','🛍 All Services'] },
+  ],
+
+  // 2 — Catalog carousel
+  [
+    { type:'user', text:'Basic Services' },
+    { type:'bubble-bot', text:'Here are our Basic Services 👇 Tap "Book This" to order:' },
+    { type:'catalog', cards:[
+      { emoji:'🫧', title:'Machine Wash',   price:'₱80/kg',   desc:'Regular wash & spin dry cycle' },
+      { emoji:'🤲', title:'Handwash',       price:'₱100/kg',  desc:'Gentle handwashing for delicates' },
+      { emoji:'👔', title:'Ironing / Press',price:'₱50/piece',desc:'Steam press for a crisp finish' },
+    ]},
+  ],
+
+  // 3 — Booking flow
+  [
+    { type:'user', text:'🛒 Book This (Machine Wash)' },
+    { type:'bubble-bot', text:'✅ Great choice! You selected:\n\n🧺 Machine Wash\n💰 ₱80 per kg\n\nHow many kg? (e.g. 5)' },
+    { type:'user', text:'5' },
+    { type:'bubble-bot', text:'5 kg × ₱80 = ₱400.00\n\n📍 What is your pickup address?' },
+    { type:'user', text:'123 Rizal St, Sampaloc, Manila' },
+    { type:'bubble-bot', text:'📍 Pickup address saved!\n\n🗓 What date and time for pickup?\n(e.g. April 20 10:00 AM)' },
+    { type:'user', text:'April 20 10:00 AM' },
+    { type:'bubble-bot', text:'👤 What is your name?' },
+    { type:'user', text:'Juan dela Cruz' },
+  ],
+
+  // 4 — Order summary
+  [
+    { type:'btn-template', text:'📋 Order Summary\n\n🆔 Order ID: ORD-482910\n🧺 Service: Machine Wash\n⚖️ Quantity: 5 kg\n📍 Address: 123 Rizal St, Sampaloc\n🗓 Pickup: April 20 10:00 AM\n💰 Total: ₱400.00\n\nReady to confirm?', btns:['✅ Confirm Booking','❌ Cancel'] },
+  ],
+
+  // 5 — Done
+  [
+    { type:'user', text:'✅ Confirm Booking' },
+    { type:'btn-template', text:'🎉 Booking confirmed!\n\n🆔 Order ID: ORD-482910\n🗓 We\'ll pick up on: April 20 10:00 AM\n\nWe\'ll send you updates as your order progresses. Thank you! 🙏', btns:['📦 My Orders','🛒 Book Again'] },
+  ],
+
+];
+
+function render(screen) {
+  const chat = document.getElementById('chat');
+  chat.innerHTML = '';
+  screen.forEach((msg, i) => {
+    const delay = i * 120;
+    setTimeout(() => {
+      let el;
+      if (msg.type === 'user') {
+        el = document.createElement('div');
+        el.className = 'row user msg';
+        el.innerHTML = `<div class="bubble user">${msg.text}</div>`;
+      } else if (msg.type === 'bubble-bot') {
+        el = document.createElement('div');
+        el.className = 'row msg';
+        el.innerHTML = `<div class="bot-av">L</div><div class="bubble bot">${msg.text}</div>`;
+      } else if (msg.type === 'btn-template') {
+        el = document.createElement('div');
+        el.className = 'msg';
+        el.style.display = 'block';
+        el.innerHTML = `
+          <div class="btn-template">
+            <div class="bt-text">${msg.text}</div>
+            <div class="fb-btns">${msg.btns.map(b=>`<div class="fb-btn">${b}</div>`).join('')}</div>
+          </div>`;
+      } else if (msg.type === 'quick-replies') {
+        el = document.createElement('div');
+        el.className = 'msg';
+        el.innerHTML = `<div class="qr-wrap">${msg.replies.map(r=>`<div class="qr">${r}</div>`).join('')}</div>`;
+      } else if (msg.type === 'catalog') {
+        el = document.createElement('div');
+        el.className = 'msg';
+        const cards = msg.cards.map(c => `
+          <div class="card">
+            <div class="card-img" style="background:#f0f2f5">${c.emoji}</div>
+            <div class="card-body">
+              <div class="card-title">${c.title}</div>
+              <div class="card-price">${c.price}</div>
+              <div class="card-sub">${c.desc}</div>
+              <button class="card-btn">🛒 Book This</button>
+            </div>
+          </div>`).join('');
+        el.innerHTML = `<div class="catalog-wrap"><div class="catalog">${cards}</div></div>`;
+      }
+      if (el) {
+        chat.appendChild(el);
+        chat.scrollTop = chat.scrollHeight;
+      }
+    }, delay);
+  });
+}
+
+function show(idx, btn) {
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render(SCREENS[idx]);
+}
+
+// Init
+render(SCREENS[0]);
+</script>
+</body>
+</html>

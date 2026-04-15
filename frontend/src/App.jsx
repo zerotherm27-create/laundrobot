@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Overview from './pages/Overview.jsx';
 import Kanban from './pages/Kanban.jsx';
@@ -41,6 +42,23 @@ function Dashboard() {
 
 function Inner() {
   const { user } = useAuth();
+
+  // Check for password reset token in URL
+  const params = new URLSearchParams(window.location.search);
+  const resetToken = params.get('reset_token');
+  if (resetToken) {
+    return (
+      <ResetPassword
+        token={resetToken}
+        onBack={() => {
+          // Remove token from URL and go back to login
+          window.history.replaceState({}, '', window.location.pathname);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   return user ? <Dashboard /> : <Login />;
 }
 

@@ -107,6 +107,16 @@ CREATE TABLE blast_logs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- FAQs (customizable per tenant, shown in Messenger)
 CREATE TABLE IF NOT EXISTS faqs (
   id SERIAL PRIMARY KEY,

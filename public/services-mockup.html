@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Services & Categories Mockup</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;padding:28px 20px;color:#1a1a1a}
+    h1{font-size:15px;font-weight:500;color:#888;text-align:center;margin-bottom:24px;letter-spacing:.3px}
+
+    /* Page shell */
+    .shell{max-width:900px;margin:0 auto;background:#fff;border-radius:16px;border:.5px solid #e0e0d8;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+
+    /* Top bar */
+    .topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:.5px solid #ebebeb}
+    .topbar-title{font-size:16px;font-weight:600}
+    .btn-group{display:flex;gap:8px}
+    .btn{padding:7px 14px;border-radius:7px;font-size:12px;font-weight:500;cursor:pointer;border:none}
+    .btn-outline{background:#f0f0ec;color:#444;border:.5px solid #ccc}
+    .btn-primary{background:#378ADD;color:#fff}
+
+    /* Content */
+    .content{padding:20px}
+
+    /* Section */
+    .section{margin-bottom:28px}
+    .section-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:.5px solid #f0f0ec}
+    .section-title{font-size:14px;font-weight:600;color:#222}
+    .section-count{font-size:12px;color:#aaa}
+    .section-edit{font-size:11px;padding:3px 10px;border-radius:5px;background:transparent;border:.5px solid #ddd;color:#666;cursor:pointer}
+    .section-badge{font-size:10px;padding:2px 7px;border-radius:4px;background:#EAF3DE;color:#3B6D11}
+
+    /* Cards grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+
+    /* Service card */
+    .card{background:#fff;border:.5px solid #e8e8e0;border-radius:10px;overflow:hidden;transition:box-shadow .15s}
+    .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+    .card-img{width:100%;height:100px;object-fit:cover;background:#f5f5f3;display:flex;align-items:center;justify-content:center;font-size:28px}
+    .card-body{padding:.7rem}
+    .card-name{font-size:13px;font-weight:500;margin-bottom:3px}
+    .card-price{font-size:17px;font-weight:600;color:#185FA5}
+    .card-unit{font-size:11px;font-weight:400;color:#888}
+    .card-desc{font-size:11px;color:#888;margin:4px 0 8px}
+    .card-edit{width:100%;padding:5px;font-size:11px;border-radius:5px;cursor:pointer;background:transparent;border:.5px solid #ccc;color:#666}
+    .card-inactive{opacity:.5}
+
+    /* Add card */
+    .card-add{border:1.5px dashed #ddd;border-radius:10px;min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#bbb;font-size:12px;gap:4px;transition:border-color .15s}
+    .card-add:hover{border-color:#378ADD;color:#378ADD}
+    .card-add-icon{font-size:20px}
+
+    /* Modal overlay */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#fff;border-radius:12px;padding:1.5rem;width:370px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+    .modal-title{font-size:15px;font-weight:600;margin-bottom:16px}
+    .field{margin-bottom:12px}
+    .field label{font-size:12px;color:#888;display:block;margin-bottom:4px}
+    .field input,.field select{width:100%;padding:7px 10px;font-size:13px;border-radius:6px;border:.5px solid #ccc;outline:none}
+    .field select{background:#fff}
+    .modal-btns{display:flex;gap:8px;margin-top:16px}
+    .modal-btns .btn{flex:1;padding:9px}
+
+    /* Bot preview */
+    .bot-box{background:#f8f9fb;border:.5px solid #e4e6ea;border-radius:12px;padding:14px 16px;margin-top:28px}
+    .bot-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+    .bubble{display:inline-block;background:#f0f2f5;border-radius:16px;padding:10px 14px;font-size:13px;line-height:1.5;white-space:pre-line;max-width:90%;color:#050505}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .section{animation:fadeUp .3s ease both}
+    .section:nth-child(1){animation-delay:.05s}
+    .section:nth-child(2){animation-delay:.1s}
+    .section:nth-child(3){animation-delay:.15s}
+    .section:nth-child(4){animation-delay:.2s}
+  </style>
+</head>
+<body>
+<h1>Services & Categories — Dashboard Mockup</h1>
+
+<div class="shell">
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-title">Services &amp; Pricing</div>
+    <div class="btn-group">
+      <button class="btn btn-outline" onclick="document.getElementById('catModal').style.display='flex'">+ Category</button>
+      <button class="btn btn-primary" onclick="document.getElementById('svcModal').style.display='flex'">+ Service</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- SECTION 1: Basic Services -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Basic Services</span>
+        <span class="section-count">(3 services)</span>
+        <span class="section-badge">Active</span>
+        <span style="flex:1"></span>
+        <button class="section-edit">Edit category</button>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-img">🫧</div>
+          <div class="card-body">
+            <div class="card-name">Machine Wash</div>
+            <div><span class="card-price">₱80</span> <span class="card-unit">per kg</span></div>
+            <div class="card-desc">Regular wash cycle</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-img">🤲</div>
+          <div class="card-body">
+            <div class="card-name">Handwash</div>
+            <div><span class="card-price">₱100</span> <span class="card-unit">per kg</span></div>
+            <div class="card-desc">Gentle hand washing</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-img">👔</div>
+          <div class="card-body">
+            <div class="card-name">Ironing / Press</div>
+            <div><span class="card-price">₱50</span> <span class="card-unit">per piece</span></div>
+            <div class="card-desc">Steam ironing</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card-add" onclick="document.getElementById('svcModal').style.display='flex'">
+          <div class="card-add-icon">+</div>
+          <span>Add service</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Dry Cleaning -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Dry Cleaning</span>
+        <span class="section-count">(2 services)</span>
+        <span class="section-badge">Active</span>
+        <span style="flex:1"></span>
+        <button class="section-edit">Edit category</button>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-img">🧥</div>
+          <div class="card-body">
+            <div class="card-name">Formal Wear</div>
+            <div><span class="card-price">₱250</span> <span class="card-unit">per piece</span></div>
+            <div class="card-desc">Suits, barongs, gowns</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-img">👗</div>
+          <div class="card-body">
+            <div class="card-name">Casual Wear</div>
+            <div><span class="card-price">₱150</span> <span class="card-unit">per piece</span></div>
+            <div class="card-desc">Jeans, jackets</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card-add" onclick="document.getElementById('svcModal').style.display='flex'">
+          <div class="card-add-icon">+</div>
+          <span>Add service</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Special Items -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Special Items</span>
+        <span class="section-count">(2 services)</span>
+        <span class="section-badge">Active</span>
+        <span style="flex:1"></span>
+        <button class="section-edit">Edit category</button>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-img">🛏️</div>
+          <div class="card-body">
+            <div class="card-name">Bedsheets / Linens</div>
+            <div><span class="card-price">₱120</span> <span class="card-unit">per set</span></div>
+            <div class="card-desc">Bedsheets, pillowcases</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-img">🧸</div>
+          <div class="card-body">
+            <div class="card-name">Stuffed Toys</div>
+            <div><span class="card-price">₱180</span> <span class="card-unit">per piece</span></div>
+            <div class="card-desc">Large plush items</div>
+            <button class="card-edit">Edit</button>
+          </div>
+        </div>
+        <div class="card-add" onclick="document.getElementById('svcModal').style.display='flex'">
+          <div class="card-add-icon">+</div>
+          <span>Add service</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messenger bot preview -->
+    <div class="bot-box">
+      <div class="bot-label">📱 How it looks in Messenger when customer types "services"</div>
+      <div class="bubble">Our services:
+
+📂 Basic Services
+  • Machine Wash: ₱80 per kg
+  • Handwash: ₱100 per kg
+  • Ironing / Press: ₱50 per piece
+
+📂 Dry Cleaning
+  • Formal Wear: ₱250 per piece
+  • Casual Wear: ₱150 per piece
+
+📂 Special Items
+  • Bedsheets / Linens: ₱120 per set
+  • Stuffed Toys: ₱180 per piece
+
+Type "book" to order.</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Service Modal -->
+<div id="svcModal" class="modal-bg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title">Add service</div>
+    <div class="field"><label>Category</label>
+      <select><option>Basic Services</option><option>Dry Cleaning</option><option>Special Items</option></select></div>
+    <div class="field"><label>Service name</label><input placeholder="e.g. Machine Wash"/></div>
+    <div class="field"><label>Price (₱)</label><input type="number" placeholder="80"/></div>
+    <div class="field"><label>Unit</label><input placeholder="per kg"/></div>
+    <div class="field"><label>Description (optional)</label><input placeholder="Short description…"/></div>
+    <div class="field"><label>Sort order</label><input type="number" value="0"/></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="document.getElementById('svcModal').style.display='none'">Save</button>
+      <button class="btn btn-outline" onclick="document.getElementById('svcModal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Modal -->
+<div id="catModal" class="modal-bg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title">Add category</div>
+    <div class="field"><label>Category name</label><input placeholder="e.g. Basic Services"/></div>
+    <div class="field"><label>Sort order (lower = appears first)</label><input type="number" value="0"/></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <input type="checkbox" id="catAct" checked/>
+      <label for="catAct" style="font-size:13px;cursor:pointer">Active (visible to customers)</label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="document.getElementById('catModal').style.display='none'">Save</button>
+      <button class="btn btn-outline" onclick="document.getElementById('catModal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
