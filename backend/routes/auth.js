@@ -27,6 +27,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    let permissions = [];
+    try { permissions = JSON.parse(user.permissions || '[]'); } catch { }
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -34,6 +37,7 @@ router.post('/login', async (req, res) => {
         tenant_id: user.tenant_id,
         tenant_name: user.tenant_name,
         email: user.email,
+        permissions,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
@@ -45,6 +49,7 @@ router.post('/login', async (req, res) => {
       tenant_id: user.tenant_id,
       tenant_name: user.tenant_name,
       email: user.email,
+      permissions,
     });
 
   } catch (err) {

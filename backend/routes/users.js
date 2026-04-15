@@ -3,15 +3,18 @@ const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const db = require('../db');
 
-// GET all users for tenant
+// GET all users for tenant (superadmin can pass ?tenant_id=)
 router.get('/', auth, async (req, res) => {
+  const tenantId = req.user.role === 'superadmin'
+    ? (req.query.tenant_id || null)
+    : req.user.tenant_id;
   try {
     const { rows } = await db.query(
-      `SELECT id, name, email, role, permissions, created_at
+      `SELECT id, name, email, role, permissions, tenant_id, created_at
        FROM users
-       WHERE tenant_id = $1 OR (role = 'superadmin' AND $1::uuid IS NULL)
+       WHERE tenant_id = $1 OR ($1::uuid IS NULL AND role = 'superadmin')
        ORDER BY created_at DESC`,
-      [req.user.tenant_id]
+      [tenantId]
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -34,17 +37,19 @@ router.post('/', auth, async (req, res) => {
 // PUT update user
 router.put('/:id', auth, async (req, res) => {
   const { name, email, password, role, permissions } = req.body;
+  const isSuperAdmin = req.user.role === 'superadmin';
   try {
     let query, params;
+    const tenantClause = isSuperAdmin ? 'TRUE' : `tenant_id='${req.user.tenant_id}'`;
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       query = `UPDATE users SET name=$1, email=$2, password_hash=$3, role=$4, permissions=$5
-               WHERE id=$6 AND tenant_id=$7 RETURNING id, name, email, role, permissions`;
-      params = [name, email, hash, role, JSON.stringify(permissions || []), req.params.id, req.user.tenant_id];
+               WHERE id=$6 AND ${tenantClause} RETURNING id, name, email, role, permissions, tenant_id`;
+      params = [name, email, hash, role, JSON.stringify(permissions || []), req.params.id];
     } else {
       query = `UPDATE users SET name=$1, email=$2, role=$3, permissions=$4
-               WHERE id=$5 AND tenant_id=$6 RETURNING id, name, email, role, permissions`;
-      params = [name, email, role, JSON.stringify(permissions || []), req.params.id, req.user.tenant_id];
+               WHERE id=$5 AND ${tenantClause} RETURNING id, name, email, role, permissions, tenant_id`;
+      params = [name, email, role, JSON.stringify(permissions || []), req.params.id];
     }
     const { rows } = await db.query(query, params);
     res.json(rows[0]);
@@ -84,11 +89,13 @@ router.patch('/me/password', auth, async (req, res) => {
 
 // DELETE user
 router.delete('/:id', auth, async (req, res) => {
+  const isSuperAdmin = req.user.role === 'superadmin';
   try {
-    await db.query(
-      `DELETE FROM users WHERE id=$1 AND tenant_id=$2`,
-      [req.params.id, req.user.tenant_id]
-    );
+    if (isSuperAdmin) {
+      await db.query(`DELETE FROM users WHERE id=$1 AND role != 'superadmin'`, [req.params.id]);
+    } else {
+      await db.query(`DELETE FROM users WHERE id=$1 AND tenant_id=$2`, [req.params.id, req.user.tenant_id]);
+    }
     res.json({ message: 'User deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

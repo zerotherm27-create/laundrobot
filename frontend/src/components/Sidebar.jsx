@@ -11,6 +11,7 @@ const NAV = [
   { key: 'Messaging', icon: '✉',  label: 'Messaging' },
   { key: 'FAQs',      icon: '❓', label: 'FAQs' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
+  { key: 'Users',     icon: '👥', label: 'Users',   adminOnly: true },
 ];
 
 export default function Sidebar({ current, onNav, role }) {
@@ -56,7 +57,12 @@ export default function Sidebar({ current, onNav, role }) {
 
         {/* Nav */}
         <nav style={{ flex: 1 }}>
-          {NAV.map(n => (
+          {NAV.filter(n => {
+          if (n.adminOnly && role === 'staff') return false;
+          // Staff: check permissions (empty = all allowed)
+          if (role === 'staff' && user?.permissions?.length > 0) return user.permissions.includes(n.key);
+          return true;
+        }).map(n => (
             <button key={n.key} onClick={() => onNav(n.key)} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               width: '100%', padding: '9px 1.25rem', fontSize: 13,

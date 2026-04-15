@@ -1,254 +1,293 @@
-import { useEffect, useState } from 'react';
-import { getUsers, createUser, updateUser, deleteUser } from '../api.js';
-import { Avatar } from '../components/Avatar.jsx';
+import { useState, useEffect } from 'react';
+import { getUsers, createUser, updateUser, deleteUser, changePassword, getTenants } from '../api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
-const ALL_PERMISSIONS = [
-  { key: 'view_dashboard',   label: 'View Overview',       group: 'Dashboard' },
-  { key: 'view_kanban',      label: 'View Kanban Board',   group: 'Dashboard' },
-  { key: 'manage_orders',    label: 'Manage Orders',       group: 'Orders' },
-  { key: 'update_status',    label: 'Update Order Status', group: 'Orders' },
-  { key: 'delete_orders',    label: 'Delete Orders',       group: 'Orders' },
-  { key: 'view_customers',   label: 'View Customers',      group: 'Customers' },
-  { key: 'manage_services',  label: 'Manage Services',     group: 'Services' },
-  { key: 'view_reports',     label: 'View Reports',        group: 'Reports' },
-  { key: 'export_reports',   label: 'Export Reports',      group: 'Reports' },
-  { key: 'send_messages',    label: 'Send Blast Messages', group: 'Messaging' },
-  { key: 'manage_users',     label: 'Manage Users',        group: 'Users' },
+const FEATURES = [
+  { key: 'Overview',  icon: '▦',  label: 'Overview' },
+  { key: 'Kanban',    icon: '⊞',  label: 'Kanban Board' },
+  { key: 'Orders',    icon: '📋', label: 'Orders' },
+  { key: 'Customers', icon: '👤', label: 'Customers' },
+  { key: 'Services',  icon: '✦',  label: 'Services' },
+  { key: 'Messaging', icon: '✉',  label: 'Messaging' },
+  { key: 'FAQs',      icon: '❓', label: 'FAQs' },
+  { key: 'Reports',   icon: '📊', label: 'Reports' },
 ];
 
-const ROLE_PRESETS = {
-  admin: ALL_PERMISSIONS.map(p => p.key),
-  manager: ['view_dashboard','view_kanban','manage_orders','update_status','view_customers','view_reports','send_messages'],
-  staff: ['view_kanban','update_status','view_customers'],
-  viewer: ['view_dashboard','view_kanban','view_customers','view_reports'],
-};
-
-const ROLE_COLORS = {
-  superadmin: { bg: '#FAEEDA', color: '#BA7517' },
-  admin:      { bg: '#EEEDFE', color: '#534AB7' },
-  manager:    { bg: '#E6F1FB', color: '#185FA5' },
-  staff:      { bg: '#EAF3DE', color: '#3B6D11' },
-  viewer:     { bg: '#f0f0ec', color: '#888' },
-};
-
-const empty = { name: '', email: '', password: '', role: 'staff', permissions: ROLE_PRESETS.staff };
+const ALL_KEYS = FEATURES.map(f => f.key);
+const btn = (bg, color, extra = {}) => ({ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 6, border: 'none', cursor: 'pointer', background: bg, color, ...extra });
+const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff', permissions: ALL_KEYS };
 
 export default function Users() {
+  const { user: me } = useAuth();
+  const isSuperAdmin = me?.role === 'superadmin';
+  const isAdmin = me?.role === 'admin' || isSuperAdmin;
+
+  const [tenants, setTenants] = useState([]);
+  const [selectedTenant, setSelectedTenant] = useState('');
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState('');
+  const [pwSection, setPwSection] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
-    getUsers().then(r => { setUsers(r.data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    if (isSuperAdmin) {
+      getTenants().then(({ data }) => {
+        setTenants(data);
+        if (data.length > 0) setSelectedTenant(data[0].id);
+      });
+    }
+  }, [isSuperAdmin]);
 
-  function applyPreset(role) {
-    setForm(p => ({ ...p, role, permissions: ROLE_PRESETS[role] || [] }));
-  }
+  const activeTenantId = isSuperAdmin ? selectedTenant : me?.tenant_id;
 
-  function togglePermission(key) {
-    setForm(p => ({
-      ...p,
-      permissions: p.permissions.includes(key)
-        ? p.permissions.filter(k => k !== key)
-        : [...p.permissions, key],
-    }));
-  }
+  const load = async () => {
+    if (!activeTenantId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const { data } = await getUsers(activeTenantId);
+      setUsers(data.filter(u => u.role !== 'superadmin'));
+    } catch { }
+    setLoading(false);
+  };
 
-  async function handleSave() {
-    if (!form.email) return alert('Email is required.');
-    if (form.isNew && !form.password) return alert('Password is required.');
+  useEffect(() => { load(); }, [activeTenantId]);
+
+  const openAdd = () => { setForm({ ...EMPTY_FORM }); setPwSection(false); setNewPw(''); setModal('add'); };
+  const openEdit = (u) => {
+    let perms = [];
+    try { perms = typeof u.permissions === 'string' ? JSON.parse(u.permissions) : (u.permissions || []); } catch { }
+    setForm({ ...u, permissions: perms.length ? perms : ALL_KEYS, password: '' });
+    setPwSection(false); setNewPw(''); setShowPw(false);
+    setModal({ user: u });
+  };
+
+  const togglePerm = (key) => setForm(f => ({
+    ...f,
+    permissions: f.permissions.includes(key) ? f.permissions.filter(k => k !== key) : [...f.permissions, key],
+  }));
+
+  const save = async () => {
+    if (!form.email) return alert('Email is required');
+    if (modal === 'add' && !form.password) return alert('Password is required for new users');
     setSaving(true);
     try {
-      if (form.isNew) {
-        const { data } = await createUser(form);
+      const perms = form.role === 'admin' ? [] : form.permissions;
+      const payload = { name: form.name, email: form.email, role: form.role, permissions: perms, tenant_id: activeTenantId };
+      if (modal === 'add') {
+        const { data } = await createUser({ ...payload, password: form.password });
         setUsers(prev => [data, ...prev]);
       } else {
-        const { data } = await updateUser(form.id, form);
-        setUsers(prev => prev.map(u => u.id === form.id ? data : u));
+        const { data } = await updateUser(modal.user.id, payload);
+        setUsers(prev => prev.map(u => u.id === modal.user.id ? { ...u, ...data } : u));
+        if (pwSection && newPw) {
+          if (newPw.length < 6) { setSaving(false); return alert('Password must be at least 6 characters'); }
+          await changePassword(modal.user.id, newPw);
+        }
       }
-      setForm(null);
-    } catch (err) {
-      alert('Error: ' + (err.response?.data?.error || err.message));
-    } finally { setSaving(false); }
-  }
+      setModal(null);
+    } catch (e) { alert(e.response?.data?.error || e.message); }
+    setSaving(false);
+  };
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this user?')) return;
-    await deleteUser(id);
-    setUsers(prev => prev.filter(u => u.id !== id));
-    setForm(null);
-  }
+  const remove = async (u) => {
+    if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return;
+    try { await deleteUser(u.id); setUsers(prev => prev.filter(x => x.id !== u.id)); }
+    catch (e) { alert(e.response?.data?.error || e.message); }
+  };
 
-  const filtered = users.filter(u =>
-    u.email?.toLowerCase().includes(search.toLowerCase()) ||
-    u.name?.toLowerCase().includes(search.toLowerCase())
+  const activeTenantName = isSuperAdmin ? tenants.find(t => t.id === selectedTenant)?.name || '' : me?.tenant_name || '';
+
+  const permSummary = (u) => {
+    try {
+      const p = typeof u.permissions === 'string' ? JSON.parse(u.permissions) : (u.permissions || []);
+      if (u.role === 'admin' || !p.length) return { label: 'Full access', color: '#2E7D32', bg: '#E6F5E9' };
+      return { label: `${p.length}/${FEATURES.length} features`, color: '#185FA5', bg: '#E6F1FB' };
+    } catch { return { label: 'Full access', color: '#2E7D32', bg: '#E6F5E9' }; }
+  };
+
+  if (!isAdmin) return (
+    <div style={{ textAlign: 'center', padding: '80px 20px', color: '#aaa' }}>
+      <div style={{ fontSize: 40 }}>🔒</div>
+      <p style={{ marginTop: 12 }}>You don't have permission to manage users.</p>
+    </div>
   );
 
-  // Group permissions by group
-  const groups = [...new Set(ALL_PERMISSIONS.map(p => p.group))];
-
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 500 }}>Users & Permissions</h2>
-        <button onClick={() => setForm({ ...empty, isNew: true })}
-          style={{ padding: '7px 16px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
-          + Add user
-        </button>
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>👥 User Management</h2>
+          <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>Control who can access which features per branch</p>
+        </div>
+        {activeTenantId && <button onClick={openAdd} style={btn('#378ADD', '#fff')}>+ Add User</button>}
       </div>
 
-      <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name or email..."
-        style={{ padding: '6px 12px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', width: 260, marginBottom: 14 }} />
+      {isSuperAdmin && (
+        <div style={{ marginBottom: 20, padding: '12px 16px', background: '#FAEEDA', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: '#BA7517' }}>★ Branch:</span>
+          <select value={selectedTenant} onChange={e => setSelectedTenant(e.target.value)}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #E8C97A', fontSize: 13, background: '#fff', cursor: 'pointer' }}>
+            {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      )}
 
-      <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? <div style={{ padding: '2rem', color: '#aaa', fontSize: 14 }}>Loading...</div> : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: '#f5f5f3' }}>
-                {['User','Email','Role','Permissions',''].map(h => (
-                  <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#888' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(u => {
-                const rc = ROLE_COLORS[u.role] || ROLE_COLORS.viewer;
-                return (
-                  <tr key={u.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
-                    <td style={{ padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Avatar name={u.name || u.email || '?'} size={30} bg={rc.bg} color={rc.color} />
-                        <span style={{ fontWeight: 500 }}>{u.name || '—'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 12px', color: '#666' }}>{u.email}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: rc.bg, color: rc.color, fontWeight: 500 }}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {(u.permissions || []).slice(0, 3).map(p => {
-                          const perm = ALL_PERMISSIONS.find(x => x.key === p);
-                          return perm ? (
-                            <span key={p} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: '#f0f0ec', color: '#666' }}>
-                              {perm.label}
-                            </span>
-                          ) : null;
-                        })}
-                        {(u.permissions || []).length > 3 && (
-                          <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: '#f0f0ec', color: '#888' }}>
-                            +{u.permissions.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <button onClick={() => setForm({ ...u, isNew: false, password: '' })}
-                        style={{ fontSize: 12, padding: '4px 12px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#666' }}>
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: 13 }}>No users found</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Modal */}
-      {form && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 500, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 16 }}>{form.isNew ? 'Add user' : 'Edit user'}</div>
-
-            {/* Basic info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              {[['name','Full name','text'],['email','Email','email']].map(([field, label, type]) => (
-                <div key={field}>
-                  <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>{label}</label>
-                  <input type={type} value={form[field] || ''} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-                    style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
-                </div>
-              ))}
+      <div style={{ background: '#fff', border: '1px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
+        {loading ? <div style={{ padding: '2rem', color: '#aaa', fontSize: 13 }}>Loading…</div>
+          : users.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
+              <p style={{ fontSize: 14 }}>No users yet for {activeTenantName}</p>
+              <button onClick={openAdd} style={{ ...btn('#378ADD', '#fff'), marginTop: 12, padding: '9px 20px', fontSize: 13 }}>+ Add first user</button>
             </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>
-                {form.isNew ? 'Password' : 'New password (leave blank to keep current)'}
-              </label>
-              <input type="password" value={form.password || ''} onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
-            </div>
-
-            {/* Role presets */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 8 }}>Role preset</label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {Object.keys(ROLE_PRESETS).map(role => {
-                  const rc = ROLE_COLORS[role] || ROLE_COLORS.viewer;
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f7f9fc' }}>
+                  {['Name', 'Email', 'Role', 'Feature Access', ''].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, fontSize: 11, color: '#888', borderBottom: '1px solid #f0f0ec' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.map(u => {
+                  const ps = permSummary(u);
                   return (
-                    <button key={role} onClick={() => applyPreset(role)} style={{
-                      padding: '5px 12px', fontSize: 12, borderRadius: 5, cursor: 'pointer',
-                      background: form.role === role ? rc.color : rc.bg,
-                      color: form.role === role ? '#fff' : rc.color,
-                      border: '0.5px solid ' + rc.color,
-                      fontWeight: form.role === role ? 500 : 400,
-                    }}>{role}</button>
+                    <tr key={u.id} style={{ borderTop: '1px solid #f5f5f3' }}>
+                      <td style={{ padding: '12px 14px', fontWeight: 500 }}>{u.name || '—'}</td>
+                      <td style={{ padding: '12px 14px', color: '#555' }}>{u.email}</td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: u.role === 'admin' ? '#E6F1FB' : '#f0f0ec', color: u.role === 'admin' ? '#185FA5' : '#555', fontWeight: 500 }}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: ps.bg, color: ps.color, fontWeight: 500 }}>{ps.label}</span>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => openEdit(u)} style={btn('#f0f2f5', '#333')}>✏️ Edit</button>
+                          <button onClick={() => remove(u)} style={btn('#FDE8E8', '#A32D2D')}>🗑</button>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          )}
+      </div>
+
+      {/* ── MODAL ── */}
+      {modal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          onClick={e => e.target === e.currentTarget && setModal(null)}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,.18)' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>
+              {modal === 'add' ? '+ Add User' : '✏️ Edit User'}
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: 12, color: '#888' }}>Branch: {activeTenantName}</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Full Name</label>
+                <input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Maria Santos"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Email</label>
+                <input type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@email.com"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
               </div>
             </div>
 
-            {/* Permissions */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 8 }}>
-                Permissions — {form.permissions?.length || 0} selected
-              </label>
-              {groups.map(group => (
-                <div key={group} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>{group}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {ALL_PERMISSIONS.filter(p => p.group === group).map(perm => {
-                      const active = form.permissions?.includes(perm.key);
-                      return (
-                        <button key={perm.key} onClick={() => togglePermission(perm.key)} style={{
-                          padding: '4px 10px', fontSize: 12, borderRadius: 4, cursor: 'pointer',
-                          background: active ? '#378ADD' : '#f5f5f3',
-                          color: active ? '#fff' : '#666',
-                          border: '0.5px solid ' + (active ? '#378ADD' : '#ccc'),
-                        }}>{perm.label}</button>
-                      );
-                    })}
-                  </div>
+            <div style={{ display: 'grid', gridTemplateColumns: modal === 'add' ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Role</label>
+                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value, permissions: e.target.value === 'admin' ? [] : ALL_KEYS }))}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, background: '#fff' }}>
+                  <option value="admin">Admin — full access</option>
+                  <option value="staff">Staff — restricted</option>
+                </select>
+              </div>
+              {modal === 'add' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Password</label>
+                  <input type="password" value={form.password || ''} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
                 </div>
-              ))}
+              )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleSave} disabled={saving}
-                style={{ flex: 1, padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
-                {saving ? 'Saving...' : 'Save user'}
-              </button>
-              <button onClick={() => setForm(null)}
-                style={{ flex: 1, padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#666' }}>
-                Cancel
-              </button>
-              {!form.isNew && (
-                <button onClick={() => handleDelete(form.id)}
-                  style={{ padding: '8px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>
-                  Delete
+            {/* Permissions */}
+            {form.role === 'staff' && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>🔒 Feature Access</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, permissions: ALL_KEYS }))} style={btn('#E6F5E9', '#2E7D32', { fontSize: 11, padding: '3px 10px' })}>Allow All</button>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, permissions: [] }))} style={btn('#FDE8E8', '#A32D2D', { fontSize: 11, padding: '3px 10px' })}>Restrict All</button>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {FEATURES.map(feat => {
+                    const on = form.permissions.includes(feat.key);
+                    return (
+                      <div key={feat.key} onClick={() => togglePerm(feat.key)} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                        border: `1.5px solid ${on ? '#378ADD' : '#e8e8e0'}`,
+                        background: on ? '#EEF6FF' : '#fafafa',
+                      }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? '#378ADD' : '#fff', border: `1.5px solid ${on ? '#378ADD' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {on && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize: 13 }}>{feat.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? '#185FA5' : '#666' }}>{feat.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: form.permissions.length === 0 ? '#E65100' : '#aaa', marginTop: 8 }}>
+                  {form.permissions.length === 0 ? '⚠️ No features selected — user will see a blank dashboard' : `${form.permissions.length} of ${FEATURES.length} features enabled`}
+                </p>
+              </div>
+            )}
+
+            {form.role === 'admin' && (
+              <div style={{ marginBottom: 20, padding: '10px 14px', background: '#E6F5E9', borderRadius: 8, fontSize: 12, color: '#2E7D32' }}>
+                ✅ Admin role has <strong>full access</strong> to all features — no restrictions
+              </div>
+            )}
+
+            {/* Change password (edit only) */}
+            {modal !== 'add' && (
+              <div style={{ marginBottom: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                <button type="button" onClick={() => { setPwSection(s => !s); setNewPw(''); }}
+                  style={btn(pwSection ? '#f0f2f5' : '#EEF6FF', pwSection ? '#555' : '#185FA5', { width: '100%', padding: '8px' })}>
+                  🔑 {pwSection ? 'Cancel password change' : 'Change password for this user'}
                 </button>
-              )}
+                {pwSection && (
+                  <div style={{ marginTop: 10, position: 'relative' }}>
+                    <input type={showPw ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password (min. 6 characters)"
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                    <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#aaa', fontSize: 13 }}>
+                      {showPw ? '🙈' : '👁'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setModal(null)} style={btn('#f0f2f5', '#333', { flex: 1 })}>Cancel</button>
+              <button onClick={save} disabled={saving} style={btn('#378ADD', '#fff', { flex: 2, opacity: saving ? 0.6 : 1 })}>
+                {saving ? 'Saving…' : modal === 'add' ? 'Create User' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ import Messaging from './pages/Messaging.jsx';
 import SuperAdmin from './pages/SuperAdmin.jsx';
 import Reports from './pages/Reports.jsx';
 import FAQs from './pages/FAQs.jsx';
+import Users from './pages/Users.jsx';
 
 const PAGES = {
   Overview,
@@ -21,6 +22,7 @@ const PAGES = {
   Services,
   Messaging,
   FAQs,
+  Users,
   Reports,
   SuperAdmin,
 };

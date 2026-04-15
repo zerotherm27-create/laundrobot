@@ -54,7 +54,7 @@ export const createFaq = data => api.post('/faqs', data);
 export const updateFaq = (id, data) => api.put(`/faqs/${id}`, data);
 export const deleteFaq = (id, tenantId) => api.delete(`/faqs/${id}`, { params: tenantId ? { tenant_id: tenantId } : {} });
 
-export const getUsers = () => api.get('/users');
+export const getUsers = (tenantId) => api.get('/users', { params: tenantId ? { tenant_id: tenantId } : {} });
 export const createUser = data => api.post('/users', data);
 export const updateUser = (id, data) => api.put(`/users/${id}`, data);
 export const deleteUser = id => api.delete(`/users/${id}`);
