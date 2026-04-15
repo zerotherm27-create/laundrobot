@@ -7,7 +7,7 @@ const NAV = [
   { key: 'Customers', icon: '👤', label: 'Customers' },
   { key: 'Services',  icon: '✦',  label: 'Services' },
   { key: 'Messaging', icon: '✉',  label: 'Messaging' },
-  { key: 'FAQs',      icon: '❓', label: 'FAQs',  tenantOnly: true },
+  { key: 'FAQs',      icon: '❓', label: 'FAQs' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
 ];
 
@@ -33,7 +33,7 @@ export default function Sidebar({ current, onNav, role }) {
 
       {/* Nav */}
       <nav style={{ flex: 1 }}>
-        {NAV.filter(n => !(n.tenantOnly && role === 'superadmin')).map(n => (
+        {NAV.map(n => (
           <button key={n.key} onClick={() => onNav(n.key)} style={{
             display: 'flex', alignItems: 'center', gap: 10,
             width: '100%', padding: '9px 1.25rem', fontSize: 13,

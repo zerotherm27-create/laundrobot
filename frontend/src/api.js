@@ -49,10 +49,10 @@ export const sendBlast = (message, filter_status) =>
   api.post('/messaging/blast', { message, filter_status });
 export const getBlastHistory = () => api.get('/messaging/blast/history');
 
-export const getFaqs = () => api.get('/faqs');
+export const getFaqs = (tenantId) => api.get('/faqs', { params: tenantId ? { tenant_id: tenantId } : {} });
 export const createFaq = data => api.post('/faqs', data);
 export const updateFaq = (id, data) => api.put(`/faqs/${id}`, data);
-export const deleteFaq = id => api.delete(`/faqs/${id}`);
+export const deleteFaq = (id, tenantId) => api.delete(`/faqs/${id}`, { params: tenantId ? { tenant_id: tenantId } : {} });
 
 export const getUsers = () => api.get('/users');
 export const createUser = data => api.post('/users', data);
