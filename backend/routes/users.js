@@ -51,6 +51,37 @@ router.put('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PATCH change password for a specific user (admin/superadmin only)
+router.patch('/:id/password', auth, async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await db.query(
+      `UPDATE users SET password_hash=$1 WHERE id=$2 AND (tenant_id=$3 OR $4 = 'superadmin') RETURNING id, email`,
+      [hash, req.params.id, req.user.tenant_id, req.user.role]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH change own password (any logged-in user)
+router.patch('/me/password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both current and new password are required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  try {
+    const { rows } = await db.query('SELECT password_hash FROM users WHERE id=$1', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const valid = await bcrypt.compare(currentPassword, rows[0].password_hash);
+    if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
+    const hash = await bcrypt.hash(newPassword, 10);
+    await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.user.id]);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DELETE user
 router.delete('/:id', auth, async (req, res) => {
   try {

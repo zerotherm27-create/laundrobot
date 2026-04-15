@@ -58,5 +58,7 @@ export const getUsers = () => api.get('/users');
 export const createUser = data => api.post('/users', data);
 export const updateUser = (id, data) => api.put(`/users/${id}`, data);
 export const deleteUser = id => api.delete(`/users/${id}`);
+export const changePassword = (id, password) => api.patch(`/users/${id}/password`, { password });
+export const changeMyPassword = (currentPassword, newPassword) => api.patch('/users/me/password', { currentPassword, newPassword });
 
 export default api;
