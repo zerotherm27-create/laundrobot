@@ -1,0 +1,524 @@
+import { useEffect, useState } from 'react';
+import {
+  getPublicTenantInfo, getPublicCategories, getPublicServices,
+  getPublicDeliveryZones, createPublicOrder,
+} from '../api.js';
+
+const INPUT = {
+  width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontSize: 14,
+  borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff',
+  fontFamily: 'inherit', color: '#0D1117', outline: 'none',
+  transition: 'border-color .15s, box-shadow .15s',
+};
+const LABEL = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 };
+
+function Field({ label, required, children }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label style={LABEL}>{label}{required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}</label>
+      {children}
+    </div>
+  );
+}
+
+export default function BookingForm({ tenantId }) {
+  const [step, setStep]           = useState(1); // 1 | 2 | 3 | 'success'
+  const [tenant, setTenant]       = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [services, setServices]   = useState([]);
+  const [zones, setZones]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [notFound, setNotFound]   = useState(false);
+
+  // Step 1 state
+  const [activeCat, setActiveCat]       = useState(null);
+  const [selectedSvc, setSelectedSvc]   = useState(null);
+  const [fieldValues, setFieldValues]   = useState({});
+  const [weight, setWeight]             = useState('');
+
+  // Step 2 state
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' });
+
+  // Result
+  const [submitting, setSubmitting] = useState(false);
+  const [submitErr,  setSubmitErr]  = useState('');
+  const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
+
+  useEffect(() => {
+    Promise.all([
+      getPublicTenantInfo(tenantId),
+      getPublicCategories(tenantId),
+      getPublicServices(tenantId),
+      getPublicDeliveryZones(tenantId),
+    ]).then(([t, cats, svcs, z]) => {
+      setTenant(t.data);
+      setCategories(cats.data);
+      setServices(svcs.data);
+      setZones(z.data);
+      if (cats.data.length > 0) setActiveCat(cats.data[0].id);
+    }).catch(e => {
+      if (e.response?.status === 404) setNotFound(true);
+    }).finally(() => setLoading(false));
+  }, [tenantId]);
+
+  const visibleServices = activeCat
+    ? services.filter(s => s.category_id === activeCat)
+    : services;
+
+  const isPerKg = selectedSvc?.unit?.toLowerCase().includes('kg');
+  const w = parseFloat(weight) || 0;
+  const subtotal = selectedSvc
+    ? (isPerKg && w > 0 ? Number(selectedSvc.price) * w : Number(selectedSvc.price))
+    : 0;
+  const selectedZone = zones.find(z => z.id === Number(form.delivery_zone_id)) || null;
+  const deliveryFee = selectedZone ? Number(selectedZone.fee) : 0;
+  const total = subtotal + deliveryFee;
+
+  function step1Valid() {
+    if (!selectedSvc) return false;
+    if (isPerKg && (!weight || parseFloat(weight) <= 0)) return false;
+    for (const f of (selectedSvc.custom_fields || [])) {
+      if (f.required && f.label?.toLowerCase().includes('weight')) {
+        if (!weight || parseFloat(weight) <= 0) return false;
+      } else if (f.required && !fieldValues[f.id]) return false;
+    }
+    return true;
+  }
+
+  function step2Valid() {
+    return form.name.trim() && form.phone.trim() && form.address.trim() && form.pickup_date;
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true); setSubmitErr('');
+    try {
+      const customFields = [];
+      if (isPerKg && weight) customFields.push({ label: 'Weight (kg)', value: weight });
+      for (const f of (selectedSvc.custom_fields || [])) {
+        if (!f.label?.toLowerCase().includes('weight') && fieldValues[f.id] !== undefined) {
+          customFields.push({ label: f.label, value: fieldValues[f.id] });
+        }
+      }
+      const { data } = await createPublicOrder(tenantId, {
+        service_id: selectedSvc.id,
+        custom_fields: customFields,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        address: form.address.trim(),
+        pickup_date: form.pickup_date,
+        delivery_zone_id: form.delivery_zone_id ? Number(form.delivery_zone_id) : undefined,
+        notes: form.notes.trim() || undefined,
+      });
+      setResult(data);
+      setStep('success');
+    } catch (e) {
+      setSubmitErr(e.response?.data?.error || 'Something went wrong. Please try again.');
+    } finally { setSubmitting(false); }
+  }
+
+  // ─── Loading ───────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E6F1FB', borderTopColor: '#378ADD', animation: 'spin .7s linear infinite', margin: '0 auto 12px' }} />
+        <div style={{ color: '#374151', fontSize: 14 }}>Loading…</div>
+      </div>
+    </div>
+  );
+
+  if (notFound) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
+      <div style={{ textAlign: 'center', maxWidth: 360, padding: 32 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Shop not found</div>
+        <div style={{ color: '#374151', fontSize: 14 }}>This booking link is invalid or the shop is no longer active.</div>
+      </div>
+    </div>
+  );
+
+  const cardStyle = { background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '1.75rem', maxWidth: 620, margin: '0 auto' };
+
+  // ─── Success ───────────────────────────────────────────────────────────────
+  if (step === 'success') return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #E6F1FB 0%, #F7F7F5 60%)', padding: '2rem 1rem' }}>
+      <div style={cardStyle}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 52, marginBottom: 8 }}>🎉</div>
+          <div style={{ fontWeight: 700, fontSize: 20, color: '#111827', marginBottom: 6 }}>Order Confirmed!</div>
+          <div style={{ color: '#374151', fontSize: 14 }}>We'll be in touch to confirm your pickup details.</div>
+        </div>
+
+        <div style={{ background: '#F7F7F5', borderRadius: 12, padding: '1.25rem', marginBottom: 20 }}>
+          {[
+            ['Order ID', result.order_id],
+            ['Service', result.service_name],
+            ['Total', `₱${Number(result.total).toLocaleString()}`],
+          ].map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 14 }}>
+              <span style={{ color: '#374151' }}>{k}</span>
+              <span style={{ fontWeight: 600 }}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        {result.payment_url && (
+          <a href={result.payment_url} target="_blank" rel="noreferrer"
+            style={{ display: 'block', textAlign: 'center', padding: '13px', borderRadius: 10, background: '#378ADD', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12 }}>
+            💳 Pay Now
+          </a>
+        )}
+        {!result.payment_url && (
+          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '12px 16px', color: '#3B6D11', fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
+            ✅ We'll contact you with payment details.
+          </div>
+        )}
+        <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
+          style={{ width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
+          Book Another Order
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #E6F1FB 0%, #F7F7F5 60%)', padding: '2rem 1rem', fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* ── Header ── */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        {tenant?.logo_url && !tenant.logo_url.startsWith('data:') && (
+          <img src={tenant.logo_url} alt={tenant.name} style={{ width: 52, height: 52, borderRadius: 14, objectFit: 'cover', marginBottom: 8, boxShadow: '0 2px 8px rgba(0,0,0,.12)' }} />
+        )}
+        <div style={{ fontWeight: 700, fontSize: 20, color: '#111827' }}>{tenant?.name}</div>
+        <div style={{ fontSize: 13, color: '#374151', marginTop: 3 }}>Online Booking</div>
+      </div>
+
+      {/* ── Progress bar ── */}
+      <div style={{ maxWidth: 620, margin: '0 auto 20px', display: 'flex', alignItems: 'center', gap: 0 }}>
+        {[{ n: 1, label: 'Service' }, { n: 2, label: 'Details' }, { n: 3, label: 'Review' }].map(({ n, label }, i) => (
+          <div key={n} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 'none' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: step > n ? 'pointer' : 'default' }}
+              onClick={() => { if (step > n) setStep(n); }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: 13,
+                background: step > n ? '#378ADD' : step === n ? '#378ADD' : '#E2E8F0',
+                color: step >= n ? '#fff' : '#374151',
+                transition: 'all .2s',
+              }}>
+                {step > n ? '✓' : n}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, marginTop: 4, color: step >= n ? '#378ADD' : '#374151', textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
+            </div>
+            {i < 2 && <div style={{ flex: 1, height: 2, background: step > n ? '#378ADD' : '#E2E8F0', margin: '0 6px 16px', transition: 'all .2s' }} />}
+          </div>
+        ))}
+      </div>
+
+      <div style={cardStyle}>
+
+        {/* ════════════ STEP 1 – SELECT SERVICE ════════════ */}
+        {step === 1 && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Choose a Service</div>
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Select the laundry service you need.</div>
+
+            {/* Category tabs */}
+            {categories.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                <button onClick={() => setActiveCat(null)}
+                  style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                    background: activeCat === null ? '#378ADD' : '#F0F0EC', color: activeCat === null ? '#fff' : '#374151', border: 'none' }}>
+                  All
+                </button>
+                {categories.map(c => (
+                  <button key={c.id} onClick={() => setActiveCat(c.id)}
+                    style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      background: activeCat === c.id ? '#378ADD' : '#F0F0EC', color: activeCat === c.id ? '#fff' : '#374151', border: 'none' }}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Service cards */}
+            {visibleServices.length === 0 ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No services available in this category.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {visibleServices.map(svc => {
+                  const selected = selectedSvc?.id === svc.id;
+                  return (
+                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); }}
+                      style={{
+                        padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
+                        border: selected ? '2px solid #378ADD' : '1.5px solid #E2E8F0',
+                        background: selected ? '#F0F8FF' : '#fff',
+                        transition: 'all .15s',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+                      }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3, color: '#111827' }}>{svc.name}</div>
+                        {svc.description && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>{svc.description}</div>}
+                        {svc.category_name && !activeCat && (
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#E6F1FB', color: '#185FA5', fontWeight: 600, marginTop: 5, display: 'inline-block' }}>
+                            {svc.category_name}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#378ADD' }}>₱{Number(svc.price).toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: '#374151' }}>{svc.unit || 'flat'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Custom fields / weight for selected service */}
+            {selectedSvc && (
+              <div style={{ marginTop: 20, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E6F1FB' }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#185FA5' }}>
+                  📝 Service Details — {selectedSvc.name}
+                </div>
+
+                {/* Weight field for per-kg services */}
+                {isPerKg && (
+                  <Field label="Estimated Weight (kg)" required>
+                    <input
+                      style={INPUT} type="number" min="0.1" step="0.1"
+                      value={weight} onChange={e => setWeight(e.target.value)}
+                      placeholder="e.g. 5"
+                      onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </Field>
+                )}
+
+                {/* Other custom fields */}
+                {(selectedSvc.custom_fields || []).filter(f => !f.label?.toLowerCase().includes('weight') || !isPerKg).map(f => (
+                  <Field key={f.id} label={f.label} required={f.required}>
+                    {f.field_type === 'select' ? (
+                      <select style={INPUT} value={fieldValues[f.id] || ''}
+                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}>
+                        <option value="">{f.placeholder || 'Select…'}</option>
+                        {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input style={INPUT} type={f.field_type === 'number' ? 'number' : 'text'}
+                        value={fieldValues[f.id] || ''}
+                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
+                        placeholder={f.placeholder || ''}
+                        onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                        onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                      />
+                    )}
+                  </Field>
+                ))}
+
+                {/* Price estimate */}
+                {subtotal > 0 && (
+                  <div style={{ marginTop: 8, padding: '8px 12px', background: '#E6F1FB', borderRadius: 8, fontSize: 13, color: '#185FA5', fontWeight: 600 }}>
+                    Service estimate: ₱{subtotal.toLocaleString()}
+                    {isPerKg && w > 0 && <span style={{ fontWeight: 400, color: '#378ADD' }}> ({w} kg × ₱{Number(selectedSvc.price).toLocaleString()}/kg)</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button onClick={() => setStep(2)} disabled={!step1Valid()}
+              style={{ width: '100%', marginTop: 20, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: step1Valid() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                background: step1Valid() ? '#378ADD' : '#E2E8F0', color: step1Valid() ? '#fff' : '#374151', transition: 'all .15s' }}>
+              Continue to Details →
+            </button>
+          </div>
+        )}
+
+        {/* ════════════ STEP 2 – CUSTOMER DETAILS ════════════ */}
+        {step === 2 && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Your Details</div>
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Tell us how to reach you and where to pick up.</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+              <Field label="Full Name" required>
+                <input style={INPUT} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Maria Santos"
+                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                />
+              </Field>
+              <Field label="Phone Number" required>
+                <input style={INPUT} type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="09XX XXX XXXX"
+                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                />
+              </Field>
+            </div>
+
+            <Field label="Email Address">
+              <input style={INPUT} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="maria@gmail.com (for receipt)"
+                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+              />
+            </Field>
+
+            <Field label="Pickup Address" required>
+              <textarea style={{ ...INPUT, resize: 'vertical', minHeight: 70 }} value={form.address}
+                onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
+                placeholder="Street, Barangay, City"
+                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+              />
+            </Field>
+
+            <Field label="Preferred Pickup Date & Time" required>
+              <input style={INPUT} type="datetime-local" value={form.pickup_date}
+                onChange={e => setForm(p => ({ ...p, pickup_date: e.target.value }))}
+                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+              />
+            </Field>
+
+            {zones.length > 0 && (
+              <Field label="Delivery Zone">
+                <select style={INPUT} value={form.delivery_zone_id}
+                  onChange={e => setForm(p => ({ ...p, delivery_zone_id: e.target.value }))}>
+                  <option value="">Select your area (optional)</option>
+                  {zones.map(z => (
+                    <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()} delivery fee</option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
+            <Field label="Special Instructions">
+              <textarea style={{ ...INPUT, resize: 'vertical', minHeight: 70 }} value={form.notes}
+                onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                placeholder="Any notes for us (fabric care, allergies, etc.)"
+                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+              />
+            </Field>
+
+            {/* Price summary */}
+            <div style={{ background: '#F7F9FD', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : ''}</span>
+                <span style={{ fontWeight: 600 }}>₱{subtotal.toLocaleString()}</span>
+              </div>
+              {deliveryFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span style={{ color: '#374151' }}>Delivery — {selectedZone?.name}</span>
+                  <span style={{ fontWeight: 600 }}>₱{deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, borderTop: '1px solid #E2E8F0', paddingTop: 8, marginTop: 4 }}>
+                <span style={{ fontWeight: 700 }}>Total</span>
+                <span style={{ fontWeight: 700, color: '#378ADD', fontSize: 16 }}>₱{total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setStep(1)}
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
+                ← Back
+              </button>
+              <button onClick={() => setStep(3)} disabled={!step2Valid()}
+                style={{ flex: 2, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: step2Valid() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  background: step2Valid() ? '#378ADD' : '#E2E8F0', color: step2Valid() ? '#fff' : '#374151', transition: 'all .15s' }}>
+                Review Order →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ════════════ STEP 3 – REVIEW & CONFIRM ════════════ */}
+        {step === 3 && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Review Your Order</div>
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Please confirm everything looks right.</div>
+
+            <div style={{ background: '#F7F9FD', borderRadius: 14, padding: '16px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.05em' }}>Order Summary</div>
+
+              {[
+                ['Service', selectedSvc?.name],
+                isPerKg && w > 0 ? ['Estimated Weight', `${w} kg`] : null,
+                ['Pickup', form.pickup_date ? new Date(form.pickup_date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
+                ['Address', form.address],
+                selectedZone ? ['Delivery Zone', selectedZone.name] : null,
+              ].filter(Boolean).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px solid #E8E8E0' }}>
+                  <span style={{ color: '#374151', flexShrink: 0, marginRight: 12 }}>{k}</span>
+                  <span style={{ fontWeight: 500, textAlign: 'right' }}>{v}</span>
+                </div>
+              ))}
+
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginTop: 16, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>Customer</div>
+              {[
+                ['Name', form.name],
+                ['Phone', form.phone],
+                form.email ? ['Email', form.email] : null,
+                form.notes ? ['Notes', form.notes] : null,
+              ].filter(Boolean).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px solid #E8E8E0' }}>
+                  <span style={{ color: '#374151', flexShrink: 0, marginRight: 12 }}>{k}</span>
+                  <span style={{ fontWeight: 500, textAlign: 'right' }}>{v}</span>
+                </div>
+              ))}
+
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginTop: 16, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>Payment</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
+                <span style={{ color: '#374151' }}>Service</span>
+                <span style={{ fontWeight: 500 }}>₱{subtotal.toLocaleString()}</span>
+              </div>
+              {deliveryFee > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
+                  <span style={{ color: '#374151' }}>Delivery</span>
+                  <span style={{ fontWeight: 500 }}>₱{deliveryFee.toLocaleString()}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px', borderTop: '2px solid #E2E8F0', marginTop: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Total</span>
+                <span style={{ fontWeight: 700, fontSize: 18, color: '#378ADD' }}>₱{total.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {submitErr && (
+              <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D', fontSize: 13 }}>
+                {submitErr}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setStep(2)}
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
+                ← Back
+              </button>
+              <button onClick={handleSubmit} disabled={submitting}
+                style={{ flex: 2, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  background: submitting ? '#6B8EAD' : '#378ADD', color: '#fff', transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {submitting
+                  ? <><span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Placing Order…</>
+                  : '✅ Confirm & Place Order'}
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#374151' }}>
+        Powered by <strong>LaundroBot</strong>
+      </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+      `}</style>
+    </div>
+  );
+}

@@ -10,6 +10,7 @@ const NAV = [
   { key: 'Services',  icon: '✦',  label: 'Services' },
   { key: 'Messaging', icon: '✉',  label: 'Messaging' },
   { key: 'FAQs',      icon: '❓', label: 'FAQs' },
+  { key: 'DeliveryZones', icon: '📍', label: 'Delivery Zones' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
   { key: 'Users',     icon: '👥', label: 'Users', adminOnly: true },
 ];
@@ -54,17 +55,16 @@ export default function Sidebar({ current, onNav, role }) {
         {/* ── Logo ── */}
         <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '0.5px solid #F0F0EC' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
+            <img src="/logo.png" alt="LaundroBot" style={{
               width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg, #378ADD, #2568BC)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 18,
-              boxShadow: '0 2px 8px rgba(55,138,221,.3)',
+              objectFit: 'cover', objectPosition: 'center top',
               flexShrink: 0,
-            }}>L</div>
+              boxShadow: '0 2px 8px rgba(55,138,221,.3)',
+              background: '#fff',
+            }} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', letterSpacing: '-.2px' }}>LaundroBot</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
+              <div style={{ fontSize: 11, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
                 {user?.tenant_name || 'Super Admin'}
               </div>
             </div>
@@ -73,7 +73,7 @@ export default function Sidebar({ current, onNav, role }) {
 
         {/* ── Nav ── */}
         <nav style={{ flex: 1, padding: '8px 0' }}>
-          <div style={{ padding: '4px 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#9CA3AF', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          <div style={{ padding: '4px 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#374151', letterSpacing: '.08em', textTransform: 'uppercase' }}>
             Navigation
           </div>
 
@@ -91,7 +91,7 @@ export default function Sidebar({ current, onNav, role }) {
           {role === 'superadmin' && (
             <>
               <div style={{ margin: '10px 1.25rem 6px', borderTop: '0.5px solid #F0F0EC' }} />
-              <div style={{ padding: '0 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#9CA3AF', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+              <div style={{ padding: '0 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#374151', letterSpacing: '.08em', textTransform: 'uppercase' }}>
                 Administration
               </div>
               <button
@@ -124,14 +124,14 @@ export default function Sidebar({ current, onNav, role }) {
           </div>
 
           {/* Email */}
-          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {user?.email}
           </div>
 
           {/* Change password */}
           <button onClick={() => { setPwOpen(true); setMsg(''); }}
             style={{
-              width: '100%', fontSize: 11, color: '#6B7280', background: '#F7F7F5',
+              width: '100%', fontSize: 11, color: '#374151', background: '#F7F7F5',
               border: '0.5px solid #E8E8E0', borderRadius: 7, padding: '6px 0',
               cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
               transition: 'background .15s, color .15s',
@@ -148,7 +148,7 @@ export default function Sidebar({ current, onNav, role }) {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setPwOpen(false)}>
           <div className="modal-card" style={{ width: 380, padding: '1.75rem' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🔑 Change My Password</div>
-            <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 22 }}>{user?.email}</p>
+            <p style={{ fontSize: 12, color: '#374151', marginBottom: 22 }}>{user?.email}</p>
 
             <form onSubmit={handleChangePw}>
               {[['current', 'Current Password'], ['newPw', 'New Password'], ['confirm', 'Confirm New Password']].map(([f, label]) => (
@@ -160,7 +160,7 @@ export default function Sidebar({ current, onNav, role }) {
                       style={{ width: '100%', boxSizing: 'border-box', padding: '9px 36px 9px 12px', borderRadius: 8, border: '0.5px solid #D1D5DB', fontSize: 13, fontFamily: 'inherit' }} />
                     {f === 'confirm' && (
                       <span onClick={() => setShow(s => !s)}
-                        style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#9CA3AF' }}>
+                        style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
                         {show ? '🙈' : '👁'}
                       </span>
                     )}

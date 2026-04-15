@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getOrders } from '../api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
 
@@ -13,8 +14,18 @@ const STAT_META = [
 ];
 
 export default function Overview() {
+  const { user } = useAuth();
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(true);
+  const [copied,  setCopied]  = useState(false);
+
+  const bookingUrl = user?.tenant_id
+    ? `${window.location.origin}/book/${user.tenant_id}`
+    : null;
+
+  function copyLink() {
+    navigator.clipboard.writeText(bookingUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
 
   useEffect(() => {
     getOrders()
@@ -40,11 +51,31 @@ export default function Overview() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px' }}>Overview</h1>
-          <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+          <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>
             {new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
       </div>
+
+      {/* ── Booking link banner ── */}
+      {bookingUrl && (
+        <div style={{ background: 'linear-gradient(135deg,#378ADD,#2568BC)', borderRadius: 14, padding: '1.1rem 1.4rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', marginBottom: 3 }}>🌐 Online Booking Link</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bookingUrl}</div>
+          </div>
+          <button onClick={copyLink}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)', background: copied ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.15)',
+              color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all .15s' }}>
+            {copied ? '✓ Copied!' : 'Copy Link'}
+          </button>
+          <a href={bookingUrl} target="_blank" rel="noreferrer"
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)',
+              color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
+            Preview ↗
+          </a>
+        </div>
+      )}
 
       {/* ── Stat cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: '1.75rem' }}>
@@ -53,7 +84,7 @@ export default function Overview() {
           return (
             <div key={s.label} className="stat-card" style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#6B7280' }}>{s.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#374151' }}>{s.label}</span>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
                   {meta.icon}
                 </div>
@@ -80,9 +111,9 @@ export default function Overview() {
             return (
               <div key={s} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
-                  <span style={{ color: '#6B7280', fontWeight: 500 }}>{s}</span>
+                  <span style={{ color: '#374151', fontWeight: 500 }}>{s}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>{pct}%</span>
+                    <span style={{ fontSize: 11, color: '#374151' }}>{pct}%</span>
                     <span style={{ fontWeight: 600, color: '#111827' }}>{count}</span>
                   </div>
                 </div>
@@ -99,7 +130,7 @@ export default function Overview() {
         <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Recent orders</div>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>Last {Math.min(orders.length, 7)}</span>
+            <span style={{ fontSize: 11, color: '#374151' }}>Last {Math.min(orders.length, 7)}</span>
           </div>
 
           {loading ? (
@@ -107,7 +138,7 @@ export default function Overview() {
               {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 38 }} />)}
             </div>
           ) : orders.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9CA3AF' }}>
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#374151' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
               <div style={{ fontSize: 13 }}>No orders yet</div>
             </div>
@@ -120,7 +151,7 @@ export default function Overview() {
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {o.customer_name || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>{o.service_name}</div>
+                    <div style={{ fontSize: 11, color: '#374151' }}>{o.service_name}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 3 }}>₱{Number(o.price).toLocaleString()}</div>

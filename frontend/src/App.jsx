@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
+import BookingForm from './pages/BookingForm.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Overview from './pages/Overview.jsx';
 import Kanban from './pages/Kanban.jsx';
@@ -13,10 +14,11 @@ import SuperAdmin from './pages/SuperAdmin.jsx';
 import Reports from './pages/Reports.jsx';
 import FAQs from './pages/FAQs.jsx';
 import Users from './pages/Users.jsx';
+import DeliveryZones from './pages/DeliveryZones.jsx';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
-  Messaging, FAQs, Users, Reports, SuperAdmin,
+  Messaging, FAQs, Users, Reports, SuperAdmin, DeliveryZones,
 };
 
 const PAGE_TITLES = {
@@ -29,7 +31,8 @@ const PAGE_TITLES = {
   FAQs:       'FAQs',
   Users:      'User Management',
   Reports:    'Reports',
-  SuperAdmin: 'Super Admin',
+  SuperAdmin:     'Super Admin',
+  DeliveryZones:  'Delivery Zones',
 };
 
 function Dashboard() {
@@ -58,6 +61,10 @@ function Dashboard() {
 
 function Inner() {
   const { user } = useAuth();
+
+  // Public booking form — /book/:tenantId
+  const bookMatch = window.location.pathname.match(/^\/book\/([a-f0-9-]{36})$/i);
+  if (bookMatch) return <BookingForm tenantId={bookMatch[1]} />;
 
   const params     = new URLSearchParams(window.location.search);
   const resetToken = params.get('reset_token');

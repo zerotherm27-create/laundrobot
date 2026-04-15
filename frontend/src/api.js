@@ -63,4 +63,20 @@ export const deleteUser = id => api.delete(`/users/${id}`);
 export const changePassword = (id, password) => api.patch(`/users/${id}/password`, { password });
 export const changeMyPassword = (currentPassword, newPassword) => api.patch('/users/me/password', { currentPassword, newPassword });
 
+export const getDeliveryZones   = ()         => api.get('/delivery-zones');
+export const createDeliveryZone = data       => api.post('/delivery-zones', data);
+export const updateDeliveryZone = (id, data) => api.put(`/delivery-zones/${id}`, data);
+export const deleteDeliveryZone = id         => api.delete(`/delivery-zones/${id}`);
+
+// Public booking API (no auth required)
+const PUBLIC_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const pub    = url        => axios.get(`${PUBLIC_BASE}${url}`);
+const pubPost = (url, d)  => axios.post(`${PUBLIC_BASE}${url}`, d);
+
+export const getPublicTenantInfo   = id     => pub(`/public/${id}/info`);
+export const getPublicCategories   = id     => pub(`/public/${id}/categories`);
+export const getPublicServices     = id     => pub(`/public/${id}/services`);
+export const getPublicDeliveryZones = id    => pub(`/public/${id}/delivery-zones`);
+export const createPublicOrder     = (id, data) => pubPost(`/public/${id}/orders`, data);
+
 export default api;

@@ -3,23 +3,234 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LaundroBot Dashboard</title>
+
+    <!-- ── Primary SEO ── -->
+    <title>LaundroBot — Laundry Business Management Dashboard</title>
+    <meta name="description" content="LaundroBot is a modern laundry business management platform with Facebook Messenger order booking, real-time order tracking, Kanban board, and multi-branch support for laundry businesses in the Philippines." />
+    <meta name="keywords" content="laundry management, laundry business software, laundry POS, Facebook Messenger booking, laundry order tracking, Philippines" />
+    <meta name="author" content="LaundroBot" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://laundrobot.vercel.app" />
+
+    <!-- ── Open Graph / Facebook ── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://laundrobot.vercel.app" />
+    <meta property="og:title" content="LaundroBot — Laundry Business Management" />
+    <meta property="og:description" content="Manage your laundry business smarter. Accept Messenger orders, track pickups, and grow with LaundroBot." />
+    <meta property="og:image" content="https://laundrobot.vercel.app/og-image.png" />
+    <meta property="og:site_name" content="LaundroBot" />
+    <meta property="og:locale" content="en_PH" />
+
+    <!-- ── Twitter Card ── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LaundroBot — Laundry Business Management" />
+    <meta name="twitter:description" content="Accept Messenger orders, track pickups & deliveries, manage multiple branches." />
+    <meta name="twitter:image" content="https://laundrobot.vercel.app/og-image.png" />
+
+    <!-- ── Favicon ── -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+
+    <!-- ── Fonts ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      :root {
+        --primary:        #378ADD;
+        --primary-dark:   #2568BC;
+        --primary-light:  #E6F1FB;
+        --success:        #1D9E75;
+        --success-bg:     #EAF3DE;
+        --warning:        #BA7517;
+        --warning-bg:     #FDF3E3;
+        --danger:         #A32D2D;
+        --danger-bg:      #FCEBEB;
+        --purple:         #7F77DD;
+        --purple-bg:      #F0EFFC;
+
+        --bg:             #F7F7F5;
+        --card:           #FFFFFF;
+        --border:         #E8E8E0;
+        --border-subtle:  #F0F0EC;
+
+        --text:           #0D1117;
+        --text-2:         #374151;
+        --text-3:         #374151;
+
+        --radius-sm:      6px;
+        --radius:         10px;
+        --radius-lg:      14px;
+        --radius-xl:      20px;
+
+        --shadow-xs:  0 1px 2px rgba(0,0,0,.05);
+        --shadow-sm:  0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+        --shadow:     0 4px 14px rgba(0,0,0,.08);
+        --shadow-lg:  0 12px 40px rgba(0,0,0,.12);
+        --shadow-xl:  0 24px 64px rgba(0,0,0,.16);
+
+        --sidebar-w: 230px;
+        --transition: 0.15s ease;
       }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html { scroll-behavior: smooth; }
+
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f5f5f3;
-        color: #1a1a1a;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.6;
+        letter-spacing: -0.01em;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
       }
-      #root {
-        min-height: 100vh;
+
+      input, select, textarea, button { font-family: inherit; }
+
+      /* ── Focus states ── */
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(55,138,221,.15) !important;
       }
+      button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+      /* ── Scrollbar ── */
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #D4D4D0; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #AAAAA0; }
+
+      /* ── Transitions ── */
+      button, a { transition: all var(--transition); }
+
+      /* ── Sidebar nav items ── */
+      .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 9px 1.25rem; font-size: 13px;
+        background: transparent; border: none; cursor: pointer;
+        text-align: left; font-weight: 400; color: var(--text-2);
+        border-left: 3px solid transparent;
+        transition: background var(--transition), color var(--transition);
+        font-family: inherit;
+      }
+      .nav-item:hover { background: #F5F5F3; color: var(--text); }
+      .nav-item.active {
+        background: var(--primary-light); color: #185FA5;
+        border-left-color: var(--primary); font-weight: 500;
+      }
+      .nav-item-super { color: var(--text-2); }
+      .nav-item-super:hover { background: var(--warning-bg); color: var(--warning); }
+      .nav-item-super.active { background: var(--warning-bg); color: var(--warning); border-left-color: var(--warning); font-weight: 500; }
+
+      /* ── Animations ── */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @keyframes shimmer {
+        0%   { background-position: -400px 0; }
+        100% { background-position: 400px 0; }
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .animate-fade-up  { animation: fadeUp  0.25s ease both; }
+      .animate-fade-in  { animation: fadeIn  0.2s  ease both; }
+
+      .skeleton {
+        background: linear-gradient(90deg, #f0f0ec 25%, #e8e8e4 50%, #f0f0ec 75%);
+        background-size: 400px 100%;
+        animation: shimmer 1.4s ease infinite;
+        border-radius: 4px;
+      }
+
+      /* ── Spinner ── */
+      .spinner {
+        width: 18px; height: 18px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,.3);
+        border-top-color: #fff;
+        animation: spin 0.7s linear infinite;
+        display: inline-block;
+      }
+      .spinner-blue {
+        border-color: rgba(55,138,221,.2);
+        border-top-color: var(--primary);
+      }
+
+      /* ── Stat card hover ── */
+      .stat-card {
+        background: var(--card);
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        transition: box-shadow var(--transition), transform var(--transition);
+        cursor: default;
+      }
+      .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+
+      /* ── Table row hover ── */
+      .tr-hover:hover { background: #FAFAF8 !important; }
+
+      /* ── Primary button ── */
+      .btn-primary {
+        padding: 8px 16px; font-size: 13px; font-weight: 500;
+        border-radius: var(--radius); border: none; cursor: pointer;
+        background: var(--primary); color: #fff;
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(55,138,221,.3); }
+      .btn-primary:active { transform: scale(.98); }
+      .btn-primary:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+
+      /* ── Ghost button ── */
+      .btn-ghost {
+        padding: 7px 14px; font-size: 13px; font-weight: 500;
+        border-radius: var(--radius); border: 0.5px solid var(--border);
+        cursor: pointer; background: transparent; color: var(--text-2);
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .btn-ghost:hover { background: var(--bg); border-color: #ccc; color: var(--text); }
+
+      /* ── Input base ── */
+      .input-base {
+        width: 100%; box-sizing: border-box;
+        padding: 8px 12px; font-size: 13px;
+        border-radius: var(--radius-sm); border: 0.5px solid #D1D5DB;
+        background: #fff; color: var(--text);
+        transition: border-color var(--transition), box-shadow var(--transition);
+      }
+      .input-base::placeholder { color: var(--text-3); }
+
+      /* ── Modal overlay ── */
+      .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(2px);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 200;
+        animation: fadeIn 0.15s ease;
+      }
+      .modal-card {
+        background: var(--card); border-radius: var(--radius-xl);
+        border: 0.5px solid var(--border);
+        box-shadow: var(--shadow-xl);
+        animation: fadeUp 0.2s ease;
+      }
+
+      #root { min-height: 100vh; }
     </style>
-    <script type="module" crossorigin src="/assets/index-ClIzB6r6.js"></script>
+    <script type="module" crossorigin src="/assets/index-BOQ0Ny6E.js"></script>
   </head>
   <body>
     <div id="root"></div>

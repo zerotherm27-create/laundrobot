@@ -1,0 +1,156 @@
+const router = require('express').Router();
+const db = require('../db');
+const { createInvoice } = require('../utils/xendit');
+
+// GET tenant info (name + logo for branding)
+router.get('/:tenantId/info', async (req, res) => {
+  try {
+    const { rows: [t] } = await db.query(
+      'SELECT name, logo_url FROM tenants WHERE id=$1 AND active=TRUE',
+      [req.params.tenantId]
+    );
+    if (!t) return res.status(404).json({ error: 'Shop not found' });
+    res.json(t);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET active categories
+router.get('/:tenantId/categories', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, name FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id',
+      [req.params.tenantId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET active services with custom fields
+router.get('/:tenantId/services', async (req, res) => {
+  try {
+    const { rows: services } = await db.query(
+      `SELECT s.id, s.name, s.price, s.unit, s.description, s.image_url, s.category_id,
+              c.name AS category_name
+       FROM services s
+       LEFT JOIN service_categories c ON c.id = s.category_id
+       WHERE s.tenant_id=$1 AND s.active=TRUE
+       ORDER BY s.sort_order, s.id`,
+      [req.params.tenantId]
+    );
+    for (const svc of services) {
+      const { rows: fields } = await db.query(
+        'SELECT id, label, field_type, placeholder, required FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
+        [svc.id]
+      );
+      svc.custom_fields = fields;
+      // Skip base64 images — not usable in img tags for public form
+      if (svc.image_url && svc.image_url.startsWith('data:')) svc.image_url = null;
+    }
+    res.json(services);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET active delivery zones
+router.get('/:tenantId/delivery-zones', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id',
+      [req.params.tenantId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST create order (public booking)
+router.post('/:tenantId/orders', async (req, res) => {
+  const { service_id, custom_fields, name, phone, email, address, pickup_date, delivery_zone_id, notes } = req.body;
+
+  if (!service_id || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
+    return res.status(400).json({ error: 'Service, name, phone, address, and pickup date are required.' });
+  }
+
+  try {
+    // Validate service
+    const { rows: [service] } = await db.query(
+      'SELECT * FROM services WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
+      [service_id, req.params.tenantId]
+    );
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+
+    // Delivery zone
+    let deliveryFee = 0;
+    let zoneName = null;
+    if (delivery_zone_id) {
+      const { rows: [zone] } = await db.query(
+        'SELECT * FROM delivery_zones WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
+        [delivery_zone_id, req.params.tenantId]
+      );
+      if (zone) { deliveryFee = Number(zone.fee); zoneName = zone.name; }
+    }
+
+    // Calculate price
+    const isPerKg = service.unit && service.unit.toLowerCase().includes('kg');
+    const weightField = (custom_fields || []).find(f => f.label?.toLowerCase().includes('weight'));
+    const weight = weightField ? parseFloat(weightField.value) || null : null;
+    const subtotal = isPerKg && weight ? Number(service.price) * weight : Number(service.price);
+    const total = subtotal + deliveryFee;
+
+    // Get or create customer
+    const { rows: [existing] } = await db.query(
+      'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
+      [req.params.tenantId, phone.trim()]
+    );
+    let customerId;
+    if (existing) {
+      await db.query('UPDATE customers SET name=$1, email=$2, address=$3 WHERE id=$4',
+        [name.trim(), email?.trim() || existing.email, address.trim(), existing.id]);
+      customerId = existing.id;
+    } else {
+      const { rows: [newC] } = await db.query(
+        'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim()]
+      );
+      customerId = newC.id;
+    }
+
+    // Generate order ID
+    const { rows: [{ count }] } = await db.query(
+      'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.params.tenantId]
+    );
+    const orderId = 'ORD-' + String(Number(count) + 1).padStart(6, '0');
+
+    await db.query(
+      `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
+                           address, delivery_fee, delivery_zone, notes, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'NEW ORDER')`,
+      [orderId, req.params.tenantId, customerId, service_id,
+       weight, total, pickup_date.trim(), address.trim(),
+       deliveryFee, zoneName, notes?.trim() || null]
+    );
+
+    // Generate Xendit invoice if configured
+    let paymentUrl = null;
+    try {
+      const { rows: [t] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [req.params.tenantId]);
+      if (t?.xendit_api_key) {
+        const invoice = await createInvoice(t.xendit_api_key, {
+          externalId: orderId,
+          amount: total,
+          payerEmail: email?.trim() || undefined,
+          description: `${service.name} — Order ${orderId}`,
+        });
+        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE id=$2', [invoice.invoiceUrl, orderId]);
+        paymentUrl = invoice.invoiceUrl;
+      }
+    } catch (e) {
+      console.warn('[public order] xendit invoice failed:', e.message);
+    }
+
+    res.json({ order_id: orderId, payment_url: paymentUrl, total, service_name: service.name });
+  } catch (err) {
+    console.error('[public order]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
