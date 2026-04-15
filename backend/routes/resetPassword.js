@@ -1,21 +1,10 @@
 const router = require('express').Router();
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const db = require('../db');
 
-// Create email transporter
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
+const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 // POST /auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
@@ -47,37 +36,38 @@ router.post('/forgot-password', async (req, res) => {
     const appUrl = process.env.APP_URL || 'https://frontend-pearl-one-64.vercel.app';
     const resetUrl = `${appUrl}?reset_token=${token}`;
 
-    // Send email
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    const resend = getResend();
+    const { error: emailError } = await resend.emails.send({
+      from: 'LaundroBot <onboarding@resend.dev>',
       to: user.email,
       subject: 'LaundroBot — Reset Your Password',
       html: `
-        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #fff; border: 1px solid #e8e8e0; border-radius: 12px;">
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;">
-            <div style="width:40px;height:40px;border-radius:10px;background:#378ADD;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:500;font-size:20px;">L</div>
-            <div>
-              <div style="font-weight:600;font-size:16px;">LaundroBot</div>
-              <div style="font-size:12px;color:#888;">Password Reset</div>
-            </div>
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff;border:1px solid #e8e8e0;border-radius:12px;">
+          <div style="margin-bottom:24px;">
+            <span style="display:inline-block;width:40px;height:40px;border-radius:10px;background:#378ADD;color:#fff;font-weight:600;font-size:20px;text-align:center;line-height:40px;">L</span>
+            <span style="font-weight:600;font-size:16px;margin-left:10px;vertical-align:middle;">LaundroBot</span>
           </div>
           <p style="font-size:15px;color:#333;">Hi ${user.name || user.email},</p>
-          <p style="font-size:14px;color:#555;">You requested to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
+          <p style="font-size:14px;color:#555;line-height:1.6;">You requested to reset your password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
           <a href="${resetUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#378ADD;color:#fff;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;">
             Reset My Password
           </a>
-          <p style="font-size:12px;color:#aaa;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+          <p style="font-size:12px;color:#aaa;">If you didn't request this, you can safely ignore this email.</p>
           <hr style="border:none;border-top:1px solid #f0f0f0;margin:20px 0;" />
           <p style="font-size:11px;color:#ccc;">LaundroBot Admin Dashboard</p>
         </div>
       `,
     });
 
+    if (emailError) {
+      console.error('[forgot-password] Resend error:', emailError);
+      return res.status(500).json({ error: 'Failed to send email: ' + emailError.message });
+    }
+
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (err) {
     console.error('[forgot-password]', err.message);
-    res.status(500).json({ error: 'Failed to send reset email. Check SMTP settings.' });
+    res.status(500).json({ error: 'Failed to send reset email: ' + err.message });
   }
 });
 
