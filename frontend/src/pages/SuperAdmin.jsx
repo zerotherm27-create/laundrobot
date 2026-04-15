@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getTenants, createTenant, updateTenant, getUsers, createUser, deleteUser, changePassword } from '../api.js';
+import { getTenants, createTenant, updateTenant, getUsers, createUser, deleteUser, changePassword, cloneServices } from '../api.js';
 
 const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
@@ -10,7 +10,7 @@ const btn = (bg, color, extra = {}) => ({
 });
 
 export default function SuperAdmin() {
-  const [tab, setTab] = useState('branches'); // 'branches' | 'users'
+  const [tab, setTab] = useState('branches'); // 'branches' | 'users' | 'clone'
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +29,13 @@ export default function SuperAdmin() {
   const [confirmPw, setConfirmPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState(false);
+
+  // Clone services
+  const [cloneSource, setCloneSource] = useState('');
+  const [cloneTarget, setCloneTarget] = useState('');
+  const [clearExisting, setClearExisting] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const [cloneResult, setCloneResult] = useState(null); // { message, stats } or { error }
 
   useEffect(() => {
     Promise.all([
@@ -90,6 +97,26 @@ export default function SuperAdmin() {
 
   const tenantName = (tid) => tenants.find(t => t.id === tid)?.name || '—';
 
+  // ── Clone services ──
+  async function handleClone() {
+    if (!cloneSource || !cloneTarget) return alert('Please select both source and target branches.');
+    if (cloneSource === cloneTarget) return alert('Source and target must be different branches.');
+    const srcName = tenantName(cloneSource);
+    const tgtName = tenantName(cloneTarget);
+    const confirmMsg = clearExisting
+      ? `⚠️ This will DELETE all existing services in "${tgtName}" and replace them with services from "${srcName}".\n\nAre you sure?`
+      : `Copy all services from "${srcName}" → "${tgtName}"?\n\nExisting services in "${tgtName}" will be kept.`;
+    if (!confirm(confirmMsg)) return;
+    setCloning(true); setCloneResult(null);
+    try {
+      const { data } = await cloneServices(cloneSource, cloneTarget, clearExisting);
+      setCloneResult({ success: true, message: data.message, stats: data.stats });
+    } catch (err) {
+      setCloneResult({ success: false, message: err.response?.data?.error || err.message });
+    }
+    setCloning(false);
+  }
+
   return (
     <div>
       {/* Header */}
@@ -121,8 +148,8 @@ export default function SuperAdmin() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-        {[['branches','🏢 Branches'], ['users','👤 Users']].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{
+        {[['branches','🏢 Branches'], ['users','👤 Users'], ['clone','📋 Clone Services']].map(([key, label]) => (
+          <button key={key} onClick={() => { setTab(key); setCloneResult(null); }} style={{
             padding: '7px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer',
             background: tab === key ? '#BA7517' : '#f0f0ec',
             color: tab === key ? '#fff' : '#555',
@@ -169,6 +196,118 @@ export default function SuperAdmin() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* ── CLONE SERVICES TAB ── */}
+      {tab === 'clone' && (
+        <div style={{ maxWidth: 520 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.5rem', marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>📋 Clone Services to Another Branch</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 20, lineHeight: 1.5 }}>
+              Copy all service categories, services, and custom fields from one branch to another. Useful when setting up a new branch with the same menu.
+            </div>
+
+            {/* Source */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 5, fontWeight: 500 }}>
+                📤 Source branch <span style={{ color: '#888', fontWeight: 400 }}>(copy FROM)</span>
+              </label>
+              <select value={cloneSource} onChange={e => { setCloneSource(e.target.value); setCloneResult(null); }}
+                style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '0.5px solid #ccc', background: '#fff' }}>
+                <option value="">— Select source branch —</option>
+                {tenants.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}{!t.active ? ' (inactive)' : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Arrow */}
+            <div style={{ textAlign: 'center', fontSize: 20, color: '#BA7517', marginBottom: 14 }}>↓</div>
+
+            {/* Target */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 5, fontWeight: 500 }}>
+                📥 Target branch <span style={{ color: '#888', fontWeight: 400 }}>(copy TO)</span>
+              </label>
+              <select value={cloneTarget} onChange={e => { setCloneTarget(e.target.value); setCloneResult(null); }}
+                style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '0.5px solid #ccc', background: '#fff' }}>
+                <option value="">— Select target branch —</option>
+                {tenants.filter(t => t.id !== cloneSource).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}{!t.active ? ' (inactive)' : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Option: clear existing */}
+            <div style={{ background: clearExisting ? '#FFF3CD' : '#f9f9f7', border: `0.5px solid ${clearExisting ? '#F5C843' : '#e8e8e0'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={clearExisting} onChange={e => setClearExisting(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: clearExisting ? '#856404' : '#333' }}>
+                    {clearExisting ? '⚠️ Replace existing services' : 'Replace existing services'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                    {clearExisting
+                      ? 'All current services in the target branch will be deleted before copying.'
+                      : 'New services will be added on top of existing ones in the target branch.'}
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Preview */}
+            {cloneSource && cloneTarget && (
+              <div style={{ background: '#E6F1FB', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#185FA5' }}>
+                <strong>{tenantName(cloneSource)}</strong> → <strong>{tenantName(cloneTarget)}</strong>
+                {clearExisting && <span style={{ color: '#856404' }}> · will replace all existing services</span>}
+              </div>
+            )}
+
+            {/* Result */}
+            {cloneResult && (
+              <div style={{
+                borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13,
+                background: cloneResult.success ? '#EAF3DE' : '#FCEBEB',
+                color: cloneResult.success ? '#3B6D11' : '#A32D2D',
+                border: `0.5px solid ${cloneResult.success ? '#b3d99b' : '#F09595'}`,
+              }}>
+                {cloneResult.success ? (
+                  <>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>✅ {cloneResult.message}</div>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <span>📁 {cloneResult.stats.categories} categories</span>
+                      <span>🧺 {cloneResult.stats.services} services</span>
+                      <span>✦ {cloneResult.stats.custom_fields} custom fields</span>
+                    </div>
+                  </>
+                ) : (
+                  <div>❌ {cloneResult.message}</div>
+                )}
+              </div>
+            )}
+
+            <button onClick={handleClone} disabled={cloning || !cloneSource || !cloneTarget}
+              style={{
+                width: '100%', padding: '10px', fontSize: 13, fontWeight: 600, borderRadius: 7,
+                border: 'none', cursor: cloning || !cloneSource || !cloneTarget ? 'not-allowed' : 'pointer',
+                background: cloning || !cloneSource || !cloneTarget ? '#ccc' : '#BA7517',
+                color: '#fff',
+              }}>
+              {cloning ? '⏳ Cloning...' : '📋 Clone Services Now'}
+            </button>
+          </div>
+
+          {/* Info box */}
+          <div style={{ background: '#f5f5f3', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: '#666', lineHeight: 1.6 }}>
+            <strong style={{ color: '#333' }}>What gets cloned:</strong>
+            <ul style={{ marginTop: 6, paddingLeft: 16 }}>
+              <li>All service categories (names, sort order, active status)</li>
+              <li>All services (name, price, unit, description, image, sort order)</li>
+              <li>All custom fields per service (labels, types, required flags)</li>
+            </ul>
+            <div style={{ marginTop: 8, color: '#888' }}>Note: Customer orders and data are never copied.</div>
+          </div>
         </div>
       )}
 

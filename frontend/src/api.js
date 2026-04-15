@@ -44,6 +44,8 @@ export const getCustomers = () => api.get('/customers');
 export const getTenants = () => api.get('/tenants');
 export const createTenant = data => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
+export const cloneServices = (sourceTenantId, targetTenantId, clearExisting) =>
+  api.post('/tenants/clone-services', { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId, clear_existing: clearExisting });
 
 export const sendBlast = (message, filter_status) =>
   api.post('/messaging/blast', { message, filter_status });

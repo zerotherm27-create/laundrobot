@@ -77,6 +77,110 @@ router.put('/:id', auth, superadminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST clone services from one tenant to another
+router.post('/clone-services', auth, superadminOnly, async (req, res) => {
+  const { source_tenant_id, target_tenant_id, clear_existing } = req.body;
+  if (!source_tenant_id || !target_tenant_id) {
+    return res.status(400).json({ error: 'source_tenant_id and target_tenant_id are required' });
+  }
+  if (source_tenant_id === target_tenant_id) {
+    return res.status(400).json({ error: 'Source and target branches must be different' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Verify both tenants exist
+    const { rows: tenantCheck } = await client.query(
+      `SELECT id FROM tenants WHERE id = ANY($1)`, [[source_tenant_id, target_tenant_id]]
+    );
+    if (tenantCheck.length < 2) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'One or both branches not found' });
+    }
+
+    // Optionally wipe existing services + categories from target
+    if (clear_existing) {
+      await client.query(`DELETE FROM services WHERE tenant_id = $1`, [target_tenant_id]);
+      await client.query(`DELETE FROM service_categories WHERE tenant_id = $1`, [target_tenant_id]);
+    }
+
+    // ── Clone categories ──────────────────────────────────────────────
+    const { rows: sourceCats } = await client.query(
+      `SELECT * FROM service_categories WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+      [source_tenant_id]
+    );
+
+    // Map old category id → new category id
+    const catIdMap = {};
+    for (const cat of sourceCats) {
+      const { rows: [newCat] } = await client.query(
+        `INSERT INTO service_categories (tenant_id, name, sort_order, active)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [target_tenant_id, cat.name, cat.sort_order, cat.active]
+      );
+      catIdMap[cat.id] = newCat.id;
+    }
+
+    // ── Clone services ────────────────────────────────────────────────
+    const { rows: sourceSvcs } = await client.query(
+      `SELECT * FROM services WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+      [source_tenant_id]
+    );
+
+    let clonedServices = 0;
+    let clonedFields   = 0;
+
+    for (const svc of sourceSvcs) {
+      const newCategoryId = svc.category_id ? (catIdMap[svc.category_id] || null) : null;
+
+      const { rows: [newSvc] } = await client.query(
+        `INSERT INTO services
+           (tenant_id, name, price, unit, description, active, category_id, sort_order, image_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+        [target_tenant_id, svc.name, svc.price, svc.unit, svc.description,
+         svc.active, newCategoryId, svc.sort_order, svc.image_url]
+      );
+      clonedServices++;
+
+      // Clone custom fields for this service
+      const { rows: fields } = await client.query(
+        `SELECT * FROM service_custom_fields WHERE service_id = $1 ORDER BY sort_order ASC`,
+        [svc.id]
+      );
+      for (const f of fields) {
+        await client.query(
+          `INSERT INTO service_custom_fields (service_id, label, field_type, placeholder, required, sort_order)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order]
+        );
+        clonedFields++;
+      }
+    }
+
+    await client.query('COMMIT');
+
+    const { rows: [sourceTenant] } = await db.query(`SELECT name FROM tenants WHERE id=$1`, [source_tenant_id]);
+    const { rows: [targetTenant] } = await db.query(`SELECT name FROM tenants WHERE id=$1`, [target_tenant_id]);
+
+    res.json({
+      message: `Successfully cloned services from "${sourceTenant.name}" to "${targetTenant.name}"`,
+      stats: {
+        categories: sourceCats.length,
+        services: clonedServices,
+        custom_fields: clonedFields,
+      },
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[clone-services]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // DELETE tenant
 router.delete('/:id', auth, superadminOnly, async (req, res) => {
   try {
