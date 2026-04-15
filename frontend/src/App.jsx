@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
@@ -15,16 +15,21 @@ import FAQs from './pages/FAQs.jsx';
 import Users from './pages/Users.jsx';
 
 const PAGES = {
-  Overview,
-  Kanban,
-  Orders,
-  Customers,
-  Services,
-  Messaging,
-  FAQs,
-  Users,
-  Reports,
-  SuperAdmin,
+  Overview, Kanban, Orders, Customers, Services,
+  Messaging, FAQs, Users, Reports, SuperAdmin,
+};
+
+const PAGE_TITLES = {
+  Overview:   'Overview',
+  Kanban:     'Kanban Board',
+  Orders:     'Orders',
+  Customers:  'Customers',
+  Services:   'Services & Pricing',
+  Messaging:  'Messaging',
+  FAQs:       'FAQs',
+  Users:      'User Management',
+  Reports:    'Reports',
+  SuperAdmin: 'Super Admin',
 };
 
 function Dashboard() {
@@ -32,10 +37,19 @@ function Dashboard() {
   const [page, setPage] = useState('Kanban');
   const Page = PAGES[page] || Overview;
 
+  // Update page title on navigation
+  useEffect(() => {
+    const title = PAGE_TITLES[page] || page;
+    document.title = `${title} — LaundroBot`;
+  }, [page]);
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5' }}>
       <Sidebar current={page} onNav={setPage} role={user.role} />
-      <main style={{ flex: 1, padding: '1.5rem', overflowY: 'auto' }}>
+      <main style={{
+        flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
+        maxWidth: 'calc(100vw - 230px)',
+      }}>
         <Page />
       </main>
     </div>
@@ -45,15 +59,14 @@ function Dashboard() {
 function Inner() {
   const { user } = useAuth();
 
-  // Check for password reset token in URL
-  const params = new URLSearchParams(window.location.search);
+  const params     = new URLSearchParams(window.location.search);
   const resetToken = params.get('reset_token');
   if (resetToken) {
+    document.title = 'Reset Password — LaundroBot';
     return (
       <ResetPassword
         token={resetToken}
         onBack={() => {
-          // Remove token from URL and go back to login
           window.history.replaceState({}, '', window.location.pathname);
           window.location.reload();
         }}
@@ -61,7 +74,12 @@ function Inner() {
     );
   }
 
-  return user ? <Dashboard /> : <Login />;
+  if (!user) {
+    document.title = 'Sign In — LaundroBot';
+    return <Login />;
+  }
+
+  return <Dashboard />;
 }
 
 export default function App() {

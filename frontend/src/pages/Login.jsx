@@ -4,148 +4,201 @@ import api from '../api';
 
 export default function Login() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw]     = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
-  // Forgot password state
-  const [view, setView] = useState('login'); // 'login' | 'forgot'
-  const [fpEmail, setFpEmail] = useState('');
-  const [fpMsg, setFpMsg] = useState('');
-  const [fpError, setFpError] = useState('');
+  const [view, setView]         = useState('login');
+  const [fpEmail, setFpEmail]   = useState('');
+  const [fpMsg, setFpMsg]       = useState('');
+  const [fpError, setFpError]   = useState('');
   const [fpLoading, setFpLoading] = useState(false);
-  const [fpSent, setFpSent] = useState(false);
+  const [fpSent, setFpSent]     = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await login(email, password);
-    } catch {
-      setError('Invalid email or password.');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError('');
+    try { await login(email, password); }
+    catch { setError('Invalid email or password. Please try again.'); }
+    finally { setLoading(false); }
   }
 
   async function handleForgot(e) {
     e.preventDefault();
-    setFpLoading(true);
-    setFpError('');
+    setFpLoading(true); setFpError('');
     try {
       const { data } = await api.post('/auth/forgot-password', { email: fpEmail });
-      setFpMsg(data.message);
-      setFpSent(true);
+      setFpMsg(data.message); setFpSent(true);
     } catch (err) {
-      setFpError(err.response?.data?.error || 'Something went wrong. Try again.');
+      setFpError(err.response?.data?.error || 'Something went wrong. Please try again.');
     }
     setFpLoading(false);
   }
 
-  const card = {
-    background: '#fff', borderRadius: 16,
-    border: '0.5px solid #e0e0d8',
-    padding: '2.5rem', width: 360,
-  };
-
   const Logo = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '2rem' }}>
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#378ADD', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 500, fontSize: 20 }}>L</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: 12,
+        background: 'linear-gradient(135deg, #378ADD, #2568BC)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontWeight: 700, fontSize: 22,
+        boxShadow: '0 4px 12px rgba(55,138,221,.35)',
+      }}>L</div>
       <div>
-        <div style={{ fontWeight: 500, fontSize: 16 }}>LaundroBot</div>
-        <div style={{ fontSize: 12, color: '#888' }}>Admin Dashboard</div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', letterSpacing: '-.3px' }}>LaundroBot</div>
+        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>Business Management Dashboard</div>
       </div>
     </div>
   );
 
+  const inputStyle = {
+    width: '100%', boxSizing: 'border-box',
+    padding: '10px 14px', fontSize: 14,
+    borderRadius: 8, border: '0.5px solid #D1D5DB',
+    background: '#fff', color: '#111827',
+    transition: 'border-color .15s, box-shadow .15s',
+    fontFamily: 'inherit',
+  };
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f3' }}>
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(145deg, #EBF4FF 0%, #F7F7F5 55%, #EDF9F5 100%)',
+      padding: 20, position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Decorative blobs */}
+      <div style={{ position: 'fixed', top: -160, left: -160, width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(55,138,221,.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', bottom: -120, right: -120, width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle, rgba(29,158,117,.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* ── LOGIN ── */}
-      {view === 'login' && (
-        <div style={card}>
-          <Logo />
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 5 }}>Email</label>
-              <input
-                type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '0.5px solid #ccc', fontSize: 14 }}
-              />
-            </div>
+      <div className="animate-fade-up" style={{
+        position: 'relative', zIndex: 1,
+        background: '#fff', borderRadius: 20,
+        border: '0.5px solid #E8E8E0',
+        boxShadow: '0 20px 60px rgba(0,0,0,.1), 0 1px 0 rgba(255,255,255,.8) inset',
+        padding: '2.5rem', width: '100%', maxWidth: 400,
+      }}>
 
-            <div style={{ marginBottom: 6 }}>
-              <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 5 }}>Password</label>
-              <input
-                type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '0.5px solid #ccc', fontSize: 14 }}
-              />
-            </div>
+        {/* ── LOGIN ── */}
+        {view === 'login' && (
+          <>
+            <Logo />
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4, letterSpacing: '-.4px' }}>
+              Welcome back
+            </h1>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28 }}>
+              Sign in to your LaundroBot dashboard
+            </p>
 
-            {/* Forgot password link */}
-            <div style={{ textAlign: 'right', marginBottom: 16 }}>
-              <button type="button" onClick={() => { setView('forgot'); setFpEmail(email); setFpError(''); setFpMsg(''); setFpSent(false); }}
-                style={{ fontSize: 12, color: '#378ADD', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                Forgot password?
-              </button>
-            </div>
-
-            {error && <div style={{ color: '#A32D2D', fontSize: 13, marginBottom: 14 }}>{error}</div>}
-
-            <button type="submit" disabled={loading}
-              style={{ width: '100%', padding: 10, borderRadius: 8, background: loading ? '#aaa' : '#378ADD', color: '#fff', border: 'none', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* ── FORGOT PASSWORD ── */}
-      {view === 'forgot' && (
-        <div style={card}>
-          <Logo />
-          {fpSent ? (
-            <div style={{ textAlign: 'center', padding: '10px 0' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
-              <p style={{ fontSize: 14, color: '#333', marginBottom: 6, fontWeight: 500 }}>Check your email</p>
-              <p style={{ fontSize: 13, color: '#666', marginBottom: 24 }}>{fpMsg}</p>
-              <p style={{ fontSize: 12, color: '#aaa', marginBottom: 20 }}>Didn't receive it? Check your spam folder or try again.</p>
-              <button onClick={() => { setView('login'); setFpSent(false); }}
-                style={{ width: '100%', padding: 10, borderRadius: 8, background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
-                Back to Login
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleForgot}>
-              <p style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
-                Enter your email and we'll send you a link to reset your password.
-              </p>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, color: '#666', display: 'block', marginBottom: 5 }}>Email</label>
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  Email address
+                </label>
                 <input
-                  type="email" value={fpEmail} onChange={e => setFpEmail(e.target.value)} required
-                  placeholder="your@email.com"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '0.5px solid #ccc', fontSize: 14 }}
+                  type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  required placeholder="you@email.com"
+                  className="input-base"
+                  style={{ ...inputStyle }}
                 />
               </div>
 
-              {fpError && <div style={{ color: '#A32D2D', fontSize: 13, marginBottom: 14 }}>{fpError}</div>}
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPw ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required placeholder="Your password"
+                    className="input-base"
+                    style={{ ...inputStyle, paddingRight: 42 }}
+                  />
+                  <button type="button" onClick={() => setShowPw(s => !s)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#9CA3AF', padding: 0, display: 'flex' }}>
+                    {showPw ? '🙈' : '👁'}
+                  </button>
+                </div>
+              </div>
 
-              <button type="submit" disabled={fpLoading}
-                style={{ width: '100%', padding: 10, borderRadius: 8, background: fpLoading ? '#aaa' : '#378ADD', color: '#fff', border: 'none', fontWeight: 500, fontSize: 14, cursor: 'pointer' }}>
-                {fpLoading ? 'Sending...' : 'Send Reset Link'}
-              </button>
+              <div style={{ textAlign: 'right', marginBottom: 22 }}>
+                <button type="button"
+                  onClick={() => { setView('forgot'); setFpEmail(email); setFpError(''); setFpMsg(''); setFpSent(false); }}
+                  style={{ fontSize: 12, color: '#378ADD', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>
+                  Forgot password?
+                </button>
+              </div>
 
-              <button type="button" onClick={() => setView('login')}
-                style={{ width: '100%', marginTop: 10, padding: 10, borderRadius: 8, background: 'transparent', color: '#888', border: 'none', fontSize: 13, cursor: 'pointer' }}>
-                ← Back to Login
+              {error && (
+                <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  ⚠️ {error}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading}
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '11px', fontSize: 14, borderRadius: 9 }}>
+                {loading ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Signing in…</> : 'Sign in →'}
               </button>
             </form>
-          )}
-        </div>
-      )}
+
+            <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 24 }}>
+              LaundroBot · Laundry Business Management
+            </p>
+          </>
+        )}
+
+        {/* ── FORGOT PASSWORD ── */}
+        {view === 'forgot' && (
+          <>
+            <Logo />
+            {fpSent ? (
+              <div className="animate-fade-up" style={{ textAlign: 'center', padding: '8px 0' }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 20px' }}>📧</div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Check your email</h2>
+                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8, lineHeight: 1.6 }}>{fpMsg}</p>
+                <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 28 }}>Didn't receive it? Check your spam folder or try again.</p>
+                <button onClick={() => { setView('login'); setFpSent(false); }}
+                  className="btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '11px', fontSize: 14, borderRadius: 9 }}>
+                  ← Back to Login
+                </button>
+              </div>
+            ) : (
+              <>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Reset password</h2>
+                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28, lineHeight: 1.6 }}>
+                  Enter your email and we'll send you a reset link.
+                </p>
+                <form onSubmit={handleForgot}>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>Email address</label>
+                    <input type="email" value={fpEmail} onChange={e => setFpEmail(e.target.value)} required
+                      placeholder="you@email.com" className="input-base" style={{ ...inputStyle }} />
+                  </div>
+
+                  {fpError && (
+                    <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16 }}>
+                      ⚠️ {fpError}
+                    </div>
+                  )}
+
+                  <button type="submit" disabled={fpLoading} className="btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', padding: '11px', fontSize: 14, borderRadius: 9, marginBottom: 10 }}>
+                    {fpLoading ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Sending…</> : 'Send Reset Link'}
+                  </button>
+                  <button type="button" onClick={() => setView('login')}
+                    style={{ width: '100%', padding: '10px', fontSize: 13, borderRadius: 9, background: 'transparent', color: '#6B7280', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    ← Back to Login
+                  </button>
+                </form>
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -5,69 +5,131 @@ import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
+const STAT_META = [
+  { label: 'Total Revenue',  icon: '₱', color: '#378ADD', bg: '#E6F1FB' },
+  { label: 'Total Orders',   icon: '📋', color: '#7F77DD', bg: '#F0EFFC' },
+  { label: 'Active Orders',  icon: '🔄', color: '#BA7517', bg: '#FDF3E3' },
+  { label: 'Orders Today',   icon: '📅', color: '#1D9E75', bg: '#EAF3DE' },
+];
+
 export default function Overview() {
-  const [orders, setOrders] = useState([]);
+  const [orders,  setOrders]  = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getOrders().then(r => setOrders(r.data)).catch(() => {});
+    getOrders()
+      .then(r => setOrders(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const revenue = orders.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
-  const active = orders.filter(o => o.status !== 'COMPLETED').length;
-  const today = new Date().toISOString().slice(0, 10);
+  const revenue     = orders.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
+  const active      = orders.filter(o => o.status !== 'COMPLETED').length;
+  const today       = new Date().toISOString().slice(0, 10);
   const todayOrders = orders.filter(o => o.created_at?.slice(0, 10) === today).length;
 
+  const stats = [
+    { label: 'Total Revenue',  val: '₱' + revenue.toLocaleString() },
+    { label: 'Total Orders',   val: orders.length },
+    { label: 'Active Orders',  val: active },
+    { label: 'Orders Today',   val: todayOrders },
+  ];
+
   return (
-    <div>
-      <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Overview</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
-        {[
-          { label: 'Total Revenue', val: '₱' + revenue.toLocaleString(), color: '#378ADD' },
-          { label: 'Total Orders', val: orders.length, color: '#7F77DD' },
-          { label: 'Active Orders', val: active, color: '#BA7517' },
-          { label: 'Orders Today', val: todayOrders, color: '#1D9E75' },
-        ].map(m => (
-          <div key={m.label} style={{ background: '#f5f5f3', borderRadius: 8, padding: '1rem' }}>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{m.label}</div>
-            <div style={{ fontSize: 26, fontWeight: 500, color: m.color }}>{m.val}</div>
-          </div>
-        ))}
+    <div className="animate-fade-up">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px' }}>Overview</h1>
+          <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>
+            {new Date().toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
       </div>
+
+      {/* ── Stat cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: '1.75rem' }}>
+        {stats.map((s, i) => {
+          const meta = STAT_META[i];
+          return (
+            <div key={s.label} className="stat-card" style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#6B7280' }}>{s.label}</span>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
+                  {meta.icon}
+                </div>
+              </div>
+              {loading ? (
+                <div className="skeleton" style={{ height: 32, width: '60%' }} />
+              ) : (
+                <div style={{ fontSize: 28, fontWeight: 700, color: meta.color, letterSpacing: '-.5px', lineHeight: 1 }}>
+                  {s.val}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Orders by status</div>
+        {/* Orders by status */}
+        <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 16 }}>Orders by status</div>
           {STATUSES.map(s => {
             const count = orders.filter(o => o.status === s).length;
-            const pct = orders.length ? Math.round((count / orders.length) * 100) : 0;
+            const pct   = orders.length ? Math.round((count / orders.length) * 100) : 0;
             return (
-              <div key={s} style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
-                  <span style={{ color: '#666' }}>{s}</span>
-                  <span style={{ fontWeight: 500 }}>{count}</span>
+              <div key={s} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 5 }}>
+                  <span style={{ color: '#6B7280', fontWeight: 500 }}>{s}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>{pct}%</span>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>{count}</span>
+                  </div>
                 </div>
-                <div style={{ height: 6, background: '#f0f0ec', borderRadius: 4 }}>
-                  <div style={{ height: 6, borderRadius: 4, width: pct + '%', background: STATUS_COLORS[s], transition: 'width 0.4s' }} />
+                <div style={{ height: 7, background: '#F3F4F6', borderRadius: 10 }}>
+                  <div style={{ height: 7, borderRadius: 10, width: pct + '%', background: STATUS_COLORS[s], transition: 'width 0.6s cubic-bezier(.4,0,.2,1)' }} />
                 </div>
               </div>
             );
           })}
+          {loading && <div className="skeleton" style={{ height: 120, marginTop: 8 }} />}
         </div>
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
-          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 12 }}>Recent orders</div>
-          {orders.slice(0, 7).map(o => (
-            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <Avatar name={o.customer_name || '?'} size={30} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.customer_name}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>{o.service_name}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2 }}>₱{Number(o.price).toLocaleString()}</div>
-                <StatusBadge status={o.status} />
-              </div>
+
+        {/* Recent orders */}
+        <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Recent orders</div>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>Last {Math.min(orders.length, 7)}</span>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 38 }} />)}
             </div>
-          ))}
-          {orders.length === 0 && <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', padding: '2rem 0' }}>No orders yet</div>}
+          ) : orders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9CA3AF' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📭</div>
+              <div style={{ fontSize: 13 }}>No orders yet</div>
+            </div>
+          ) : (
+            <div>
+              {orders.slice(0, 7).map(o => (
+                <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '0.5px solid #F9F9F7' }}>
+                  <Avatar name={o.customer_name || '?'} size={32} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {o.customer_name || 'Unknown'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>{o.service_name}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 3 }}>₱{Number(o.price).toLocaleString()}</div>
+                    <StatusBadge status={o.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
