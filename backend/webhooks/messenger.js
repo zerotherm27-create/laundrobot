@@ -445,7 +445,7 @@ async function handleMessage(tenant, senderId, event) {
     );
 
     // Generate Xendit payment link immediately
-    let paymentLine = '';
+    let paymentUrl = null;
     try {
       const { rows: [t] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [tenant.id]);
       if (t?.xendit_api_key) {
@@ -457,23 +457,31 @@ async function handleMessage(tenant, senderId, event) {
           successRedirectUrl: `https://m.me/${tenant.fb_page_id}`,
         });
         await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE id=$2', [invoice.invoiceUrl, data.order_id]);
-        paymentLine = `\n\n💳 Pay here: ${invoice.invoiceUrl}`;
+        paymentUrl = invoice.invoiceUrl;
       }
     } catch (e) {
       console.warn('[messenger] xendit invoice failed:', e.message);
     }
 
+    const confirmButtons = paymentUrl
+      ? [
+          { type: 'web_url', url: paymentUrl, title: '💳 Pay Now' },
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' },
+        ]
+      : [
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' },
+        ];
+
     await sendButtons(token, senderId,
       `🎉 Booking confirmed!\n\n` +
       `🆔 Order ID: ${data.order_id}\n` +
-      `🗓 We'll pick up on: ${data.pickup_date}\n` +
-      `💰 Total: ₱${data.total}` +
-      paymentLine +
-      `\n\nWe'll send you updates as your order progresses. Thank you! 🙏`,
-      [
-        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-        { type: 'postback', title: '🛒 Book Again', payload: 'BOOK'      },
-      ]
+      `🧺 ${data.service_name}\n` +
+      `🗓 Pickup: ${data.pickup_date}\n` +
+      `💰 Total: ₱${data.total}\n\n` +
+      `Tap "Pay Now" to complete your payment. Thank you! 🙏`,
+      confirmButtons
     );
     await setState('DONE', {}, {});
     return;
