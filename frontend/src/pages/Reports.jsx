@@ -65,7 +65,8 @@ export default function Reports() {
       o.price, o.paid ? 'Yes' : 'No',
       new Date(o.created_at).toLocaleDateString()
     ]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

@@ -132,7 +132,7 @@ export default function Orders() {
               <Avatar name={selected.customer_name || '?'} size={40} />
               <div>
                 <div style={{ fontWeight: 500 }}>{selected.customer_name}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>{selected.phone || 'No phone'}</div>
+                <div style={{ fontSize: 12, color: '#888' }}>{selected.customer_phone || 'No phone'}</div>
               </div>
             </div>
 

@@ -12,7 +12,13 @@ function superadminOnly(req, res, next) {
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, name, fb_page_id, logo_url, active, created_at FROM tenants ORDER BY created_at DESC`
+      `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at,
+              COUNT(o.id)::int AS total_orders,
+              COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_revenue
+       FROM tenants t
+       LEFT JOIN orders o ON o.tenant_id = t.id
+       GROUP BY t.id
+       ORDER BY t.created_at DESC`
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

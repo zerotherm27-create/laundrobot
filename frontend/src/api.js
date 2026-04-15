@@ -26,7 +26,7 @@ export const login = (email, password) =>
 
 export const getOrders = () => api.get('/orders');
 export const updateOrderStatus = (id, status) =>
-  api.patch(`/orders/${id}/status`, { status });
+  api.patch(`/orders/${id}`, { status });
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 
 export const getServices = () => api.get('/services');

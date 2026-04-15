@@ -7,7 +7,8 @@ router.get('/', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT c.*,
-              COUNT(o.id) AS order_count,
+              COUNT(o.id)::int AS total_orders,
+              COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_spent,
               MAX(o.created_at) AS last_order_at
        FROM customers c
        LEFT JOIN orders o ON o.customer_id = c.id

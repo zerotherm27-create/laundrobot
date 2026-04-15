@@ -500,13 +500,13 @@ async function showSummary(token, senderId, tenantId, customer, data) {
   await sendButtons(token, senderId,
     `📋 *Order Summary*\n\n` +
     `🆔 Order ID: ${orderId}\n` +
-    `🧺 Service: ${data.service_name}\n` +
+    `🧺 Service: ${data.service_name || 'N/A'}\n` +
     `⚖️ Quantity: ${data.weight} ${qtyUnit}\n` +
-    `📍 Address: ${address}\n` +
-    `🗓 Pickup: ${data.pickup_date}\n` +
-    `👤 Name: ${name}\n` +
-    `📱 Phone: ${phone}\n` +
-    `📧 Email: ${email}\n` +
+    `📍 Address: ${address || 'Not set'}\n` +
+    `🗓 Pickup: ${data.pickup_date || 'Not set'}\n` +
+    `👤 Name: ${name || 'Not set'}\n` +
+    `📱 Phone: ${phone || 'Not set'}\n` +
+    `📧 Email: ${email || 'Not set'}\n` +
     `💰 Total: ₱${data.total}\n\n` +
     `Ready to confirm?`,
     [

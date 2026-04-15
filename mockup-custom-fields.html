@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LaundroBot — Messenger Custom Fields Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #65676B;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  /* ── Phone shell ── */
+  .phone {
+    width: 375px;
+    background: #fff;
+    border-radius: 40px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    overflow: hidden;
+    border: 8px solid #1c1c1e;
+  }
+
+  /* ── Status bar ── */
+  .statusbar {
+    background: #0084FF;
+    padding: 10px 20px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ── Messenger header ── */
+  .header {
+    background: #0084FF;
+    padding: 10px 14px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+  }
+  .header .back { font-size: 22px; line-height: 1; }
+  .header .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #378ADD;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: #fff;
+  }
+  .header .info .name { font-weight: 700; font-size: 15px; }
+  .header .info .sub  { font-size: 11px; opacity: .85; }
+
+  /* ── Chat area ── */
+  .chat {
+    background: #fff;
+    padding: 12px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 640px;
+    overflow-y: auto;
+  }
+
+  /* date divider */
+  .divider {
+    text-align: center;
+    font-size: 11px;
+    color: #65676B;
+    margin: 6px 0;
+  }
+
+  /* ── Bubbles ── */
+  .row { display: flex; align-items: flex-end; gap: 6px; }
+  .row.bot  { justify-content: flex-start; }
+  .row.user { justify-content: flex-end; }
+
+  .bubble-bot {
+    background: #F0F0F0;
+    color: #050505;
+    border-radius: 18px 18px 18px 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    max-width: 255px;
+  }
+  .bubble-user {
+    background: #0084FF;
+    color: #fff;
+    border-radius: 18px 18px 4px 18px;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    max-width: 220px;
+  }
+
+  .bot-icon {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #378ADD;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+
+  /* ── Card carousel ── */
+  .carousel-wrap {
+    overflow-x: auto;
+    display: flex;
+    gap: 8px;
+    padding: 2px 0 6px;
+    scrollbar-width: none;
+    max-width: 100%;
+  }
+  .card {
+    flex-shrink: 0;
+    width: 190px;
+    border-radius: 12px;
+    border: 1px solid #E4E6EA;
+    overflow: hidden;
+    background: #fff;
+  }
+  .card img, .card .card-img {
+    width: 100%; height: 100px; object-fit: cover;
+    background: linear-gradient(135deg, #e0f0ff, #cce4ff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+  }
+  .card .card-img { display: flex; }
+  .card .card-body { padding: 8px 10px 4px; }
+  .card .card-title { font-weight: 700; font-size: 13px; color: #050505; }
+  .card .card-sub   { font-size: 12px; color: #65676B; margin-top: 2px; }
+  .card .card-btn {
+    display: block; width: 100%; padding: 8px;
+    text-align: center; border: none; border-top: 1px solid #E4E6EA;
+    background: #fff; color: #0084FF; font-size: 13px; font-weight: 600;
+    cursor: pointer; margin-top: 6px;
+  }
+
+  /* ── Quick replies ── */
+  .qr-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 4px; margin-left: 32px;
+  }
+  .qr {
+    border: 1.5px solid #0084FF;
+    color: #0084FF;
+    background: #fff;
+    border-radius: 50px;
+    padding: 5px 12px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+  }
+  .qr.selected {
+    background: #0084FF;
+    color: #fff;
+  }
+
+  /* ── Button template ── */
+  .btn-template {
+    background: #F0F0F0;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 255px;
+  }
+  .btn-template .bt-text {
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #050505;
+    white-space: pre-line;
+  }
+  .btn-template .bt-btn {
+    display: block; width: 100%;
+    padding: 9px 12px;
+    text-align: center;
+    border: none; border-top: 1px solid #D8D8D8;
+    background: #F0F0F0;
+    color: #0084FF; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* ── Highlighted step ── */
+  .step-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #fff;
+    background: #378ADD;
+    border-radius: 50px;
+    padding: 3px 9px;
+    align-self: center;
+    margin: 6px auto;
+  }
+  .step-label.new {
+    background: #22A64B;
+  }
+
+  /* ── Input bar ── */
+  .inputbar {
+    background: #fff;
+    border-top: 1px solid #E4E6EA;
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .inputbar input {
+    flex: 1; border: 1px solid #E4E6EA; border-radius: 20px;
+    padding: 8px 14px; font-size: 13px; outline: none;
+    color: #65676B;
+  }
+  .inputbar .send-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #0084FF; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    margin-top: 28px;
+    width: 375px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+  .legend h2 { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 10px; }
+  .legend ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .legend li { font-size: 12px; color: #555; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>Customer Booking Flow — Custom Fields Mockup</h1>
+
+<div class="phone">
+
+  <!-- Status bar -->
+  <div class="statusbar">
+    <span>9:41</span>
+    <span>●●●●  WiFi  🔋</span>
+  </div>
+
+  <!-- Messenger header -->
+  <div class="header">
+    <div class="back">‹</div>
+    <div class="avatar">L</div>
+    <div class="info">
+      <div class="name">LaundroBot</div>
+      <div class="sub">Active now</div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat">
+
+    <div class="divider">Today 9:40 AM</div>
+
+    <!-- Step 1: Welcome -->
+    <div class="step-label">1 · Welcome</div>
+
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="btn-template">
+        <div class="bt-text">👋 Hi! Welcome to <b>TLP Sampaloc</b>!
+
+What would you like to do?</div>
+        <button class="bt-btn">🛒 Book Now</button>
+        <button class="bt-btn">📋 View Services</button>
+        <button class="bt-btn">❓ FAQs</button>
+      </div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">🛒 Book Now</div>
+    </div>
+
+    <!-- Step 2: Category -->
+    <div class="step-label">2 · Choose Category</div>
+
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">🧺 What type of laundry service are you looking for?</div>
+    </div>
+    <div class="qr-row">
+      <div class="qr selected">👕 Wash & Dry</div>
+      <div class="qr">🧼 Wash Only</div>
+      <div class="qr">🛍 All Services</div>
+    </div>
+
+    <!-- Step 3: Service catalog -->
+    <div class="step-label">3 · Pick a Service</div>
+
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">Here are our Wash &amp; Dry services 👇 Tap <b>Book This</b> to order:</div>
+    </div>
+
+    <div class="row bot" style="margin-left:32px;">
+      <div class="carousel-wrap">
+
+        <div class="card">
+          <div class="card-img">🧺</div>
+          <div class="card-body">
+            <div class="card-title">Regular Wash &amp; Dry</div>
+            <div class="card-sub">₱85 per kg</div>
+          </div>
+          <button class="card-btn">🛒 Book This</button>
+        </div>
+
+        <div class="card" style="border-color:#0084FF; box-shadow:0 0 0 2px #0084FF44;">
+          <div class="card-img">👔</div>
+          <div class="card-body">
+            <div class="card-title">Express Wash &amp; Dry</div>
+            <div class="card-sub">₱120 per kg · Same-day</div>
+          </div>
+          <button class="card-btn" style="color:#fff;background:#0084FF;">🛒 Book This</button>
+        </div>
+
+        <div class="card">
+          <div class="card-img">🥻</div>
+          <div class="card-body">
+            <div class="card-title">Delicate Wash</div>
+            <div class="card-sub">₱150 per kg</div>
+          </div>
+          <button class="card-btn">🛒 Book This</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">🛒 Book This · Express Wash &amp; Dry</div>
+    </div>
+
+    <!-- Step 4: Custom fields (NEW) -->
+    <div class="step-label new">4 · Custom Fields ✨ NEW</div>
+
+    <!-- Field 1: Weight -->
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">✅ Great choice! You selected:
+
+🧺 <b>Express Wash &amp; Dry</b>
+💰 ₱120 per kg
+
+⚖️ <b>Weight (kg)</b>
+How many kg of laundry? (e.g. 5)</div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">6</div>
+    </div>
+
+    <!-- Field 2: Fabric type (custom field) -->
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">👕 <b>Fabric Type</b>
+What type of fabric? Choose one:</div>
+    </div>
+    <div class="qr-row">
+      <div class="qr selected">Cotton</div>
+      <div class="qr">Synthetic</div>
+      <div class="qr">Mixed</div>
+      <div class="qr">Delicate</div>
+    </div>
+
+    <!-- Field 3: Special instructions (custom field, text) -->
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">📝 <b>Special Instructions</b> <i style="font-size:12px;opacity:.7">(optional)</i>
+Any notes for us? (e.g. separate colors, no bleach)</div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">Please separate the white shirts</div>
+    </div>
+
+    <!-- Step 5: Address -->
+    <div class="step-label">5 · Pickup Details</div>
+
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">📍 <b>Pickup Address</b>
+What is your pickup address?</div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">123 Blk 4 Sampaloc, Manila</div>
+    </div>
+
+    <!-- Step 6: Date -->
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">🗓 <b>Pickup Date &amp; Time</b>
+What date and time for pickup?
+(e.g. April 20 10:00 AM)</div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">April 20 10:00 AM</div>
+    </div>
+
+    <!-- Step 7: Name -->
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="bubble-bot">👤 What is your name?</div>
+    </div>
+
+    <div class="row user">
+      <div class="bubble-user">Maria Santos</div>
+    </div>
+
+    <!-- Step 8: Summary -->
+    <div class="step-label">6 · Order Summary</div>
+
+    <div class="row bot">
+      <div class="bot-icon">L</div>
+      <div class="btn-template">
+        <div class="bt-text">📋 <b>Order Summary</b>
+
+🆔 Order: ORD-482917
+🧺 Express Wash &amp; Dry
+⚖️ Weight: 6 kg
+👕 Fabric Type: Cotton
+📝 Notes: Separate white shirts
+📍 123 Blk 4 Sampaloc, Manila
+🗓 Pickup: April 20 10:00 AM
+💰 Total: <b>₱720.00</b>
+
+Ready to confirm?</div>
+        <button class="bt-btn" style="color:#22A64B; font-weight:700;">✅ Confirm Booking</button>
+        <button class="bt-btn" style="color:#E02020;">❌ Cancel</button>
+      </div>
+    </div>
+
+  </div><!-- /chat -->
+
+  <!-- Input bar -->
+  <div class="inputbar">
+    <input type="text" placeholder="Aa" readonly />
+    <div class="send-btn">➤</div>
+  </div>
+
+</div><!-- /phone -->
+
+<!-- Legend -->
+<div class="legend">
+  <h2>How custom fields work in the chat flow</h2>
+  <ul>
+    <li><span class="dot" style="background:#0084FF"></span> Steps 1–3 are the existing booking flow (welcome → category → service catalog)</li>
+    <li><span class="dot" style="background:#22A64B"></span> Step 4 is the new custom fields step — each field is asked one at a time</li>
+    <li><span class="dot" style="background:#378ADD"></span> Text fields → bot asks for typed reply</li>
+    <li><span class="dot" style="background:#F5A623"></span> Select/dropdown fields → bot sends quick-reply chips so customer just taps</li>
+    <li><span class="dot" style="background:#9B59B6"></span> Optional fields show "(optional)" and customer can reply "skip"</li>
+    <li><span class="dot" style="background:#E02020"></span> All custom field answers appear in the Order Summary before confirmation</li>
+  </ul>
+</div>
+
+</body>
+</html>

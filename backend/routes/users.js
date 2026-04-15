@@ -22,13 +22,17 @@ router.get('/', auth, async (req, res) => {
 
 // POST create new user
 router.post('/', auth, async (req, res) => {
-  const { name, email, password, role, permissions } = req.body;
+  const { name, email, password, role, permissions, tenant_id } = req.body;
+  // Superadmin can create users for any branch via req.body.tenant_id
+  const targetTenantId = req.user.role === 'superadmin'
+    ? (tenant_id || null)
+    : req.user.tenant_id;
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
       `INSERT INTO users (tenant_id, name, email, password_hash, role, permissions)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, permissions, created_at`,
-      [req.user.tenant_id, name, email, hash, role, JSON.stringify(permissions || [])]
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, permissions, tenant_id, created_at`,
+      [targetTenantId, name, email, hash, role, JSON.stringify(permissions || [])]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -40,18 +44,30 @@ router.put('/:id', auth, async (req, res) => {
   const isSuperAdmin = req.user.role === 'superadmin';
   try {
     let query, params;
-    const tenantClause = isSuperAdmin ? 'TRUE' : `tenant_id='${req.user.tenant_id}'`;
     if (password) {
       const hash = await bcrypt.hash(password, 10);
-      query = `UPDATE users SET name=$1, email=$2, password_hash=$3, role=$4, permissions=$5
-               WHERE id=$6 AND ${tenantClause} RETURNING id, name, email, role, permissions, tenant_id`;
-      params = [name, email, hash, role, JSON.stringify(permissions || []), req.params.id];
+      if (isSuperAdmin) {
+        query = `UPDATE users SET name=$1, email=$2, password_hash=$3, role=$4, permissions=$5
+                 WHERE id=$6 RETURNING id, name, email, role, permissions, tenant_id`;
+        params = [name, email, hash, role, JSON.stringify(permissions || []), req.params.id];
+      } else {
+        query = `UPDATE users SET name=$1, email=$2, password_hash=$3, role=$4, permissions=$5
+                 WHERE id=$6 AND tenant_id=$7 RETURNING id, name, email, role, permissions, tenant_id`;
+        params = [name, email, hash, role, JSON.stringify(permissions || []), req.params.id, req.user.tenant_id];
+      }
     } else {
-      query = `UPDATE users SET name=$1, email=$2, role=$3, permissions=$4
-               WHERE id=$5 AND ${tenantClause} RETURNING id, name, email, role, permissions, tenant_id`;
-      params = [name, email, role, JSON.stringify(permissions || []), req.params.id];
+      if (isSuperAdmin) {
+        query = `UPDATE users SET name=$1, email=$2, role=$3, permissions=$4
+                 WHERE id=$5 RETURNING id, name, email, role, permissions, tenant_id`;
+        params = [name, email, role, JSON.stringify(permissions || []), req.params.id];
+      } else {
+        query = `UPDATE users SET name=$1, email=$2, role=$3, permissions=$4
+                 WHERE id=$5 AND tenant_id=$6 RETURNING id, name, email, role, permissions, tenant_id`;
+        params = [name, email, role, JSON.stringify(permissions || []), req.params.id, req.user.tenant_id];
+      }
     }
     const { rows } = await db.query(query, params);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
