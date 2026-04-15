@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = require('../utils/messenger');
+const { createInvoice } = require('../utils/xendit');
 
 // ── Webhook verification ────────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -425,7 +426,12 @@ async function handleMessage(tenant, senderId, event) {
       [text.trim(), address, tenant.id, senderId]
     );
     const newData = { ...data, name: text.trim(), address };
-    await showSummary(token, senderId, tenant.id, { ...customer, name: text.trim() }, newData);
+    if (!newData.pickup_date) {
+      await sendMessage(token, senderId, `🗓 *Pickup schedule*\nWhat date and time for pickup?\n(e.g. April 20 10:00 AM)`);
+      await setState('ASK_DATETIME', {}, newData);
+    } else {
+      await showSummary(token, senderId, tenant.id, { ...customer, name: text.trim() }, newData);
+    }
     return;
   }
 
@@ -437,11 +443,33 @@ async function handleMessage(tenant, senderId, event) {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [data.order_id, tenant.id, customer.id, data.service_id, data.weight, data.total, data.pickup_date, address, 'NEW ORDER']
     );
+
+    // Generate Xendit payment link immediately
+    let paymentLine = '';
+    try {
+      const { rows: [t] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [tenant.id]);
+      if (t?.xendit_api_key) {
+        const invoice = await createInvoice(t.xendit_api_key, {
+          externalId: data.order_id,
+          amount: parseFloat(data.total),
+          payerEmail: customer.email || undefined,
+          description: `${data.service_name || 'Laundry'} - Order ${data.order_id}`,
+          successRedirectUrl: `https://m.me/${tenant.fb_page_id}`,
+        });
+        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE id=$2', [invoice.invoiceUrl, data.order_id]);
+        paymentLine = `\n\n💳 Pay here: ${invoice.invoiceUrl}`;
+      }
+    } catch (e) {
+      console.warn('[messenger] xendit invoice failed:', e.message);
+    }
+
     await sendButtons(token, senderId,
       `🎉 Booking confirmed!\n\n` +
       `🆔 Order ID: ${data.order_id}\n` +
-      `🗓 We'll pick up on: ${data.pickup_date}\n\n` +
-      `We'll send you updates as your order progresses. Thank you! 🙏`,
+      `🗓 We'll pick up on: ${data.pickup_date}\n` +
+      `💰 Total: ₱${data.total}` +
+      paymentLine +
+      `\n\nWe'll send you updates as your order progresses. Thank you! 🙏`,
       [
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '🛒 Book Again', payload: 'BOOK'      },
