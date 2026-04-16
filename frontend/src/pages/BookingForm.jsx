@@ -52,7 +52,7 @@ export default function BookingForm({ tenantId }) {
   const [addonQty, setAddonQty]         = useState({});
 
   // Step 2 state
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' });
 
   // Result
   const [submitting, setSubmitting] = useState(false);
@@ -112,8 +112,10 @@ export default function BookingForm({ tenantId }) {
     return true;
   }
 
+  const fullAddress = [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
+
   function step2Valid() {
-    return form.name.trim() && form.phone.trim() && form.address.trim() && form.pickup_date;
+    return form.name.trim() && form.phone.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim() && form.pickup_date;
   }
 
   async function handleSubmit() {
@@ -135,7 +137,7 @@ export default function BookingForm({ tenantId }) {
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
-        address: form.address.trim(),
+        address: fullAddress,
         pickup_date: form.pickup_date,
         delivery_zone_id: form.delivery_zone_id ? Number(form.delivery_zone_id) : undefined,
         notes: form.notes.trim() || undefined,
@@ -208,7 +210,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -454,13 +456,51 @@ export default function BookingForm({ tenantId }) {
               />
             </Field>
 
-            <Field label="Pickup Address" required>
-              <textarea style={{ ...INPUT, resize: 'vertical', minHeight: 70 }} value={form.address}
-                onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
-                placeholder="Street, Barangay, City"
-                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-              />
+            <div style={{ marginBottom: 6 }}>
+              <label style={{ ...LABEL, marginBottom: 10 }}>Pickup Address <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span></label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input style={INPUT} value={form.addr_unit}
+                  onChange={e => setForm(p => ({ ...p, addr_unit: e.target.value }))}
+                  placeholder="Building Name / Condo / Hotel / House No."
+                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                />
+                <input style={INPUT} value={form.addr_street} required
+                  onChange={e => setForm(p => ({ ...p, addr_street: e.target.value }))}
+                  placeholder="Street Name *"
+                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input style={INPUT} value={form.addr_barangay} required
+                    onChange={e => setForm(p => ({ ...p, addr_barangay: e.target.value }))}
+                    placeholder="Barangay *"
+                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <input style={INPUT} value={form.addr_city} required
+                    onChange={e => setForm(p => ({ ...p, addr_city: e.target.value }))}
+                    placeholder="City *"
+                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Field label="Pick-up / Delivery Zone" required={false} style={{ marginTop: 16 }}>
+              <select style={INPUT} value={form.delivery_zone_id}
+                onChange={e => setForm(p => ({ ...p, delivery_zone_id: e.target.value }))}>
+                <option value="">{zones.length > 0 ? '— Select your area —' : 'No delivery zones set up'}</option>
+                {zones.map(z => (
+                  <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()} delivery fee</option>
+                ))}
+              </select>
+              {form.delivery_zone_id && selectedZone && (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#185FA5', fontWeight: 600 }}>
+                  +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
+                </div>
+              )}
             </Field>
 
             <Field label="Preferred Pickup Date & Time" required>
@@ -470,18 +510,6 @@ export default function BookingForm({ tenantId }) {
                 onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
               />
             </Field>
-
-            {zones.length > 0 && (
-              <Field label="Delivery Zone">
-                <select style={INPUT} value={form.delivery_zone_id}
-                  onChange={e => setForm(p => ({ ...p, delivery_zone_id: e.target.value }))}>
-                  <option value="">Select your area (optional)</option>
-                  {zones.map(z => (
-                    <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()} delivery fee</option>
-                  ))}
-                </select>
-              </Field>
-            )}
 
             <Field label="Special Instructions">
               <textarea style={{ ...INPUT, resize: 'vertical', minHeight: 70 }} value={form.notes}
@@ -543,7 +571,7 @@ export default function BookingForm({ tenantId }) {
                 ['Service', selectedSvc?.name],
                 isPerKg && w > 0 ? ['Estimated Weight', `${w} kg`] : null,
                 ['Pickup', form.pickup_date ? new Date(form.pickup_date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
-                ['Address', form.address],
+                ['Address', fullAddress],
                 selectedZone ? ['Delivery Zone', selectedZone.name] : null,
               ].filter(Boolean).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px solid #E8E8E0' }}>
