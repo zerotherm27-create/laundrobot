@@ -4,13 +4,14 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', _newOption: '' };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '' };
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Short text' },
   { value: 'textarea', label: 'Notes / Long text' },
-  { value: 'number',   label: 'Number' },
-  { value: 'select',   label: 'Dropdown (options)' },
+  { value: 'number',   label: 'Number (qty multiplier)' },
+  { value: 'select',   label: 'Variation (select one)' },
+  { value: 'addon',    label: 'Add-on (with price)' },
 ];
 
 export default function Services() {
@@ -48,10 +49,12 @@ export default function Services() {
     setPreview(svc.image_url || null);
     setFields((svc.custom_fields || []).map(f => ({
       ...f,
-      options:    Array.isArray(f.options) ? f.options : [],
+      options:    Array.isArray(f.options) ? f.options.map(o => typeof o === 'object' && o !== null ? o : { label: String(o), price: 0 }) : [],
       min_value:  f.min_value ?? '',
       max_value:  f.max_value ?? '',
+      unit_price: f.unit_price ?? '',
       _newOption: '',
+      _newOptionPrice: '',
     })));
   }
 
@@ -87,9 +90,12 @@ export default function Services() {
   function addOption(fieldIdx) {
     setFields(prev => prev.map((f, i) => {
       if (i !== fieldIdx) return f;
-      const val = (f._newOption || '').trim();
-      if (!val || (f.options || []).includes(val)) return { ...f, _newOption: '' };
-      return { ...f, options: [...(f.options || []), val], _newOption: '' };
+      const label = (f._newOption || '').trim();
+      if (!label) return { ...f, _newOption: '', _newOptionPrice: '' };
+      const existingLabels = (f.options || []).map(o => typeof o === 'object' ? o.label : o);
+      if (existingLabels.includes(label)) return { ...f, _newOption: '', _newOptionPrice: '' };
+      const price = parseFloat(f._newOptionPrice) || 0;
+      return { ...f, options: [...(f.options || []), { label, price }], _newOption: '', _newOptionPrice: '' };
     }));
   }
 
@@ -101,7 +107,7 @@ export default function Services() {
 
   // ── Service save ──────────────────────────────────────────────────────
   async function handleSvcSave() {
-    if (!svcForm.name || !svcForm.price) return alert('Name and price are required.');
+    if (!svcForm.name || svcForm.price === '' || svcForm.price === null || svcForm.price === undefined) return alert('Name and price are required. Set 0 for variation-priced services.');
     // Validate custom fields
     for (const f of fields) {
       if (!f.label.trim()) return alert('All custom field labels must be filled in.');
@@ -236,9 +242,16 @@ export default function Services() {
                             <div style={{ fontWeight: 500, fontSize: 13 }}>{s.name}</div>
                             {!s.active && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#f0f0ec', color: '#374151' }}>Off</span>}
                           </div>
-                          <div style={{ fontSize: 18, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>
-                            ₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#374151' }}>{s.unit}</span>
-                          </div>
+                          {(() => {
+                            const hasVarPricing = (s.custom_fields || []).some(f =>
+                              f.field_type === 'select' &&
+                              Array.isArray(f.options) &&
+                              f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
+                            );
+                            return hasVarPricing
+                              ? <div style={{ fontSize: 13, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>Prices vary by selection</div>
+                              : <div style={{ fontSize: 18, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#374151' }}>{s.unit}</span></div>;
+                          })()}
                           {s.description && <div style={{ fontSize: 11, color: '#374151', marginBottom: 8 }}>{s.description}</div>}
                           {s.custom_fields?.length > 0 && (
                             <div style={{ fontSize: 11, color: '#374151', marginBottom: 8 }}>
@@ -389,38 +402,76 @@ export default function Services() {
                         </>
                       )}
 
+                      {f.field_type === 'addon' && (
+                        <>
+                          <div style={{ marginBottom: 8 }}>
+                            <label style={{ ...S.label, marginBottom: 3 }}>Add-on price (₱) per unit *</label>
+                            <input type="number" min="0" step="0.01"
+                              value={f.unit_price || ''}
+                              onChange={e => updateField(idx, 'unit_price', e.target.value)}
+                              placeholder="e.g. 10"
+                              style={{ ...S.input, fontSize: 12 }} />
+                          </div>
+                          <div style={{ marginBottom: 8 }}>
+                            <label style={{ ...S.label, marginBottom: 3 }}>Description / hint (optional)</label>
+                            <input value={f.placeholder || ''}
+                              onChange={e => updateField(idx, 'placeholder', e.target.value)}
+                              placeholder="e.g. Wire hanger included"
+                              style={{ ...S.input, fontSize: 12 }} />
+                          </div>
+                          <div style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11' }}>
+                            ✓ Customer selects quantity (0, 1, 2…) — price added to order total
+                          </div>
+                        </>
+                      )}
+
                       {f.field_type === 'select' && (
                         <div style={{ marginBottom: 8 }}>
-                          <label style={{ ...S.label, marginBottom: 5 }}>Dropdown options</label>
-                          {/* Existing options as chips */}
+                          <label style={{ ...S.label, marginBottom: 6 }}>Options &amp; prices</label>
+
                           {(f.options || []).length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
-                              {(f.options || []).map((opt, oi) => (
-                                <span key={oi} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px 3px 10px', borderRadius: 20, background: '#E6F1FB', color: '#185FA5', fontSize: 12, fontWeight: 500 }}>
-                                  {opt}
-                                  <button onClick={() => removeOption(idx, oi)}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#185FA5', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
-                                </span>
-                              ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
+                              {(f.options || []).map((opt, oi) => {
+                                const optLabel = typeof opt === 'object' ? opt.label : opt;
+                                const optPrice = typeof opt === 'object' ? Number(opt.price || 0) : 0;
+                                return (
+                                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#EEF6FF', borderRadius: 7, border: '1px solid #BDD8F7' }}>
+                                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#185FA5' }}>{optLabel}</span>
+                                    <span style={{ fontSize: 12, color: '#185FA5', background: '#fff', padding: '2px 8px', borderRadius: 4, border: '1px solid #BDD8F7', fontWeight: 600 }}>
+                                      ₱{optPrice.toLocaleString()}
+                                    </span>
+                                    <button onClick={() => removeOption(idx, oi)}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 15, padding: '0 2px', lineHeight: 1 }}>×</button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
-                          {/* Add new option */}
-                          <div style={{ display: 'flex', gap: 6 }}>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 6 }}>
                             <input
                               value={f._newOption || ''}
                               onChange={e => updateField(idx, '_newOption', e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
-                              placeholder="Type an option, press Enter…"
-                              style={{ ...S.input, fontSize: 12, flex: 1 }}
+                              placeholder="Option label (e.g. Small Bag)"
+                              style={{ ...S.input, fontSize: 12 }}
+                            />
+                            <input
+                              type="number" min="0" step="1"
+                              value={f._newOptionPrice || ''}
+                              onChange={e => updateField(idx, '_newOptionPrice', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
+                              placeholder="₱ price"
+                              style={{ ...S.input, fontSize: 12 }}
                             />
                             <button onClick={() => addOption(idx)}
                               style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
                               + Add
                             </button>
                           </div>
-                          {(f.options || []).length === 0 && (
-                            <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>Add at least one option for the dropdown.</div>
-                          )}
+                          <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>
+                            💡 Set ₱0 for options that don't change the price (e.g. "Colored", "Whites")
+                          </div>
                         </div>
                       )}
 

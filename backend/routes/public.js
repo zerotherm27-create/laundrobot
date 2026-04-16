@@ -95,7 +95,7 @@ router.post('/:tenantId/orders', async (req, res) => {
 
     // Fetch custom fields for qty multiplier + addon prices
     const { rows: svcFields } = await db.query(
-      'SELECT id, label, field_type, unit_price FROM service_custom_fields WHERE service_id=$1',
+      'SELECT id, label, field_type, unit_price, options FROM service_custom_fields WHERE service_id=$1',
       [service_id]
     );
     // First number-type field = qty multiplier (non-kg)
@@ -116,7 +116,28 @@ router.post('/:tenantId/orders', async (req, res) => {
       return sum;
     }, 0);
 
-    const total = subtotal + addonTotal + deliveryFee;
+    // Sum variation (select) field option prices
+    const variationTotal = (custom_fields || []).reduce((sum, cf) => {
+      const fieldDef = svcFields.find(f => f.field_type === 'select' && f.label === cf.label);
+      if (fieldDef && cf.value) {
+        const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+        const selectedOpt = options.find(o =>
+          typeof o === 'object' ? o.label === cf.value : o === cf.value
+        );
+        return sum + (selectedOpt && typeof selectedOpt === 'object' ? Number(selectedOpt.price || 0) : 0);
+      }
+      return sum;
+    }, 0);
+
+    // If service has variation pricing, base price is 0
+    const hasVarPricing = svcFields.some(f =>
+      f.field_type === 'select' &&
+      Array.isArray(f.options) &&
+      f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
+    );
+    const effectiveSubtotal = hasVarPricing ? variationTotal : subtotal;
+
+    const total = effectiveSubtotal + addonTotal + deliveryFee;
 
     // Get or create customer
     const { rows: [existing] } = await db.query(

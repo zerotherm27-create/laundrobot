@@ -35,6 +35,11 @@ function closeMiniApp() {
   try { window.close(); } catch (_) {}
 }
 
+function normalizeOpts(options) {
+  if (!Array.isArray(options)) return [];
+  return options.map(o => typeof o === 'object' && o !== null ? o : { label: String(o), price: 0 });
+}
+
 export default function BookingForm({ tenantId }) {
   const [step, setStep]           = useState(1); // 1 | 2 | 3 | 'success'
   const [tenant, setTenant]       = useState(null);
@@ -88,9 +93,20 @@ export default function BookingForm({ tenantId }) {
   const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
   const qty = firstNumField ? parseFloat(fieldValues[firstNumField.id] || 0) : 0;
 
-  const subtotal = selectedSvc
-    ? (isPerKg && w > 0 ? price * w : qty > 0 ? price * qty : price)
+  // Variation (select) fields — sum selected option prices
+  const selectFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'select');
+  const variationTotal = selectFields.reduce((sum, f) => {
+    const opts = normalizeOpts(f.options);
+    const sel = opts.find(o => o.label === fieldValues[f.id]);
+    return sum + (sel ? Number(sel.price || 0) : 0);
+  }, 0);
+
+  // If any select option has a price > 0, use variation pricing (no base price)
+  const hasVariationPricing = selectFields.some(f => normalizeOpts(f.options).some(o => Number(o.price || 0) > 0));
+  const baseSubtotal = selectedSvc
+    ? (isPerKg && w > 0 ? price * w : qty > 0 ? price * qty : (hasVariationPricing ? 0 : price))
     : 0;
+  const subtotal = baseSubtotal + variationTotal;
 
   // Addon fields + totals
   const addonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
@@ -359,16 +375,46 @@ export default function BookingForm({ tenantId }) {
                       </div>
                     );
                   }
-                  // Regular fields
+                  // Variation select: e-commerce button group
+                  if (f.field_type === 'select') {
+                    const opts = normalizeOpts(f.options);
+                    const selectedVal = fieldValues[f.id];
+                    return (
+                      <div key={f.id} style={{ marginBottom: 16 }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+                          {f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}
+                        </label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {opts.map(opt => {
+                            const isSel = selectedVal === opt.label;
+                            return (
+                              <button key={opt.label} type="button"
+                                onClick={() => setFieldValues(p => ({ ...p, [f.id]: opt.label }))}
+                                style={{
+                                  padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                                  border: isSel ? '2px solid #378ADD' : '1.5px solid #E2E8F0',
+                                  background: isSel ? '#E6F1FB' : '#fff',
+                                  color: isSel ? '#185FA5' : '#374151',
+                                  fontSize: 13, fontWeight: isSel ? 700 : 500,
+                                  transition: 'all .15s', textAlign: 'center', minWidth: 80,
+                                }}>
+                                <div>{opt.label}</div>
+                                {opt.price > 0 && (
+                                  <div style={{ fontSize: 11, color: isSel ? '#378ADD' : '#374151', marginTop: 2, fontWeight: 600 }}>
+                                    +₱{Number(opt.price).toLocaleString()}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  // Regular fields (text, number, textarea)
                   return (
                     <Field key={f.id} label={f.label + (f.field_type === 'number' && !isPerKg ? ' (× price)' : '')} required={f.required}>
-                      {f.field_type === 'select' ? (
-                        <select style={INPUT} value={fieldValues[f.id] || ''}
-                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}>
-                          <option value="">— {f.placeholder || 'Select an option'} —</option>
-                          {(Array.isArray(f.options) ? f.options : []).map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      ) : f.field_type === 'textarea' ? (
+                      {f.field_type === 'textarea' ? (
                         <textarea
                           style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
                           value={fieldValues[f.id] || ''}
@@ -394,24 +440,34 @@ export default function BookingForm({ tenantId }) {
                 })}
 
                 {/* Live price breakdown */}
-                {selectedSvc && (
+                {selectedSvc && (subtotal > 0 || addonTotal > 0) && (
                   <div style={{ marginTop: 12, background: '#EEF6FF', borderRadius: 10, padding: '10px 14px', border: '1px solid #BDD8F7' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#185FA5', marginBottom: 4 }}>
-                      <span>{selectedSvc.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
-                      <span style={{ fontWeight: 600 }}>₱{subtotal.toLocaleString()}</span>
-                    </div>
+                    {baseSubtotal > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#185FA5', marginBottom: 4 }}>
+                        <span>{selectedSvc.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
+                        <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {selectFields.map(f => {
+                      const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+                      if (!sel) return null;
+                      return (
+                        <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
+                          <span>{f.label}: <strong>{sel.label}</strong></span>
+                          <span style={{ fontWeight: 600 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                        </div>
+                      );
+                    })}
                     {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
                       <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
                         <span>{f.label} × {addonQty[f.id]}</span>
                         <span style={{ fontWeight: 600 }}>₱{(Number(f.unit_price || 0) * addonQty[f.id]).toLocaleString()}</span>
                       </div>
                     ))}
-                    {(addonTotal > 0 || subtotal > 0) && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: '#185FA5', borderTop: '1px solid #BDD8F7', paddingTop: 6, marginTop: 2 }}>
-                        <span>Subtotal</span>
-                        <span>₱{(subtotal + addonTotal).toLocaleString()}</span>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: '#185FA5', borderTop: '1px solid #BDD8F7', paddingTop: 6, marginTop: 2 }}>
+                      <span>Subtotal</span>
+                      <span>₱{(subtotal + addonTotal).toLocaleString()}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -522,10 +578,22 @@ export default function BookingForm({ tenantId }) {
 
             {/* Price summary */}
             <div style={{ background: '#F7F9FD', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
-                <span style={{ fontWeight: 600 }}>₱{subtotal.toLocaleString()}</span>
-              </div>
+              {baseSubtotal > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
+                  <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
+                </div>
+              )}
+              {selectFields.map(f => {
+                const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+                if (!sel) return null;
+                return (
+                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
+                    <span style={{ fontWeight: 600 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                  </div>
+                );
+              })}
               {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
                 <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                   <span style={{ color: '#374151' }}>{f.label} × {addonQty[f.id]}</span>
@@ -594,10 +662,22 @@ export default function BookingForm({ tenantId }) {
               ))}
 
               <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginTop: 16, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>Payment</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
-                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
-                <span style={{ fontWeight: 500 }}>₱{subtotal.toLocaleString()}</span>
-              </div>
+              {baseSubtotal > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
+                  <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
+                  <span style={{ fontWeight: 500 }}>₱{baseSubtotal.toLocaleString()}</span>
+                </div>
+              )}
+              {selectFields.map(f => {
+                const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+                if (!sel) return null;
+                return (
+                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
+                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
+                    <span style={{ fontWeight: 500 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                  </div>
+                );
+              })}
               {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
                 <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
                   <span style={{ color: '#374151' }}>{f.label} × {addonQty[f.id]}</span>
