@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   getPublicTenantInfo, getPublicCategories, getPublicServices,
-  getPublicDeliveryZones, createPublicOrder,
+  getPublicDeliveryZones, lookupPublicCustomer, createPublicOrder,
 } from '../api.js';
 
 const INPUT = {
@@ -58,6 +58,10 @@ export default function BookingForm({ tenantId }) {
 
   // Step 2 state
   const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' });
+  const [savedCustomer, setSavedCustomer] = useState(null);   // repeat customer data
+  const [addressMode, setAddressMode]     = useState('new');  // 'saved' | 'new'
+  const [lookingUp, setLookingUp]         = useState(false);
+  const phoneDebounce = useRef(null);
 
   // Result
   const [submitting, setSubmitting] = useState(false);
@@ -128,10 +132,14 @@ export default function BookingForm({ tenantId }) {
     return true;
   }
 
-  const fullAddress = [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
+  const fullAddress = addressMode === 'saved' && savedCustomer?.address
+    ? savedCustomer.address
+    : [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
 
   function step2Valid() {
-    return form.name.trim() && form.phone.trim() && form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim() && form.pickup_date;
+    if (!form.name.trim() || !form.phone.trim() || !form.pickup_date) return false;
+    if (addressMode === 'saved') return !!savedCustomer?.address;
+    return form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim();
   }
 
   async function handleSubmit() {
@@ -226,7 +234,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -496,11 +504,36 @@ export default function BookingForm({ tenantId }) {
                 />
               </Field>
               <Field label="Phone Number" required>
-                <input style={INPUT} type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                <input style={INPUT} type="tel" value={form.phone}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setForm(p => ({ ...p, phone: val }));
+                    setSavedCustomer(null); setAddressMode('new');
+                    clearTimeout(phoneDebounce.current);
+                    if (val.trim().length >= 10) {
+                      phoneDebounce.current = setTimeout(async () => {
+                        setLookingUp(true);
+                        try {
+                          const { data } = await lookupPublicCustomer(tenantId, val.trim());
+                          if (data) {
+                            setSavedCustomer(data);
+                            setAddressMode('saved');
+                            setForm(p => ({
+                              ...p,
+                              name:  p.name  || data.name  || '',
+                              email: p.email || data.email || '',
+                            }));
+                          }
+                        } catch (_) {}
+                        setLookingUp(false);
+                      }, 600);
+                    }
+                  }}
                   placeholder="09XX XXX XXXX"
                   onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
                   onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                 />
+                {lookingUp && <div style={{ fontSize: 11, color: '#378ADD', marginTop: 4 }}>🔍 Checking for saved address…</div>}
               </Field>
             </div>
 
@@ -514,34 +547,71 @@ export default function BookingForm({ tenantId }) {
 
             <div style={{ marginBottom: 6 }}>
               <label style={{ ...LABEL, marginBottom: 10 }}>Pickup Address <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span></label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input style={INPUT} value={form.addr_unit} required
-                  onChange={e => setForm(p => ({ ...p, addr_unit: e.target.value }))}
-                  placeholder="Building Name / Condo / Hotel / House No. *"
-                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                />
-                <input style={INPUT} value={form.addr_street} required
-                  onChange={e => setForm(p => ({ ...p, addr_street: e.target.value }))}
-                  placeholder="Street Name *"
-                  onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <input style={INPUT} value={form.addr_barangay} required
-                    onChange={e => setForm(p => ({ ...p, addr_barangay: e.target.value }))}
-                    placeholder="Barangay *"
-                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  <input style={INPUT} value={form.addr_city} required
-                    onChange={e => setForm(p => ({ ...p, addr_city: e.target.value }))}
-                    placeholder="City *"
-                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                  />
+
+              {/* Repeat customer — saved address banner */}
+              {savedCustomer && (
+                <div style={{ marginBottom: 10, borderRadius: 10, border: '1.5px solid #BDD8F7', background: '#EEF6FF', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ fontSize: 20, marginTop: 1 }}>👋</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5' }}>Welcome back, {savedCustomer.name}!</div>
+                      <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>We found your saved address:</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginTop: 4, padding: '6px 10px', background: '#fff', borderRadius: 7, border: '1px solid #BDD8F7' }}>
+                        📍 {savedCustomer.address}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #BDD8F7' }}>
+                    <button type="button"
+                      onClick={() => setAddressMode('saved')}
+                      style={{ padding: '10px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        background: addressMode === 'saved' ? '#378ADD' : '#F0F7FF',
+                        color: addressMode === 'saved' ? '#fff' : '#185FA5',
+                        borderRight: '1px solid #BDD8F7' }}>
+                      ✓ Use this address
+                    </button>
+                    <button type="button"
+                      onClick={() => setAddressMode('new')}
+                      style={{ padding: '10px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        background: addressMode === 'new' ? '#378ADD' : '#F0F7FF',
+                        color: addressMode === 'new' ? '#fff' : '#185FA5' }}>
+                      + Enter new address
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* New address fields — shown when no saved customer OR user chose "Enter new" */}
+              {addressMode === 'new' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input style={INPUT} value={form.addr_unit} required
+                    onChange={e => setForm(p => ({ ...p, addr_unit: e.target.value }))}
+                    placeholder="Building Name / Condo / Hotel / House No. *"
+                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <input style={INPUT} value={form.addr_street} required
+                    onChange={e => setForm(p => ({ ...p, addr_street: e.target.value }))}
+                    placeholder="Street Name *"
+                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <input style={INPUT} value={form.addr_barangay} required
+                      onChange={e => setForm(p => ({ ...p, addr_barangay: e.target.value }))}
+                      placeholder="Barangay *"
+                      onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                    />
+                    <input style={INPUT} value={form.addr_city} required
+                      onChange={e => setForm(p => ({ ...p, addr_city: e.target.value }))}
+                      placeholder="City *"
+                      onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <Field label="Pick-up / Delivery Zone" required={false} style={{ marginTop: 16 }}>

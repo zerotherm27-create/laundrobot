@@ -78,7 +78,8 @@ const pubPost = (url, d)  => axios.post(`${PUBLIC_BASE}${url}`, d);
 export const getPublicTenantInfo   = id     => pub(`/public/${id}/info`);
 export const getPublicCategories   = id     => pub(`/public/${id}/categories`);
 export const getPublicServices     = id     => pub(`/public/${id}/services`);
-export const getPublicDeliveryZones = id    => pub(`/public/${id}/delivery-zones`);
-export const createPublicOrder     = (id, data) => pubPost(`/public/${id}/orders`, data);
+export const getPublicDeliveryZones  = id        => pub(`/public/${id}/delivery-zones`);
+export const lookupPublicCustomer    = (id, phone) => pub(`/public/${id}/customer`, { params: { phone } });
+export const createPublicOrder       = (id, data)  => pubPost(`/public/${id}/orders`, data);
 
 export default api;

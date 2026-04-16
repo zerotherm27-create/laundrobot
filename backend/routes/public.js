@@ -51,6 +51,23 @@ router.get('/:tenantId/services', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET customer by phone — repeat customer lookup
+router.get('/:tenantId/customer', async (req, res) => {
+  const { phone } = req.query;
+  if (!phone?.trim()) return res.json(null);
+  try {
+    const { rows: [customer] } = await db.query(
+      `SELECT c.name, c.phone, c.email,
+              (SELECT o.address FROM orders o WHERE o.customer_id=c.id AND o.address IS NOT NULL ORDER BY o.created_at DESC LIMIT 1) AS address
+       FROM customers c
+       WHERE c.tenant_id=$1 AND c.phone=$2`,
+      [req.params.tenantId, phone.trim()]
+    );
+    if (!customer || !customer.address) return res.json(null);
+    res.json({ name: customer.name, phone: customer.phone, email: customer.email, address: customer.address });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET active delivery zones
 router.get('/:tenantId/delivery-zones', async (req, res) => {
   try {
