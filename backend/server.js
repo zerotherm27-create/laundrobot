@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
+const path = require('path');
 const runFollowUp = require('./jobs/followup');
 const app = express();
 
@@ -36,7 +37,15 @@ for (const [path, file] of routes) {
 try { app.use('/webhook/messenger', require('./webhooks/messenger')); console.log('✓ webhook messenger'); } catch(e) { console.error('✗ webhook messenger: ' + e.message); }
 try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓ webhook xendit'); } catch(e) { console.error('✗ webhook xendit: ' + e.message); }
 
-app.get('/', (req, res) => res.json({
+// Serve React SPA (frontend build output in /public)
+const publicDir = path.join(__dirname, '..', 'public');
+app.use(express.static(publicDir));
+// SPA catch-all: all non-API GET requests serve index.html
+app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/delivery-zones|\/public|\/webhook).*/, (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+
+app.get('/healthz', (req, res) => res.json({
   status: 'LaundroBot API running',
   env: {
     has_db: !!process.env.DATABASE_URL,
@@ -53,10 +62,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     const db = require('./db');
     const { setupMessengerProfile } = require('./utils/messengerProfile');
-    const { rows: tenants } = await db.query(`SELECT name, fb_page_access_token FROM tenants WHERE active=TRUE`);
+    const { rows: tenants } = await db.query(`SELECT id, name, fb_page_access_token FROM tenants WHERE active=TRUE`);
     for (const t of tenants) {
       try {
-        await setupMessengerProfile(t.fb_page_access_token, t.name);
+        await setupMessengerProfile(t.fb_page_access_token, t.name, t.id, process.env.APP_URL);
       } catch (e) {
         console.warn(`[startup] messenger profile failed for ${t.name}:`, e.response?.data?.error?.message || e.message);
       }

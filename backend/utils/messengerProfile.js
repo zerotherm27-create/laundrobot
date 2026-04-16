@@ -4,26 +4,48 @@ const BASE = 'https://graph.facebook.com/v19.0/me/messenger_profile';
 
 /**
  * Sets up the Messenger profile for a page:
- * - Get Started button  → triggers GET_STARTED postback on first open
- * - Greeting text       → shown before customer starts chatting
- * - Persistent menu     → always-visible menu in the chat composer
+ * - Whitelisted domains  → required for webview mini-app to open inside Messenger
+ * - Get Started button   → triggers GET_STARTED postback on first open
+ * - Greeting text        → shown before customer starts chatting
+ * - Persistent menu      → always-visible menu; Book Now opens webview if APP_URL is set
  */
-async function setupMessengerProfile(pageToken, tenantName) {
+async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
   const name = tenantName || 'us';
 
-  // Set Get Started button + greeting in one call
+  // ── 1. Whitelist domain (required for messenger_extensions webview) ──────
+  if (appUrl) {
+    try {
+      await axios.post(`${BASE}?access_token=${pageToken}`, {
+        whitelisted_domains: [appUrl],
+      });
+      console.log(`[messenger-profile] whitelisted domain: ${appUrl}`);
+    } catch (e) {
+      console.warn(`[messenger-profile] domain whitelist failed for ${name}:`, e.response?.data?.error?.message || e.message);
+    }
+  }
+
+  // ── 2. Get Started + greeting ────────────────────────────────────────────
   await axios.post(`${BASE}?access_token=${pageToken}`, {
     get_started: { payload: 'GET_STARTED' },
     greeting: [
       {
         locale: 'default',
-        text: `👋 Hi {{user_first_name}}! Welcome to ${name}.\n\nTap "Get Started" to book your laundry pickup or browse our services.`,
+        text: `👋 Hi {{user_first_name}}! Welcome to ${name}.\n\nTap "Get Started" to book your laundry pickup!`,
       },
     ],
   });
 
-  // Persistent menu — requires app to be primary receiver on the page.
-  // Try to set it; skip silently if the page hasn't granted that permission.
+  // ── 3. Persistent menu ───────────────────────────────────────────────────
+  const bookAction = appUrl && tenantId
+    ? {
+        type: 'web_url',
+        title: '🛒 Book Now',
+        url: `${appUrl}/book/${tenantId}`,
+        webview_height_ratio: 'full',
+        messenger_extensions: true,
+      }
+    : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
+
   try {
     await axios.post(`${BASE}?access_token=${pageToken}`, {
       persistent_menu: [
@@ -31,17 +53,16 @@ async function setupMessengerProfile(pageToken, tenantName) {
           locale: 'default',
           composer_input_disabled: false,
           call_to_actions: [
-            { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'      },
-            { type: 'postback', title: '📋 View Services', payload: 'SERVICES'  },
+            bookAction,
             { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
-            { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'      },
+            { type: 'postback', title: '❓ FAQs',           payload: 'FAQS'      },
           ],
         },
       ],
     });
     console.log(`[messenger-profile] persistent menu set for ${name}`);
   } catch (e) {
-    console.warn(`[messenger-profile] persistent menu skipped for ${name} (app not primary receiver):`, e.response?.data?.error?.message || e.message);
+    console.warn(`[messenger-profile] persistent menu skipped for ${name}:`, e.response?.data?.error?.message || e.message);
   }
 
   console.log(`[messenger-profile] setup complete for ${name}`);

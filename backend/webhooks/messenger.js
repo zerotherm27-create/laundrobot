@@ -167,12 +167,16 @@ async function handleMessage(tenant, senderId, event) {
 
   // ── Global commands ──────────────────────────────────────────────────
   if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED' || step === 'START') {
+    const appUrl = process.env.APP_URL;
+    const bookButton = appUrl
+      ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenant.id}`, webview_height_ratio: 'full', messenger_extensions: true }
+      : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
     await sendButtons(token, senderId,
       `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
       [
-        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
-        { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
-        { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
+        bookButton,
+        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
     );
     await setState('MENU', {}, {});
@@ -180,8 +184,23 @@ async function handleMessage(tenant, senderId, event) {
   }
 
   if (lc === 'book' || text === 'BOOK' || lc === 'menu') {
-    await setState('SELECT_CATEGORY', {}, {});
-    await showCategoryMenu(token, senderId, tenant.id);
+    const appUrl = process.env.APP_URL;
+    if (appUrl) {
+      await sendButtons(token, senderId,
+        `📱 Tap below to open our booking form — it opens right here inside Messenger!`,
+        [{
+          type: 'web_url',
+          title: '🧺 Open Booking Form',
+          url: `${appUrl}/book/${tenant.id}`,
+          webview_height_ratio: 'full',
+          messenger_extensions: true,
+        }]
+      );
+      await setState('MENU', {}, {});
+    } else {
+      await setState('SELECT_CATEGORY', {}, {});
+      await showCategoryMenu(token, senderId, tenant.id);
+    }
     return;
   }
 

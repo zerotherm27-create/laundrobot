@@ -21,6 +21,20 @@ function Field({ label, required, children }) {
   );
 }
 
+function closeMiniApp() {
+  // Try Messenger Extensions first, then fall back to window.close()
+  try {
+    if (window.MessengerExtensions) {
+      window.MessengerExtensions.requestCloseBrowser(
+        () => {},
+        () => { try { window.close(); } catch (_) {} }
+      );
+      return;
+    }
+  } catch (_) {}
+  try { window.close(); } catch (_) {}
+}
+
 export default function BookingForm({ tenantId }) {
   const [step, setStep]           = useState(1); // 1 | 2 | 3 | 'success'
   const [tenant, setTenant]       = useState(null);
@@ -173,10 +187,16 @@ export default function BookingForm({ tenantId }) {
             ✅ We'll contact you with payment details.
           </div>
         )}
-        <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
-          style={{ width: '100%', padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
-          Book Another Order
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={closeMiniApp}
+            style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
+            ✕ Close
+          </button>
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
+            style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
+            + New Order
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -518,7 +538,19 @@ export default function BookingForm({ tenantId }) {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
+        body { padding-bottom: env(safe-area-inset-bottom, 0); }
       `}</style>
+
+      {/* Messenger Extensions SDK — enables requestCloseBrowser() inside Messenger webview */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        (function(d, s, id) {
+          var js, fjs = d.getElementsByTagName(s)[0];
+          if (d.getElementById(id)) return;
+          js = d.createElement(s); js.id = id;
+          js.src = "//connect.facebook.net/en_US/messenger.Extensions.js";
+          fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'messenger-extensions-jssdk'));
+      `}} />
     </div>
   );
 }
