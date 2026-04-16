@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
+const { sendNewOrderEmail } = require('../utils/email');
 
 // GET tenant info (name + logo for branding)
 router.get('/:tenantId/info', async (req, res) => {
@@ -189,6 +190,19 @@ router.post('/:tenantId/orders', async (req, res) => {
     } catch (e) {
       console.warn('[public order] xendit invoice failed:', e.message);
     }
+
+    // Send new order email notification (non-blocking)
+    sendNewOrderEmail(req.params.tenantId, {
+      orderId,
+      serviceName: service.name,
+      customerName: name.trim(),
+      customerPhone: phone.trim(),
+      address: address.trim(),
+      pickupDate: pickup_date.trim(),
+      deliveryZone: zoneName || null,
+      total,
+      paymentUrl,
+    }).catch(() => {});
 
     res.json({ order_id: orderId, payment_url: paymentUrl, total, service_name: service.name });
   } catch (err) {
