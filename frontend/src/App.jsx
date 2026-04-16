@@ -15,10 +15,11 @@ import Reports from './pages/Reports.jsx';
 import FAQs from './pages/FAQs.jsx';
 import Users from './pages/Users.jsx';
 import DeliveryZones from './pages/DeliveryZones.jsx';
+import Settings from './pages/Settings.jsx';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
-  Messaging, FAQs, Users, Reports, SuperAdmin, DeliveryZones,
+  Messaging, FAQs, Users, Reports, SuperAdmin, DeliveryZones, Settings,
 };
 
 const PAGE_TITLES = {
@@ -33,6 +34,7 @@ const PAGE_TITLES = {
   Reports:    'Reports',
   SuperAdmin:     'Super Admin',
   DeliveryZones:  'Delivery Zones',
+  Settings:       'Settings',
 };
 
 function Dashboard() {

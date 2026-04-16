@@ -13,10 +13,16 @@ function getTransporter() {
   });
 }
 
-// ── Get admin emails for a tenant ────────────────────────────────────────────
-async function getAdminEmails(tenantId) {
+// ── Get notification email for a tenant ──────────────────────────────────────
+async function getNotificationEmails(tenantId) {
+  const { rows: [tenant] } = await db.query(
+    `SELECT notification_email FROM tenants WHERE id=$1`,
+    [tenantId]
+  );
+  if (tenant?.notification_email) return [tenant.notification_email];
+  // Fallback: any admin user email for this tenant
   const { rows } = await db.query(
-    `SELECT email FROM users WHERE tenant_id=$1 AND email IS NOT NULL`,
+    `SELECT email FROM users WHERE tenant_id=$1 AND email IS NOT NULL LIMIT 3`,
     [tenantId]
   );
   return rows.map(r => r.email).filter(Boolean);
@@ -65,7 +71,7 @@ async function sendNewOrderEmail(tenantId, { orderId, serviceName, customerName,
 
     const { rows: [tenant] } = await db.query('SELECT name FROM tenants WHERE id=$1', [tenantId]);
     const shopName = tenant?.name || 'Your Shop';
-    const recipients = await getAdminEmails(tenantId);
+    const recipients = await getNotificationEmails(tenantId);
     if (!recipients.length) return;
 
     const formattedDate = pickupDate
@@ -119,7 +125,7 @@ async function sendPaidOrderEmail(tenantId, { orderId, serviceName, customerName
 
     const { rows: [tenant] } = await db.query('SELECT name FROM tenants WHERE id=$1', [tenantId]);
     const shopName = tenant?.name || 'Your Shop';
-    const recipients = await getAdminEmails(tenantId);
+    const recipients = await getNotificationEmails(tenantId);
     if (!recipients.length) return;
 
     const tableRows = [

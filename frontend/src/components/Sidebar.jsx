@@ -13,6 +13,7 @@ const NAV = [
   { key: 'DeliveryZones', icon: '📍', label: 'Delivery Zones' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
   { key: 'Users',     icon: '👥', label: 'Users', adminOnly: true },
+  { key: 'Settings',  icon: '⚙️', label: 'Settings' },
 ];
 
 export default function Sidebar({ current, onNav, role }) {
