@@ -4,12 +4,13 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField    = { label: '', field_type: 'text', placeholder: '', required: false };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', _newOption: '' };
 
 const FIELD_TYPES = [
-  { value: 'text',   label: 'Text' },
-  { value: 'number', label: 'Number' },
-  { value: 'select', label: 'Options (dropdown)' },
+  { value: 'text',     label: 'Short text' },
+  { value: 'textarea', label: 'Notes / Long text' },
+  { value: 'number',   label: 'Number' },
+  { value: 'select',   label: 'Dropdown (options)' },
 ];
 
 export default function Services() {
@@ -45,7 +46,13 @@ export default function Services() {
   function openSvc(svc) {
     setSvcForm({ ...svc, isNew: false });
     setPreview(svc.image_url || null);
-    setFields((svc.custom_fields || []).map(f => ({ ...f })));
+    setFields((svc.custom_fields || []).map(f => ({
+      ...f,
+      options:    Array.isArray(f.options) ? f.options : [],
+      min_value:  f.min_value ?? '',
+      max_value:  f.max_value ?? '',
+      _newOption: '',
+    })));
   }
 
   function openNewSvc(overrides = {}) {
@@ -75,6 +82,21 @@ export default function Services() {
       [arr[idx], arr[target]] = [arr[target], arr[idx]];
       return arr;
     });
+  }
+
+  function addOption(fieldIdx) {
+    setFields(prev => prev.map((f, i) => {
+      if (i !== fieldIdx) return f;
+      const val = (f._newOption || '').trim();
+      if (!val || (f.options || []).includes(val)) return { ...f, _newOption: '' };
+      return { ...f, options: [...(f.options || []), val], _newOption: '' };
+    }));
+  }
+
+  function removeOption(fieldIdx, optIdx) {
+    setFields(prev => prev.map((f, i) =>
+      i === fieldIdx ? { ...f, options: (f.options || []).filter((_, oi) => oi !== optIdx) } : f
+    ));
   }
 
   // ── Service save ──────────────────────────────────────────────────────
@@ -151,7 +173,7 @@ export default function Services() {
   ];
 
   const S = {
-    label:  { fontSize: 12, color: '#888', display: 'block', marginBottom: 4 },
+    label:  { fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 },
     input:  { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', outline: 'none' },
     select: { width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff' },
     btn:    (bg, color) => ({ padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: bg, color, border: 'none', fontWeight: 500, flex: 1 }),
@@ -174,10 +196,10 @@ export default function Services() {
         </div>
       </div>
 
-      {loading ? <div style={{ color: '#aaa', fontSize: 14 }}>Loading...</div> : (
+      {loading ? <div style={{ color: '#374151', fontSize: 14 }}>Loading...</div> : (
 
         sections.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#aaa', fontSize: 14, padding: '3rem 0' }}>
+          <div style={{ textAlign: 'center', color: '#374151', fontSize: 14, padding: '3rem 0' }}>
             No services yet. Click <b>+ Category</b> to create a category, then <b>+ Service</b> to add services.
           </div>
         ) : (
@@ -190,12 +212,12 @@ export default function Services() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>{name}</span>
-                      {!active && <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: '#f0f0ec', color: '#888' }}>Hidden</span>}
-                      <span style={{ fontSize: 12, color: '#aaa' }}>({svcList.length} service{svcList.length !== 1 ? 's' : ''})</span>
+                      {!active && <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: '#f0f0ec', color: '#374151' }}>Hidden</span>}
+                      <span style={{ fontSize: 12, color: '#374151' }}>({svcList.length} service{svcList.length !== 1 ? 's' : ''})</span>
                     </div>
                     {cat && (
                       <button onClick={() => setCatForm({ ...cat, isNew: false })}
-                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: '#666' }}>
+                        style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: '#374151' }}>
                         Edit category
                       </button>
                     )}
@@ -212,19 +234,19 @@ export default function Services() {
                         <div style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 4 }}>
                             <div style={{ fontWeight: 500, fontSize: 13 }}>{s.name}</div>
-                            {!s.active && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#f0f0ec', color: '#888' }}>Off</span>}
+                            {!s.active && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#f0f0ec', color: '#374151' }}>Off</span>}
                           </div>
                           <div style={{ fontSize: 18, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>
-                            ₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#888' }}>{s.unit}</span>
+                            ₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#374151' }}>{s.unit}</span>
                           </div>
-                          {s.description && <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>{s.description}</div>}
+                          {s.description && <div style={{ fontSize: 11, color: '#374151', marginBottom: 8 }}>{s.description}</div>}
                           {s.custom_fields?.length > 0 && (
-                            <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: '#374151', marginBottom: 8 }}>
                               {s.custom_fields.length} custom field{s.custom_fields.length !== 1 ? 's' : ''}
                             </div>
                           )}
                           <button onClick={() => openSvc(s)}
-                            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#666', width: '100%' }}>
+                            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151', width: '100%' }}>
                             Edit
                           </button>
                         </div>
@@ -234,7 +256,7 @@ export default function Services() {
                     {/* Add service to this category shortcut */}
                     <div
                       onClick={() => openNewSvc({ category_id: id === '__none__' ? '' : id })}
-                      style={{ border: '1.5px dashed #ddd', borderRadius: 10, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#bbb', fontSize: 13, flexDirection: 'column', gap: 4 }}>
+                      style={{ border: '1.5px dashed #111827', borderRadius: 10, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#111827', fontSize: 13, flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 22 }}>+</span>
                       <span>Add service</span>
                     </div>
@@ -259,7 +281,7 @@ export default function Services() {
                 style={{ width: '100%', height: 120, borderRadius: 8, border: '1px dashed #ccc', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
                 {preview
                   ? <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <div style={{ textAlign: 'center', color: '#aaa' }}><div style={{ fontSize: 24, marginBottom: 4 }}>📷</div><div style={{ fontSize: 11 }}>Click to upload</div></div>}
+                  : <div style={{ textAlign: 'center', color: '#374151' }}><div style={{ fontSize: 24, marginBottom: 4 }}>📷</div><div style={{ fontSize: 11 }}>Click to upload</div></div>}
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
               {preview && <button onClick={() => { setPreview(null); setSvcForm(p => ({ ...p, image_url: '' })); }}
@@ -299,7 +321,7 @@ export default function Services() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>Custom Fields</div>
-                  <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>Extra info to collect when customers order this service</div>
+                  <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>Extra info to collect when customers order this service</div>
                 </div>
                 <button onClick={addField}
                   style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, cursor: 'pointer', background: '#f0f0ec', border: '0.5px solid #ccc', color: '#444', fontWeight: 500, whiteSpace: 'nowrap' }}>
@@ -308,7 +330,7 @@ export default function Services() {
               </div>
 
               {fields.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#bbb', textAlign: 'center', padding: '14px 0', border: '1px dashed #eee', borderRadius: 8 }}>
+                <div style={{ fontSize: 12, color: '#374151', textAlign: 'center', padding: '14px 0', border: '1px dashed #eee', borderRadius: 8 }}>
                   No custom fields — click <b>+ Add field</b> to create one
                 </div>
               ) : (
@@ -318,51 +340,102 @@ export default function Services() {
                       style={{ background: '#f9f9f7', border: '0.5px solid #e8e8e0', borderRadius: 8, padding: '10px 12px' }}>
 
                       {/* Row 1: label + type */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 8, marginBottom: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 8, marginBottom: 8 }}>
                         <div>
                           <label style={{ ...S.label, marginBottom: 3 }}>Field label</label>
-                          <input
-                            value={f.label}
-                            onChange={e => updateField(idx, 'label', e.target.value)}
-                            placeholder="e.g. Weight (kg), Pieces, Notes…"
-                            style={{ ...S.input, fontSize: 12 }}
-                          />
+                          <input value={f.label} onChange={e => updateField(idx, 'label', e.target.value)}
+                            placeholder="e.g. Weight (kg), Color, Notes…"
+                            style={{ ...S.input, fontSize: 12 }} />
                         </div>
                         <div>
                           <label style={{ ...S.label, marginBottom: 3 }}>Type</label>
-                          <select value={f.field_type} onChange={e => updateField(idx, 'field_type', e.target.value)}
+                          <select value={f.field_type}
+                            onChange={e => updateField(idx, 'field_type', e.target.value)}
                             style={{ ...S.select, fontSize: 12 }}>
                             {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                           </select>
                         </div>
                       </div>
 
-                      {/* Row 2: placeholder */}
-                      <div style={{ marginBottom: 8 }}>
-                        <label style={{ ...S.label, marginBottom: 3 }}>Placeholder (optional)</label>
-                        <input
-                          value={f.placeholder || ''}
-                          onChange={e => updateField(idx, 'placeholder', e.target.value)}
-                          placeholder="Hint shown inside the input"
-                          style={{ ...S.input, fontSize: 12 }}
-                        />
-                      </div>
+                      {/* Type-specific config */}
+                      {(f.field_type === 'text' || f.field_type === 'textarea') && (
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ ...S.label, marginBottom: 3 }}>Placeholder text (optional)</label>
+                          <input value={f.placeholder || ''} onChange={e => updateField(idx, 'placeholder', e.target.value)}
+                            placeholder={f.field_type === 'textarea' ? 'e.g. Any special instructions…' : 'e.g. Enter value here'}
+                            style={{ ...S.input, fontSize: 12 }} />
+                        </div>
+                      )}
 
-                      {/* Row 3: required + move/remove */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: 12, color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {f.field_type === 'number' && (
+                        <>
+                          <div style={{ marginBottom: 8 }}>
+                            <label style={{ ...S.label, marginBottom: 3 }}>Placeholder text (optional)</label>
+                            <input value={f.placeholder || ''} onChange={e => updateField(idx, 'placeholder', e.target.value)}
+                              placeholder="e.g. Enter number of pieces" style={{ ...S.input, fontSize: 12 }} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                            <div>
+                              <label style={{ ...S.label, marginBottom: 3 }}>Min value (optional)</label>
+                              <input type="number" value={f.min_value || ''} onChange={e => updateField(idx, 'min_value', e.target.value)}
+                                placeholder="0" style={{ ...S.input, fontSize: 12 }} />
+                            </div>
+                            <div>
+                              <label style={{ ...S.label, marginBottom: 3 }}>Max value (optional)</label>
+                              <input type="number" value={f.max_value || ''} onChange={e => updateField(idx, 'max_value', e.target.value)}
+                                placeholder="—" style={{ ...S.input, fontSize: 12 }} />
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {f.field_type === 'select' && (
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ ...S.label, marginBottom: 5 }}>Dropdown options</label>
+                          {/* Existing options as chips */}
+                          {(f.options || []).length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 6 }}>
+                              {(f.options || []).map((opt, oi) => (
+                                <span key={oi} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px 3px 10px', borderRadius: 20, background: '#E6F1FB', color: '#185FA5', fontSize: 12, fontWeight: 500 }}>
+                                  {opt}
+                                  <button onClick={() => removeOption(idx, oi)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#185FA5', fontSize: 13, lineHeight: 1, padding: 0 }}>×</button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Add new option */}
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <input
+                              value={f._newOption || ''}
+                              onChange={e => updateField(idx, '_newOption', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
+                              placeholder="Type an option, press Enter…"
+                              style={{ ...S.input, fontSize: 12, flex: 1 }}
+                            />
+                            <button onClick={() => addOption(idx)}
+                              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                              + Add
+                            </button>
+                          </div>
+                          {(f.options || []).length === 0 && (
+                            <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>Add at least one option for the dropdown.</div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Required + move/remove */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                        <label style={{ fontSize: 12, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
                           <input type="checkbox" checked={f.required || false} onChange={e => updateField(idx, 'required', e.target.checked)} />
                           Required
                         </label>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => moveField(idx, -1)} disabled={idx === 0}
-                            title="Move up"
-                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === 0 ? '#ddd' : '#666' }}>↑</button>
-                          <button onClick={() => moveField(idx, 1)} disabled={idx === fields.length - 1}
-                            title="Move down"
-                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === fields.length - 1 ? '#ddd' : '#666' }}>↓</button>
-                          <button onClick={() => removeField(idx)}
-                            title="Remove field"
+                          <button onClick={() => moveField(idx, -1)} disabled={idx === 0} title="Move up"
+                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === 0 ? '#ddd' : '#374151' }}>↑</button>
+                          <button onClick={() => moveField(idx, 1)} disabled={idx === fields.length - 1} title="Move down"
+                            style={{ fontSize: 12, padding: '3px 7px', borderRadius: 4, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ddd', color: idx === fields.length - 1 ? '#ddd' : '#374151' }}>↓</button>
+                          <button onClick={() => removeField(idx)} title="Remove"
                             style={{ fontSize: 12, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>✕</button>
                         </div>
                       </div>

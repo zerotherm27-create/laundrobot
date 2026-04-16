@@ -25,9 +25,20 @@ async function saveFields(client, serviceId, fields) {
   for (let i = 0; i < fields.length; i++) {
     const f = fields[i];
     await client.query(
-      `INSERT INTO service_custom_fields (service_id, label, field_type, placeholder, required, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [serviceId, f.label || 'Custom Field', f.field_type || 'text', f.placeholder || '', f.required || false, i]
+      `INSERT INTO service_custom_fields
+         (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        serviceId,
+        f.label || 'Custom Field',
+        f.field_type || 'text',
+        f.placeholder || '',
+        f.required || false,
+        i,
+        JSON.stringify(f.options || []),
+        f.min_value != null && f.min_value !== '' ? f.min_value : null,
+        f.max_value != null && f.max_value !== '' ? f.max_value : null,
+      ]
     );
   }
 }

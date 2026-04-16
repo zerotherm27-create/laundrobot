@@ -321,11 +321,23 @@ export default function BookingForm({ tenantId }) {
                     {f.field_type === 'select' ? (
                       <select style={INPUT} value={fieldValues[f.id] || ''}
                         onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}>
-                        <option value="">{f.placeholder || 'Select…'}</option>
-                        {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+                        <option value="">— {f.placeholder || 'Select an option'} —</option>
+                        {(Array.isArray(f.options) ? f.options : []).map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
+                    ) : f.field_type === 'textarea' ? (
+                      <textarea
+                        style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
+                        value={fieldValues[f.id] || ''}
+                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
+                        placeholder={f.placeholder || 'Enter your notes here…'}
+                        onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                        onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                      />
                     ) : (
-                      <input style={INPUT} type={f.field_type === 'number' ? 'number' : 'text'}
+                      <input style={INPUT}
+                        type={f.field_type === 'number' ? 'number' : 'text'}
+                        min={f.field_type === 'number' && f.min_value != null ? f.min_value : undefined}
+                        max={f.field_type === 'number' && f.max_value != null ? f.max_value : undefined}
                         value={fieldValues[f.id] || ''}
                         onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
                         placeholder={f.placeholder || ''}
