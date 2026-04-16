@@ -7,7 +7,7 @@ const { sendNewOrderEmail } = require('../utils/email');
 router.get('/:tenantId/info', async (req, res) => {
   try {
     const { rows: [t] } = await db.query(
-      'SELECT name, logo_url FROM tenants WHERE id=$1 AND active=TRUE',
+      'SELECT name, logo_url, contact_number FROM tenants WHERE id=$1 AND active=TRUE',
       [req.params.tenantId]
     );
     if (!t) return res.status(404).json({ error: 'Shop not found' });

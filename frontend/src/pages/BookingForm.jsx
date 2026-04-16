@@ -199,13 +199,18 @@ export default function BookingForm({ tenantId }) {
   if (step === 'success') return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #E6F1FB 0%, #F7F7F5 60%)', padding: '2rem 1rem' }}>
       <div style={cardStyle}>
+
+        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 52, marginBottom: 8 }}>🎉</div>
           <div style={{ fontWeight: 700, fontSize: 20, color: '#111827', marginBottom: 6 }}>Order Confirmed!</div>
-          <div style={{ color: '#374151', fontSize: 14 }}>We'll be in touch to confirm your pickup details.</div>
+          <div style={{ color: '#374151', fontSize: 14 }}>
+            Thank you! We've received your order and will contact you shortly to confirm your pickup details.
+          </div>
         </div>
 
-        <div style={{ background: '#F7F7F5', borderRadius: 12, padding: '1.25rem', marginBottom: 20 }}>
+        {/* Order summary */}
+        <div style={{ background: '#F7F7F5', borderRadius: 12, padding: '1.25rem', marginBottom: 16 }}>
           {[
             ['Order ID', result.order_id],
             ['Service', result.service_name],
@@ -218,17 +223,39 @@ export default function BookingForm({ tenantId }) {
           ))}
         </div>
 
+        {/* Pay Now */}
         {result.payment_url && (
           <a href={result.payment_url} target="_blank" rel="noreferrer"
             style={{ display: 'block', textAlign: 'center', padding: '13px', borderRadius: 10, background: '#378ADD', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12 }}>
             💳 Pay Now
           </a>
         )}
-        {!result.payment_url && (
-          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '12px 16px', color: '#3B6D11', fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
-            ✅ We'll contact you with payment details.
+
+        {/* Contact the shop */}
+        {tenant?.contact_number ? (
+          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '14px 16px', marginBottom: 14, border: '1px solid #C3E6CB' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1D6A3B', marginBottom: 4 }}>
+              📞 Need help? Contact us
+            </div>
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
+              For questions or updates about your order, SMS or call us:
+            </div>
+            <a href={`tel:${tenant.contact_number}`}
+              style={{ display: 'block', textAlign: 'center', padding: '11px', borderRadius: 9, background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 8 }}>
+              📲 {tenant.contact_number}
+            </a>
+            <a href={`sms:${tenant.contact_number}`}
+              style={{ display: 'block', textAlign: 'center', padding: '11px', borderRadius: 9, background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 14, textDecoration: 'none', border: '2px solid #22C55E' }}>
+              💬 Send SMS
+            </a>
+          </div>
+        ) : (
+          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '12px 16px', color: '#3B6D11', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
+            ✅ We'll contact you shortly with further details.
           </div>
         )}
+
+        {/* Actions */}
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={closeMiniApp}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>

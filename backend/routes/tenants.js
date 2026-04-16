@@ -12,7 +12,7 @@ function superadminOnly(req, res, next) {
 router.get('/settings', auth, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, logo_url, notification_email FROM tenants WHERE id=$1`,
+      `SELECT id, name, logo_url, notification_email, contact_number FROM tenants WHERE id=$1`,
       [req.user.tenant_id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
@@ -22,12 +22,12 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email } = req.body;
+  const { notification_email, contact_number } = req.body;
   try {
     const { rows: [tenant] } = await db.query(
-      `UPDATE tenants SET notification_email=$1 WHERE id=$2
-       RETURNING id, name, logo_url, notification_email`,
-      [notification_email?.trim() || null, req.user.tenant_id]
+      `UPDATE tenants SET notification_email=$1, contact_number=$2 WHERE id=$3
+       RETURNING id, name, logo_url, notification_email, contact_number`,
+      [notification_email?.trim() || null, contact_number?.trim() || null, req.user.tenant_id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     res.json(tenant);
