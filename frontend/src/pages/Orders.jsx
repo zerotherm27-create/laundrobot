@@ -63,13 +63,13 @@ export default function Orders() {
         {/* Table */}
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
           {loading ? (
-            <div style={{ padding: '2rem', color: '#aaa', fontSize: 14 }}>Loading...</div>
+            <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f5f5f3' }}>
                   {['Order','Customer','Service','Pickup','Status','Paid'].map(h => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#888' }}>{h}</th>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -87,8 +87,8 @@ export default function Orders() {
                         {o.customer_name}
                       </div>
                     </td>
-                    <td style={{ padding: '9px 12px', color: '#666' }}>{o.service_name}</td>
-                    <td style={{ padding: '9px 12px', color: '#888', fontSize: 11 }}>
+                    <td style={{ padding: '9px 12px', color: '#374151' }}>{o.service_name}</td>
+                    <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
                       {o.pickup_date ? new Date(o.pickup_date).toLocaleString() : '—'}
                     </td>
                     <td style={{ padding: '9px 12px' }}><StatusBadge status={o.status} /></td>
@@ -105,7 +105,7 @@ export default function Orders() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: 13 }}>
+                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
                       No orders found
                     </td>
                   </tr>
@@ -121,18 +121,18 @@ export default function Orders() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
               <div>
                 <div style={{ fontWeight: 500, fontSize: 15 }}>{selected.id}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>
+                <div style={{ fontSize: 12, color: '#374151' }}>
                   {selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}
                 </div>
               </div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#aaa' }}>×</button>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <Avatar name={selected.customer_name || '?'} size={40} />
               <div>
                 <div style={{ fontWeight: 500 }}>{selected.customer_name}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>{selected.customer_phone || 'No phone'}</div>
+                <div style={{ fontSize: 12, color: '#374151' }}>{selected.customer_phone || 'No phone'}</div>
               </div>
             </div>
 
@@ -145,7 +145,7 @@ export default function Orders() {
               ['FB Messenger', selected.fb_id ? '@' + selected.fb_id : '—'],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                <span style={{ color: '#888' }}>{k}</span>
+                <span style={{ color: '#374151' }}>{k}</span>
                 <span style={{ fontWeight: 500 }}>{v}</span>
               </div>
             ))}
@@ -158,7 +158,7 @@ export default function Orders() {
             )}
 
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Update status</div>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>Update status</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {STATUSES.map(s => (
                   <button key={s} onClick={() => handleStatusUpdate(selected.id, s)} style={{

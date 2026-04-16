@@ -93,7 +93,7 @@ export default function FAQs() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>❓ FAQs</h2>
-          <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>
+          <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 0' }}>
             These answers appear in Messenger when customers tap the FAQs menu
           </p>
         </div>
@@ -128,10 +128,10 @@ export default function FAQs() {
         </span>
       </div>
 
-      {loading && <p style={{ color: '#888', fontSize: 13 }}>Loading…</p>}
+      {loading && <p style={{ color: '#374151', fontSize: 13 }}>Loading…</p>}
 
       {!loading && faqs.length === 0 && activeTenantId && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#aaa' }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#374151' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>❓</div>
           <p style={{ fontSize: 14, marginBottom: 8 }}>No FAQs yet for {activeTenantName}</p>
           <button onClick={openAdd} style={{ ...btn('#378ADD', '#fff'), marginTop: 16, padding: '10px 20px', fontSize: 13 }}>+ Add your first FAQ</button>
@@ -149,12 +149,12 @@ export default function FAQs() {
               onClick={() => setExpandedId(expandedId === faq.id ? null : faq.id)}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: 'pointer', background: expandedId === faq.id ? '#f7f9fc' : '#fff' }}
             >
-              <span style={{ fontSize: 12, color: '#bbb', minWidth: 20 }}>#{idx + 1}</span>
+              <span style={{ fontSize: 12, color: '#374151', minWidth: 20 }}>#{idx + 1}</span>
               <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{faq.question}</span>
               <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: faq.active ? '#E6F5E9' : '#F5E6E6', color: faq.active ? '#2E7D32' : '#A32D2D' }}>
                 {faq.active ? 'Active' : 'Hidden'}
               </span>
-              <span style={{ color: '#aaa', fontSize: 12, transform: expandedId === faq.id ? 'rotate(180deg)' : 'none' }}>▾</span>
+              <span style={{ color: '#374151', fontSize: 12, transform: expandedId === faq.id ? 'rotate(180deg)' : 'none' }}>▾</span>
             </div>
 
             {expandedId === faq.id && (
@@ -180,15 +180,15 @@ export default function FAQs() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.18)' }}>
             <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 600 }}>
               {modal === 'add' ? '+ Add FAQ' : '✏️ Edit FAQ'}
-              {isSuperAdmin && <span style={{ fontSize: 12, color: '#888', fontWeight: 400, marginLeft: 8 }}>for {activeTenantName}</span>}
+              {isSuperAdmin && <span style={{ fontSize: 12, color: '#374151', fontWeight: 400, marginLeft: 8 }}>for {activeTenantName}</span>}
             </h3>
 
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>Question</label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Question</label>
             <input value={form.question} onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
               placeholder="e.g. How long does laundry take?"
               style={{ width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }} />
 
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>Answer</label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Answer</label>
             <textarea value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}
               placeholder="Type the answer here..."
               rows={4}
@@ -196,7 +196,7 @@ export default function FAQs() {
 
             <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 6 }}>Sort Order</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Sort Order</label>
                 <input type="number" min="0" value={form.sort_order}
                   onChange={e => setForm(f => ({ ...f, sort_order: Number(e.target.value) }))}
                   style={{ width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />

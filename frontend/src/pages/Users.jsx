@@ -110,7 +110,7 @@ export default function Users() {
   };
 
   if (!isAdmin) return (
-    <div style={{ textAlign: 'center', padding: '80px 20px', color: '#aaa' }}>
+    <div style={{ textAlign: 'center', padding: '80px 20px', color: '#374151' }}>
       <div style={{ fontSize: 40 }}>🔒</div>
       <p style={{ marginTop: 12 }}>You don't have permission to manage users.</p>
     </div>
@@ -121,7 +121,7 @@ export default function Users() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>👥 User Management</h2>
-          <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>Control who can access which features per branch</p>
+          <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 0' }}>Control who can access which features per branch</p>
         </div>
         {activeTenantId && <button onClick={openAdd} style={btn('#378ADD', '#fff')}>+ Add User</button>}
       </div>
@@ -137,9 +137,9 @@ export default function Users() {
       )}
 
       <div style={{ background: '#fff', border: '1px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? <div style={{ padding: '2rem', color: '#aaa', fontSize: 13 }}>Loading…</div>
+        {loading ? <div style={{ padding: '2rem', color: '#374151', fontSize: 13 }}>Loading…</div>
           : users.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#374151' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
               <p style={{ fontSize: 14 }}>No users yet for {activeTenantName}</p>
               <button onClick={openAdd} style={{ ...btn('#378ADD', '#fff'), marginTop: 12, padding: '9px 20px', fontSize: 13 }}>+ Add first user</button>
@@ -149,7 +149,7 @@ export default function Users() {
               <thead>
                 <tr style={{ background: '#f7f9fc' }}>
                   {['Name', 'Email', 'Role', 'Feature Access', ''].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, fontSize: 11, color: '#888', borderBottom: '1px solid #f0f0ec' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, fontSize: 11, color: '#374151', borderBottom: '1px solid #f0f0ec' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -159,7 +159,7 @@ export default function Users() {
                   return (
                     <tr key={u.id} style={{ borderTop: '1px solid #f5f5f3' }}>
                       <td style={{ padding: '12px 14px', fontWeight: 500 }}>{u.name || '—'}</td>
-                      <td style={{ padding: '12px 14px', color: '#555' }}>{u.email}</td>
+                      <td style={{ padding: '12px 14px', color: '#374151' }}>{u.email}</td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: u.role === 'admin' ? '#E6F1FB' : '#f0f0ec', color: u.role === 'admin' ? '#185FA5' : '#555', fontWeight: 500 }}>
                           {u.role}
@@ -190,16 +190,16 @@ export default function Users() {
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>
               {modal === 'add' ? '+ Add User' : '✏️ Edit User'}
             </h3>
-            <p style={{ margin: '0 0 20px', fontSize: 12, color: '#888' }}>Branch: {activeTenantName}</p>
+            <p style={{ margin: '0 0 20px', fontSize: 12, color: '#374151' }}>Branch: {activeTenantName}</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Full Name</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Full Name</label>
                 <input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Maria Santos"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Email</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Email</label>
                 <input type="email" value={form.email || ''} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@email.com"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
               </div>
@@ -207,7 +207,7 @@ export default function Users() {
 
             <div style={{ display: 'grid', gridTemplateColumns: modal === 'add' ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 20 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Role</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Role</label>
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value, permissions: e.target.value === 'admin' ? [] : ALL_KEYS }))}
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, background: '#fff' }}>
                   <option value="admin">Admin — full access</option>
@@ -216,7 +216,7 @@ export default function Users() {
               </div>
               {modal === 'add' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#555', marginBottom: 5 }}>Password</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 5 }}>Password</label>
                   <input type="password" value={form.password || ''} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters"
                     style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
                 </div>
@@ -275,7 +275,7 @@ export default function Users() {
                   <div style={{ marginTop: 10, position: 'relative' }}>
                     <input type={showPw ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password (min. 6 characters)"
                       style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
-                    <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#aaa', fontSize: 13 }}>
+                    <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#374151', fontSize: 13 }}>
                       {showPw ? '🙈' : '👁'}
                     </span>
                   </div>

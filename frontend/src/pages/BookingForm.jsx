@@ -37,7 +37,9 @@ function closeMiniApp() {
 
 function normalizeOpts(options) {
   if (!Array.isArray(options)) return [];
-  return options.map(o => typeof o === 'object' && o !== null ? o : { label: String(o), price: 0 });
+  return options.map(o => typeof o === 'object' && o !== null
+    ? { price_type: 'fixed', ...o }
+    : { label: String(o), price: 0, price_type: 'fixed' });
 }
 
 export default function BookingForm({ tenantId }) {
@@ -97,12 +99,29 @@ export default function BookingForm({ tenantId }) {
   const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
   const qty = firstNumField ? parseFloat(fieldValues[firstNumField.id] || 0) : 0;
 
-  // Variation (select) fields — sum selected option prices
+  // Variation (select) fields — sum selected option prices (with copy_base support)
   const selectFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'select');
+
+  // Base variation price = price of the first fixed-priced selected option with price > 0
+  const baseVariationPrice = (() => {
+    for (const f of selectFields) {
+      const opts = normalizeOpts(f.options);
+      const sel = opts.find(o => o.label === fieldValues[f.id]);
+      if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) {
+        return Number(sel.price);
+      }
+    }
+    return 0;
+  })();
+
   const variationTotal = selectFields.reduce((sum, f) => {
     const opts = normalizeOpts(f.options);
     const sel = opts.find(o => o.label === fieldValues[f.id]);
-    return sum + (sel ? Number(sel.price || 0) : 0);
+    if (!sel) return sum;
+    const optPrice = (sel.price_type || 'fixed') === 'copy_base'
+      ? baseVariationPrice
+      : Number(sel.price || 0);
+    return sum + optPrice;
   }, 0);
 
   // If any select option has a price > 0, use variation pricing (no base price)
@@ -434,9 +453,11 @@ export default function BookingForm({ tenantId }) {
                                   transition: 'all .15s', textAlign: 'center', minWidth: 80,
                                 }}>
                                 <div>{opt.label}</div>
-                                {opt.price > 0 && (
-                                  <div style={{ fontSize: 11, color: isSel ? '#378ADD' : '#374151', marginTop: 2, fontWeight: 600 }}>
-                                    +₱{Number(opt.price).toLocaleString()}
+                                {(opt.price_type === 'copy_base' || opt.price > 0) && (
+                                  <div style={{ fontSize: 11, color: isSel ? '#378ADD' : '#7C3AED', marginTop: 2, fontWeight: 600 }}>
+                                    {opt.price_type === 'copy_base'
+                                      ? (baseVariationPrice > 0 ? `+₱${Number(baseVariationPrice).toLocaleString()}` : '= base')
+                                      : `+₱${Number(opt.price).toLocaleString()}`}
                                   </div>
                                 )}
                               </button>
@@ -486,10 +507,11 @@ export default function BookingForm({ tenantId }) {
                     {selectFields.map(f => {
                       const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                       if (!sel) return null;
+                      const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
                       return (
                         <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
                           <span>{f.label}: <strong>{sel.label}</strong></span>
-                          <span style={{ fontWeight: 600 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                          <span style={{ fontWeight: 600 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
                         </div>
                       );
                     })}
@@ -684,10 +706,11 @@ export default function BookingForm({ tenantId }) {
               {selectFields.map(f => {
                 const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                 if (!sel) return null;
+                const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
                 return (
                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                     <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
-                    <span style={{ fontWeight: 600 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                    <span style={{ fontWeight: 600 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
                   </div>
                 );
               })}
@@ -768,10 +791,11 @@ export default function BookingForm({ tenantId }) {
               {selectFields.map(f => {
                 const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                 if (!sel) return null;
+                const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
                 return (
                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
                     <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
-                    <span style={{ fontWeight: 500 }}>{Number(sel.price || 0) > 0 ? `₱${Number(sel.price).toLocaleString()}` : '—'}</span>
+                    <span style={{ fontWeight: 500 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
                   </div>
                 );
               })}

@@ -23,7 +23,7 @@ export default function Customers() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Customers</h2>
-        <div style={{ fontSize: 13, color: '#888' }}>{customers.length} total customers</div>
+        <div style={{ fontSize: 13, color: '#374151' }}>{customers.length} total customers</div>
       </div>
 
       <input value={search} onChange={e => setSearch(e.target.value)}
@@ -32,12 +32,12 @@ export default function Customers() {
 
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 320px' : '1fr', gap: 16 }}>
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-          {loading ? <div style={{ padding: '2rem', color: '#aaa', fontSize: 14 }}>Loading...</div> : (
+          {loading ? <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div> : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f5f5f3' }}>
                   {['Customer','Phone','Email','FB Messenger','Orders','Spent'].map(h => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#888' }}>{h}</th>
+                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -51,15 +51,15 @@ export default function Customers() {
                         <span style={{ fontWeight: 500 }}>{c.name || 'Unknown'}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '10px 12px', color: '#666' }}>{c.phone || '—'}</td>
+                    <td style={{ padding: '10px 12px', color: '#374151' }}>{c.phone || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#185FA5' }}>{c.email || '—'}</td>
-                    <td style={{ padding: '10px 12px', color: '#666' }}>{c.fb_id ? '@' + c.fb_id : '—'}</td>
+                    <td style={{ padding: '10px 12px', color: '#374151' }}>{c.fb_id ? '@' + c.fb_id : '—'}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{c.total_orders || 0}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500, color: '#3B6D11' }}>₱{Number(c.total_spent || 0).toLocaleString()}</td>
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: 13 }}>No customers found</td></tr>
+                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No customers found</td></tr>
                 )}
               </tbody>
             </table>
@@ -71,13 +71,13 @@ export default function Customers() {
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontWeight: 500, fontSize: 15 }}>Customer details</div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#aaa' }}>×</button>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <Avatar name={selected.name || '?'} size={48} bg="#EEEDFE" color="#534AB7" />
               <div>
                 <div style={{ fontWeight: 500, fontSize: 16 }}>{selected.name || 'Unknown'}</div>
-                <div style={{ fontSize: 12, color: '#888' }}>Customer since {new Date(selected.created_at).toLocaleDateString()}</div>
+                <div style={{ fontSize: 12, color: '#374151' }}>Customer since {new Date(selected.created_at).toLocaleDateString()}</div>
               </div>
             </div>
             {[
@@ -89,7 +89,7 @@ export default function Customers() {
               ['Total spent', '₱' + Number(selected.total_spent || 0).toLocaleString()],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                <span style={{ color: '#888' }}>{k}</span>
+                <span style={{ color: '#374151' }}>{k}</span>
                 <span style={{ fontWeight: 500 }}>{v}</span>
               </div>
             ))}

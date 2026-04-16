@@ -48,7 +48,7 @@ export default function Login() {
       }}>L</div>
       <div>
         <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', letterSpacing: '-.3px' }}>LaundroBot</div>
-        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>Business Management Dashboard</div>
+        <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Business Management Dashboard</div>
       </div>
     </div>
   );
@@ -87,7 +87,7 @@ export default function Login() {
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4, letterSpacing: '-.4px' }}>
               Welcome back
             </h1>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28 }}>
+            <p style={{ fontSize: 13, color: '#374151', marginBottom: 28 }}>
               Sign in to your LaundroBot dashboard
             </p>
 
@@ -117,7 +117,7 @@ export default function Login() {
                     style={{ ...inputStyle, paddingRight: 42 }}
                   />
                   <button type="button" onClick={() => setShowPw(s => !s)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#9CA3AF', padding: 0, display: 'flex' }}>
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#374151', padding: 0, display: 'flex' }}>
                     {showPw ? '🙈' : '👁'}
                   </button>
                 </div>
@@ -144,7 +144,7 @@ export default function Login() {
               </button>
             </form>
 
-            <p style={{ textAlign: 'center', fontSize: 12, color: '#9CA3AF', marginTop: 24 }}>
+            <p style={{ textAlign: 'center', fontSize: 12, color: '#374151', marginTop: 24 }}>
               LaundroBot · Laundry Business Management
             </p>
           </>
@@ -158,8 +158,8 @@ export default function Login() {
               <div className="animate-fade-up" style={{ textAlign: 'center', padding: '8px 0' }}>
                 <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 20px' }}>📧</div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Check your email</h2>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 8, lineHeight: 1.6 }}>{fpMsg}</p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 28 }}>Didn't receive it? Check your spam folder or try again.</p>
+                <p style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.6 }}>{fpMsg}</p>
+                <p style={{ fontSize: 12, color: '#374151', marginBottom: 28 }}>Didn't receive it? Check your spam folder or try again.</p>
                 <button onClick={() => { setView('login'); setFpSent(false); }}
                   className="btn-primary"
                   style={{ width: '100%', justifyContent: 'center', padding: '11px', fontSize: 14, borderRadius: 9 }}>
@@ -169,7 +169,7 @@ export default function Login() {
             ) : (
               <>
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Reset password</h2>
-                <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 13, color: '#374151', marginBottom: 28, lineHeight: 1.6 }}>
                   Enter your email and we'll send you a reset link.
                 </p>
                 <form onSubmit={handleForgot}>
@@ -190,7 +190,7 @@ export default function Login() {
                     {fpLoading ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Sending…</> : 'Send Reset Link'}
                   </button>
                   <button type="button" onClick={() => setView('login')}
-                    style={{ width: '100%', padding: '10px', fontSize: 13, borderRadius: 9, background: 'transparent', color: '#6B7280', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ width: '100%', padding: '10px', fontSize: 13, borderRadius: 9, background: 'transparent', color: '#374151', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                     ← Back to Login
                   </button>
                 </form>

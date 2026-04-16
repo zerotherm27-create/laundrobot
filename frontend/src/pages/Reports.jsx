@@ -94,7 +94,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {loading ? <div style={{ color: '#aaa', fontSize: 14 }}>Loading...</div> : (
+      {loading ? <div style={{ color: '#374151', fontSize: 14 }}>Loading...</div> : (
         <>
           {/* Summary cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
@@ -105,7 +105,7 @@ export default function Reports() {
               { label: 'Avg Order Value', val: '₱' + Number(avgOrderValue).toLocaleString(), color: '#1D9E75' },
             ].map(m => (
               <div key={m.label} style={{ background: '#f5f5f3', borderRadius: 8, padding: '1rem' }}>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>{m.label}</div>
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{m.label}</div>
                 <div style={{ fontSize: 24, fontWeight: 500, color: m.color }}>{m.val}</div>
               </div>
             ))}
@@ -116,14 +116,14 @@ export default function Reports() {
             <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Revenue over time</div>
               {days.length === 0 ? (
-                <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: '2rem 0' }}>No data for this period</div>
+                <div style={{ color: '#374151', fontSize: 13, textAlign: 'center', padding: '2rem 0' }}>No data for this period</div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
                   {days.map(([day, val]) => (
                     <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <div style={{ fontSize: 9, color: '#888' }}>₱{Math.round(val.revenue / 1000)}k</div>
+                      <div style={{ fontSize: 9, color: '#374151' }}>₱{Math.round(val.revenue / 1000)}k</div>
                       <div style={{ width: '100%', background: '#378ADD', borderRadius: '3px 3px 0 0', height: Math.max(4, (val.revenue / maxRevenue) * 90) + 'px' }} />
-                      <div style={{ fontSize: 8, color: '#aaa', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 8, color: '#374151', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
                         {day.slice(0, 5)}
                       </div>
                     </div>
@@ -137,7 +137,7 @@ export default function Reports() {
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Orders by status</div>
               {byStatus.map(({ status, count }) => (
                 <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, color: '#666' }}>{status}</span>
+                  <span style={{ fontSize: 12, color: '#374151' }}>{status}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 80, height: 6, background: '#f0f0ec', borderRadius: 4 }}>
                       <div style={{ height: 6, borderRadius: 4, width: totalOrders ? (count / totalOrders * 100) + '%' : '0%', background: '#378ADD' }} />
@@ -155,14 +155,14 @@ export default function Reports() {
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Top services</div>
               {Object.entries(byService).sort((a, b) => b[1].revenue - a[1].revenue).map(([name, val]) => (
                 <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                  <span style={{ color: '#666' }}>{name}</span>
+                  <span style={{ color: '#374151' }}>{name}</span>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 500, color: '#3B6D11' }}>₱{val.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>{val.count} orders</div>
+                    <div style={{ fontSize: 11, color: '#374151' }}>{val.count} orders</div>
                   </div>
                 </div>
               ))}
-              {Object.keys(byService).length === 0 && <div style={{ color: '#aaa', fontSize: 13, textAlign: 'center', padding: '1rem 0' }}>No data</div>}
+              {Object.keys(byService).length === 0 && <div style={{ color: '#374151', fontSize: 13, textAlign: 'center', padding: '1rem 0' }}>No data</div>}
             </div>
 
             {/* Summary stats */}
@@ -178,7 +178,7 @@ export default function Reports() {
                 ['Avg order value', '₱' + Number(avgOrderValue).toLocaleString()],
               ].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                  <span style={{ color: '#888' }}>{k}</span>
+                  <span style={{ color: '#374151' }}>{k}</span>
                   <span style={{ fontWeight: 500 }}>{v}</span>
                 </div>
               ))}

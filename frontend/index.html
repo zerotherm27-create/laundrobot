@@ -27,13 +27,13 @@
     <meta name="twitter:description" content="Accept Messenger orders, track pickups & deliveries, manage multiple branches." />
     <meta name="twitter:image" content="https://laundrobot.vercel.app/og-image.png" />
 
-    <!-- ── Favicon (inline SVG) ── -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23378ADD'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-weight='700' font-size='18' fill='white'>L</text></svg>" />
+    <!-- ── Favicon ── -->
+    <link rel="icon" type="image/png" href="/logo.png" />
 
     <!-- ── Fonts ── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
     <style>
       :root {
@@ -54,9 +54,9 @@
         --border:         #E8E8E0;
         --border-subtle:  #F0F0EC;
 
-        --text:           #111827;
-        --text-2:         #4B5563;
-        --text-3:         #9CA3AF;
+        --text:           #0D1117;
+        --text-2:         #374151;
+        --text-3:         #374151;
 
         --radius-sm:      6px;
         --radius:         10px;
@@ -78,13 +78,16 @@
       html { scroll-behavior: smooth; }
 
       body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         background: var(--bg);
         color: var(--text);
         font-size: 14px;
-        line-height: 1.5;
+        font-weight: 500;
+        line-height: 1.6;
+        letter-spacing: -0.01em;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
       }
 
       input, select, textarea, button { font-family: inherit; }

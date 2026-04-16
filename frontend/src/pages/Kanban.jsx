@@ -53,7 +53,7 @@ export default function Kanban() {
     <div className="animate-fade-up">
       <div style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px' }}>Kanban Board</h1>
-        <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>Drag cards or use arrows to move orders through stages.</p>
+        <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>Drag cards or use arrows to move orders through stages.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, alignItems: 'start' }}>
@@ -112,11 +112,11 @@ export default function Kanban() {
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {o.customer_name || 'Unknown'}
                       </div>
-                      <div style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'monospace' }}>{o.id}</div>
+                      <div style={{ fontSize: 10, color: '#374151', fontFamily: 'monospace' }}>{o.id}</div>
                     </div>
                   </div>
 
-                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6, fontWeight: 500 }}>{o.service_name}</div>
+                  <div style={{ fontSize: 11, color: '#374151', marginBottom: 6, fontWeight: 500 }}>{o.service_name}</div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_COLORS[status] }}>
@@ -128,7 +128,7 @@ export default function Kanban() {
                   </div>
 
                   {o.pickup_date && (
-                    <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, color: '#374151', marginBottom: 8 }}>
                       📅 {new Date(o.pickup_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
@@ -140,7 +140,7 @@ export default function Kanban() {
                       disabled={STATUSES.indexOf(o.status) === 0}
                       style={{
                         flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
-                        background: 'transparent', border: '0.5px solid #E0E0D8', color: '#9CA3AF',
+                        background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151',
                         opacity: STATUSES.indexOf(o.status) === 0 ? 0.3 : 1,
                         fontFamily: 'inherit', fontWeight: 500,
                       }}>◀</button>
@@ -149,7 +149,7 @@ export default function Kanban() {
                       disabled={STATUSES.indexOf(o.status) === STATUSES.length - 1}
                       style={{
                         flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
-                        background: 'transparent', border: '0.5px solid #E0E0D8', color: '#9CA3AF',
+                        background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151',
                         opacity: STATUSES.indexOf(o.status) === STATUSES.length - 1 ? 0.3 : 1,
                         fontFamily: 'inherit', fontWeight: 500,
                       }}>▶</button>
@@ -158,7 +158,7 @@ export default function Kanban() {
               ))}
 
               {col.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: '#D1D5DB', fontSize: 12 }}>
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#374151', fontSize: 12 }}>
                   <div style={{ fontSize: 22, marginBottom: 6 }}>📭</div>
                   No orders
                 </div>

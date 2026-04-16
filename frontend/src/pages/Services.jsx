@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '' };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Short text' },
@@ -49,12 +49,13 @@ export default function Services() {
     setPreview(svc.image_url || null);
     setFields((svc.custom_fields || []).map(f => ({
       ...f,
-      options:    Array.isArray(f.options) ? f.options.map(o => typeof o === 'object' && o !== null ? o : { label: String(o), price: 0 }) : [],
+      options:    Array.isArray(f.options) ? f.options.map(o => typeof o === 'object' && o !== null ? { price_type: 'fixed', ...o } : { label: String(o), price: 0, price_type: 'fixed' }) : [],
       min_value:  f.min_value ?? '',
       max_value:  f.max_value ?? '',
       unit_price: f.unit_price ?? '',
       _newOption: '',
       _newOptionPrice: '',
+      _newOptionPriceType: 'fixed',
     })));
   }
 
@@ -91,11 +92,12 @@ export default function Services() {
     setFields(prev => prev.map((f, i) => {
       if (i !== fieldIdx) return f;
       const label = (f._newOption || '').trim();
-      if (!label) return { ...f, _newOption: '', _newOptionPrice: '' };
+      if (!label) return { ...f, _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
       const existingLabels = (f.options || []).map(o => typeof o === 'object' ? o.label : o);
-      if (existingLabels.includes(label)) return { ...f, _newOption: '', _newOptionPrice: '' };
-      const price = parseFloat(f._newOptionPrice) || 0;
-      return { ...f, options: [...(f.options || []), { label, price }], _newOption: '', _newOptionPrice: '' };
+      if (existingLabels.includes(label)) return { ...f, _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+      const priceType = f._newOptionPriceType || 'fixed';
+      const price = priceType === 'copy_base' ? 0 : (parseFloat(f._newOptionPrice) || 0);
+      return { ...f, options: [...(f.options || []), { label, price, price_type: priceType }], _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
     }));
   }
 
@@ -429,17 +431,25 @@ export default function Services() {
                         <div style={{ marginBottom: 8 }}>
                           <label style={{ ...S.label, marginBottom: 6 }}>Options &amp; prices</label>
 
+                          {/* Existing options */}
                           {(f.options || []).length > 0 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
                               {(f.options || []).map((opt, oi) => {
-                                const optLabel = typeof opt === 'object' ? opt.label : opt;
-                                const optPrice = typeof opt === 'object' ? Number(opt.price || 0) : 0;
+                                const optLabel    = typeof opt === 'object' ? opt.label : opt;
+                                const optPrice    = typeof opt === 'object' ? Number(opt.price || 0) : 0;
+                                const priceType   = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
                                 return (
                                   <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#EEF6FF', borderRadius: 7, border: '1px solid #BDD8F7' }}>
                                     <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#185FA5' }}>{optLabel}</span>
-                                    <span style={{ fontSize: 12, color: '#185FA5', background: '#fff', padding: '2px 8px', borderRadius: 4, border: '1px solid #BDD8F7', fontWeight: 600 }}>
-                                      ₱{optPrice.toLocaleString()}
-                                    </span>
+                                    {priceType === 'copy_base' ? (
+                                      <span style={{ fontSize: 11, color: '#7C3AED', background: '#F5F3FF', padding: '2px 8px', borderRadius: 4, border: '1px solid #DDD6FE', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                        = base price
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: 12, color: '#185FA5', background: '#fff', padding: '2px 8px', borderRadius: 4, border: '1px solid #BDD8F7', fontWeight: 600 }}>
+                                        ₱{optPrice.toLocaleString()}
+                                      </span>
+                                    )}
                                     <button onClick={() => removeOption(idx, oi)}
                                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 15, padding: '0 2px', lineHeight: 1 }}>×</button>
                                   </div>
@@ -448,30 +458,44 @@ export default function Services() {
                             </div>
                           )}
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 6 }}>
+                          {/* Add new option */}
+                          <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._newOptionPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} auto`, gap: 6 }}>
                             <input
                               value={f._newOption || ''}
                               onChange={e => updateField(idx, '_newOption', e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
-                              placeholder="Option label (e.g. Small Bag)"
+                              placeholder="Option label (e.g. Express 1 day)"
                               style={{ ...S.input, fontSize: 12 }}
                             />
-                            <input
-                              type="number" min="0" step="1"
-                              value={f._newOptionPrice || ''}
-                              onChange={e => updateField(idx, '_newOptionPrice', e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
-                              placeholder="₱ price"
-                              style={{ ...S.input, fontSize: 12 }}
-                            />
+                            {(f._newOptionPriceType || 'fixed') === 'copy_base' ? (
+                              <span style={{ display: 'flex', alignItems: 'center', padding: '4px 10px', fontSize: 11, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE', borderRadius: 6, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                = base price
+                              </span>
+                            ) : (
+                              <input
+                                type="number" min="0" step="1"
+                                value={f._newOptionPrice || ''}
+                                onChange={e => updateField(idx, '_newOptionPrice', e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
+                                placeholder="₱ price"
+                                style={{ ...S.input, fontSize: 12 }}
+                              />
+                            )}
                             <button onClick={() => addOption(idx)}
                               style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
                               + Add
                             </button>
                           </div>
-                          <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>
-                            💡 Set ₱0 for options that don't change the price (e.g. "Colored", "Whites")
-                          </div>
+
+                          {/* Price type toggle */}
+                          <button type="button"
+                            onClick={() => updateField(idx, '_newOptionPriceType', (f._newOptionPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
+                            style={{ marginTop: 6, fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                              color: (f._newOptionPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                            {(f._newOptionPriceType || 'fixed') === 'copy_base'
+                              ? '↩ Switch to fixed price'
+                              : '= Switch to copy base price (e.g. Express doubles the bag price)'}
+                          </button>
                         </div>
                       )}
 

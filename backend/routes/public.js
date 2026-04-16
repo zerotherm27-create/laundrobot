@@ -134,7 +134,26 @@ router.post('/:tenantId/orders', async (req, res) => {
       return sum;
     }, 0);
 
-    // Sum variation (select) field option prices
+    // Sum variation (select) field option prices (with copy_base support)
+    const selectFieldDefs = svcFields.filter(f => f.field_type === 'select');
+
+    // Base variation price = price of the first fixed-priced selected option with price > 0
+    let baseVariationPrice = 0;
+    for (const fieldDef of selectFieldDefs) {
+      const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
+      if (!cf?.value) continue;
+      const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+      const selectedOpt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+      if (selectedOpt && typeof selectedOpt === 'object') {
+        const priceType = selectedOpt.price_type || 'fixed';
+        const optPrice = Number(selectedOpt.price || 0);
+        if (priceType !== 'copy_base' && optPrice > 0) {
+          baseVariationPrice = optPrice;
+          break;
+        }
+      }
+    }
+
     const variationTotal = (custom_fields || []).reduce((sum, cf) => {
       const fieldDef = svcFields.find(f => f.field_type === 'select' && f.label === cf.label);
       if (fieldDef && cf.value) {
@@ -142,7 +161,11 @@ router.post('/:tenantId/orders', async (req, res) => {
         const selectedOpt = options.find(o =>
           typeof o === 'object' ? o.label === cf.value : o === cf.value
         );
-        return sum + (selectedOpt && typeof selectedOpt === 'object' ? Number(selectedOpt.price || 0) : 0);
+        if (selectedOpt && typeof selectedOpt === 'object') {
+          const priceType = selectedOpt.price_type || 'fixed';
+          const optPrice = priceType === 'copy_base' ? baseVariationPrice : Number(selectedOpt.price || 0);
+          return sum + optPrice;
+        }
       }
       return sum;
     }, 0);

@@ -54,7 +54,7 @@ export default function ResetPassword({ token, onBack }) {
           <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #378ADD, #2568BC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 22, boxShadow: '0 4px 12px rgba(55,138,221,.35)' }}>L</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 17, color: '#111827' }}>LaundroBot</div>
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 1 }}>Set New Password</div>
+            <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Set New Password</div>
           </div>
         </div>
 
@@ -62,7 +62,7 @@ export default function ResetPassword({ token, onBack }) {
           <div className="animate-fade-up" style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 20px' }}>✅</div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Password updated!</h2>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
+            <p style={{ fontSize: 13, color: '#374151', marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
             <button onClick={onBack} className="btn-primary"
               style={{ width: '100%', justifyContent: 'center', padding: '11px', fontSize: 14, borderRadius: 9 }}>
               Back to Login →
@@ -71,7 +71,7 @@ export default function ResetPassword({ token, onBack }) {
         ) : (
           <>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Set new password</h2>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 28 }}>Choose a strong password for your account.</p>
+            <p style={{ fontSize: 13, color: '#374151', marginBottom: 28 }}>Choose a strong password for your account.</p>
 
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
@@ -82,7 +82,7 @@ export default function ResetPassword({ token, onBack }) {
                     placeholder="At least 6 characters" className="input-base"
                     style={{ ...inputStyle, paddingRight: 42 }} />
                   <button type="button" onClick={() => setShow(s => !s)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#9CA3AF', padding: 0 }}>
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#374151', padding: 0 }}>
                     {show ? '🙈' : '👁'}
                   </button>
                 </div>
@@ -107,7 +107,7 @@ export default function ResetPassword({ token, onBack }) {
                 {loading ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Saving…</> : 'Set New Password'}
               </button>
               <button type="button" onClick={onBack}
-                style={{ width: '100%', padding: '10px', fontSize: 13, borderRadius: 9, background: 'transparent', color: '#6B7280', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: '100%', padding: '10px', fontSize: 13, borderRadius: 9, background: 'transparent', color: '#374151', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ← Back to Login
               </button>
             </form>
