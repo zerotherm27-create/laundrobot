@@ -115,7 +115,7 @@ export default function BookingForm({ tenantId }) {
   const fullAddress = [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
 
   function step2Valid() {
-    return form.name.trim() && form.phone.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim() && form.pickup_date;
+    return form.name.trim() && form.phone.trim() && form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim() && form.pickup_date;
   }
 
   async function handleSubmit() {
@@ -459,9 +459,9 @@ export default function BookingForm({ tenantId }) {
             <div style={{ marginBottom: 6 }}>
               <label style={{ ...LABEL, marginBottom: 10 }}>Pickup Address <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span></label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input style={INPUT} value={form.addr_unit}
+                <input style={INPUT} value={form.addr_unit} required
                   onChange={e => setForm(p => ({ ...p, addr_unit: e.target.value }))}
-                  placeholder="Building Name / Condo / Hotel / House No."
+                  placeholder="Building Name / Condo / Hotel / House No. *"
                   onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
                   onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
                 />
