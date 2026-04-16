@@ -39,7 +39,7 @@ router.get('/:tenantId/services', async (req, res) => {
     );
     for (const svc of services) {
       const { rows: fields } = await db.query(
-        'SELECT id, label, field_type, placeholder, required, options, min_value, max_value FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
+        'SELECT id, label, field_type, placeholder, required, options, min_value, max_value, unit_price FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
         [svc.id]
       );
       svc.custom_fields = fields;
@@ -92,8 +92,31 @@ router.post('/:tenantId/orders', async (req, res) => {
     const isPerKg = service.unit && service.unit.toLowerCase().includes('kg');
     const weightField = (custom_fields || []).find(f => f.label?.toLowerCase().includes('weight'));
     const weight = weightField ? parseFloat(weightField.value) || null : null;
-    const subtotal = isPerKg && weight ? Number(service.price) * weight : Number(service.price);
-    const total = subtotal + deliveryFee;
+
+    // Fetch custom fields for qty multiplier + addon prices
+    const { rows: svcFields } = await db.query(
+      'SELECT id, label, field_type, unit_price FROM service_custom_fields WHERE service_id=$1',
+      [service_id]
+    );
+    // First number-type field = qty multiplier (non-kg)
+    const numField = svcFields.find(f => f.field_type === 'number');
+    const qtyField = numField ? (custom_fields || []).find(f => f.label === numField.label) : null;
+    const qty = qtyField ? parseFloat(qtyField.value) || 0 : 0;
+
+    const subtotal = isPerKg && weight
+      ? Number(service.price) * weight
+      : (qty > 0 ? Number(service.price) * qty : Number(service.price));
+
+    // Sum addon fields
+    const addonTotal = (custom_fields || []).reduce((sum, cf) => {
+      const fieldDef = svcFields.find(f => f.field_type === 'addon' && f.label === cf.label);
+      if (fieldDef && cf.value) {
+        return sum + Number(fieldDef.unit_price || 0) * (parseInt(cf.value) || 0);
+      }
+      return sum;
+    }, 0);
+
+    const total = subtotal + addonTotal + deliveryFee;
 
     // Get or create customer
     const { rows: [existing] } = await db.query(

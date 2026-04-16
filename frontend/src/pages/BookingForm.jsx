@@ -49,6 +49,7 @@ export default function BookingForm({ tenantId }) {
   const [selectedSvc, setSelectedSvc]   = useState(null);
   const [fieldValues, setFieldValues]   = useState({});
   const [weight, setWeight]             = useState('');
+  const [addonQty, setAddonQty]         = useState({});
 
   // Step 2 state
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' });
@@ -81,17 +82,29 @@ export default function BookingForm({ tenantId }) {
 
   const isPerKg = selectedSvc?.unit?.toLowerCase().includes('kg');
   const w = parseFloat(weight) || 0;
+  const price = selectedSvc ? Number(selectedSvc.price) : 0;
+
+  // First number-type field drives qty multiplier (non-kg services)
+  const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
+  const qty = firstNumField ? parseFloat(fieldValues[firstNumField.id] || 0) : 0;
+
   const subtotal = selectedSvc
-    ? (isPerKg && w > 0 ? Number(selectedSvc.price) * w : Number(selectedSvc.price))
+    ? (isPerKg && w > 0 ? price * w : qty > 0 ? price * qty : price)
     : 0;
+
+  // Addon fields + totals
+  const addonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
+  const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
+
   const selectedZone = zones.find(z => z.id === Number(form.delivery_zone_id)) || null;
   const deliveryFee = selectedZone ? Number(selectedZone.fee) : 0;
-  const total = subtotal + deliveryFee;
+  const total = subtotal + addonTotal + deliveryFee;
 
   function step1Valid() {
     if (!selectedSvc) return false;
     if (isPerKg && (!weight || parseFloat(weight) <= 0)) return false;
     for (const f of (selectedSvc.custom_fields || [])) {
+      if (f.field_type === 'addon') continue; // addons are always optional
       if (f.required && f.label?.toLowerCase().includes('weight')) {
         if (!weight || parseFloat(weight) <= 0) return false;
       } else if (f.required && !fieldValues[f.id]) return false;
@@ -109,7 +122,10 @@ export default function BookingForm({ tenantId }) {
       const customFields = [];
       if (isPerKg && weight) customFields.push({ label: 'Weight (kg)', value: weight });
       for (const f of (selectedSvc.custom_fields || [])) {
-        if (!f.label?.toLowerCase().includes('weight') && fieldValues[f.id] !== undefined) {
+        if (f.field_type === 'addon') {
+          const aqty = addonQty[f.id] || 0;
+          if (aqty > 0) customFields.push({ label: f.label, value: String(aqty), unit_price: f.unit_price });
+        } else if (!f.label?.toLowerCase().includes('weight') && fieldValues[f.id] !== undefined) {
           customFields.push({ label: f.label, value: fieldValues[f.id] });
         }
       }
@@ -192,7 +208,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setResult(null); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -268,7 +284,7 @@ export default function BookingForm({ tenantId }) {
                 {visibleServices.map(svc => {
                   const selected = selectedSvc?.id === svc.id;
                   return (
-                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); }}
+                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); }}
                       style={{
                         padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
                         border: selected ? '2px solid #378ADD' : '1.5px solid #E2E8F0',
@@ -316,43 +332,84 @@ export default function BookingForm({ tenantId }) {
                 )}
 
                 {/* Other custom fields */}
-                {(selectedSvc.custom_fields || []).filter(f => !f.label?.toLowerCase().includes('weight') || !isPerKg).map(f => (
-                  <Field key={f.id} label={f.label} required={f.required}>
-                    {f.field_type === 'select' ? (
-                      <select style={INPUT} value={fieldValues[f.id] || ''}
-                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}>
-                        <option value="">— {f.placeholder || 'Select an option'} —</option>
-                        {(Array.isArray(f.options) ? f.options : []).map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    ) : f.field_type === 'textarea' ? (
-                      <textarea
-                        style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
-                        value={fieldValues[f.id] || ''}
-                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={f.placeholder || 'Enter your notes here…'}
-                        onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                        onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                      />
-                    ) : (
-                      <input style={INPUT}
-                        type={f.field_type === 'number' ? 'number' : 'text'}
-                        min={f.field_type === 'number' && f.min_value != null ? f.min_value : undefined}
-                        max={f.field_type === 'number' && f.max_value != null ? f.max_value : undefined}
-                        value={fieldValues[f.id] || ''}
-                        onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={f.placeholder || ''}
-                        onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                        onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-                      />
-                    )}
-                  </Field>
-                ))}
+                {(selectedSvc.custom_fields || []).filter(f => !f.label?.toLowerCase().includes('weight') || !isPerKg).map(f => {
+                  // Add-on field: stepper UI
+                  if (f.field_type === 'addon') {
+                    const aqty = addonQty[f.id] || 0;
+                    const lineTotal = Number(f.unit_price || 0) * aqty;
+                    return (
+                      <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{f.label}</div>
+                          <div style={{ fontSize: 12, color: '#378ADD', fontWeight: 600, marginTop: 1 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</div>
+                          {f.placeholder && <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{f.placeholder}</div>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                          <button type="button"
+                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
+                            style={{ width: 32, height: 32, borderRadius: '8px 0 0 8px', border: '1.5px solid #E2E8F0', background: '#F7F9FD', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
+                          <div style={{ width: 40, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 14, fontWeight: 700, background: aqty > 0 ? '#E6F1FB' : '#fff', color: aqty > 0 ? '#185FA5' : '#374151' }}>{aqty}</div>
+                          <button type="button"
+                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
+                            style={{ width: 32, height: 32, borderRadius: '0 8px 8px 0', border: '1.5px solid #378ADD', background: '#378ADD', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>+</button>
+                        </div>
+                        {lineTotal > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: '#185FA5', minWidth: 60, textAlign: 'right' }}>₱{lineTotal.toLocaleString()}</div>}
+                      </div>
+                    );
+                  }
+                  // Regular fields
+                  return (
+                    <Field key={f.id} label={f.label + (f.field_type === 'number' && !isPerKg ? ' (× price)' : '')} required={f.required}>
+                      {f.field_type === 'select' ? (
+                        <select style={INPUT} value={fieldValues[f.id] || ''}
+                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}>
+                          <option value="">— {f.placeholder || 'Select an option'} —</option>
+                          {(Array.isArray(f.options) ? f.options : []).map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      ) : f.field_type === 'textarea' ? (
+                        <textarea
+                          style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
+                          value={fieldValues[f.id] || ''}
+                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
+                          placeholder={f.placeholder || 'Enter your notes here…'}
+                          onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                          onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                        />
+                      ) : (
+                        <input style={INPUT}
+                          type={f.field_type === 'number' ? 'number' : 'text'}
+                          min={f.field_type === 'number' && f.min_value != null ? f.min_value : undefined}
+                          max={f.field_type === 'number' && f.max_value != null ? f.max_value : undefined}
+                          value={fieldValues[f.id] || ''}
+                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
+                          placeholder={f.placeholder || ''}
+                          onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                          onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                        />
+                      )}
+                    </Field>
+                  );
+                })}
 
-                {/* Price estimate */}
-                {subtotal > 0 && (
-                  <div style={{ marginTop: 8, padding: '8px 12px', background: '#E6F1FB', borderRadius: 8, fontSize: 13, color: '#185FA5', fontWeight: 600 }}>
-                    Service estimate: ₱{subtotal.toLocaleString()}
-                    {isPerKg && w > 0 && <span style={{ fontWeight: 400, color: '#378ADD' }}> ({w} kg × ₱{Number(selectedSvc.price).toLocaleString()}/kg)</span>}
+                {/* Live price breakdown */}
+                {selectedSvc && (
+                  <div style={{ marginTop: 12, background: '#EEF6FF', borderRadius: 10, padding: '10px 14px', border: '1px solid #BDD8F7' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#185FA5', marginBottom: 4 }}>
+                      <span>{selectedSvc.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
+                      <span style={{ fontWeight: 600 }}>₱{subtotal.toLocaleString()}</span>
+                    </div>
+                    {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
+                      <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
+                        <span>{f.label} × {addonQty[f.id]}</span>
+                        <span style={{ fontWeight: 600 }}>₱{(Number(f.unit_price || 0) * addonQty[f.id]).toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {(addonTotal > 0 || subtotal > 0) && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: '#185FA5', borderTop: '1px solid #BDD8F7', paddingTop: 6, marginTop: 2 }}>
+                        <span>Subtotal</span>
+                        <span>₱{(subtotal + addonTotal).toLocaleString()}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -438,9 +495,15 @@ export default function BookingForm({ tenantId }) {
             {/* Price summary */}
             <div style={{ background: '#F7F9FD', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : ''}</span>
+                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
                 <span style={{ fontWeight: 600 }}>₱{subtotal.toLocaleString()}</span>
               </div>
+              {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
+                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span style={{ color: '#374151' }}>{f.label} × {addonQty[f.id]}</span>
+                  <span style={{ fontWeight: 600 }}>₱{(Number(f.unit_price || 0) * addonQty[f.id]).toLocaleString()}</span>
+                </div>
+              ))}
               {deliveryFee > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                   <span style={{ color: '#374151' }}>Delivery — {selectedZone?.name}</span>
@@ -504,12 +567,18 @@ export default function BookingForm({ tenantId }) {
 
               <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginTop: 16, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>Payment</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
-                <span style={{ color: '#374151' }}>Service</span>
+                <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
                 <span style={{ fontWeight: 500 }}>₱{subtotal.toLocaleString()}</span>
               </div>
+              {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
+                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
+                  <span style={{ color: '#374151' }}>{f.label} × {addonQty[f.id]}</span>
+                  <span style={{ fontWeight: 500 }}>₱{(Number(f.unit_price || 0) * addonQty[f.id]).toLocaleString()}</span>
+                </div>
+              ))}
               {deliveryFee > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
-                  <span style={{ color: '#374151' }}>Delivery</span>
+                  <span style={{ color: '#374151' }}>Delivery — {selectedZone?.name}</span>
                   <span style={{ fontWeight: 500 }}>₱{deliveryFee.toLocaleString()}</span>
                 </div>
               )}

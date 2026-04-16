@@ -22,7 +22,7 @@
     /* Header */
     .header{background:#fff;border-bottom:1px solid #e4e6ea;padding:10px 14px;display:flex;align-items:center;gap:9px}
     .back{font-size:22px;color:#0084ff;font-weight:300;cursor:pointer}
-    .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#378ADD,#1a5fa8);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+    .avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;object-position:center 15%;flex-shrink:0;background:#fff}
     .page-name{font-size:14px;font-weight:600;color:#050505}
     .page-sub{font-size:11px;color:#65676b}
     .hicons{margin-left:auto;display:flex;gap:18px;color:#0084ff;font-size:17px}
@@ -33,7 +33,7 @@
     /* Rows */
     .row{display:flex;align-items:flex-end;gap:7px}
     .row.user{flex-direction:row-reverse}
-    .bot-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#378ADD,#1a5fa8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+    .bot-av{width:26px;height:26px;border-radius:50%;object-fit:cover;object-position:center 15%;flex-shrink:0;background:#fff}
     .bot-av.hidden{opacity:0;pointer-events:none}
 
     /* Bubbles */
@@ -93,7 +93,7 @@
 <div class="phone">
   <div class="header">
     <span class="back">‹</span>
-    <div class="avatar">L</div>
+    <img class="avatar" src="logo.png" alt="LaundroBot" />
     <div>
       <div class="page-name">The Laundry Project</div>
       <div class="page-sub">Typically replies instantly</div>
@@ -179,7 +179,7 @@ function render(screen) {
       } else if (msg.type === 'bubble-bot') {
         el = document.createElement('div');
         el.className = 'row msg';
-        el.innerHTML = `<div class="bot-av">L</div><div class="bubble bot">${msg.text}</div>`;
+        el.innerHTML = `<img class="bot-av" src="logo.png" alt="LaundroBot" /><div class="bubble bot">${msg.text}</div>`;
       } else if (msg.type === 'btn-template') {
         el = document.createElement('div');
         el.className = 'msg';
