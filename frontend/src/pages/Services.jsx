@@ -498,7 +498,7 @@ export default function Services() {
                             );
                           })()}
 
-                          {f.required && (
+                          {f.field_type === 'addon' && (
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', marginTop: 8 }}>
                               <input type="checkbox" checked={f.allow_own || false} onChange={e => updateField(idx, 'allow_own', e.target.checked)} />
                               Allow "I'll provide my own" option
