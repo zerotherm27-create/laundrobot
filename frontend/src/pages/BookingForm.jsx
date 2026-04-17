@@ -181,6 +181,18 @@ export default function BookingForm({ tenantId }) {
   const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
   const qty = firstNumField ? parseFloat(fieldValues[firstNumField.id] || 0) : 0;
 
+  // Auto-fill addon qty from piece count when sync_qty is enabled
+  useEffect(() => {
+    if (!selectedSvc || qty <= 0) return;
+    const syncFields = (selectedSvc.custom_fields || []).filter(f => f.field_type === 'addon' && f.sync_qty);
+    if (!syncFields.length) return;
+    setAddonQty(prev => {
+      const next = { ...prev };
+      syncFields.forEach(f => { next[f.id] = qty; });
+      return next;
+    });
+  }, [qty, selectedSvc]);
+
   // Variation (select) fields — sum selected option prices (with copy_base support)
   const selectFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'select');
 
