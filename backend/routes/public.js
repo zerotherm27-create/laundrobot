@@ -56,7 +56,7 @@ router.get('/:tenantId/services', async (req, res) => {
     );
     for (const svc of services) {
       const { rows: fields } = await db.query(
-        'SELECT id, label, field_type, placeholder, required, options, min_value, max_value, unit_price FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
+        'SELECT id, label, field_type, placeholder, required, options, min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
         [svc.id]
       );
       svc.custom_fields = fields;
