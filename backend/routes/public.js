@@ -191,9 +191,31 @@ router.post('/:tenantId/orders', async (req, res) => {
       Array.isArray(f.options) &&
       f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
     );
-    // When qty > 0 with variation pricing, primary (first priced) variation is multiplied by qty; rest flat
+    // Find the primary select field id (first fixed-priced one)
+    let primarySelectFieldId = null;
+    for (const fieldDef of selectFieldDefs) {
+      const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
+      if (!cf?.value) continue;
+      const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+      const opt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+      if (opt && typeof opt === 'object' && (opt.price_type || 'fixed') !== 'copy_base' && Number(opt.price || 0) > 0) {
+        primarySelectFieldId = fieldDef.id;
+        break;
+      }
+    }
+    // primary + copy_base fields scale with qty; other fixed-price fields stay flat
     const effectiveSubtotal = hasVarPricing
-      ? (qty > 0 ? baseVariationPrice * qty + (variationTotal - baseVariationPrice) : variationTotal)
+      ? selectFieldDefs.reduce((sum, fieldDef) => {
+          const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
+          if (!cf?.value) return sum;
+          const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
+          const opt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+          if (!opt || typeof opt !== 'object') return sum;
+          const priceType = opt.price_type || 'fixed';
+          const optPrice = priceType === 'copy_base' ? baseVariationPrice : Number(opt.price || 0);
+          const scalesWithQty = qty > 0 && (fieldDef.id === primarySelectFieldId || priceType === 'copy_base');
+          return sum + optPrice * (scalesWithQty ? qty : 1);
+        }, 0)
       : subtotal;
 
     const total = effectiveSubtotal + addonTotal + deliveryFee;

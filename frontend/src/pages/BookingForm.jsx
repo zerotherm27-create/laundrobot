@@ -182,29 +182,38 @@ export default function BookingForm({ tenantId }) {
   // If any select option has a price > 0, use variation pricing (no base price)
   const hasVariationPricing = selectFields.some(f => normalizeOpts(f.options).some(o => Number(o.price || 0) > 0));
 
-  // ID of the first priced select field — this one gets multiplied by qty
-  const primarySelectFieldId = (hasVariationPricing && qty > 0)
-    ? (() => {
-        for (const f of selectFields) {
-          const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-          if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) return f.id;
-        }
-        return null;
-      })()
-    : null;
+  // ID of the first fixed-priced select field (the primary per-unit variation)
+  const primarySelectFieldId = (() => {
+    for (const f of selectFields) {
+      const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+      if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) return f.id;
+    }
+    return null;
+  })();
+
+  // Fields multiplied by qty: primary + copy_base (both are per-unit prices)
+  const qtyScaledIds = hasVariationPricing && qty > 0
+    ? new Set(selectFields.filter(f => {
+        const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+        if (!sel) return false;
+        return f.id === primarySelectFieldId || (sel.price_type || 'fixed') === 'copy_base';
+      }).map(f => f.id))
+    : new Set();
 
   const baseSubtotal = selectedSvc
-    ? (isPerKg && w > 0
-        ? price * w
-        : qty > 0
-          ? (hasVariationPricing ? baseVariationPrice * qty : price * qty)
-          : (hasVariationPricing ? 0 : price))
+    ? (isPerKg && w > 0 ? price * w : qty > 0 ? (hasVariationPricing ? 0 : price * qty) : (hasVariationPricing ? 0 : price))
     : 0;
 
-  // Primary variation is already counted in baseSubtotal (× qty), so subtract it from variationTotal
-  const subtotal = (hasVariationPricing && qty > 0)
-    ? baseSubtotal + (variationTotal - baseVariationPrice)
-    : baseSubtotal + variationTotal;
+  const subtotal = selectedSvc
+    ? (hasVariationPricing
+        ? selectFields.reduce((sum, f) => {
+            const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+            if (!sel) return sum;
+            const p = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
+            return sum + p * (qtyScaledIds.has(f.id) ? qty : 1);
+          }, 0)
+        : baseSubtotal + variationTotal)
+    : 0;
 
   // Addon fields + totals
   const addonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
@@ -593,11 +602,11 @@ export default function BookingForm({ tenantId }) {
                       const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                       if (!sel) return null;
                       const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
-                      const isPrimary = f.id === primarySelectFieldId;
-                      const displayPrice = isPrimary ? resolvedPrice * qty : resolvedPrice;
+                      const scaledByQty = qtyScaledIds.has(f.id);
+                      const displayPrice = scaledByQty ? resolvedPrice * qty : resolvedPrice;
                       return (
                         <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                          <span>{f.label}: <strong>{sel.label}</strong>{isPrimary && qty > 1 ? ` × ${qty}` : ''}</span>
+                          <span>{f.label}: <strong>{sel.label}</strong>{scaledByQty && qty > 1 ? ` × ${qty}` : ''}</span>
                           <span style={{ fontWeight: 600 }}>{displayPrice > 0 ? `₱${displayPrice.toLocaleString()}` : '—'}</span>
                         </div>
                       );
