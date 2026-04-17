@@ -2,6 +2,7 @@ const router = require('express').Router();
 const db = require('../db');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = require('../utils/messenger');
 const { createInvoice } = require('../utils/xendit');
+const { askGemini } = require('../utils/gemini');
 
 // ── Webhook verification ────────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -56,9 +57,17 @@ async function getConv(tenantId, senderId) {
       'INSERT INTO conversations (tenant_id, fb_user_id, step, data) VALUES ($1,$2,$3,$4)',
       [tenantId, senderId, 'START', '{}']
     );
-    conv = { step: 'START', data: {} };
+    conv = { step: 'START', data: {}, needs_human: false };
   }
   return conv;
+}
+
+const HUMAN_TRIGGERS = ['human', 'agent', 'live agent', 'representative', 'talk to someone',
+  'real person', 'tao', 'operator', 'speak to someone', 'customer service'];
+
+function wantsHuman(text) {
+  const lc = text.toLowerCase().trim();
+  return HUMAN_TRIGGERS.some(t => lc.includes(t));
 }
 
 function makeSetState(tenantId, senderId) {
@@ -164,6 +173,33 @@ async function handleMessage(tenant, senderId, event) {
   const data     = conv.data || {};
   const setState = makeSetState(tenant.id, senderId);
   const customer = await getOrCreateCustomer(tenant.id, senderId);
+
+  // ── Needs human — bot stays silent unless customer resets ────────────
+  if (conv.needs_human) {
+    if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED' || lc === 'bot' || lc === 'menu') {
+      // Customer explicitly resets — hand back to bot
+      await db.query(
+        'UPDATE conversations SET needs_human=FALSE, needs_human_at=NULL, step=$1, data=$2 WHERE tenant_id=$3 AND fb_user_id=$4',
+        ['START', '{}', tenant.id, senderId]
+      );
+      // Fall through to normal START handling below
+    } else {
+      // Still waiting for human — stay silent
+      return;
+    }
+  }
+
+  // ── Human request ────────────────────────────────────────────────────
+  if (wantsHuman(text) && !event.postback) {
+    await db.query(
+      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW() WHERE tenant_id=$1 AND fb_user_id=$2',
+      [tenant.id, senderId]
+    );
+    await sendMessage(token, senderId,
+      `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
+    );
+    return;
+  }
 
   // ── Global commands ──────────────────────────────────────────────────
   if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED' || step === 'START') {
@@ -506,6 +542,17 @@ async function handleMessage(tenant, senderId, event) {
     return;
   }
 
+  if (text === 'HUMAN_REQUEST' || wantsHuman(text)) {
+    await db.query(
+      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW() WHERE tenant_id=$1 AND fb_user_id=$2',
+      [tenant.id, senderId]
+    );
+    await sendMessage(token, senderId,
+      `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
+    );
+    return;
+  }
+
   if (text === 'CONFIRM_NO' || lc === 'cancel') {
     const { rows: activeOrders } = await db.query(
       `UPDATE orders SET status='CANCELLED'
@@ -525,7 +572,19 @@ async function handleMessage(tenant, senderId, event) {
     return;
   }
 
-  // ── Fallback ─────────────────────────────────────────────────────────
+  // ── Fallback — try AI first, then default menu ───────────────────────
+  if (tenant.ai_enabled && event.message?.text) {
+    const aiReply = await askGemini(tenant.id, text);
+    if (aiReply) {
+      await sendButtons(token, senderId, aiReply, [
+        { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+        { type: 'postback', title: '👤 Talk to Human', payload: 'HUMAN_REQUEST' },
+      ]);
+      return;
+    }
+  }
+
   await sendButtons(token, senderId,
     `I didn't quite get that. 😊 What would you like to do?`,
     [

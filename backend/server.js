@@ -25,6 +25,7 @@ const routes = [
   ['/blocked-dates',   './routes/blockedDates'],
   ['/promo-codes',     './routes/promoCodes'],
   ['/public',          './routes/public'],
+  ['/conversations',   './routes/conversations'],
 ];
 
 for (const [path, file] of routes) {

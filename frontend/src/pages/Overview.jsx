@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders } from '../api.js';
+import { getOrders, getHumanConversations, releaseConversation } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
@@ -15,9 +15,12 @@ const STAT_META = [
 
 export default function Overview() {
   const { user } = useAuth();
-  const [orders,  setOrders]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [copied,  setCopied]  = useState(false);
+  const [orders,       setOrders]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [copied,       setCopied]       = useState(false);
+  const [humanConvs,   setHumanConvs]   = useState([]);
+  const [releasing,    setReleasing]    = useState(null);
+  const [replyMsg,     setReplyMsg]     = useState({});
 
   const bookingUrl = user?.tenant_id
     ? `${window.location.origin}/book/${user.tenant_id}`
@@ -32,7 +35,18 @@ export default function Overview() {
       .then(r => setOrders(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+    getHumanConversations().then(r => setHumanConvs(r.data)).catch(() => {});
   }, []);
+
+  async function handleRelease(fbUserId) {
+    setReleasing(fbUserId);
+    try {
+      await releaseConversation(fbUserId, replyMsg[fbUserId] || '');
+      setHumanConvs(p => p.filter(c => c.fb_user_id !== fbUserId));
+      setReplyMsg(p => { const n = { ...p }; delete n[fbUserId]; return n; });
+    } catch { alert('Failed to release conversation.'); }
+    finally { setReleasing(null); }
+  }
 
   const revenue     = orders.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
   const active      = orders.filter(o => o.status !== 'COMPLETED').length;
@@ -56,6 +70,41 @@ export default function Overview() {
           </p>
         </div>
       </div>
+
+      {/* ── Human handoff alerts ── */}
+      {humanConvs.length > 0 && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#92400e', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ background: '#FEF3C7', borderRadius: 6, padding: '2px 8px', border: '1px solid #F59E0B' }}>
+              👤 {humanConvs.length} customer{humanConvs.length > 1 ? 's' : ''} requested a human agent
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {humanConvs.map(c => (
+              <div key={c.fb_user_id} style={{ background: '#fff', border: '1.5px solid #FDE68A', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{c.customer_name || 'Unknown customer'}</div>
+                    <div style={{ fontSize: 11, color: '#6B7280' }}>
+                      {c.customer_phone || 'No phone'} · Requested {new Date(c.needs_human_at).toLocaleString('en-PH', { dateStyle: 'short', timeStyle: 'short' })}
+                    </div>
+                  </div>
+                </div>
+                <input
+                  value={replyMsg[c.fb_user_id] || ''}
+                  onChange={e => setReplyMsg(p => ({ ...p, [c.fb_user_id]: e.target.value }))}
+                  placeholder="Optional: send a message before releasing back to bot"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 12, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 8, outline: 'none' }}
+                />
+                <button onClick={() => handleRelease(c.fb_user_id)} disabled={releasing === c.fb_user_id}
+                  style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#38a9c2', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {releasing === c.fb_user_id ? 'Releasing…' : '✓ Done — Release back to bot'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Booking link banner ── */}
       {bookingUrl && (

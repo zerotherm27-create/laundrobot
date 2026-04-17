@@ -38,6 +38,7 @@ export default function Settings() {
   const [notifEmail,     setNotifEmail]     = useState('');
   const [contactNumber,  setContactNumber]  = useState('');
   const [minimumOrder,   setMinimumOrder]   = useState('');
+  const [aiEnabled,      setAiEnabled]      = useState(false);
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
@@ -70,6 +71,7 @@ export default function Settings() {
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
+      setAiEnabled(!!s.data.ai_enabled);
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
@@ -90,6 +92,7 @@ export default function Settings() {
         store_open: storeOpen || null,
         store_close: storeClose || null,
         booking_cutoff: bookingCutoff || null,
+        ai_enabled: aiEnabled,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -146,6 +149,38 @@ export default function Settings() {
               <input type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)}
                 placeholder="e.g. myshop@gmail.com" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
               <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>📦 New order alert · 💰 Payment confirmed alert</div>
+            </SectionCard>
+
+            {/* AI Messenger Replies */}
+            <SectionCard icon="🤖" iconBg="#EDE9FE" title="AI Messenger Replies"
+              subtitle="Gemini Flash answers customer questions outside the booking flow">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                    {aiEnabled ? 'AI replies are ON' : 'AI replies are OFF'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>
+                    {aiEnabled
+                      ? 'Gemini Flash handles questions about services, prices, and FAQs in any language.'
+                      : 'Bot shows main menu for anything outside the booking flow.'}
+                  </div>
+                </div>
+                <div onClick={() => setAiEnabled(p => !p)} style={{
+                  width: 46, height: 26, borderRadius: 13, cursor: 'pointer', transition: 'background .2s',
+                  background: aiEnabled ? '#38a9c2' : '#D1D5DB', position: 'relative', flexShrink: 0,
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 3, left: aiEnabled ? 23 : 3,
+                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s',
+                  }} />
+                </div>
+              </div>
+              {aiEnabled && (
+                <div style={{ marginTop: 10, fontSize: 11, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '7px 10px' }}>
+                  Requires <strong>GEMINI_API_KEY</strong> env var on your server. Free tier: 1,500 requests/day.
+                </div>
+              )}
             </SectionCard>
 
             {/* Customer Contact Number */}
