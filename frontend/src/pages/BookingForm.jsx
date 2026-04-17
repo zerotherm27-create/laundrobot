@@ -381,6 +381,13 @@ export default function BookingForm({ tenantId }) {
     } finally { setSubmitting(false); }
   }
 
+  // Auto-close after success — must be before any early returns to satisfy Rules of Hooks
+  useEffect(() => {
+    if (step !== 'success') return;
+    const t = setTimeout(closeMiniApp, 3000);
+    return () => clearTimeout(t);
+  }, [step]);
+
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
@@ -402,13 +409,6 @@ export default function BookingForm({ tenantId }) {
   );
 
   const cardStyle = { background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '1.75rem', maxWidth: 620, margin: '0 auto' };
-
-  // Auto-close after success
-  useEffect(() => {
-    if (step !== 'success') return;
-    const t = setTimeout(closeMiniApp, 3000);
-    return () => clearTimeout(t);
-  }, [step]);
 
   // ─── Success ───────────────────────────────────────────────────────────────
   if (step === 'success') {
