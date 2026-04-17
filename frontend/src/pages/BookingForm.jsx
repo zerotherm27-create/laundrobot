@@ -393,12 +393,13 @@ export default function BookingForm({ tenantId }) {
     } finally { setSubmitting(false); }
   }
 
-  // Auto-close after success — must be before any early returns to satisfy Rules of Hooks
+  // Auto-close after success only if no payment URL (Messenger mini-app flow)
   useEffect(() => {
     if (step !== 'success') return;
+    if (result?.payment_url) return;
     const t = setTimeout(closeMiniApp, 3000);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, result]);
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
@@ -426,19 +427,36 @@ export default function BookingForm({ tenantId }) {
   if (step === 'success') {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
-        <div style={{ textAlign: 'center', maxWidth: 360 }}>
+        <div style={{ textAlign: 'center', maxWidth: 380, width: '100%' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
           <div style={{ fontWeight: 700, fontSize: 22, color: '#111827', marginBottom: 10 }}>Booking Confirmed!</div>
-          <div style={{ fontSize: 14, color: '#374151', marginBottom: 6, lineHeight: 1.6 }}>
-            {messengerPsid
-              ? 'Check your Messenger — we sent you the full booking details and payment link.'
-              : 'We\'ve received your order and will contact you shortly.'}
-          </div>
-          <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 24 }}>
+          <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 8 }}>
             Ref: {result.booking_ref}
           </div>
+          <div style={{ fontSize: 14, color: '#374151', marginBottom: 20, lineHeight: 1.6 }}>
+            {messengerPsid
+              ? 'Check your Messenger — we sent you the full booking details.'
+              : 'We\'ve received your order and will be in touch shortly.'}
+          </div>
+          {result.payment_url && (
+            <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: '1.5px solid #9ED3DC', boxShadow: '0 2px 12px rgba(56,169,194,.1)' }}>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>Total due</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+                ₱{Number(result.total).toLocaleString('en-PH')}
+                {result.promo_discount > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#16a34a', marginLeft: 8 }}>
+                    (₱{Number(result.promo_discount).toLocaleString('en-PH')} off)
+                  </span>
+                )}
+              </div>
+              <a href={result.payment_url} target="_blank" rel="noreferrer"
+                style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
+                💳 Pay Now
+              </a>
+            </div>
+          )}
           <button onClick={closeMiniApp}
-            style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '11px 32px', borderRadius: 10, border: '1.5px solid #CBD5E0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
             Done
           </button>
         </div>
@@ -816,6 +834,17 @@ export default function BookingForm({ tenantId }) {
                   onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
                 />
                 {lookingUp && <div style={{ fontSize: 11, color: '#38a9c2', marginTop: 4 }}>🔍 Checking for saved address…</div>}
+                {(() => {
+                  const ph = form.phone.trim();
+                  if (!ph) return null;
+                  const isValidPH = /^(09|\+639|639)\d{9}$/.test(ph.replace(/\s/g, ''));
+                  if (isValidPH) return null;
+                  return (
+                    <div style={{ fontSize: 11, color: '#92400e', background: '#FEF3C7', borderRadius: 6, padding: '5px 9px', marginTop: 5 }}>
+                      Not a Philippine number? You can enter your WhatsApp number with country code (e.g. +1234567890).
+                    </div>
+                  );
+                })()}
               </Field>
             </div>
 

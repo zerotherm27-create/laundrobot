@@ -316,8 +316,12 @@ router.post('/:tenantId/orders', async (req, res) => {
       console.warn('[public order] xendit invoice failed:', e.message);
     }
 
+    // Resolve fb_id — use request value or fall back to stored customer record
+    const { rows: [customerRow] } = await db.query('SELECT fb_id FROM customers WHERE id=$1', [customerId]);
+    const effectiveFbId = fb_id || customerRow?.fb_id || null;
+
     // Messenger confirmation to customer
-    if (fb_id) {
+    if (effectiveFbId) {
       try {
         const { rows: [tenant] } = await db.query(
           'SELECT name, fb_page_access_token FROM tenants WHERE id=$1', [req.params.tenantId]
@@ -339,13 +343,13 @@ router.post('/:tenantId/orders', async (req, res) => {
             `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`;
 
           if (paymentUrl) {
-            await sendButtons(tenant.fb_page_access_token, fb_id, confirmText, [{
+            await sendButtons(tenant.fb_page_access_token, effectiveFbId, confirmText, [{
               type: 'web_url',
               url: paymentUrl,
               title: '💳 Pay Now',
             }]);
           } else {
-            await sendMessage(tenant.fb_page_access_token, fb_id, confirmText);
+            await sendMessage(tenant.fb_page_access_token, effectiveFbId, confirmText);
           }
         }
       } catch (e) {

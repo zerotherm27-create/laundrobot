@@ -94,8 +94,8 @@ export const getPublicCategories     = id          => pub(`/public/${id}/categor
 export const getPublicServices       = id          => pub(`/public/${id}/services`);
 export const getPublicDeliveryZones  = id          => pub(`/public/${id}/delivery-zones`);
 export const getPublicBlockedDates   = id                  => pub(`/public/${id}/blocked-dates`);
-export const validatePublicPromo     = (id, code, total)   => pub(`/public/${id}/promo`, { params: { code, total } });
-export const lookupPublicCustomer    = (id, phone)         => pub(`/public/${id}/customer`, { params: { phone } });
+export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLIC_BASE}/public/${id}/promo`, { params: { code, total } });
+export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });
 export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
 
 export default api;
