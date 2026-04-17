@@ -65,37 +65,16 @@ router.put('/booking/:ref', auth, async (req, res) => {
 
     const first = existing[0];
     const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
-    const keepIds = new Set(items.filter(i => i.id).map(i => i.id));
+    const editStamp = `[Edited by admin — ${new Date().toLocaleDateString('en-PH', { dateStyle: 'short' })}]`;
 
-    for (const o of existing) {
-      if (!keepIds.has(o.id)) {
-        await client.query('DELETE FROM orders WHERE id=$1 AND tenant_id=$2', [o.id, req.user.tenant_id]);
-      }
-    }
-
+    // Only update existing orders — no inserts, no deletes
     for (const item of items.filter(i => i.id)) {
+      const cleanNotes = (item.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim();
+      const notesWithStamp = cleanNotes ? `${cleanNotes}\n${editStamp}` : editStamp;
       await client.query(
         `UPDATE orders SET service_id=$1, price=$2, notes=$3 WHERE id=$4 AND tenant_id=$5`,
-        [item.service_id || null, Number(item.price), item.notes || null, item.id, req.user.tenant_id]
+        [item.service_id || null, Number(item.price), notesWithStamp, item.id, req.user.tenant_id]
       );
-    }
-
-    const newItems = items.filter(i => !i.id);
-    if (newItems.length) {
-      const { rows: [{ count: baseCount }] } = await client.query(
-        'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.user.tenant_id]
-      );
-      let orderCount = Number(baseCount);
-      for (const item of newItems) {
-        orderCount++;
-        const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
-        await client.query(
-          `INSERT INTO orders (id, tenant_id, customer_id, service_id, price, pickup_date, address, booking_ref, status, notes, paid)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NEW ORDER',$9,FALSE)`,
-          [orderId, req.user.tenant_id, first.customer_id, item.service_id || null,
-           Number(item.price), first.pickup_date, first.address, req.params.ref, item.notes || null]
-        );
-      }
     }
 
     await client.query('COMMIT');

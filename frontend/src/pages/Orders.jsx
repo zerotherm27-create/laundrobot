@@ -84,7 +84,7 @@ export default function Orders() {
         id: o.id,
         service_id: o.service_id ? String(o.service_id) : '',
         price: Number(o.price),
-        notes: o.notes || '',
+        notes: (o.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim(),
       })));
     } else {
       setBookingRef(null);
@@ -443,14 +443,10 @@ export default function Orders() {
                       <>
                         {editItems.map((item, idx) => (
                           <div key={idx} style={{ marginBottom: 10, padding: '10px 12px', background: '#F7F9FC', borderRadius: 8, border: '0.5px solid #E2E8F0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                            <div style={{ marginBottom: 7 }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>
-                                Item {idx + 1}{item.id ? ` — ${item.id}` : ' (new)'}
+                                Item {idx + 1} — {item.id}
                               </span>
-                              {editItems.length > 1 && (
-                                <button onClick={() => setEditItems(prev => prev.filter((_, i) => i !== idx))}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
-                              )}
                             </div>
                             <select value={item.service_id}
                               onChange={e => {
@@ -476,16 +472,14 @@ export default function Orders() {
                           </div>
                         ))}
 
-                        <button onClick={() => setEditItems(prev => [...prev, { service_id: '', price: 0, notes: '' }])}
-                          style={{ width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: '1px dashed #9ed3dc', background: '#e6f5f8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
-                          + Add Item
-                        </button>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F0F6FF', borderRadius: 8, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F0F6FF', borderRadius: 8, marginBottom: 8 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>New Total</span>
                           <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
                             ₱{editItems.reduce((s, i) => s + (Number(i.price) || 0), 0).toLocaleString('en-PH')}
                           </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#374151', marginBottom: 12, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
+                          ⚠️ Same order & booking numbers are kept. Each order will be stamped as edited.
                         </div>
                       </>
                     ) : (
