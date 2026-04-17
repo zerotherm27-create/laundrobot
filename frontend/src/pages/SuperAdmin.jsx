@@ -104,8 +104,8 @@ export default function SuperAdmin() {
     const srcName = tenantName(cloneSource);
     const tgtName = tenantName(cloneTarget);
     const confirmMsg = clearExisting
-      ? `⚠️ This will DELETE all existing services in "${tgtName}" and replace them with services from "${srcName}".\n\nAre you sure?`
-      : `Copy all services from "${srcName}" → "${tgtName}"?\n\nExisting services in "${tgtName}" will be kept.`;
+      ? `⚠️ This will DELETE all existing services and delivery zones in "${tgtName}" and replace them with data from "${srcName}".\n\nAre you sure?`
+      : `Copy all services and delivery zones from "${srcName}" → "${tgtName}"?\n\nExisting data in "${tgtName}" will be kept.`;
     if (!confirm(confirmMsg)) return;
     setCloning(true); setCloneResult(null);
     try {
@@ -148,7 +148,7 @@ export default function SuperAdmin() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-        {[['branches','🏢 Branches'], ['users','👤 Users'], ['clone','📋 Clone Services']].map(([key, label]) => (
+        {[['branches','🏢 Branches'], ['users','👤 Users'], ['clone','📋 Clone Branch Data']].map(([key, label]) => (
           <button key={key} onClick={() => { setTab(key); setCloneResult(null); }} style={{
             padding: '7px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer',
             background: tab === key ? '#BA7517' : '#f0f0ec',
@@ -203,9 +203,9 @@ export default function SuperAdmin() {
       {tab === 'clone' && (
         <div style={{ maxWidth: 520 }}>
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.5rem', marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>📋 Clone Services to Another Branch</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>📋 Clone Branch Data to Another Branch</div>
             <div style={{ fontSize: 12, color: '#374151', marginBottom: 20, lineHeight: 1.5 }}>
-              Copy all service categories, services, and custom fields from one branch to another. Useful when setting up a new branch with the same menu.
+              Copy all service categories, services, custom fields, and delivery zones from one branch to another. Useful when setting up a new branch with the same menu.
             </div>
 
             {/* Source */}
@@ -249,8 +249,8 @@ export default function SuperAdmin() {
                   </div>
                   <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>
                     {clearExisting
-                      ? 'All current services in the target branch will be deleted before copying.'
-                      : 'New services will be added on top of existing ones in the target branch.'}
+                      ? 'All current services and delivery zones in the target branch will be deleted before copying.'
+                      : 'New services and zones will be added on top of existing ones in the target branch.'}
                   </div>
                 </div>
               </label>
@@ -275,10 +275,11 @@ export default function SuperAdmin() {
                 {cloneResult.success ? (
                   <>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>✅ {cloneResult.message}</div>
-                    <div style={{ display: 'flex', gap: 16 }}>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       <span>📁 {cloneResult.stats.categories} categories</span>
                       <span>🧺 {cloneResult.stats.services} services</span>
                       <span>✦ {cloneResult.stats.custom_fields} custom fields</span>
+                      <span>📍 {cloneResult.stats.delivery_zones} delivery zones</span>
                     </div>
                   </>
                 ) : (
@@ -294,7 +295,7 @@ export default function SuperAdmin() {
                 background: cloning || !cloneSource || !cloneTarget ? '#ccc' : '#BA7517',
                 color: '#fff',
               }}>
-              {cloning ? '⏳ Cloning...' : '📋 Clone Services Now'}
+              {cloning ? '⏳ Cloning...' : '📋 Clone Now'}
             </button>
           </div>
 
@@ -304,7 +305,8 @@ export default function SuperAdmin() {
             <ul style={{ marginTop: 6, paddingLeft: 16 }}>
               <li>All service categories (names, sort order, active status)</li>
               <li>All services (name, price, unit, description, image, sort order)</li>
-              <li>All custom fields per service (labels, types, required flags)</li>
+              <li>All custom fields per service (labels, types, options, pricing)</li>
+              <li>All delivery zones (name, fee, custom note, sort order)</li>
             </ul>
             <div style={{ marginTop: 8, color: '#374151' }}>Note: Customer orders and data are never copied.</div>
           </div>

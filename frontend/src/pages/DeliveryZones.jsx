@@ -3,7 +3,7 @@ import {
   getDeliveryZones, createDeliveryZone, updateDeliveryZone, deleteDeliveryZone,
 } from '../api.js';
 
-const EMPTY = { name: '', fee: '', active: true, sort_order: 0 };
+const EMPTY = { name: '', fee: '', active: true, sort_order: 0, custom_note: '' };
 
 export default function DeliveryZones() {
   const [zones,   setZones]   = useState([]);
@@ -21,7 +21,7 @@ export default function DeliveryZones() {
   }
 
   function openAdd() { setForm(EMPTY); setErr(''); setModal('add'); }
-  function openEdit(z) { setForm({ name: z.name, fee: z.fee, active: z.active, sort_order: z.sort_order }); setErr(''); setModal(z); }
+  function openEdit(z) { setForm({ name: z.name, fee: z.fee, active: z.active, sort_order: z.sort_order, custom_note: z.custom_note || '' }); setErr(''); setModal(z); }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -29,7 +29,7 @@ export default function DeliveryZones() {
     if (form.fee === '' || isNaN(form.fee)) return setErr('Valid delivery fee is required');
     setSaving(true); setErr('');
     try {
-      const payload = { name: form.name.trim(), fee: parseFloat(form.fee), active: form.active, sort_order: Number(form.sort_order) || 0 };
+      const payload = { name: form.name.trim(), fee: parseFloat(form.fee), active: form.active, sort_order: Number(form.sort_order) || 0, custom_note: form.custom_note.trim() || null };
       if (modal === 'add') {
         const r = await createDeliveryZone(payload);
         setZones(prev => [...prev, r.data]);
@@ -129,6 +129,13 @@ export default function DeliveryZones() {
                 <input className="input-base" type="number" min="0" value={form.sort_order}
                   onChange={e => setForm(p => ({ ...p, sort_order: e.target.value }))}
                   placeholder="0" />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Custom Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(shown to customer)</span></label>
+                <textarea className="input-base" rows={3} value={form.custom_note}
+                  onChange={e => setForm(p => ({ ...p, custom_note: e.target.value }))}
+                  placeholder="e.g. Covers Barangays 1–5 only. Delivery is same-day if booked before 2 PM."
+                  style={{ resize: 'vertical', minHeight: 70 }} />
               </div>
               <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" id="zone-active" checked={form.active}

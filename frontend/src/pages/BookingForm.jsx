@@ -65,6 +65,9 @@ export default function BookingForm({ tenantId }) {
   const [lookingUp, setLookingUp]         = useState(false);
   const phoneDebounce = useRef(null);
 
+  // Step 3 state
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+
   // Result
   const [submitting, setSubmitting] = useState(false);
   const [submitErr,  setSubmitErr]  = useState('');
@@ -280,7 +283,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -364,6 +367,10 @@ export default function BookingForm({ tenantId }) {
                         transition: 'all .15s',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
                       }}>
+                      {svc.image_url && (
+                        <img src={svc.image_url} alt={svc.name}
+                          style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid #E2E8F0' }} />
+                      )}
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3, color: '#111827' }}>{svc.name}</div>
                         {svc.description && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>{svc.description}</div>}
@@ -672,8 +679,15 @@ export default function BookingForm({ tenantId }) {
                 ))}
               </select>
               {form.delivery_zone_id && selectedZone && (
-                <div style={{ marginTop: 6, fontSize: 12, color: '#185FA5', fontWeight: 600 }}>
-                  +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ fontSize: 12, color: '#185FA5', fontWeight: 600 }}>
+                    +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
+                  </div>
+                  {selectedZone.custom_note && (
+                    <div style={{ marginTop: 5, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #BDD8F7', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
+                      ℹ️ {selectedZone.custom_note}
+                    </div>
+                  )}
                 </div>
               )}
             </Field>
@@ -823,14 +837,25 @@ export default function BookingForm({ tenantId }) {
               </div>
             )}
 
+            {/* Privacy consent */}
+            <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? '#378ADD' : '#E2E8F0'}`, background: privacyConsent ? '#F0F8FF' : '#FAFAFA', display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer' }}
+              onClick={() => setPrivacyConsent(p => !p)}>
+              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? '#378ADD' : '#CBD5E0'}`, background: privacyConsent ? '#378ADD' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
+                {privacyConsent && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: '#374151', lineHeight: 1.6 }}>
+                I voluntarily give my consent to <strong>{tenant?.name}</strong> to keep and process the information, and to use it only to provide the service and to collect payment. I acknowledge and agree that in doing so, any such data may be processed through third-party data processors such as, but not limited to, service providers. I give my consent thereto pursuant to the requirements of Republic Act No. 10173, or the "Data Privacy Act of 2012."
+              </p>
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setStep(2)}
                 style={{ flex: 1, padding: 13, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
                 ← Back
               </button>
-              <button onClick={handleSubmit} disabled={submitting}
-                style={{ flex: 2, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                  background: submitting ? '#6B8EAD' : '#378ADD', color: '#fff', transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button onClick={handleSubmit} disabled={submitting || !privacyConsent}
+                style={{ flex: 2, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: (submitting || !privacyConsent) ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  background: submitting ? '#6B8EAD' : !privacyConsent ? '#E2E8F0' : '#378ADD', color: !privacyConsent ? '#374151' : '#fff', transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {submitting
                   ? <><span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Placing Order…</>
                   : '✅ Confirm & Place Order'}

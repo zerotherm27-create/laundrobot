@@ -183,12 +183,32 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
       );
       for (const f of fields) {
         await client.query(
-          `INSERT INTO service_custom_fields (service_id, label, field_type, placeholder, required, sort_order)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order]
+          `INSERT INTO service_custom_fields
+             (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order,
+           f.options, f.min_value, f.max_value, f.unit_price]
         );
         clonedFields++;
       }
+    }
+
+    // ── Clone delivery zones ──────────────────────────────────────────────
+    if (clear_existing) {
+      await client.query(`DELETE FROM delivery_zones WHERE tenant_id = $1`, [target_tenant_id]);
+    }
+
+    const { rows: sourceZones } = await client.query(
+      `SELECT * FROM delivery_zones WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+      [source_tenant_id]
+    );
+
+    for (const z of sourceZones) {
+      await client.query(
+        `INSERT INTO delivery_zones (tenant_id, name, fee, active, sort_order, custom_note)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [target_tenant_id, z.name, z.fee, z.active, z.sort_order, z.custom_note]
+      );
     }
 
     await client.query('COMMIT');
@@ -197,11 +217,12 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
     const { rows: [targetTenant] } = await db.query(`SELECT name FROM tenants WHERE id=$1`, [target_tenant_id]);
 
     res.json({
-      message: `Successfully cloned services from "${sourceTenant.name}" to "${targetTenant.name}"`,
+      message: `Successfully cloned from "${sourceTenant.name}" to "${targetTenant.name}"`,
       stats: {
         categories: sourceCats.length,
         services: clonedServices,
         custom_fields: clonedFields,
+        delivery_zones: sourceZones.length,
       },
     });
   } catch (err) {
