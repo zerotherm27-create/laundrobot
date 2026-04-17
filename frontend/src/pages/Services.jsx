@@ -107,6 +107,48 @@ export default function Services() {
     ));
   }
 
+  function startEditOption(fieldIdx, optIdx) {
+    setFields(prev => prev.map((f, i) => {
+      if (i !== fieldIdx) return f;
+      const opt = f.options[optIdx];
+      const label = typeof opt === 'object' ? opt.label : String(opt);
+      const price = typeof opt === 'object' ? opt.price : 0;
+      const price_type = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
+      return { ...f, _editingOptIdx: optIdx, _editOptLabel: label, _editOptPrice: String(price), _editOptPriceType: price_type };
+    }));
+  }
+
+  function saveEditOption(fieldIdx) {
+    setFields(prev => prev.map((f, i) => {
+      if (i !== fieldIdx) return f;
+      const label = (f._editOptLabel || '').trim();
+      if (!label) return f;
+      const priceType = f._editOptPriceType || 'fixed';
+      const price = priceType === 'copy_base' ? 0 : (parseFloat(f._editOptPrice) || 0);
+      const newOptions = f.options.map((o, oi) =>
+        oi === f._editingOptIdx ? { label, price, price_type: priceType } : o
+      );
+      return { ...f, options: newOptions, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed' };
+    }));
+  }
+
+  function cancelEditOption(fieldIdx) {
+    setFields(prev => prev.map((f, i) =>
+      i === fieldIdx ? { ...f, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed' } : f
+    ));
+  }
+
+  function duplicateSvc(svc) {
+    setSvcForm({ ...svc, name: svc.name + ' (Copy)', isNew: true, id: undefined });
+    setPreview(svc.image_url || null);
+    setFields((svc.custom_fields || []).map(f => ({
+      ...f,
+      _key: Date.now() + Math.random(),
+      options: Array.isArray(f.options) ? f.options.map(o => ({ ...o })) : [],
+      _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed',
+    })));
+  }
+
   // ── Service save ──────────────────────────────────────────────────────
   async function handleSvcSave() {
     if (!svcForm.name || svcForm.price === '' || svcForm.price === null || svcForm.price === undefined) return alert('Name and price are required. Set 0 for variation-priced services.');
@@ -260,10 +302,16 @@ export default function Services() {
                               {s.custom_fields.length} custom field{s.custom_fields.length !== 1 ? 's' : ''}
                             </div>
                           )}
-                          <button onClick={() => openSvc(s)}
-                            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151', width: '100%' }}>
-                            Edit
-                          </button>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => openSvc(s)}
+                              style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151', flex: 1 }}>
+                              Edit
+                            </button>
+                            <button onClick={() => duplicateSvc(s)} title="Duplicate service"
+                              style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151' }}>
+                              ⎘
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -435,9 +483,38 @@ export default function Services() {
                           {(f.options || []).length > 0 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
                               {(f.options || []).map((opt, oi) => {
-                                const optLabel    = typeof opt === 'object' ? opt.label : opt;
-                                const optPrice    = typeof opt === 'object' ? Number(opt.price || 0) : 0;
-                                const priceType   = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
+                                const optLabel  = typeof opt === 'object' ? opt.label : opt;
+                                const optPrice  = typeof opt === 'object' ? Number(opt.price || 0) : 0;
+                                const priceType = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
+                                const isEditing = f._editingOptIdx === oi;
+                                if (isEditing) {
+                                  return (
+                                    <div key={oi} style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', background: '#FFF9E6', borderRadius: 7, border: '1px solid #F5D165' }}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._editOptPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} auto auto`, gap: 5, alignItems: 'center' }}>
+                                        <input value={f._editOptLabel || ''} onChange={e => updateField(idx, '_editOptLabel', e.target.value)}
+                                          style={{ ...S.input, fontSize: 12 }} placeholder="Option label" />
+                                        {(f._editOptPriceType || 'fixed') === 'copy_base' ? (
+                                          <span style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', fontSize: 11, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE', borderRadius: 6, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                            = base price
+                                          </span>
+                                        ) : (
+                                          <input type="number" min="0" step="1" value={f._editOptPrice || ''} onChange={e => updateField(idx, '_editOptPrice', e.target.value)}
+                                            placeholder="₱ price" style={{ ...S.input, fontSize: 12 }} />
+                                        )}
+                                        <button onClick={() => saveEditOption(idx)}
+                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>✓</button>
+                                        <button onClick={() => cancelEditOption(idx)}
+                                          style={{ padding: '4px 8px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc' }}>✕</button>
+                                      </div>
+                                      <button type="button"
+                                        onClick={() => updateField(idx, '_editOptPriceType', (f._editOptPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
+                                        style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', textAlign: 'left',
+                                          color: (f._editOptPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                                        {(f._editOptPriceType || 'fixed') === 'copy_base' ? '↩ Switch to fixed price' : '= Switch to copy base price'}
+                                      </button>
+                                    </div>
+                                  );
+                                }
                                 return (
                                   <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#EEF6FF', borderRadius: 7, border: '1px solid #BDD8F7' }}>
                                     <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#185FA5' }}>{optLabel}</span>
@@ -450,6 +527,8 @@ export default function Services() {
                                         ₱{optPrice.toLocaleString()}
                                       </span>
                                     )}
+                                    <button onClick={() => startEditOption(idx, oi)} title="Edit option"
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#374151', fontSize: 13, padding: '0 2px', lineHeight: 1 }}>✎</button>
                                     <button onClick={() => removeOption(idx, oi)}
                                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 15, padding: '0 2px', lineHeight: 1 }}>×</button>
                                   </div>
