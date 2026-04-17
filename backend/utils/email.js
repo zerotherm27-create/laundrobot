@@ -1,50 +1,45 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const db = require('../db');
 
-// ── Transporter ─────────────────────────────────────────────────────────────
-function getTransporter() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) return null;
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT) || 587,
-    secure: Number(SMTP_PORT) === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+const RESEND_API = 'https://api.resend.com/emails';
+
+function getFrom() {
+  return process.env.RESEND_FROM || 'LaundroBot <noreply@laundrobot.app>';
+}
+
+async function sendEmail({ to, subject, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn('[email] RESEND_API_KEY not set — skipping email');
+    return;
+  }
+  await axios.post(RESEND_API, { from: getFrom(), to, subject, html }, {
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
   });
 }
 
-// ── Get notification email for a tenant ──────────────────────────────────────
 async function getNotificationEmails(tenantId) {
   const { rows: [tenant] } = await db.query(
-    `SELECT notification_email FROM tenants WHERE id=$1`,
-    [tenantId]
+    `SELECT notification_email FROM tenants WHERE id=$1`, [tenantId]
   );
   if (tenant?.notification_email) return [tenant.notification_email];
-  // Fallback: any admin user email for this tenant
   const { rows } = await db.query(
-    `SELECT email FROM users WHERE tenant_id=$1 AND email IS NOT NULL LIMIT 3`,
-    [tenantId]
+    `SELECT email FROM users WHERE tenant_id=$1 AND email IS NOT NULL LIMIT 3`, [tenantId]
   );
   return rows.map(r => r.email).filter(Boolean);
 }
 
-// ── Shared HTML wrapper ──────────────────────────────────────────────────────
 function emailWrapper(shopName, bodyHtml) {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#F4F6F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-    <!-- Header -->
-    <div style="background:#378ADD;padding:24px 28px;">
+    <div style="background:#38a9c2;padding:24px 28px;">
       <div style="color:#fff;font-size:20px;font-weight:700;">🧺 ${shopName}</div>
       <div style="color:rgba(255,255,255,.8);font-size:13px;margin-top:2px;">LaundroBot Notification</div>
     </div>
-    <!-- Body -->
-    <div style="padding:24px 28px;">
-      ${bodyHtml}
-    </div>
-    <!-- Footer -->
+    <div style="padding:24px 28px;">${bodyHtml}</div>
     <div style="padding:16px 28px;background:#F4F6F9;text-align:center;font-size:12px;color:#6B7280;">
       Powered by <strong>LaundroBot</strong> · This is an automated notification
     </div>
@@ -53,26 +48,24 @@ function emailWrapper(shopName, bodyHtml) {
 </html>`;
 }
 
-// ── Order details table ──────────────────────────────────────────────────────
 function orderTable(rows) {
   const cells = rows.map(([label, value]) => `
     <tr>
       <td style="padding:8px 0;font-size:13px;color:#6B7280;width:140px;">${label}</td>
-      <td style="padding:8px 0;font-size:13px;color:#111827;font-weight:500;">${value}</td>
+      <td style="padding:8px 0;font-size:13px;color:#111827;font-weight:500;">${value || '—'}</td>
     </tr>`).join('');
   return `<table style="width:100%;border-collapse:collapse;">${cells}</table>`;
 }
 
-// ── NEW ORDER notification ───────────────────────────────────────────────────
 async function sendNewOrderEmail(tenantId, { orderId, serviceName, customerName, customerPhone, address, pickupDate, deliveryZone, total, paymentUrl }) {
   try {
-    const transporter = getTransporter();
-    if (!transporter) return;
-
     const { rows: [tenant] } = await db.query('SELECT name FROM tenants WHERE id=$1', [tenantId]);
     const shopName = tenant?.name || 'Your Shop';
     const recipients = await getNotificationEmails(tenantId);
-    if (!recipients.length) return;
+    if (!recipients.length) {
+      console.warn('[email] no recipients for tenant', tenantId);
+      return;
+    }
 
     const formattedDate = pickupDate
       ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
@@ -90,7 +83,7 @@ async function sendNewOrderEmail(tenantId, { orderId, serviceName, customerName,
     ];
 
     const payBtn = paymentUrl
-      ? `<a href="${paymentUrl}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#378ADD;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">View Payment Link</a>`
+      ? `<a href="${paymentUrl}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#38a9c2;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">View Payment Link</a>`
       : '';
 
     const body = `
@@ -101,28 +94,21 @@ async function sendNewOrderEmail(tenantId, { orderId, serviceName, customerName,
       <div style="background:#F9FAFB;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
         ${orderTable(tableRows)}
       </div>
-      ${payBtn}
-    `;
+      ${payBtn}`;
 
-    await transporter.sendMail({
-      from: `"${shopName} via LaundroBot" <${process.env.SMTP_USER}>`,
-      to: recipients.join(', '),
+    await sendEmail({
+      to: recipients,
       subject: `📦 New Order ${orderId} — ${customerName}`,
       html: emailWrapper(shopName, body),
     });
-
     console.log(`[email] new order ${orderId} sent to ${recipients.join(', ')}`);
   } catch (err) {
-    console.warn('[email] sendNewOrderEmail failed:', err.message);
+    console.warn('[email] sendNewOrderEmail failed:', err.response?.data || err.message);
   }
 }
 
-// ── PAID ORDER notification ──────────────────────────────────────────────────
 async function sendPaidOrderEmail(tenantId, { orderId, serviceName, customerName, customerPhone, address, total }) {
   try {
-    const transporter = getTransporter();
-    if (!transporter) return;
-
     const { rows: [tenant] } = await db.query('SELECT name FROM tenants WHERE id=$1', [tenantId]);
     const shopName = tenant?.name || 'Your Shop';
     const recipients = await getNotificationEmails(tenantId);
@@ -147,19 +133,16 @@ async function sendPaidOrderEmail(tenantId, { orderId, serviceName, customerName
       </div>
       <div style="font-size:13px;color:#374151;background:#F0FDF4;padding:12px 16px;border-radius:8px;border-left:4px solid #22C55E;">
         ✅ This order has been marked as <strong>PAID</strong> in your dashboard.
-      </div>
-    `;
+      </div>`;
 
-    await transporter.sendMail({
-      from: `"${shopName} via LaundroBot" <${process.env.SMTP_USER}>`,
-      to: recipients.join(', '),
+    await sendEmail({
+      to: recipients,
       subject: `💰 Payment Confirmed — Order ${orderId}`,
       html: emailWrapper(shopName, body),
     });
-
     console.log(`[email] paid order ${orderId} sent to ${recipients.join(', ')}`);
   } catch (err) {
-    console.warn('[email] sendPaidOrderEmail failed:', err.message);
+    console.warn('[email] sendPaidOrderEmail failed:', err.response?.data || err.message);
   }
 }
 

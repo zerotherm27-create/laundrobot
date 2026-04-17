@@ -114,6 +114,7 @@ export default function BookingForm({ tenantId }) {
   const [savedCustomer, setSavedCustomer] = useState(null);   // repeat customer data
   const [addressMode, setAddressMode]     = useState('new');  // 'saved' | 'new'
   const [lookingUp, setLookingUp]         = useState(false);
+  const [isWhatsApp, setIsWhatsApp]       = useState(false);
   const phoneDebounce = useRef(null);
 
   // Step 3 state
@@ -808,6 +809,7 @@ export default function BookingForm({ tenantId }) {
                   onChange={e => {
                     const val = e.target.value;
                     setForm(p => ({ ...p, phone: val }));
+                    if (/^(09|\+639|639)\d{9}$/.test(val.replace(/\s/g, ''))) setIsWhatsApp(false);
                     setSavedCustomer(null); setAddressMode('new');
                     clearTimeout(phoneDebounce.current);
                     if (val.trim().length >= 10) {
@@ -829,7 +831,7 @@ export default function BookingForm({ tenantId }) {
                       }, 600);
                     }
                   }}
-                  placeholder="09XX XXX XXXX"
+                  placeholder={isWhatsApp ? '+[country code] XXXXXXXXXX' : '09XX XXX XXXX'}
                   onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
                   onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
                 />
@@ -838,11 +840,18 @@ export default function BookingForm({ tenantId }) {
                   const ph = form.phone.trim();
                   if (!ph) return null;
                   const isValidPH = /^(09|\+639|639)\d{9}$/.test(ph.replace(/\s/g, ''));
-                  if (isValidPH) return null;
+                  if (isValidPH && !isWhatsApp) return null;
+                  if (isWhatsApp) return (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#15803d', background: '#F0FDF4', borderRadius: 6, padding: '5px 9px', marginTop: 5, cursor: 'pointer' }}>
+                      <input type="checkbox" checked onChange={() => { setIsWhatsApp(false); }} />
+                      WhatsApp number — will be contacted via WhatsApp
+                    </label>
+                  );
                   return (
-                    <div style={{ fontSize: 11, color: '#92400e', background: '#FEF3C7', borderRadius: 6, padding: '5px 9px', marginTop: 5 }}>
-                      Not a Philippine number? You can enter your WhatsApp number with country code (e.g. +1234567890).
-                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#92400e', background: '#FEF3C7', borderRadius: 6, padding: '5px 9px', marginTop: 5, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={false} onChange={() => setIsWhatsApp(true)} />
+                      Not a Philippine number? Tick here to use your WhatsApp number instead
+                    </label>
                   );
                 })()}
               </Field>
