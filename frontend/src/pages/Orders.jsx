@@ -37,6 +37,8 @@ export default function Orders() {
   const [editForm, setEditForm]       = useState({});
   const [editItems, setEditItems]     = useState([]); // booking items [{id?, service_id, price, notes}]
   const [bookingRef, setBookingRef]   = useState(null);
+  const [editCustomNote, setEditCustomNote]   = useState('');
+  const [editCustomPrice, setEditCustomPrice] = useState('');
   const [editSaving, setEditSaving]   = useState(false);
   const [editErr, setEditErr]         = useState('');
   const [savedDiff, setSavedDiff]     = useState(null);
@@ -77,6 +79,9 @@ export default function Orders() {
     setNotifyMsg('');
     setEditErr('');
 
+    setEditCustomNote('');
+    setEditCustomPrice('');
+
     if (order.booking_ref) {
       const bookingOrders = orders.filter(o => o.booking_ref === order.booking_ref);
       setBookingRef(order.booking_ref);
@@ -102,7 +107,7 @@ export default function Orders() {
     setEditSaving(true); setEditErr('');
     try {
       if (bookingRef) {
-        const { data } = await updateBooking(bookingRef, editItems);
+        const { data } = await updateBooking(bookingRef, editItems, editCustomNote, editCustomPrice);
         loadActive();
         setEditMode(false);
         setSavedDiff({ isBooking: true, ...data });
@@ -480,6 +485,33 @@ export default function Orders() {
                         </div>
                         <div style={{ fontSize: 11, color: '#374151', marginBottom: 12, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
                           ⚠️ Same order & booking numbers are kept. Each order will be stamped as edited.
+                        </div>
+
+                        {/* Custom note */}
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+                            Custom Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional — included in summary</span>
+                          </label>
+                          <textarea value={editCustomNote} onChange={e => setEditCustomNote(e.target.value)}
+                            placeholder="e.g. Free pick-up applied. Extra bag added. Special handling required."
+                            rows={3}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', resize: 'vertical', outline: 'none' }} />
+                        </div>
+
+                        {/* Additional price */}
+                        <div style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+                            Additional Amount (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional — added to total</span>
+                          </label>
+                          <input type="number" min="0" step="1" value={editCustomPrice}
+                            onChange={e => setEditCustomPrice(e.target.value)}
+                            placeholder="e.g. 50"
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                          {Number(editCustomPrice) > 0 && (
+                            <div style={{ fontSize: 11, marginTop: 4, color: '#1a7d94', fontWeight: 600 }}>
+                              Grand total: ₱{(editItems.reduce((s, i) => s + (Number(i.price) || 0), 0) + Number(editCustomPrice)).toLocaleString('en-PH')}
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (

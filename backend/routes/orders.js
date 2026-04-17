@@ -43,10 +43,11 @@ router.post('/archive-month', auth, async (req, res) => {
 
 // PUT full booking edit — update/add/remove items, return copyable summary + payment link if needed
 router.put('/booking/:ref', auth, async (req, res) => {
-  const { items } = req.body;
+  const { items, custom_note, custom_price } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'items array required' });
   }
+  const extraAmount = Number(custom_price) || 0;
 
   const client = await db.pool.connect();
   try {
@@ -85,7 +86,7 @@ router.put('/booking/:ref', auth, async (req, res) => {
        WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
       [req.params.ref, req.user.tenant_id]
     );
-    const newTotal = updated.reduce((s, o) => s + Number(o.price), 0);
+    const newTotal = updated.reduce((s, o) => s + Number(o.price), 0) + extraAmount;
     const diff = newTotal - oldTotal;
 
     const { rows: [tenant] } = await db.query(
@@ -115,9 +116,14 @@ router.put('/booking/:ref', auth, async (req, res) => {
       ``,
       `Services:`,
       ...updated.map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
-      ``,
-      `Total: ₱${newTotal.toLocaleString('en-PH')}`,
     ];
+    if (extraAmount > 0) {
+      lines.push(`• Additional charges — ₱${extraAmount.toLocaleString('en-PH')}`);
+    }
+    if (custom_note?.trim()) {
+      lines.push(``, custom_note.trim());
+    }
+    lines.push(``, `Total: ₱${newTotal.toLocaleString('en-PH')}`);
     if (diff > 0) {
       lines.push(`Additional Payment: ₱${diff.toLocaleString('en-PH')}`);
       if (paymentUrl) lines.push(`💳 Pay: ${paymentUrl}`);
