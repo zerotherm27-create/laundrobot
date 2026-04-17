@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Short text' },
@@ -472,6 +472,32 @@ export default function Services() {
                           <div style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11' }}>
                             ✓ Customer selects quantity (0, 1, 2…) — price added to order total
                           </div>
+
+                          {/* Conditional visibility — link to a select field option */}
+                          {(() => {
+                            const selectFields = fields.filter((sf, si) => sf.field_type === 'select' && si !== idx && sf.label);
+                            return selectFields.length > 0 && (
+                              <div style={{ marginTop: 10, padding: '10px', background: '#F9F9F7', borderRadius: 7, border: '0.5px solid #e8e8e0' }}>
+                                <label style={{ ...S.label, marginBottom: 4 }}>Show only when (optional)</label>
+                                <select value={f.linked_to_field_label || ''} onChange={e => updateField(idx, 'linked_to_field_label', e.target.value)} style={{ ...S.select, fontSize: 12, marginBottom: 6 }}>
+                                  <option value="">— Always show —</option>
+                                  {selectFields.map(sf => (
+                                    <option key={sf.label} value={sf.label}>{sf.label}</option>
+                                  ))}
+                                </select>
+                                {f.linked_to_field_label && (
+                                  <select value={f.linked_to_value || ''} onChange={e => updateField(idx, 'linked_to_value', e.target.value)} style={{ ...S.select, fontSize: 12 }}>
+                                    <option value="">— Select trigger option —</option>
+                                    {(fields.find(sf => sf.label === f.linked_to_field_label)?.options || []).map(opt => {
+                                      const label = typeof opt === 'object' ? opt.label : opt;
+                                      return <option key={label} value={label}>{label}</option>;
+                                    })}
+                                  </select>
+                                )}
+                              </div>
+                            );
+                          })()}
+
                           {f.required && (
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', marginTop: 8 }}>
                               <input type="checkbox" checked={f.allow_own || false} onChange={e => updateField(idx, 'allow_own', e.target.checked)} />

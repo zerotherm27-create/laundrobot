@@ -26,8 +26,8 @@ async function saveFields(client, serviceId, fields) {
     const f = fields[i];
     await client.query(
       `INSERT INTO service_custom_fields
-         (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+         (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
       [
         serviceId,
         f.label || 'Custom Field',
@@ -39,6 +39,9 @@ async function saveFields(client, serviceId, fields) {
         f.min_value != null && f.min_value !== '' ? f.min_value : null,
         f.max_value != null && f.max_value !== '' ? f.max_value : null,
         f.unit_price != null && f.unit_price !== '' ? f.unit_price : 0,
+        f.allow_own || false,
+        f.linked_to_field_label || '',
+        f.linked_to_value || '',
       ]
     );
   }

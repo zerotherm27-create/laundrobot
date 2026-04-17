@@ -226,7 +226,16 @@ export default function BookingForm({ tenantId }) {
     : 0;
 
   // Addon fields + totals
-  const addonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
+  const allAddonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
+
+  function isAddonVisible(f) {
+    if (!f.linked_to_field_label) return true;
+    const linkedField = (selectedSvc?.custom_fields || []).find(sf => sf.field_type === 'select' && sf.label === f.linked_to_field_label);
+    if (!linkedField) return true;
+    return fieldValues[linkedField.id] === f.linked_to_value;
+  }
+
+  const addonFields = allAddonFields.filter(isAddonVisible);
   const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
 
   const selectedZone = zones.find(z => z.id === Number(form.delivery_zone_id)) || null;
@@ -258,6 +267,7 @@ export default function BookingForm({ tenantId }) {
     if (isPerKg && weight) customFields.push({ label: 'Weight (kg)', value: weight });
     for (const f of (selectedSvc.custom_fields || [])) {
       if (f.field_type === 'addon') {
+        if (!isAddonVisible(f)) continue;
         const aqty = addonQty[f.id] || 0;
         if (aqty > 0) customFields.push({ label: f.label, value: String(aqty), unit_price: f.unit_price });
       } else if (!f.label?.toLowerCase().includes('weight') && fieldValues[f.id] !== undefined) {
@@ -280,7 +290,7 @@ export default function BookingForm({ tenantId }) {
     });
     // include "own provision" entries for required addons where customer chose to provide their own
     for (const f of (selectedSvc.custom_fields || [])) {
-      if (f.field_type === 'addon' && f.allow_own && addonOwn[f.id] && !(addonQty[f.id] > 0)) {
+      if (f.field_type === 'addon' && isAddonVisible(f) && f.allow_own && addonOwn[f.id] && !(addonQty[f.id] > 0)) {
         customFields.push({ label: f.label, value: 'Customer provides own' });
         displayLines.push({ label: `${f.label}: Customer provides own`, price: 0 });
       }
@@ -301,7 +311,7 @@ export default function BookingForm({ tenantId }) {
     if (isPerKg && (!weight || parseFloat(weight) <= 0)) return false;
     for (const f of (selectedSvc.custom_fields || [])) {
       if (f.field_type === 'addon') {
-        if (f.required) {
+        if (f.required && isAddonVisible(f)) {
           const hasPurchased = (addonQty[f.id] || 0) > 0;
           const hasOwn = f.allow_own && addonOwn[f.id];
           if (!hasPurchased && !hasOwn) return false;
@@ -582,6 +592,7 @@ export default function BookingForm({ tenantId }) {
                 {(selectedSvc.custom_fields || []).filter(f => !f.label?.toLowerCase().includes('weight') || !isPerKg).map(f => {
                   // Add-on field: stepper UI
                   if (f.field_type === 'addon') {
+                    if (!isAddonVisible(f)) return null;
                     const aqty = addonQty[f.id] || 0;
                     const isOwn = !!(f.allow_own && addonOwn[f.id]);
                     const lineTotal = Number(f.unit_price || 0) * aqty;
