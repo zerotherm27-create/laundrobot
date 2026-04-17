@@ -181,10 +181,30 @@ export default function BookingForm({ tenantId }) {
 
   // If any select option has a price > 0, use variation pricing (no base price)
   const hasVariationPricing = selectFields.some(f => normalizeOpts(f.options).some(o => Number(o.price || 0) > 0));
+
+  // ID of the first priced select field — this one gets multiplied by qty
+  const primarySelectFieldId = (hasVariationPricing && qty > 0)
+    ? (() => {
+        for (const f of selectFields) {
+          const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
+          if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) return f.id;
+        }
+        return null;
+      })()
+    : null;
+
   const baseSubtotal = selectedSvc
-    ? (isPerKg && w > 0 ? price * w : qty > 0 ? price * qty : (hasVariationPricing ? 0 : price))
+    ? (isPerKg && w > 0
+        ? price * w
+        : qty > 0
+          ? (hasVariationPricing ? baseVariationPrice * qty : price * qty)
+          : (hasVariationPricing ? 0 : price))
     : 0;
-  const subtotal = baseSubtotal + variationTotal;
+
+  // Primary variation is already counted in baseSubtotal (× qty), so subtract it from variationTotal
+  const subtotal = (hasVariationPricing && qty > 0)
+    ? baseSubtotal + (variationTotal - baseVariationPrice)
+    : baseSubtotal + variationTotal;
 
   // Addon fields + totals
   const addonFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
@@ -563,7 +583,7 @@ export default function BookingForm({ tenantId }) {
                 {/* Live price breakdown */}
                 {selectedSvc && (subtotal > 0 || addonTotal > 0) && (
                   <div style={{ marginTop: 12, background: '#EEF6FF', borderRadius: 10, padding: '10px 14px', border: '1px solid #BDD8F7' }}>
-                    {baseSubtotal > 0 && (
+                    {baseSubtotal > 0 && !hasVariationPricing && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#185FA5', marginBottom: 4 }}>
                         <span>{selectedSvc.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
                         <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
@@ -573,10 +593,12 @@ export default function BookingForm({ tenantId }) {
                       const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                       if (!sel) return null;
                       const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
+                      const isPrimary = f.id === primarySelectFieldId;
+                      const displayPrice = isPrimary ? resolvedPrice * qty : resolvedPrice;
                       return (
                         <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                          <span>{f.label}: <strong>{sel.label}</strong></span>
-                          <span style={{ fontWeight: 600 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
+                          <span>{f.label}: <strong>{sel.label}</strong>{isPrimary && qty > 1 ? ` × ${qty}` : ''}</span>
+                          <span style={{ fontWeight: 600 }}>{displayPrice > 0 ? `₱${displayPrice.toLocaleString()}` : '—'}</span>
                         </div>
                       );
                     })}
@@ -819,7 +841,7 @@ export default function BookingForm({ tenantId }) {
 
             {/* Price summary */}
             <div style={{ background: '#F7F9FD', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
-              {baseSubtotal > 0 && (
+              {baseSubtotal > 0 && !hasVariationPricing && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                   <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
                   <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
@@ -829,10 +851,12 @@ export default function BookingForm({ tenantId }) {
                 const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                 if (!sel) return null;
                 const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
+                const isPrimary = f.id === primarySelectFieldId;
+                const displayPrice = isPrimary ? resolvedPrice * qty : resolvedPrice;
                 return (
                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
-                    <span style={{ fontWeight: 600 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
+                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong>{isPrimary && qty > 1 ? ` × ${qty}` : ''}</span>
+                    <span style={{ fontWeight: 600 }}>{displayPrice > 0 ? `₱${displayPrice.toLocaleString()}` : '—'}</span>
                   </div>
                 );
               })}
@@ -907,7 +931,7 @@ export default function BookingForm({ tenantId }) {
               ))}
 
               <div style={{ fontWeight: 700, fontSize: 13, color: '#185FA5', marginTop: 16, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>Payment</div>
-              {baseSubtotal > 0 && (
+              {baseSubtotal > 0 && !hasVariationPricing && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
                   <span style={{ color: '#374151' }}>{selectedSvc?.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
                   <span style={{ fontWeight: 500 }}>₱{baseSubtotal.toLocaleString()}</span>
@@ -917,10 +941,12 @@ export default function BookingForm({ tenantId }) {
                 const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
                 if (!sel) return null;
                 const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
+                const isPrimary = f.id === primarySelectFieldId;
+                const displayPrice = isPrimary ? resolvedPrice * qty : resolvedPrice;
                 return (
                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
-                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong></span>
-                    <span style={{ fontWeight: 500 }}>{resolvedPrice > 0 ? `₱${resolvedPrice.toLocaleString()}` : '—'}</span>
+                    <span style={{ color: '#374151' }}>{f.label}: <strong>{sel.label}</strong>{isPrimary && qty > 1 ? ` × ${qty}` : ''}</span>
+                    <span style={{ fontWeight: 500 }}>{displayPrice > 0 ? `₱${displayPrice.toLocaleString()}` : '—'}</span>
                   </div>
                 );
               })}

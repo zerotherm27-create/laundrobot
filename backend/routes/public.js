@@ -191,7 +191,10 @@ router.post('/:tenantId/orders', async (req, res) => {
       Array.isArray(f.options) &&
       f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
     );
-    const effectiveSubtotal = hasVarPricing ? variationTotal : subtotal;
+    // When qty > 0 with variation pricing, primary (first priced) variation is multiplied by qty; rest flat
+    const effectiveSubtotal = hasVarPricing
+      ? (qty > 0 ? baseVariationPrice * qty + (variationTotal - baseVariationPrice) : variationTotal)
+      : subtotal;
 
     const total = effectiveSubtotal + addonTotal + deliveryFee;
 
