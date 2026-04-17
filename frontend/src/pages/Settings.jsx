@@ -39,6 +39,7 @@ export default function Settings() {
   const [contactNumber,  setContactNumber]  = useState('');
   const [minimumOrder,   setMinimumOrder]   = useState('');
   const [aiEnabled,      setAiEnabled]      = useState(false);
+  const [aiInstructions, setAiInstructions] = useState('');
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
@@ -72,6 +73,7 @@ export default function Settings() {
       setContactNumber(s.data.contact_number || '');
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
       setAiEnabled(!!s.data.ai_enabled);
+      setAiInstructions(s.data.ai_instructions || '');
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
@@ -93,6 +95,7 @@ export default function Settings() {
         store_close: storeClose || null,
         booking_cutoff: bookingCutoff || null,
         ai_enabled: aiEnabled,
+        ai_instructions: aiInstructions,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -174,6 +177,20 @@ export default function Settings() {
                     width: 20, height: 20, borderRadius: '50%', background: '#fff',
                     boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s',
                   }} />
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label style={LABEL}>AI Instructions (optional)</label>
+                <textarea
+                  value={aiInstructions}
+                  onChange={e => setAiInstructions(e.target.value)}
+                  rows={4}
+                  placeholder={'e.g. Always reply in Tagalog.\nNever discuss competitor shops.\nAlways end with "Salamat sa inyong tiwala! 🙏"'}
+                  style={{ ...INPUT, resize: 'vertical', lineHeight: 1.5 }}
+                  onFocus={FOCUS} onBlur={BLUR}
+                />
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>
+                  These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
                 </div>
               </div>
               {aiEnabled && (

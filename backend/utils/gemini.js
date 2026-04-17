@@ -6,11 +6,12 @@ const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemi
 async function buildShopContext(tenantId) {
   const [
     { rows: [tenant] },
+
     { rows: services },
     { rows: faqs },
     { rows: zones },
   ] = await Promise.all([
-    db.query(`SELECT name, contact_number, store_open, store_close FROM tenants WHERE id=$1`, [tenantId]),
+    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions FROM tenants WHERE id=$1`, [tenantId]),
     db.query(`SELECT name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
@@ -31,6 +32,7 @@ async function buildShopContext(tenantId) {
     : 'Contact us for hours.';
 
   return `You are a friendly customer service assistant for ${tenant.name}, a laundry service business in the Philippines.
+${tenant.ai_instructions ? `\nCUSTOM INSTRUCTIONS (follow these strictly):\n${tenant.ai_instructions}\n` : ''}
 Answer customer questions about services, prices, delivery, and scheduling.
 Be concise — keep replies under 3 sentences. Use plain text only (no markdown, no asterisks).
 Respond naturally in whatever language the customer uses (English, Tagalog, or Taglish).
