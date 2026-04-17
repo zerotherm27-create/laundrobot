@@ -128,12 +128,29 @@ export default function BookingForm({ tenantId }) {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError,   setPromoError]   = useState('');
 
+  // Messenger PSID (captured from Extensions SDK when inside Messenger webview)
+  const [messengerPsid, setMessengerPsid] = useState(null);
+
   // Result
   const [submitting, setSubmitting] = useState(false);
   const [submitErr,  setSubmitErr]  = useState('');
   const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
 
   useEffect(() => {
+    // Try to capture Messenger PSID from Extensions SDK (only works inside Messenger webview)
+    const tryGetPsid = () => {
+      try {
+        if (window.MessengerExtensions) {
+          window.MessengerExtensions.getUserID((err, ctx) => {
+            if (!err && ctx?.psid) setMessengerPsid(ctx.psid);
+          });
+        }
+      } catch (_) {}
+    };
+    tryGetPsid();
+    // Retry after SDK loads
+    setTimeout(tryGetPsid, 1500);
+
     Promise.all([
       getPublicTenantInfo(tenantId),
       getPublicCategories(tenantId),
@@ -355,6 +372,7 @@ export default function BookingForm({ tenantId }) {
         delivery_zone_id: form.delivery_zone_id ? Number(form.delivery_zone_id) : undefined,
         notes: form.notes.trim() || undefined,
         promo_code: appliedPromo?.code || undefined,
+        fb_id: messengerPsid || undefined,
       });
       setResult(data);
       setStep('success');
@@ -385,90 +403,36 @@ export default function BookingForm({ tenantId }) {
 
   const cardStyle = { background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '1.75rem', maxWidth: 620, margin: '0 auto' };
 
+  // Auto-close after success
+  useEffect(() => {
+    if (step !== 'success') return;
+    const t = setTimeout(closeMiniApp, 3000);
+    return () => clearTimeout(t);
+  }, [step]);
+
   // ─── Success ───────────────────────────────────────────────────────────────
-  if (step === 'success') return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', padding: '2rem 1rem' }}>
-      <div style={cardStyle}>
-
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 52, marginBottom: 8 }}>🎉</div>
-          <div style={{ fontWeight: 700, fontSize: 20, color: '#111827', marginBottom: 6 }}>Order Confirmed!</div>
-          <div style={{ color: '#374151', fontSize: 14 }}>
-            Thank you! We've received your order and will contact you shortly to confirm your pickup details.
+  if (step === 'success') {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+        <div style={{ textAlign: 'center', maxWidth: 360 }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+          <div style={{ fontWeight: 700, fontSize: 22, color: '#111827', marginBottom: 10 }}>Booking Confirmed!</div>
+          <div style={{ fontSize: 14, color: '#374151', marginBottom: 6, lineHeight: 1.6 }}>
+            {messengerPsid
+              ? 'Check your Messenger — we sent you the full booking details and payment link.'
+              : 'We\'ve received your order and will contact you shortly.'}
           </div>
-        </div>
-
-        {/* Order summary */}
-        <div style={{ background: '#F7F7F5', borderRadius: 12, padding: '1.25rem', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0 10px', fontSize: 14, borderBottom: '1px solid #E2E8F0', marginBottom: 8 }}>
-            <span style={{ color: '#374151' }}>Booking Ref</span>
-            <span style={{ fontWeight: 700, color: '#1a7d94' }}>{result.booking_ref}</span>
+          <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 24 }}>
+            Ref: {result.booking_ref}
           </div>
-          {(result.items || []).map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-              <span style={{ color: '#374151' }}>{item.service_name}</span>
-              <span style={{ fontWeight: 600 }}>₱{Number(item.price).toLocaleString()}</span>
-            </div>
-          ))}
-          {result.promo_discount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, color: '#7C3AED' }}>
-              <span style={{ fontWeight: 600 }}>🎟️ Promo ({result.promo_code})</span>
-              <span style={{ fontWeight: 700 }}>−₱{Number(result.promo_discount).toLocaleString()}</span>
-            </div>
-          )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', borderTop: '1px solid #E2E8F0', marginTop: 6, fontSize: 14 }}>
-            <span style={{ fontWeight: 700 }}>Total</span>
-            <span style={{ fontWeight: 700, color: '#38a9c2' }}>₱{Number(result.total).toLocaleString()}</span>
-          </div>
-        </div>
-
-        {/* Pay Now */}
-        {result.payment_url && (
-          <a href={result.payment_url} target="_blank" rel="noreferrer"
-            style={{ display: 'block', textAlign: 'center', padding: '13px', borderRadius: 10, background: '#fdca00', color: '#1F2937', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 12 }}>
-            💳 Pay Now
-          </a>
-        )}
-
-        {/* Contact the shop */}
-        {tenant?.contact_number ? (
-          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '14px 16px', marginBottom: 14, border: '1px solid #C3E6CB' }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#1D6A3B', marginBottom: 4 }}>
-              📞 Need help? Contact us
-            </div>
-            <div style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
-              For questions or updates about your order, SMS or call us:
-            </div>
-            <a href={`tel:${tenant.contact_number}`}
-              style={{ display: 'block', textAlign: 'center', padding: '11px', borderRadius: 9, background: '#22C55E', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', marginBottom: 8 }}>
-              📲 {tenant.contact_number}
-            </a>
-            <a href={`sms:${tenant.contact_number}`}
-              style={{ display: 'block', textAlign: 'center', padding: '11px', borderRadius: 9, background: '#fff', color: '#22C55E', fontWeight: 700, fontSize: 14, textDecoration: 'none', border: '2px solid #22C55E' }}>
-              💬 Send SMS
-            </a>
-          </div>
-        ) : (
-          <div style={{ background: '#EAF3DE', borderRadius: 10, padding: '12px 16px', color: '#3B6D11', fontSize: 13, textAlign: 'center', marginBottom: 14 }}>
-            ✅ We'll contact you shortly with further details.
-          </div>
-        )}
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={closeMiniApp}
-            style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
-            ✕ Close
-          </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setCart([]); setAppliedPromo(null); setPromoInput(''); setPromoError(''); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
-            style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
-            + New Order
+            style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Done
           </button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', padding: '2rem 1rem', fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" }}>

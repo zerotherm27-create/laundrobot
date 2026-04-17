@@ -2,6 +2,7 @@ const router = require('express').Router();
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail } = require('../utils/email');
+const { sendMessage, sendButtons } = require('../utils/messenger');
 
 // GET tenant info (name + logo + store hours for booking form)
 router.get('/:tenantId/info', async (req, res) => {
@@ -196,7 +197,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, notes, promo_code } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, notes, promo_code, fb_id } = req.body;
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
@@ -228,13 +229,13 @@ router.post('/:tenantId/orders', async (req, res) => {
     );
     let customerId;
     if (existing) {
-      await client.query('UPDATE customers SET name=$1, email=$2, address=$3 WHERE id=$4',
-        [name.trim(), email?.trim() || existing.email, address.trim(), existing.id]);
+      await client.query('UPDATE customers SET name=$1, email=$2, address=$3, fb_id=COALESCE($4, fb_id) WHERE id=$5',
+        [name.trim(), email?.trim() || existing.email, address.trim(), fb_id || null, existing.id]);
       customerId = existing.id;
     } else {
       const { rows: [newC] } = await client.query(
-        'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim()]
+        'INSERT INTO customers (tenant_id, name, phone, email, address, fb_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id || null]
       );
       customerId = newC.id;
     }
@@ -313,6 +314,43 @@ router.post('/:tenantId/orders', async (req, res) => {
       }
     } catch (e) {
       console.warn('[public order] xendit invoice failed:', e.message);
+    }
+
+    // Messenger confirmation to customer
+    if (fb_id) {
+      try {
+        const { rows: [tenant] } = await db.query(
+          'SELECT name, fb_page_access_token FROM tenants WHERE id=$1', [req.params.tenantId]
+        );
+        if (tenant?.fb_page_access_token) {
+          const pickupFormatted = (() => {
+            try {
+              return new Date(pickup_date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+            } catch { return pickup_date; }
+          })();
+          const servicesList = createdOrders.map(o => `• ${o.service_name} — ₱${Number(o.price).toLocaleString('en-PH')}`).join('\n');
+          const confirmText =
+            `✅ Booking Confirmed!\n\n` +
+            `Ref: ${bookingRef}\n` +
+            `Hi ${name.trim()}! We've received your order.\n\n` +
+            `${servicesList}\n\n` +
+            `📅 Pickup: ${pickupFormatted}\n` +
+            `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
+            `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`;
+
+          if (paymentUrl) {
+            await sendButtons(tenant.fb_page_access_token, fb_id, confirmText, [{
+              type: 'web_url',
+              url: paymentUrl,
+              title: '💳 Pay Now',
+            }]);
+          } else {
+            await sendMessage(tenant.fb_page_access_token, fb_id, confirmText);
+          }
+        }
+      } catch (e) {
+        console.warn('[public order] messenger confirmation failed:', e.response?.data?.error?.message || e.message);
+      }
     }
 
     // Email notification
