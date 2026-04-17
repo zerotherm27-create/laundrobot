@@ -88,7 +88,7 @@ router.get('/:tenantId/customer', async (req, res) => {
 router.get('/:tenantId/delivery-zones', async (req, res) => {
   try {
     const { rows } = await db.query(
-      'SELECT id, name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id',
+      'SELECT id, name, fee, custom_note FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id',
       [req.params.tenantId]
     );
     res.json(rows);
