@@ -38,18 +38,8 @@ export default function Login() {
   }
 
   const Logo = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 12,
-        background: 'linear-gradient(135deg, #378ADD, #2568BC)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontWeight: 700, fontSize: 22,
-        boxShadow: '0 4px 12px rgba(55,138,221,.35)',
-      }}>L</div>
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', letterSpacing: '-.3px' }}>LaundroBot</div>
-        <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Business Management Dashboard</div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
+      <img src="/logo.png" alt="LaundroBot" style={{ width: 120, height: 120, objectFit: 'contain', marginBottom: 4 }} />
     </div>
   );
 

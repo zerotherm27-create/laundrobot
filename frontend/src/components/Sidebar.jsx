@@ -57,10 +57,9 @@ export default function Sidebar({ current, onNav, role }) {
         <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '0.5px solid #F0F0EC' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img src="/logo.png" alt="LaundroBot" style={{
-              width: 36, height: 36, borderRadius: 10,
-              objectFit: 'cover', objectPosition: 'center top',
+              width: 36, height: 36, borderRadius: 6,
+              objectFit: 'contain',
               flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(55,138,221,.3)',
               background: '#fff',
             }} />
             <div style={{ minWidth: 0 }}>
