@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Short text' },
@@ -472,6 +472,12 @@ export default function Services() {
                           <div style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11' }}>
                             ✓ Customer selects quantity (0, 1, 2…) — price added to order total
                           </div>
+                          {f.required && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151', cursor: 'pointer', marginTop: 8 }}>
+                              <input type="checkbox" checked={f.allow_own || false} onChange={e => updateField(idx, 'allow_own', e.target.checked)} />
+                              Allow "I'll provide my own" option
+                            </label>
+                          )}
                         </>
                       )}
 

@@ -107,6 +107,7 @@ export default function BookingForm({ tenantId }) {
   const [fieldValues, setFieldValues]   = useState({});
   const [weight, setWeight]             = useState('');
   const [addonQty, setAddonQty]         = useState({});
+  const [addonOwn, setAddonOwn]         = useState({}); // { [fieldId]: true } when "I'll provide my own"
 
   // Step 2 state
   const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
@@ -277,6 +278,13 @@ export default function BookingForm({ tenantId }) {
     addonFields.filter(f => (addonQty[f.id] || 0) > 0).forEach(f => {
       displayLines.push({ label: `${f.label} × ${addonQty[f.id]}`, price: Number(f.unit_price || 0) * addonQty[f.id] });
     });
+    // include "own provision" entries for required addons where customer chose to provide their own
+    for (const f of (selectedSvc.custom_fields || [])) {
+      if (f.field_type === 'addon' && f.allow_own && addonOwn[f.id] && !(addonQty[f.id] > 0)) {
+        customFields.push({ label: f.label, value: 'Customer provides own' });
+        displayLines.push({ label: `${f.label}: Customer provides own`, price: 0 });
+      }
+    }
     setCart(prev => [...prev, {
       _id: Date.now(),
       service_id: selectedSvc.id,
@@ -285,14 +293,21 @@ export default function BookingForm({ tenantId }) {
       displayLines,
       itemTotal: subtotal + addonTotal,
     }]);
-    setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({});
+    setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({});
   }
 
   function step1Valid() {
     if (!selectedSvc) return false;
     if (isPerKg && (!weight || parseFloat(weight) <= 0)) return false;
     for (const f of (selectedSvc.custom_fields || [])) {
-      if (f.field_type === 'addon') continue; // addons are always optional
+      if (f.field_type === 'addon') {
+        if (f.required) {
+          const hasPurchased = (addonQty[f.id] || 0) > 0;
+          const hasOwn = f.allow_own && addonOwn[f.id];
+          if (!hasPurchased && !hasOwn) return false;
+        }
+        continue;
+      }
       if (f.required && f.label?.toLowerCase().includes('weight')) {
         if (!weight || parseFloat(weight) <= 0) return false;
       } else if (f.required && !fieldValues[f.id]) return false;
@@ -436,7 +451,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setCart([]); setAppliedPromo(null); setPromoInput(''); setPromoError(''); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setCart([]); setAppliedPromo(null); setPromoInput(''); setPromoError(''); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -512,7 +527,7 @@ export default function BookingForm({ tenantId }) {
                 {visibleServices.map(svc => {
                   const selected = selectedSvc?.id === svc.id;
                   return (
-                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); }}
+                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); }}
                       style={{
                         padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
                         border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
@@ -568,24 +583,50 @@ export default function BookingForm({ tenantId }) {
                   // Add-on field: stepper UI
                   if (f.field_type === 'addon') {
                     const aqty = addonQty[f.id] || 0;
+                    const isOwn = !!(f.allow_own && addonOwn[f.id]);
                     const lineTotal = Number(f.unit_price || 0) * aqty;
+                    const unsatisfied = f.required && aqty === 0 && !isOwn;
                     return (
-                      <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{f.label}</div>
-                          <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 1 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</div>
-                          {f.placeholder && <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{f.placeholder}</div>}
+                      <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: `1.5px solid ${unsatisfied ? '#F09595' : '#E2E8F0'}`, borderRadius: 10, padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>
+                              {f.label}
+                              {f.required && <span style={{ color: '#E53E3E', marginLeft: 4, fontSize: 11 }}>*</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 1 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</div>
+                            {f.placeholder && <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{f.placeholder}</div>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 0, opacity: isOwn ? 0.4 : 1 }}>
+                            <button type="button" disabled={isOwn}
+                              onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
+                              style={{ width: 32, height: 32, borderRadius: '8px 0 0 8px', border: '1.5px solid #E2E8F0', background: '#F7F9FD', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
+                            <div style={{ width: 40, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 14, fontWeight: 700, background: aqty > 0 ? '#E2F5F8' : '#fff', color: aqty > 0 ? '#1a7d94' : '#374151' }}>{aqty}</div>
+                            <button type="button" disabled={isOwn}
+                              onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
+                              style={{ width: 32, height: 32, borderRadius: '0 8px 8px 0', border: '1.5px solid #38a9c2', background: '#38a9c2', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>+</button>
+                          </div>
+                          {lineTotal > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: '#1a7d94', minWidth: 60, textAlign: 'right' }}>₱{lineTotal.toLocaleString()}</div>}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                          <button type="button"
-                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
-                            style={{ width: 32, height: 32, borderRadius: '8px 0 0 8px', border: '1.5px solid #E2E8F0', background: '#F7F9FD', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
-                          <div style={{ width: 40, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 14, fontWeight: 700, background: aqty > 0 ? '#E2F5F8' : '#fff', color: aqty > 0 ? '#1a7d94' : '#374151' }}>{aqty}</div>
-                          <button type="button"
-                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
-                            style={{ width: 32, height: 32, borderRadius: '0 8px 8px 0', border: '1.5px solid #38a9c2', background: '#38a9c2', fontSize: 16, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>+</button>
-                        </div>
-                        {lineTotal > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: '#1a7d94', minWidth: 60, textAlign: 'right' }}>₱{lineTotal.toLocaleString()}</div>}
+                        {f.allow_own && (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #E2E8F0' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: isOwn ? '#1a7d94' : '#374151', fontWeight: isOwn ? 600 : 400 }}>
+                              <div onClick={() => {
+                                const next = !isOwn;
+                                setAddonOwn(p => ({ ...p, [f.id]: next }));
+                                if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
+                              }} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? '#38a9c2' : '#CBD5E0'}`, background: isOwn ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
+                                {isOwn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                              </div>
+                              I'll provide my own {f.label.toLowerCase()}
+                            </label>
+                          </div>
+                        )}
+                        {unsatisfied && (
+                          <div style={{ marginTop: 8, fontSize: 11, color: '#A32D2D', fontWeight: 600 }}>
+                            Please select a quantity or choose to provide your own.
+                          </div>
+                        )}
                       </div>
                     );
                   }
