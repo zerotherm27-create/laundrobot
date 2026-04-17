@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
               `✅ Payment Received!\n\n` +
               `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
               `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
-              `Your laundry is now being processed. We'll notify you once it's ready.\n\n`;
+              `We'll check your order for confirmation.\n\n`;
             if (tenant.contact_number) {
               msg += `📞 Questions? SMS or call us at ${tenant.contact_number}`;
             }
