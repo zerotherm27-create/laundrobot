@@ -29,6 +29,7 @@ export const getArchivedOrders = () => api.get('/orders', { params: { archived: 
 export const archiveOrderMonth = (year, month) => api.post('/orders/archive-month', { year, month });
 export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}`, { status });
 export const updateOrder = (id, data) => api.patch(`/orders/${id}`, data);
+export const updateBooking = (ref, items) => api.put(`/orders/booking/${ref}`, { items });
 export const notifyOrderUpdate = (id, data) => api.post(`/orders/${id}/notify-update`, data);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 

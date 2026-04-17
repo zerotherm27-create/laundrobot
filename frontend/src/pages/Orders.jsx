@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, notifyOrderUpdate, deleteOrder, getServices } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 
@@ -35,9 +35,12 @@ export default function Orders() {
   // Edit order
   const [editMode, setEditMode]       = useState(false);
   const [editForm, setEditForm]       = useState({});
+  const [editItems, setEditItems]     = useState([]); // booking items [{id?, service_id, price, notes}]
+  const [bookingRef, setBookingRef]   = useState(null);
   const [editSaving, setEditSaving]   = useState(false);
   const [editErr, setEditErr]         = useState('');
-  const [savedDiff, setSavedDiff]     = useState(null); // { old_price, new_price, diff }
+  const [savedDiff, setSavedDiff]     = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // Messenger notify
   const [notifyMsg, setNotifyMsg]     = useState('');
@@ -69,39 +72,56 @@ export default function Orders() {
   function enterEditMode(order) {
     setEditMode(true);
     setSavedDiff(null);
+    setCopySuccess(false);
     setNotifyResult('');
     setNotifyMsg('');
     setEditErr('');
-    setEditForm({
-      service_id: order.service_id || '',
-      weight: order.weight || '',
-      price: Number(order.price),
-      notes: order.notes || '',
-    });
+
+    if (order.booking_ref) {
+      const bookingOrders = orders.filter(o => o.booking_ref === order.booking_ref);
+      setBookingRef(order.booking_ref);
+      setEditItems(bookingOrders.map(o => ({
+        id: o.id,
+        service_id: o.service_id ? String(o.service_id) : '',
+        price: Number(o.price),
+        notes: o.notes || '',
+      })));
+    } else {
+      setBookingRef(null);
+      setEditItems([]);
+      setEditForm({
+        service_id: order.service_id || '',
+        weight: order.weight || '',
+        price: Number(order.price),
+        notes: order.notes || '',
+      });
+    }
   }
 
   async function handleEditSave() {
     setEditSaving(true); setEditErr('');
     try {
-      const oldPrice = Number(selected.price);
-      const payload = {
-        service_id: editForm.service_id || undefined,
-        weight: editForm.weight !== '' ? editForm.weight : null,
-        price: Number(editForm.price),
-        notes: editForm.notes,
-      };
-      const { data: updated } = await updateOrder(selected.id, payload);
-      const newSvc = services.find(s => s.id === Number(editForm.service_id));
-      const updatedOrder = {
-        ...selected,
-        ...updated,
-        service_name: newSvc?.name || selected.service_name,
-        price: Number(editForm.price),
-      };
-      setOrders(prev => prev.map(o => o.id === selected.id ? updatedOrder : o));
-      setSelected(updatedOrder);
-      setEditMode(false);
-      setSavedDiff({ old_price: oldPrice, new_price: Number(editForm.price), diff: Number(editForm.price) - oldPrice });
+      if (bookingRef) {
+        const { data } = await updateBooking(bookingRef, editItems);
+        loadActive();
+        setEditMode(false);
+        setSavedDiff({ isBooking: true, ...data });
+      } else {
+        const oldPrice = Number(selected.price);
+        const payload = {
+          service_id: editForm.service_id || undefined,
+          weight: editForm.weight !== '' ? editForm.weight : null,
+          price: Number(editForm.price),
+          notes: editForm.notes,
+        };
+        const { data: updated } = await updateOrder(selected.id, payload);
+        const newSvc = services.find(s => s.id === Number(editForm.service_id));
+        const updatedOrder = { ...selected, ...updated, service_name: newSvc?.name || selected.service_name, price: Number(editForm.price) };
+        setOrders(prev => prev.map(o => o.id === selected.id ? updatedOrder : o));
+        setSelected(updatedOrder);
+        setEditMode(false);
+        setSavedDiff({ isBooking: false, old_price: oldPrice, new_price: Number(editForm.price), diff: Number(editForm.price) - oldPrice });
+      }
     } catch (e) {
       setEditErr(e.response?.data?.error || 'Failed to save changes.');
     } finally { setEditSaving(false); }
@@ -334,48 +354,79 @@ export default function Orders() {
                       </a>
                     )}
 
-                    {/* Price diff banner — shown after edit saved */}
+                    {/* Saved diff / booking summary — shown after edit */}
                     {savedDiff && (
-                      <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5', border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                          {savedDiff.diff > 0 ? '⚠️ Price increased' : savedDiff.diff < 0 ? '✅ Price decreased' : '✓ Price unchanged'}
+                      savedDiff.isBooking ? (
+                        /* Booking summary with copyable text */
+                        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8,
+                          background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5',
+                          border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                            {savedDiff.diff > 0 ? '⚠️ Additional payment needed' : savedDiff.diff < 0 ? '✅ Price reduced' : '✓ Booking updated'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                            ₱{Number(savedDiff.old_total).toLocaleString()} → ₱{Number(savedDiff.new_total).toLocaleString()}
+                            {savedDiff.diff !== 0 && (
+                              <strong style={{ marginLeft: 6, color: savedDiff.diff > 0 ? '#92400E' : '#166534' }}>
+                                ({savedDiff.diff > 0 ? '+' : ''}₱{Number(savedDiff.diff).toLocaleString()})
+                              </strong>
+                            )}
+                          </div>
+                          <textarea readOnly value={savedDiff.summary_text}
+                            style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, borderRadius: 6, border: '1px solid #E2E8F0', padding: '8px', fontFamily: 'inherit', resize: 'vertical', minHeight: 130, outline: 'none', background: '#fff', color: '#111827' }} />
+                          <button onClick={() => { navigator.clipboard.writeText(savedDiff.summary_text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2500); }}
+                            style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                              background: copySuccess ? '#166534' : '#374151', color: '#fff', transition: 'background .2s' }}>
+                            {copySuccess ? '✓ Copied!' : '📋 Copy Message'}
+                          </button>
+                          {savedDiff.payment_url && (
+                            <a href={savedDiff.payment_url} target="_blank" rel="noreferrer"
+                              style={{ display: 'block', marginTop: 6, padding: '8px', fontSize: 13, borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', textAlign: 'center', textDecoration: 'none', fontWeight: 600 }}>
+                              💳 Open New Payment Link
+                            </a>
+                          )}
+                          <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
+                            Copy the message above and send it to the customer via Messenger or SMS.
+                          </div>
                         </div>
-                        <div style={{ fontSize: 12, color: '#374151' }}>
-                          ₱{savedDiff.old_price.toLocaleString()} → ₱{savedDiff.new_price.toLocaleString()}
-                          {savedDiff.diff !== 0 && (
-                            <strong style={{ marginLeft: 6, color: savedDiff.diff > 0 ? '#92400E' : '#166534' }}>
-                              ({savedDiff.diff > 0 ? '+' : ''}₱{savedDiff.diff.toLocaleString()} difference)
-                            </strong>
+                      ) : (
+                        /* Legacy single-order diff panel */
+                        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5', border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                            {savedDiff.diff > 0 ? '⚠️ Price increased' : savedDiff.diff < 0 ? '✅ Price decreased' : '✓ Price unchanged'}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#374151' }}>
+                            ₱{savedDiff.old_price.toLocaleString()} → ₱{savedDiff.new_price.toLocaleString()}
+                            {savedDiff.diff !== 0 && (
+                              <strong style={{ marginLeft: 6, color: savedDiff.diff > 0 ? '#92400E' : '#166534' }}>
+                                ({savedDiff.diff > 0 ? '+' : ''}₱{savedDiff.diff.toLocaleString()} difference)
+                              </strong>
+                            )}
+                          </div>
+                          {selected.fb_id ? (
+                            notifyResult === 'ok' ? (
+                              <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600 }}>✓ Message sent to customer via Messenger</div>
+                            ) : (
+                              <div style={{ marginTop: 10 }}>
+                                <textarea value={notifyMsg} onChange={e => setNotifyMsg(e.target.value)}
+                                  placeholder="Optional: customize the message (leave blank for default)"
+                                  style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, borderRadius: 6, border: '1px solid #E2E8F0', padding: '8px', fontFamily: 'inherit', resize: 'vertical', minHeight: 70, outline: 'none' }} />
+                                {notifyResult.startsWith('err:') && (
+                                  <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{notifyResult.slice(4)}</div>
+                                )}
+                                <button onClick={handleNotify} disabled={notifySending}
+                                  style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#9CA3AF' : '#1877F2', color: '#fff', border: 'none' }}>
+                                  {notifySending ? 'Sending…' : '💬 Send Update via Messenger'}
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
+                              ℹ️ Web booking — contact the customer directly via phone.
+                            </div>
                           )}
                         </div>
-
-                        {/* Messenger notify */}
-                        {selected.fb_id ? (
-                          notifyResult === 'ok' ? (
-                            <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600 }}>✓ Message sent to customer via Messenger</div>
-                          ) : (
-                            <div style={{ marginTop: 10 }}>
-                              <textarea
-                                value={notifyMsg}
-                                onChange={e => setNotifyMsg(e.target.value)}
-                                placeholder="Optional: customize the message sent to customer (leave blank for default)"
-                                style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, borderRadius: 6, border: '1px solid #E2E8F0', padding: '8px', fontFamily: 'inherit', resize: 'vertical', minHeight: 70, outline: 'none' }}
-                              />
-                              {notifyResult.startsWith('err:') && (
-                                <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{notifyResult.slice(4)}</div>
-                              )}
-                              <button onClick={handleNotify} disabled={notifySending}
-                                style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#9CA3AF' : '#1877F2', color: '#fff', border: 'none' }}>
-                                {notifySending ? 'Sending…' : '💬 Send Update via Messenger'}
-                              </button>
-                            </div>
-                          )
-                        ) : (
-                          <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
-                            ℹ️ Web booking — no Messenger account to notify. Contact the customer directly via phone.
-                          </div>
-                        )}
-                      </div>
+                      )
                     )}
                   </>
                 )}
@@ -383,58 +434,103 @@ export default function Orders() {
                 {/* Edit form */}
                 {editMode && (
                   <div style={{ marginTop: 4 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#185FA5', marginBottom: 12 }}>✏️ Edit Order</div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#185FA5', marginBottom: 12 }}>
+                      ✏️ Edit {bookingRef ? `Booking ${bookingRef}` : 'Order'}
+                    </div>
 
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Service</label>
-                      <select value={editForm.service_id}
-                        onChange={e => {
-                          const svc = services.find(s => s.id === Number(e.target.value));
-                          setEditForm(p => ({ ...p, service_id: e.target.value, price: svc ? Number(svc.price) : p.price }));
-                        }}
-                        style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }}>
-                        <option value="">— Keep current service —</option>
-                        {services.map(s => (
-                          <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
+                    {/* Booking items editor */}
+                    {bookingRef ? (
+                      <>
+                        {editItems.map((item, idx) => (
+                          <div key={idx} style={{ marginBottom: 10, padding: '10px 12px', background: '#F7F9FC', borderRadius: 8, border: '0.5px solid #E2E8F0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>
+                                Item {idx + 1}{item.id ? ` — ${item.id}` : ' (new)'}
+                              </span>
+                              {editItems.length > 1 && (
+                                <button onClick={() => setEditItems(prev => prev.filter((_, i) => i !== idx))}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
+                              )}
+                            </div>
+                            <select value={item.service_id}
+                              onChange={e => {
+                                const svc = services.find(s => s.id === Number(e.target.value));
+                                setEditItems(prev => prev.map((it, i) => i === idx
+                                  ? { ...it, service_id: e.target.value, price: svc ? Number(svc.price) : it.price }
+                                  : it));
+                              }}
+                              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 6, outline: 'none' }}>
+                              <option value="">— Select service —</option>
+                              {services.filter(s => s.active !== false).map(s => (
+                                <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
+                              ))}
+                            </select>
+                            <input type="number" min="0" step="1" value={item.price}
+                              onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, price: e.target.value } : it))}
+                              placeholder="Price (₱)"
+                              style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 6, outline: 'none' }} />
+                            <input type="text" value={item.notes}
+                              onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, notes: e.target.value } : it))}
+                              placeholder="Notes (optional)"
+                              style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                          </div>
                         ))}
-                      </select>
-                    </div>
 
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Weight (kg) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional</span></label>
-                      <input type="number" min="0" step="0.1" value={editForm.weight}
-                        onChange={e => {
-                          const w = parseFloat(e.target.value) || 0;
-                          const svc = services.find(s => s.id === Number(editForm.service_id));
-                          const isPerKg = svc?.unit?.toLowerCase().includes('kg');
-                          setEditForm(p => ({
-                            ...p,
-                            weight: e.target.value,
-                            price: isPerKg && w > 0 ? Number(svc.price) * w : p.price,
-                          }));
-                        }}
-                        placeholder="e.g. 5.5"
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
-                    </div>
+                        <button onClick={() => setEditItems(prev => [...prev, { service_id: '', price: 0, notes: '' }])}
+                          style={{ width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: '1px dashed #BDD8F7', background: '#EEF6FF', color: '#185FA5', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
+                          + Add Item
+                        </button>
 
-                    <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Price (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>override</span></label>
-                      <input type="number" min="0" step="1" value={editForm.price}
-                        onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
-                      {Number(editForm.price) !== Number(selected.price) && (
-                        <div style={{ fontSize: 11, marginTop: 4, color: Number(editForm.price) > Number(selected.price) ? '#92400E' : '#166534', fontWeight: 600 }}>
-                          {Number(editForm.price) > Number(selected.price) ? '▲' : '▼'} ₱{Math.abs(Number(editForm.price) - Number(selected.price)).toLocaleString()} {Number(editForm.price) > Number(selected.price) ? 'more' : 'less'} than original
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F0F6FF', borderRadius: 8, marginBottom: 12 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>New Total</span>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>
+                            ₱{editItems.reduce((s, i) => s + (Number(i.price) || 0), 0).toLocaleString('en-PH')}
+                          </span>
                         </div>
-                      )}
-                    </div>
-
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Notes</label>
-                      <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
-                        placeholder="Any notes about this order…"
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', resize: 'vertical', minHeight: 60, outline: 'none' }} />
-                    </div>
+                      </>
+                    ) : (
+                      /* Legacy single-order simple editor */
+                      <>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Service</label>
+                          <select value={editForm.service_id}
+                            onChange={e => {
+                              const svc = services.find(s => s.id === Number(e.target.value));
+                              setEditForm(p => ({ ...p, service_id: e.target.value, price: svc ? Number(svc.price) : p.price }));
+                            }}
+                            style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }}>
+                            <option value="">— Keep current service —</option>
+                            {services.map(s => (
+                              <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Weight (kg) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional</span></label>
+                          <input type="number" min="0" step="0.1" value={editForm.weight}
+                            onChange={e => {
+                              const w = parseFloat(e.target.value) || 0;
+                              const svc = services.find(s => s.id === Number(editForm.service_id));
+                              const isPerKg = svc?.unit?.toLowerCase().includes('kg');
+                              setEditForm(p => ({ ...p, weight: e.target.value, price: isPerKg && w > 0 ? Number(svc.price) * w : p.price }));
+                            }}
+                            placeholder="e.g. 5.5"
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Price (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>override</span></label>
+                          <input type="number" min="0" step="1" value={editForm.price}
+                            onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Notes</label>
+                          <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                            placeholder="Any notes about this order…"
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', resize: 'vertical', minHeight: 60, outline: 'none' }} />
+                        </div>
+                      </>
+                    )}
 
                     {editErr && <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>{editErr}</div>}
 

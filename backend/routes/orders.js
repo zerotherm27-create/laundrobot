@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
+const { createInvoice } = require('../utils/xendit');
 
 // GET all orders for tenant (archived=true to fetch archives)
 router.get('/', auth, async (req, res) => {
@@ -38,6 +39,132 @@ router.post('/archive-month', auth, async (req, res) => {
     );
     res.json({ archived: rowCount });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PUT full booking edit — update/add/remove items, return copyable summary + payment link if needed
+router.put('/booking/:ref', auth, async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items array required' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows: existing } = await client.query(
+      `SELECT o.*, c.name AS customer_name, c.email AS customer_email
+       FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
+      [req.params.ref, req.user.tenant_id]
+    );
+    if (!existing.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const first = existing[0];
+    const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
+    const keepIds = new Set(items.filter(i => i.id).map(i => i.id));
+
+    for (const o of existing) {
+      if (!keepIds.has(o.id)) {
+        await client.query('DELETE FROM orders WHERE id=$1 AND tenant_id=$2', [o.id, req.user.tenant_id]);
+      }
+    }
+
+    for (const item of items.filter(i => i.id)) {
+      await client.query(
+        `UPDATE orders SET service_id=$1, price=$2, notes=$3 WHERE id=$4 AND tenant_id=$5`,
+        [item.service_id || null, Number(item.price), item.notes || null, item.id, req.user.tenant_id]
+      );
+    }
+
+    const newItems = items.filter(i => !i.id);
+    if (newItems.length) {
+      const { rows: [{ count: baseCount }] } = await client.query(
+        'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.user.tenant_id]
+      );
+      let orderCount = Number(baseCount);
+      for (const item of newItems) {
+        orderCount++;
+        const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
+        await client.query(
+          `INSERT INTO orders (id, tenant_id, customer_id, service_id, price, pickup_date, address, booking_ref, status, notes, paid)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NEW ORDER',$9,FALSE)`,
+          [orderId, req.user.tenant_id, first.customer_id, item.service_id || null,
+           Number(item.price), first.pickup_date, first.address, req.params.ref, item.notes || null]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    const { rows: updated } = await db.query(
+      `SELECT o.*, s.name AS service_name
+       FROM orders o LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
+      [req.params.ref, req.user.tenant_id]
+    );
+    const newTotal = updated.reduce((s, o) => s + Number(o.price), 0);
+    const diff = newTotal - oldTotal;
+
+    const { rows: [tenant] } = await db.query(
+      'SELECT xendit_api_key, contact_number FROM tenants WHERE id=$1', [req.user.tenant_id]
+    );
+
+    let paymentUrl = null;
+    if (diff > 0 && tenant?.xendit_api_key) {
+      try {
+        const adjRef = `${req.params.ref}-ADJ-${Date.now()}`;
+        const invoice = await createInvoice(tenant.xendit_api_key, {
+          externalId: adjRef,
+          amount: diff,
+          payerEmail: first.customer_email || undefined,
+          description: `Additional payment for ${req.params.ref}`,
+        });
+        paymentUrl = invoice.invoiceUrl;
+      } catch (e) {
+        console.warn('[booking update] xendit invoice failed:', e.message);
+      }
+    }
+
+    const lines = [
+      `📋 Order Update — ${req.params.ref}`,
+      ``,
+      `Hi ${first.customer_name || 'there'}! Here's your updated order summary.`,
+      ``,
+      `Services:`,
+      ...updated.map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
+      ``,
+      `Total: ₱${newTotal.toLocaleString('en-PH')}`,
+    ];
+    if (diff > 0) {
+      lines.push(`Additional Payment: ₱${diff.toLocaleString('en-PH')}`);
+      if (paymentUrl) lines.push(`💳 Pay: ${paymentUrl}`);
+    } else if (diff < 0) {
+      lines.push(`Price reduction: ₱${Math.abs(diff).toLocaleString('en-PH')} less than original.`);
+    }
+    if (tenant?.contact_number) {
+      lines.push(`📞 Questions? Call/SMS: ${tenant.contact_number}`);
+    }
+
+    res.json({
+      ok: true,
+      old_total: oldTotal,
+      new_total: newTotal,
+      diff,
+      payment_url: paymentUrl,
+      summary_text: lines.join('\n'),
+      orders: updated,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[booking update]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 // GET single order

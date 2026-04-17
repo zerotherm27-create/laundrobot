@@ -351,7 +351,7 @@ export default function BookingForm({ tenantId }) {
     const hasDateTime = tenant?.store_open
       ? (form.pickup_date && form.pickup_time)
       : !!form.pickup_date;
-    if (!form.name.trim() || !form.phone.trim() || !hasDateTime) return false;
+    if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !hasDateTime) return false;
     if (addressMode === 'saved') return !!savedCustomer?.address;
     return form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim();
   }
@@ -807,7 +807,7 @@ export default function BookingForm({ tenantId }) {
               </Field>
             </div>
 
-            <Field label="Email Address">
+            <Field label="Email Address" required>
               <input style={INPUT} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                 placeholder="maria@gmail.com (for receipt)"
                 onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
