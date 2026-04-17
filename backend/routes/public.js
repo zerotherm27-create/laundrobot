@@ -7,7 +7,7 @@ const { sendNewOrderEmail } = require('../utils/email');
 router.get('/:tenantId/info', async (req, res) => {
   try {
     const { rows: [t] } = await db.query(
-      `SELECT name, logo_url, contact_number,
+      `SELECT name, logo_url, contact_number, minimum_order,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -94,25 +94,125 @@ router.get('/:tenantId/delivery-zones', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST create order (public booking)
-router.post('/:tenantId/orders', async (req, res) => {
-  const { service_id, custom_fields, name, phone, email, address, pickup_date, delivery_zone_id, notes } = req.body;
+// GET validate promo code
+router.get('/:tenantId/promo', async (req, res) => {
+  const { code, total } = req.query;
+  if (!code?.trim()) return res.status(400).json({ error: 'Code is required' });
+  try {
+    const { rows: [promo] } = await db.query(
+      `SELECT * FROM promo_codes WHERE tenant_id=$1 AND code=$2 AND active=TRUE`,
+      [req.params.tenantId, code.trim().toUpperCase()]
+    );
+    if (!promo) return res.status(404).json({ error: 'Invalid or expired promo code' });
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'This promo code has expired' });
+    }
+    if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+      return res.status(400).json({ error: 'This promo code has reached its usage limit' });
+    }
+    const orderTotal = parseFloat(total) || 0;
+    if (promo.min_order && orderTotal < Number(promo.min_order)) {
+      return res.status(400).json({ error: `Minimum order of ₱${Number(promo.min_order).toLocaleString('en-PH')} required for this promo` });
+    }
+    const discount = promo.discount_type === 'percent'
+      ? Math.round(Math.min(orderTotal * Number(promo.discount_value) / 100, orderTotal) * 100) / 100
+      : Math.min(Number(promo.discount_value), orderTotal);
+    res.json({ code: promo.code, discount_type: promo.discount_type, discount_value: Number(promo.discount_value), discount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-  if (!service_id || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
-    return res.status(400).json({ error: 'Service, name, phone, address, and pickup date are required.' });
+// ── Price calculator (per cart item) ────────────────────────────────────────
+async function calcItemPrice(tenantId, serviceId, custom_fields) {
+  const { rows: [service] } = await db.query(
+    'SELECT * FROM services WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
+    [serviceId, tenantId]
+  );
+  if (!service) throw new Error(`Service ${serviceId} not found or inactive`);
+
+  const { rows: svcFields } = await db.query(
+    'SELECT id, label, field_type, unit_price, options FROM service_custom_fields WHERE service_id=$1',
+    [serviceId]
+  );
+
+  const isPerKg = service.unit && service.unit.toLowerCase().includes('kg');
+  const weightField = (custom_fields || []).find(f => f.label?.toLowerCase().includes('weight'));
+  const weight = weightField ? parseFloat(weightField.value) || null : null;
+
+  const numField = svcFields.find(f => f.field_type === 'number');
+  const qtyField = numField ? (custom_fields || []).find(f => f.label === numField.label) : null;
+  const qty = qtyField ? parseFloat(qtyField.value) || 0 : 0;
+
+  const basePrice = isPerKg && weight
+    ? Number(service.price) * weight
+    : qty > 0 ? Number(service.price) * qty : Number(service.price);
+
+  const addonTotal = (custom_fields || []).reduce((sum, cf) => {
+    const fd = svcFields.find(f => f.field_type === 'addon' && f.label === cf.label);
+    return fd && cf.value ? sum + Number(fd.unit_price || 0) * (parseInt(cf.value) || 0) : sum;
+  }, 0);
+
+  const selectFieldDefs = svcFields.filter(f => f.field_type === 'select');
+
+  let baseVariationPrice = 0;
+  for (const fd of selectFieldDefs) {
+    const cf = (custom_fields || []).find(c => c.label === fd.label);
+    if (!cf?.value) continue;
+    const opt = (Array.isArray(fd.options) ? fd.options : []).find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+    if (opt && typeof opt === 'object' && (opt.price_type || 'fixed') !== 'copy_base' && Number(opt.price || 0) > 0) {
+      baseVariationPrice = Number(opt.price); break;
+    }
   }
 
+  const hasVarPricing = svcFields.some(f =>
+    f.field_type === 'select' && Array.isArray(f.options) &&
+    f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
+  );
+
+  let primarySelectFieldId = null;
+  for (const fd of selectFieldDefs) {
+    const cf = (custom_fields || []).find(c => c.label === fd.label);
+    if (!cf?.value) continue;
+    const opt = (Array.isArray(fd.options) ? fd.options : []).find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+    if (opt && typeof opt === 'object' && (opt.price_type || 'fixed') !== 'copy_base' && Number(opt.price || 0) > 0) {
+      primarySelectFieldId = fd.id; break;
+    }
+  }
+
+  const effectiveSubtotal = hasVarPricing
+    ? selectFieldDefs.reduce((sum, fd) => {
+        const cf = (custom_fields || []).find(c => c.label === fd.label);
+        if (!cf?.value) return sum;
+        const opt = (Array.isArray(fd.options) ? fd.options : []).find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+        if (!opt || typeof opt !== 'object') return sum;
+        const priceType = opt.price_type || 'fixed';
+        const optPrice = priceType === 'copy_base' ? baseVariationPrice : Number(opt.price || 0);
+        const scales = qty > 0 && (fd.id === primarySelectFieldId || priceType === 'copy_base');
+        return sum + optPrice * (scales ? qty : 1);
+      }, 0)
+    : basePrice;
+
+  return { service, effectiveSubtotal, addonTotal, weight };
+}
+
+// POST create order (public booking) — supports multi-service cart
+router.post('/:tenantId/orders', async (req, res) => {
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, notes, promo_code } = req.body;
+
+  if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
+    return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
+  }
+
+  const client = await db.pool.connect();
   try {
-    // Validate service
-    const { rows: [service] } = await db.query(
-      'SELECT * FROM services WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
-      [service_id, req.params.tenantId]
+    await client.query('BEGIN');
+
+    // Price all cart items (parallel reads from pool)
+    const pricedItems = await Promise.all(
+      cart.map(item => calcItemPrice(req.params.tenantId, item.service_id, item.custom_fields))
     );
-    if (!service) return res.status(404).json({ error: 'Service not found' });
 
     // Delivery zone
-    let deliveryFee = 0;
-    let zoneName = null;
+    let deliveryFee = 0, zoneName = null;
     if (delivery_zone_id) {
       const { rows: [zone] } = await db.query(
         'SELECT * FROM delivery_zones WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
@@ -121,173 +221,128 @@ router.post('/:tenantId/orders', async (req, res) => {
       if (zone) { deliveryFee = Number(zone.fee); zoneName = zone.name; }
     }
 
-    // Calculate price
-    const isPerKg = service.unit && service.unit.toLowerCase().includes('kg');
-    const weightField = (custom_fields || []).find(f => f.label?.toLowerCase().includes('weight'));
-    const weight = weightField ? parseFloat(weightField.value) || null : null;
-
-    // Fetch custom fields for qty multiplier + addon prices
-    const { rows: svcFields } = await db.query(
-      'SELECT id, label, field_type, unit_price, options FROM service_custom_fields WHERE service_id=$1',
-      [service_id]
-    );
-    // First number-type field = qty multiplier (non-kg)
-    const numField = svcFields.find(f => f.field_type === 'number');
-    const qtyField = numField ? (custom_fields || []).find(f => f.label === numField.label) : null;
-    const qty = qtyField ? parseFloat(qtyField.value) || 0 : 0;
-
-    const subtotal = isPerKg && weight
-      ? Number(service.price) * weight
-      : (qty > 0 ? Number(service.price) * qty : Number(service.price));
-
-    // Sum addon fields
-    const addonTotal = (custom_fields || []).reduce((sum, cf) => {
-      const fieldDef = svcFields.find(f => f.field_type === 'addon' && f.label === cf.label);
-      if (fieldDef && cf.value) {
-        return sum + Number(fieldDef.unit_price || 0) * (parseInt(cf.value) || 0);
-      }
-      return sum;
-    }, 0);
-
-    // Sum variation (select) field option prices (with copy_base support)
-    const selectFieldDefs = svcFields.filter(f => f.field_type === 'select');
-
-    // Base variation price = price of the first fixed-priced selected option with price > 0
-    let baseVariationPrice = 0;
-    for (const fieldDef of selectFieldDefs) {
-      const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
-      if (!cf?.value) continue;
-      const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
-      const selectedOpt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
-      if (selectedOpt && typeof selectedOpt === 'object') {
-        const priceType = selectedOpt.price_type || 'fixed';
-        const optPrice = Number(selectedOpt.price || 0);
-        if (priceType !== 'copy_base' && optPrice > 0) {
-          baseVariationPrice = optPrice;
-          break;
-        }
-      }
-    }
-
-    const variationTotal = (custom_fields || []).reduce((sum, cf) => {
-      const fieldDef = svcFields.find(f => f.field_type === 'select' && f.label === cf.label);
-      if (fieldDef && cf.value) {
-        const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
-        const selectedOpt = options.find(o =>
-          typeof o === 'object' ? o.label === cf.value : o === cf.value
-        );
-        if (selectedOpt && typeof selectedOpt === 'object') {
-          const priceType = selectedOpt.price_type || 'fixed';
-          const optPrice = priceType === 'copy_base' ? baseVariationPrice : Number(selectedOpt.price || 0);
-          return sum + optPrice;
-        }
-      }
-      return sum;
-    }, 0);
-
-    // If service has variation pricing, base price is 0
-    const hasVarPricing = svcFields.some(f =>
-      f.field_type === 'select' &&
-      Array.isArray(f.options) &&
-      f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
-    );
-    // Find the primary select field id (first fixed-priced one)
-    let primarySelectFieldId = null;
-    for (const fieldDef of selectFieldDefs) {
-      const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
-      if (!cf?.value) continue;
-      const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
-      const opt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
-      if (opt && typeof opt === 'object' && (opt.price_type || 'fixed') !== 'copy_base' && Number(opt.price || 0) > 0) {
-        primarySelectFieldId = fieldDef.id;
-        break;
-      }
-    }
-    // primary + copy_base fields scale with qty; other fixed-price fields stay flat
-    const effectiveSubtotal = hasVarPricing
-      ? selectFieldDefs.reduce((sum, fieldDef) => {
-          const cf = (custom_fields || []).find(c => c.label === fieldDef.label);
-          if (!cf?.value) return sum;
-          const options = Array.isArray(fieldDef.options) ? fieldDef.options : [];
-          const opt = options.find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
-          if (!opt || typeof opt !== 'object') return sum;
-          const priceType = opt.price_type || 'fixed';
-          const optPrice = priceType === 'copy_base' ? baseVariationPrice : Number(opt.price || 0);
-          const scalesWithQty = qty > 0 && (fieldDef.id === primarySelectFieldId || priceType === 'copy_base');
-          return sum + optPrice * (scalesWithQty ? qty : 1);
-        }, 0)
-      : subtotal;
-
-    const total = effectiveSubtotal + addonTotal + deliveryFee;
-
     // Get or create customer
-    const { rows: [existing] } = await db.query(
+    const { rows: [existing] } = await client.query(
       'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
       [req.params.tenantId, phone.trim()]
     );
     let customerId;
     if (existing) {
-      await db.query('UPDATE customers SET name=$1, email=$2, address=$3 WHERE id=$4',
+      await client.query('UPDATE customers SET name=$1, email=$2, address=$3 WHERE id=$4',
         [name.trim(), email?.trim() || existing.email, address.trim(), existing.id]);
       customerId = existing.id;
     } else {
-      const { rows: [newC] } = await db.query(
+      const { rows: [newC] } = await client.query(
         'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
         [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim()]
       );
       customerId = newC.id;
     }
 
-    // Generate order ID
-    const { rows: [{ count }] } = await db.query(
+    // Generate booking ref
+    const { rows: [{ count: bkgCount }] } = await client.query(
+      `SELECT COUNT(DISTINCT booking_ref) FROM orders WHERE tenant_id=$1 AND booking_ref IS NOT NULL`,
+      [req.params.tenantId]
+    );
+    const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
+
+    // Base order count (increment manually for each item in the loop)
+    const { rows: [{ count: baseCount }] } = await client.query(
       'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.params.tenantId]
     );
-    const orderId = 'ORD-' + String(Number(count) + 1).padStart(6, '0');
+    let orderCount = Number(baseCount);
 
-    await db.query(
-      `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
-                           address, delivery_fee, delivery_zone, notes, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'NEW ORDER')`,
-      [orderId, req.params.tenantId, customerId, service_id,
-       weight, total, pickup_date.trim(), address.trim(),
-       deliveryFee, zoneName, notes?.trim() || null]
-    );
+    const servicesTotal = pricedItems.reduce((s, i) => s + i.effectiveSubtotal + i.addonTotal, 0);
 
-    // Generate Xendit invoice if configured
+    // Promo code
+    let promoDiscount = 0, promoCodeApplied = null;
+    if (promo_code?.trim()) {
+      const { rows: [promo] } = await client.query(
+        `SELECT * FROM promo_codes WHERE tenant_id=$1 AND code=$2 AND active=TRUE FOR UPDATE`,
+        [req.params.tenantId, promo_code.trim().toUpperCase()]
+      );
+      if (promo && !(promo.expires_at && new Date(promo.expires_at) < new Date())
+               && !(promo.max_uses !== null && promo.uses_count >= promo.max_uses)
+               && !(promo.min_order && servicesTotal + deliveryFee < Number(promo.min_order))) {
+        promoDiscount = promo.discount_type === 'percent'
+          ? Math.round(Math.min((servicesTotal + deliveryFee) * Number(promo.discount_value) / 100, servicesTotal + deliveryFee) * 100) / 100
+          : Math.min(Number(promo.discount_value), servicesTotal + deliveryFee);
+        promoCodeApplied = promo.code;
+        await client.query('UPDATE promo_codes SET uses_count=uses_count+1 WHERE id=$1', [promo.id]);
+      }
+    }
+
+    const grandTotal = Math.max(0, servicesTotal + deliveryFee - promoDiscount);
+    const createdOrders = [];
+
+    for (let i = 0; i < pricedItems.length; i++) {
+      const { service, effectiveSubtotal, addonTotal, weight } = pricedItems[i];
+      // Delivery fee only on first order; others are ₱0
+      const itemDeliveryFee = i === 0 ? deliveryFee : 0;
+      const itemTotal = effectiveSubtotal + addonTotal + itemDeliveryFee;
+
+      orderCount++;
+      const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
+
+      await client.query(
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'NEW ORDER',$12)`,
+        [orderId, req.params.tenantId, customerId, service.id,
+         weight, itemTotal, pickup_date.trim(), address.trim(),
+         itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, bookingRef]
+      );
+      createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
+    }
+
+    await client.query('COMMIT');
+
+    // Xendit invoice (one for the whole booking)
     let paymentUrl = null;
     try {
       const { rows: [t] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [req.params.tenantId]);
       if (t?.xendit_api_key) {
         const invoice = await createInvoice(t.xendit_api_key, {
-          externalId: orderId,
-          amount: total,
+          externalId: bookingRef,
+          amount: grandTotal,
           payerEmail: email?.trim() || undefined,
-          description: `${service.name} — Order ${orderId}`,
+          description: `Booking ${bookingRef} — ${pricedItems.map(i => i.service.name).join(', ')}`,
         });
-        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE id=$2', [invoice.invoiceUrl, orderId]);
+        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE booking_ref=$2', [invoice.invoiceUrl, bookingRef]);
         paymentUrl = invoice.invoiceUrl;
       }
     } catch (e) {
       console.warn('[public order] xendit invoice failed:', e.message);
     }
 
-    // Send new order email notification (non-blocking)
+    // Email notification
     sendNewOrderEmail(req.params.tenantId, {
-      orderId,
-      serviceName: service.name,
+      orderId: bookingRef,
+      serviceName: pricedItems.map(i => i.service.name).join(', '),
       customerName: name.trim(),
       customerPhone: phone.trim(),
       address: address.trim(),
       pickupDate: pickup_date.trim(),
       deliveryZone: zoneName || null,
-      total,
+      total: grandTotal,
       paymentUrl,
     }).catch(() => {});
 
-    res.json({ order_id: orderId, payment_url: paymentUrl, total, service_name: service.name });
+    res.json({
+      booking_ref: bookingRef,
+      order_ids: createdOrders.map(o => o.order_id),
+      items: createdOrders,
+      payment_url: paymentUrl,
+      total: grandTotal,
+      promo_discount: promoDiscount,
+      promo_code: promoCodeApplied,
+    });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[public order]', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

@@ -12,7 +12,7 @@ function superadminOnly(req, res, next) {
 router.get('/settings', auth, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, logo_url, notification_email, contact_number,
+      `SELECT id, name, logo_url, notification_email, contact_number, minimum_order,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -26,14 +26,14 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order } = req.body;
   try {
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants
        SET notification_email=$1, contact_number=$2,
-           store_open=$3, store_close=$4, booking_cutoff=$5
-       WHERE id=$6
-       RETURNING id, name, logo_url, notification_email, contact_number,
+           store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6
+       WHERE id=$7
+       RETURNING id, name, logo_url, notification_email, contact_number, minimum_order,
                  to_char(store_open, 'HH24:MI') AS store_open,
                  to_char(store_close, 'HH24:MI') AS store_close,
                  to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff`,
@@ -43,6 +43,7 @@ router.put('/settings', auth, async (req, res) => {
         store_open || null,
         store_close || null,
         booking_cutoff || null,
+        minimum_order != null && minimum_order !== '' ? Number(minimum_order) : null,
         req.user.tenant_id,
       ]
     );

@@ -1,22 +1,126 @@
-import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, deleteOrder } from '../api.js';
+import { useEffect, useState, useCallback } from 'react';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, notifyOrderUpdate, deleteOrder, getServices } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function groupByMonth(orders) {
+  const groups = {};
+  for (const o of orders) {
+    const d = new Date(o.archived_at || o.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (!groups[key]) groups[key] = { label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, year: d.getFullYear(), month: d.getMonth()+1, orders: [] };
+    groups[key].orders.push(o);
+  }
+  return Object.values(groups).sort((a, b) => `${b.year}-${b.month}` > `${a.year}-${a.month}` ? 1 : -1);
+}
+
 export default function Orders() {
-  const [orders, setOrders] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [orders, setOrders]           = useState([]);
+  const [archived, setArchived]       = useState([]);
+  const [services, setServices]       = useState([]);
+  const [view, setView]               = useState('active'); // 'active' | 'archives'
+  const [selected, setSelected]       = useState(null);
   const [filterStatus, setFilterStatus] = useState('ALL');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch]           = useState('');
+  const [minAmt, setMinAmt]           = useState('');
+  const [maxAmt, setMaxAmt]           = useState('');
+  const [loading, setLoading]         = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [expandedMonths, setExpandedMonths] = useState({});
+
+  // Edit order
+  const [editMode, setEditMode]       = useState(false);
+  const [editForm, setEditForm]       = useState({});
+  const [editSaving, setEditSaving]   = useState(false);
+  const [editErr, setEditErr]         = useState('');
+  const [savedDiff, setSavedDiff]     = useState(null); // { old_price, new_price, diff }
+
+  // Messenger notify
+  const [notifyMsg, setNotifyMsg]     = useState('');
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyResult, setNotifyResult]   = useState(''); // 'ok' | 'err:...'
+
+  const loadActive = useCallback(() => {
+    setLoading(true);
+    getOrders().then(r => setOrders(r.data)).finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    getOrders()
-      .then(r => { setOrders(r.data); setLoading(false); })
-      .catch(() => setLoading(false));
+    getServices().then(r => setServices(r.data)).catch(() => {});
   }, []);
+
+  const loadArchived = useCallback(() => {
+    setArchiveLoading(true);
+    getArchivedOrders().then(r => setArchived(r.data)).finally(() => setArchiveLoading(false));
+  }, []);
+
+  useEffect(() => { loadActive(); }, [loadActive]);
+
+  function switchToArchives() {
+    setView('archives');
+    setSelected(null);
+    if (!archived.length) loadArchived();
+  }
+
+  function enterEditMode(order) {
+    setEditMode(true);
+    setSavedDiff(null);
+    setNotifyResult('');
+    setNotifyMsg('');
+    setEditErr('');
+    setEditForm({
+      service_id: order.service_id || '',
+      weight: order.weight || '',
+      price: Number(order.price),
+      notes: order.notes || '',
+    });
+  }
+
+  async function handleEditSave() {
+    setEditSaving(true); setEditErr('');
+    try {
+      const oldPrice = Number(selected.price);
+      const payload = {
+        service_id: editForm.service_id || undefined,
+        weight: editForm.weight !== '' ? editForm.weight : null,
+        price: Number(editForm.price),
+        notes: editForm.notes,
+      };
+      const { data: updated } = await updateOrder(selected.id, payload);
+      const newSvc = services.find(s => s.id === Number(editForm.service_id));
+      const updatedOrder = {
+        ...selected,
+        ...updated,
+        service_name: newSvc?.name || selected.service_name,
+        price: Number(editForm.price),
+      };
+      setOrders(prev => prev.map(o => o.id === selected.id ? updatedOrder : o));
+      setSelected(updatedOrder);
+      setEditMode(false);
+      setSavedDiff({ old_price: oldPrice, new_price: Number(editForm.price), diff: Number(editForm.price) - oldPrice });
+    } catch (e) {
+      setEditErr(e.response?.data?.error || 'Failed to save changes.');
+    } finally { setEditSaving(false); }
+  }
+
+  async function handleNotify() {
+    setNotifySending(true); setNotifyResult('');
+    try {
+      await notifyOrderUpdate(selected.id, {
+        old_price: savedDiff.old_price,
+        new_price: savedDiff.new_price,
+        new_service_name: selected.service_name,
+        message_override: notifyMsg || undefined,
+      });
+      setNotifyResult('ok');
+    } catch (e) {
+      setNotifyResult('err:' + (e.response?.data?.error || 'Failed to send message.'));
+    } finally { setNotifySending(false); }
+  }
 
   async function handleStatusUpdate(id, status) {
     await updateOrderStatus(id, status);
@@ -31,155 +135,466 @@ export default function Orders() {
     setSelected(null);
   }
 
+  async function handleManualArchiveMonth(year, month) {
+    if (!confirm(`Archive all COMPLETED orders from ${MONTH_NAMES[month-1]} ${year}? They will move to the Archives tab.`)) return;
+    try {
+      const { data } = await archiveOrderMonth(year, month);
+      alert(`Archived ${data.archived} order(s).`);
+      loadActive();
+      setArchived([]); // force reload next time archives tab is opened
+    } catch { alert('Failed to archive.'); }
+  }
+
+  // Active orders filter
   const filtered = orders.filter(o => {
-    const ms = filterStatus === 'ALL' || o.status === filterStatus;
-    const mq = o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-                o.id?.toLowerCase().includes(search.toLowerCase());
-    return ms && mq;
+    if (filterStatus !== 'ALL' && o.status !== filterStatus) return false;
+    if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase()) &&
+                  !o.id?.toLowerCase().includes(search.toLowerCase()) &&
+                  !o.booking_ref?.toLowerCase().includes(search.toLowerCase())) return false;
+    const amt = Number(o.price);
+    if (minAmt !== '' && amt < Number(minAmt)) return false;
+    if (maxAmt !== '' && amt > Number(maxAmt)) return false;
+    return true;
   });
+
+  // Summarise available months from active COMPLETED orders (for manual archive button)
+  const completedMonths = (() => {
+    const seen = {};
+    for (const o of orders.filter(o => o.status === 'COMPLETED')) {
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${d.getMonth()+1}`;
+      if (!seen[key]) seen[key] = { year: d.getFullYear(), month: d.getMonth()+1, label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` };
+    }
+    return Object.values(seen).sort((a,b) => a.year !== b.year ? b.year-a.year : b.month-a.month);
+  })();
+
+  const archivedGroups = groupByMonth(archived);
+
+  const INPUT_S = { padding: '6px 12px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', fontFamily: 'inherit', outline: 'none' };
 
   return (
     <div>
-      <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Orders</h2>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search name or order ID..."
-          style={{ padding: '6px 12px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', width: 210 }}
-        />
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-          style={{ padding: '6px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }}
-        >
-          <option value="ALL">All statuses</option>
-          {STATUSES.map(s => <option key={s}>{s}</option>)}
-        </select>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 500, margin: 0 }}>Orders</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setView('active'); setSelected(null); }}
+            style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: view === 'active' ? '#378ADD' : '#F0F0EC', color: view === 'active' ? '#fff' : '#374151', fontWeight: 600 }}>
+            Active
+          </button>
+          <button onClick={switchToArchives}
+            style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: view === 'archives' ? '#374151' : '#F0F0EC', color: view === 'archives' ? '#fff' : '#374151', fontWeight: 600 }}>
+            📦 Archives
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 16 }}>
-        {/* Table */}
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-          {loading ? (
-            <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: '#f5f5f3' }}>
-                  {['Order','Customer','Service','Pickup','Status','Paid'].map(h => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(o => (
-                  <tr
-                    key={o.id}
-                    onClick={() => setSelected(selected?.id === o.id ? null : o)}
-                    style={{ cursor: 'pointer', background: selected?.id === o.id ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}
-                  >
-                    <td style={{ padding: '9px 12px', fontWeight: 500, color: '#185FA5' }}>{o.id}</td>
-                    <td style={{ padding: '9px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                        <Avatar name={o.customer_name || '?'} size={26} />
-                        {o.customer_name}
-                      </div>
-                    </td>
-                    <td style={{ padding: '9px 12px', color: '#374151' }}>{o.service_name}</td>
-                    <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
-                      {o.pickup_date ? new Date(o.pickup_date).toLocaleString() : '—'}
-                    </td>
-                    <td style={{ padding: '9px 12px' }}><StatusBadge status={o.status} /></td>
-                    <td style={{ padding: '9px 12px' }}>
-                      <span style={{
-                        fontSize: 11, padding: '2px 7px', borderRadius: 4,
-                        background: o.paid ? '#EAF3DE' : '#FCEBEB',
-                        color: o.paid ? '#3B6D11' : '#A32D2D'
-                      }}>
-                        {o.paid ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </td>
-                  </tr>
+      {/* ── ACTIVE VIEW ── */}
+      {view === 'active' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, order ID, booking ref…"
+              style={{ ...INPUT_S, width: 230 }} />
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={INPUT_S}>
+              <option value="ALL">All statuses</option>
+              {STATUSES.map(s => <option key={s}>{s}</option>)}
+            </select>
+
+            {/* Amount range filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>₱</span>
+              <input value={minAmt} onChange={e => setMinAmt(e.target.value)} type="number" min="0"
+                placeholder="Min" style={{ ...INPUT_S, width: 80 }} />
+              <span style={{ fontSize: 12, color: '#374151' }}>—</span>
+              <input value={maxAmt} onChange={e => setMaxAmt(e.target.value)} type="number" min="0"
+                placeholder="Max" style={{ ...INPUT_S, width: 80 }} />
+              {(minAmt || maxAmt) && (
+                <button onClick={() => { setMinAmt(''); setMaxAmt(''); }}
+                  style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, border: '0.5px solid #ccc', background: '#fff', cursor: 'pointer', color: '#374151' }}>✕</button>
+              )}
+            </div>
+
+            {/* Manual archive button — shown when completed orders exist */}
+            {completedMonths.length > 0 && (
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, color: '#374151' }}>Archive:</span>
+                {completedMonths.map(m => (
+                  <button key={`${m.year}-${m.month}`}
+                    onClick={() => handleManualArchiveMonth(m.year, m.month)}
+                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #E2E8F0', background: '#F7F7F5', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    📦 {m.label}
+                  </button>
                 ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
-                      No orders found
-                    </td>
-                  </tr>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 16 }}>
+            {/* Table */}
+            <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
+              {loading ? (
+                <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: '#f5f5f3' }}>
+                      {['Order','Customer','Service','Amount','Pickup','Status','Paid'].map(h => (
+                        <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(o => (
+                      <tr key={o.id}
+                        onClick={() => { const next = selected?.id === o.id ? null : o; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); }}
+                        style={{ cursor: 'pointer', background: selected?.id === o.id ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 500, color: '#185FA5' }}>
+                          <div>{o.id}</div>
+                          {o.booking_ref && o.booking_ref !== o.id && <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600 }}>{o.booking_ref}</div>}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <Avatar name={o.customer_name || '?'} size={26} />
+                            {o.customer_name}
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', color: '#374151' }}>{o.service_name}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827' }}>₱{Number(o.price).toLocaleString()}</td>
+                        <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
+                          {o.pickup_date ? new Date(o.pickup_date).toLocaleString() : '—'}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}><StatusBadge status={o.status} /></td>
+                        <td style={{ padding: '9px 12px' }}>
+                          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4,
+                            background: o.paid ? '#EAF3DE' : '#FCEBEB', color: o.paid ? '#3B6D11' : '#A32D2D' }}>
+                            {o.paid ? 'Paid' : 'Unpaid'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {filtered.length === 0 && (
+                      <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No orders found</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Detail panel */}
+            {selected && (
+              <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem', overflowY: 'auto', maxHeight: '85vh' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{selected.id}</div>
+                    {selected.booking_ref && selected.booking_ref !== selected.id && (
+                      <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>{selected.booking_ref}</div>
+                    )}
+                    <div style={{ fontSize: 12, color: '#374151' }}>
+                      {selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}
+                    </div>
+                  </div>
+                  <button onClick={() => { setSelected(null); setEditMode(false); setSavedDiff(null); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
+                </div>
+
+                {/* Customer */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <Avatar name={selected.customer_name || '?'} size={38} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{selected.customer_name}</div>
+                    <div style={{ fontSize: 12, color: '#374151' }}>{selected.customer_phone || 'No phone'}</div>
+                  </div>
+                </div>
+
+                {/* Order details — read mode */}
+                {!editMode && (
+                  <>
+                    {[
+                      ['Address', selected.address || selected.customer_address || '—'],
+                      ['Service', selected.service_name],
+                      ['Weight', selected.weight ? selected.weight + ' kg' : '—'],
+                      ['Amount', '₱' + Number(selected.price).toLocaleString()],
+                      ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
+                      ['Notes', selected.notes || '—'],
+                      ['Via Messenger', selected.fb_id ? '✓ Yes' : '✗ Web booking'],
+                    ].map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ color: '#374151', flexShrink: 0, marginRight: 8 }}>{k}</span>
+                        <span style={{ fontWeight: 500, textAlign: 'right' }}>{v}</span>
+                      </div>
+                    ))}
+
+                    {selected.xendit_invoice_url && (
+                      <a href={selected.xendit_invoice_url} target="_blank" rel="noreferrer"
+                        style={{ display: 'block', marginTop: 10, padding: '7px', fontSize: 13, borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', textAlign: 'center', textDecoration: 'none' }}>
+                        View payment link
+                      </a>
+                    )}
+
+                    {/* Price diff banner — shown after edit saved */}
+                    {savedDiff && (
+                      <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5', border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
+                          {savedDiff.diff > 0 ? '⚠️ Price increased' : savedDiff.diff < 0 ? '✅ Price decreased' : '✓ Price unchanged'}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#374151' }}>
+                          ₱{savedDiff.old_price.toLocaleString()} → ₱{savedDiff.new_price.toLocaleString()}
+                          {savedDiff.diff !== 0 && (
+                            <strong style={{ marginLeft: 6, color: savedDiff.diff > 0 ? '#92400E' : '#166534' }}>
+                              ({savedDiff.diff > 0 ? '+' : ''}₱{savedDiff.diff.toLocaleString()} difference)
+                            </strong>
+                          )}
+                        </div>
+
+                        {/* Messenger notify */}
+                        {selected.fb_id ? (
+                          notifyResult === 'ok' ? (
+                            <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600 }}>✓ Message sent to customer via Messenger</div>
+                          ) : (
+                            <div style={{ marginTop: 10 }}>
+                              <textarea
+                                value={notifyMsg}
+                                onChange={e => setNotifyMsg(e.target.value)}
+                                placeholder="Optional: customize the message sent to customer (leave blank for default)"
+                                style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, borderRadius: 6, border: '1px solid #E2E8F0', padding: '8px', fontFamily: 'inherit', resize: 'vertical', minHeight: 70, outline: 'none' }}
+                              />
+                              {notifyResult.startsWith('err:') && (
+                                <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{notifyResult.slice(4)}</div>
+                              )}
+                              <button onClick={handleNotify} disabled={notifySending}
+                                style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#9CA3AF' : '#1877F2', color: '#fff', border: 'none' }}>
+                                {notifySending ? 'Sending…' : '💬 Send Update via Messenger'}
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
+                            ℹ️ Web booking — no Messenger account to notify. Contact the customer directly via phone.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
-              </tbody>
-            </table>
+
+                {/* Edit form */}
+                {editMode && (
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#185FA5', marginBottom: 12 }}>✏️ Edit Order</div>
+
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Service</label>
+                      <select value={editForm.service_id}
+                        onChange={e => {
+                          const svc = services.find(s => s.id === Number(e.target.value));
+                          setEditForm(p => ({ ...p, service_id: e.target.value, price: svc ? Number(svc.price) : p.price }));
+                        }}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }}>
+                        <option value="">— Keep current service —</option>
+                        {services.map(s => (
+                          <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Weight (kg) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional</span></label>
+                      <input type="number" min="0" step="0.1" value={editForm.weight}
+                        onChange={e => {
+                          const w = parseFloat(e.target.value) || 0;
+                          const svc = services.find(s => s.id === Number(editForm.service_id));
+                          const isPerKg = svc?.unit?.toLowerCase().includes('kg');
+                          setEditForm(p => ({
+                            ...p,
+                            weight: e.target.value,
+                            price: isPerKg && w > 0 ? Number(svc.price) * w : p.price,
+                          }));
+                        }}
+                        placeholder="e.g. 5.5"
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                    </div>
+
+                    <div style={{ marginBottom: 10 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Price (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>override</span></label>
+                      <input type="number" min="0" step="1" value={editForm.price}
+                        onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
+                      {Number(editForm.price) !== Number(selected.price) && (
+                        <div style={{ fontSize: 11, marginTop: 4, color: Number(editForm.price) > Number(selected.price) ? '#92400E' : '#166534', fontWeight: 600 }}>
+                          {Number(editForm.price) > Number(selected.price) ? '▲' : '▼'} ₱{Math.abs(Number(editForm.price) - Number(selected.price)).toLocaleString()} {Number(editForm.price) > Number(selected.price) ? 'more' : 'less'} than original
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Notes</label>
+                      <textarea value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Any notes about this order…"
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', resize: 'vertical', minHeight: 60, outline: 'none' }} />
+                    </div>
+
+                    {editErr && <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>{editErr}</div>}
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={handleEditSave} disabled={editSaving}
+                        style={{ flex: 2, padding: '9px', fontSize: 13, borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: editSaving ? '#93C5FD' : '#378ADD', color: '#fff' }}>
+                        {editSaving ? 'Saving…' : '✓ Save Changes'}
+                      </button>
+                      <button onClick={() => { setEditMode(false); setEditErr(''); }}
+                        style={{ flex: 1, padding: '9px', fontSize: 13, borderRadius: 7, border: '0.5px solid #E2E8F0', cursor: 'pointer', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status + actions — shown in read mode */}
+                {!editMode && (
+                  <>
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>Update status</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {STATUSES.map(s => (
+                          <button key={s} onClick={() => handleStatusUpdate(selected.id, s)} style={{
+                            padding: '4px 9px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                            background: selected.status === s ? STATUS_COLORS[s] : STATUS_BG[s],
+                            color: selected.status === s ? '#fff' : STATUS_COLORS[s],
+                            border: '0.5px solid ' + STATUS_COLORS[s],
+                            fontWeight: selected.status === s ? 500 : 400,
+                          }}>{s}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button onClick={() => enterEditMode(selected)}
+                      style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#EEF6FF', border: '0.5px solid #BDD8F7', color: '#185FA5' }}>
+                      ✏️ Edit Order
+                    </button>
+
+                    {selected.status === 'COMPLETED' && (
+                      <button onClick={() => {
+                        const d = new Date(selected.created_at);
+                        handleManualArchiveMonth(d.getFullYear(), d.getMonth()+1);
+                      }}
+                        style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#F7F7F5', border: '0.5px solid #E2E8F0', color: '#374151' }}>
+                        📦 Archive this month's completed orders
+                      </button>
+                    )}
+
+                    <button onClick={() => handleDelete(selected.id)}
+                      style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>
+                      Delete order
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── ARCHIVES VIEW ── */}
+      {view === 'archives' && (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search name or order ID…"
+              style={{ ...INPUT_S, width: 230 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>₱</span>
+              <input value={minAmt} onChange={e => setMinAmt(e.target.value)} type="number" min="0"
+                placeholder="Min" style={{ ...INPUT_S, width: 80 }} />
+              <span style={{ fontSize: 12, color: '#374151' }}>—</span>
+              <input value={maxAmt} onChange={e => setMaxAmt(e.target.value)} type="number" min="0"
+                placeholder="Max" style={{ ...INPUT_S, width: 80 }} />
+              {(minAmt || maxAmt) && (
+                <button onClick={() => { setMinAmt(''); setMaxAmt(''); }}
+                  style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, border: '0.5px solid #ccc', background: '#fff', cursor: 'pointer', color: '#374151' }}>✕</button>
+              )}
+            </div>
+            <button onClick={loadArchived} style={{ ...INPUT_S, cursor: 'pointer', color: '#374151' }}>↺ Refresh</button>
+          </div>
+
+          {archiveLoading ? (
+            <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading archives…</div>
+          ) : archived.length === 0 ? (
+            <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '3rem', textAlign: 'center', color: '#374151', fontSize: 14 }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+              No archived orders yet. Completed orders are automatically archived monthly.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {archivedGroups.map(group => {
+                const groupFiltered = group.orders.filter(o => {
+                  if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase()) &&
+                                !o.id?.toLowerCase().includes(search.toLowerCase())) return false;
+                  const amt = Number(o.price);
+                  if (minAmt !== '' && amt < Number(minAmt)) return false;
+                  if (maxAmt !== '' && amt > Number(maxAmt)) return false;
+                  return true;
+                });
+                if (!groupFiltered.length) return null;
+
+                const isExpanded = expandedMonths[group.label] !== false; // default open
+                const groupTotal = groupFiltered.reduce((s, o) => s + Number(o.price), 0);
+
+                return (
+                  <div key={group.label} style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
+                    <div onClick={() => setExpandedMonths(p => ({ ...p, [group.label]: !isExpanded }))}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F7F7F5', cursor: 'pointer', borderBottom: isExpanded ? '0.5px solid #e8e8e0' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 16 }}>📦</span>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{group.label}</span>
+                        <span style={{ fontSize: 12, color: '#374151' }}>{groupFiltered.length} orders</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: '#378ADD' }}>₱{groupTotal.toLocaleString()}</span>
+                        <span style={{ color: '#374151', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</span>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ background: '#fafafa' }}>
+                            {['Order','Customer','Service','Amount','Pickup','Archived'].map(h => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupFiltered.map(o => (
+                            <tr key={o.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
+                              <td style={{ padding: '9px 12px', fontWeight: 500, color: '#185FA5' }}>{o.id}</td>
+                              <td style={{ padding: '9px 12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                  <Avatar name={o.customer_name || '?'} size={24} />
+                                  {o.customer_name}
+                                </div>
+                              </td>
+                              <td style={{ padding: '9px 12px', color: '#374151' }}>{o.service_name}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 600 }}>₱{Number(o.price).toLocaleString()}</td>
+                              <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
+                                {o.pickup_date ? new Date(o.pickup_date).toLocaleDateString() : '—'}
+                              </td>
+                              <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
+                                {o.archived_at ? new Date(o.archived_at).toLocaleDateString() : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-
-        {/* Detail panel */}
-        {selected && (
-          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontWeight: 500, fontSize: 15 }}>{selected.id}</div>
-                <div style={{ fontSize: 12, color: '#374151' }}>
-                  {selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}
-                </div>
-              </div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <Avatar name={selected.customer_name || '?'} size={40} />
-              <div>
-                <div style={{ fontWeight: 500 }}>{selected.customer_name}</div>
-                <div style={{ fontSize: 12, color: '#374151' }}>{selected.customer_phone || 'No phone'}</div>
-              </div>
-            </div>
-
-            {[
-              ['Address', selected.address || selected.customer_address || '—'],
-              ['Service', selected.service_name],
-              ['Weight', selected.weight ? selected.weight + ' kg' : '—'],
-              ['Amount', '₱' + Number(selected.price).toLocaleString()],
-              ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
-              ['FB Messenger', selected.fb_id ? '@' + selected.fb_id : '—'],
-            ].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                <span style={{ color: '#374151' }}>{k}</span>
-                <span style={{ fontWeight: 500 }}>{v}</span>
-              </div>
-            ))}
-
-            {selected.xendit_invoice_url && (
-              <a href={selected.xendit_invoice_url} target="_blank" rel="noreferrer"
-                style={{ display: 'block', marginTop: 12, padding: '7px', fontSize: 13, borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', textAlign: 'center', textDecoration: 'none' }}>
-                View payment link
-              </a>
-            )}
-
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>Update status</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {STATUSES.map(s => (
-                  <button key={s} onClick={() => handleStatusUpdate(selected.id, s)} style={{
-                    padding: '4px 9px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-                    background: selected.status === s ? STATUS_COLORS[s] : STATUS_BG[s],
-                    color: selected.status === s ? '#fff' : STATUS_COLORS[s],
-                    border: '0.5px solid ' + STATUS_COLORS[s],
-                    fontWeight: selected.status === s ? 500 : 400,
-                  }}>{s}</button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => handleDelete(selected.id)}
-              style={{ marginTop: 14, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>
-              Delete order
-            </button>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

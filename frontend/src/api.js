@@ -24,9 +24,12 @@ api.interceptors.response.use(
 export const login = (email, password) =>
   api.post('/auth/login', { email, password });
 
-export const getOrders = () => api.get('/orders');
-export const updateOrderStatus = (id, status) =>
-  api.patch(`/orders/${id}`, { status });
+export const getOrders = (params) => api.get('/orders', { params });
+export const getArchivedOrders = () => api.get('/orders', { params: { archived: 'true', limit: 500 } });
+export const archiveOrderMonth = (year, month) => api.post('/orders/archive-month', { year, month });
+export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}`, { status });
+export const updateOrder = (id, data) => api.patch(`/orders/${id}`, data);
+export const notifyOrderUpdate = (id, data) => api.post(`/orders/${id}/notify-update`, data);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 
 export const getServices = () => api.get('/services');
@@ -74,6 +77,11 @@ export const getBlockedDates   = ()         => api.get('/blocked-dates');
 export const createBlockedDate = data       => api.post('/blocked-dates', data);
 export const deleteBlockedDate = id         => api.delete(`/blocked-dates/${id}`);
 
+export const getPromoCodes    = ()         => api.get('/promo-codes');
+export const createPromoCode  = data       => api.post('/promo-codes', data);
+export const togglePromoCode  = (id, active) => api.patch(`/promo-codes/${id}`, { active });
+export const deletePromoCode  = id         => api.delete(`/promo-codes/${id}`);
+
 // Public booking API (no auth required)
 const PUBLIC_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const pub    = url        => axios.get(`${PUBLIC_BASE}${url}`);
@@ -83,8 +91,9 @@ export const getPublicTenantInfo     = id          => pub(`/public/${id}/info`);
 export const getPublicCategories     = id          => pub(`/public/${id}/categories`);
 export const getPublicServices       = id          => pub(`/public/${id}/services`);
 export const getPublicDeliveryZones  = id          => pub(`/public/${id}/delivery-zones`);
-export const getPublicBlockedDates   = id          => pub(`/public/${id}/blocked-dates`);
-export const lookupPublicCustomer    = (id, phone) => pub(`/public/${id}/customer`, { params: { phone } });
-export const createPublicOrder       = (id, data)  => pubPost(`/public/${id}/orders`, data);
+export const getPublicBlockedDates   = id                  => pub(`/public/${id}/blocked-dates`);
+export const validatePublicPromo     = (id, code, total)   => pub(`/public/${id}/promo`, { params: { code, total } });
+export const lookupPublicCustomer    = (id, phone)         => pub(`/public/${id}/customer`, { params: { phone } });
+export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
 
 export default api;

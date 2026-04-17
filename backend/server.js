@@ -23,6 +23,7 @@ const routes = [
   ['/faqs',            './routes/faqs'],
   ['/delivery-zones',  './routes/deliveryZones'],
   ['/blocked-dates',   './routes/blockedDates'],
+  ['/promo-codes',     './routes/promoCodes'],
   ['/public',          './routes/public'],
 ];
 
@@ -42,7 +43,7 @@ try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));
 // SPA catch-all: all non-API GET requests serve index.html
-app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/delivery-zones|\/blocked-dates|\/public|\/webhook).*/, (req, res) => {
+app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/delivery-zones|\/blocked-dates|\/promo-codes|\/public|\/webhook).*/, (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
@@ -80,4 +81,29 @@ app.listen(PORT, '0.0.0.0', async () => {
     runFollowUp().catch(err => console.error('[follow-up] unhandled error:', err.message));
   });
   console.log('✓ follow-up cron scheduled (every 30 min)');
+
+  // Archive completed orders monthly — runs at midnight on the 1st of each month
+  cron.schedule('0 0 1 * *', async () => {
+    try {
+      const db = require('./db');
+      const now = new Date();
+      const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+      const prevYear  = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const { rows: tenants } = await db.query(`SELECT id FROM tenants WHERE active=TRUE`);
+      let total = 0;
+      for (const t of tenants) {
+        const { rowCount } = await db.query(
+          `UPDATE orders SET archived=TRUE, archived_at=NOW()
+           WHERE tenant_id=$1 AND status='COMPLETED' AND archived=FALSE
+             AND date_part('year', created_at)=$2 AND date_part('month', created_at)=$3`,
+          [t.id, prevYear, prevMonth]
+        );
+        total += rowCount;
+      }
+      console.log(`[archive] Archived ${total} completed orders from ${prevYear}-${String(prevMonth).padStart(2,'0')}`);
+    } catch (err) {
+      console.error('[archive] monthly cron failed:', err.message);
+    }
+  });
+  console.log('✓ monthly archive cron scheduled (1st of each month)');
 });
