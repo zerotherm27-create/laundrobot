@@ -98,7 +98,7 @@ export default function FAQs() {
           </p>
         </div>
         {activeTenantId && (
-          <button onClick={openAdd} style={btn('#378ADD', '#fff')}>+ Add FAQ</button>
+          <button onClick={openAdd} style={btn('#38a9c2', '#fff')}>+ Add FAQ</button>
         )}
       </div>
 
@@ -119,7 +119,7 @@ export default function FAQs() {
       )}
 
       {/* Info banner */}
-      <div style={{ background: '#EEF6FF', border: '1px solid #B8D9F8', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#185FA5', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      <div style={{ background: '#e6f5f8', border: '1px solid #B8D9F8', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#1a7d94', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <span style={{ fontSize: 16, flexShrink: 0 }}>💡</span>
         <span>
           FAQs are shown in Messenger as quick-reply buttons when customers tap <strong>❓ FAQs</strong>.
@@ -134,7 +134,7 @@ export default function FAQs() {
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#374151' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>❓</div>
           <p style={{ fontSize: 14, marginBottom: 8 }}>No FAQs yet for {activeTenantName}</p>
-          <button onClick={openAdd} style={{ ...btn('#378ADD', '#fff'), marginTop: 16, padding: '10px 20px', fontSize: 13 }}>+ Add your first FAQ</button>
+          <button onClick={openAdd} style={{ ...btn('#38a9c2', '#fff'), marginTop: 16, padding: '10px 20px', fontSize: 13 }}>+ Add your first FAQ</button>
         </div>
       )}
 
@@ -211,7 +211,7 @@ export default function FAQs() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setModal(null)} style={btn('#f0f2f5', '#333')}>Cancel</button>
-              <button onClick={save} disabled={saving} style={btn('#378ADD', '#fff', { opacity: saving ? 0.6 : 1 })}>
+              <button onClick={save} disabled={saving} style={btn('#38a9c2', '#fff', { opacity: saving ? 0.6 : 1 })}>
                 {saving ? 'Saving…' : modal === 'add' ? 'Add FAQ' : 'Save Changes'}
               </button>
             </div>

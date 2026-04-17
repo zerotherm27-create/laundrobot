@@ -9,7 +9,7 @@ const INPUT = {
 const TIME_INPUT = {
   ...INPUT, width: 'auto', minWidth: 130,
 };
-const FOCUS = e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; };
+const FOCUS = e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; };
 const BLUR  = e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; };
 const LABEL = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 };
 
@@ -140,7 +140,7 @@ export default function Settings() {
           <form onSubmit={handleSave}>
 
             {/* Notification Email */}
-            <SectionCard icon="📧" iconBg="#E6F1FB" title="Order Notifications"
+            <SectionCard icon="📧" iconBg="#e6f5f8" title="Order Notifications"
               subtitle="Email you receive when new orders arrive and payments are confirmed">
               <label style={LABEL}>Notification Email</label>
               <input type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)}
@@ -190,7 +190,7 @@ export default function Settings() {
                 <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
                   After this time, today's slots are unavailable — customers will be directed to book the next available day.
                   {storeOpen && storeClose && bookingCutoff && (
-                    <span style={{ display: 'block', marginTop: 4, color: '#185FA5', fontWeight: 600 }}>
+                    <span style={{ display: 'block', marginTop: 4, color: '#1a7d94', fontWeight: 600 }}>
                       Example: booking open {storeOpen} – {bookingCutoff}, same-day cutoff at {bookingCutoff}, store closes at {storeClose}.
                     </span>
                   )}
@@ -206,7 +206,7 @@ export default function Settings() {
             )}
 
             <button type="submit" disabled={saving}
-              style={{ padding: '10px 28px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? '#93C5FD' : '#378ADD', color: '#fff', fontFamily: 'inherit' }}>
+              style={{ padding: '10px 28px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', background: saving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit' }}>
               {saving ? 'Saving…' : 'Save Settings'}
             </button>
           </form>
@@ -223,7 +223,7 @@ export default function Settings() {
               </div>
               {!addingDate && (
                 <button type="button" onClick={() => { setAddingDate(true); setNewDate(''); setNewReason(''); setDateErr(''); }}
-                  style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#378ADD', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   + Block Date
                 </button>
               )}
@@ -231,7 +231,7 @@ export default function Settings() {
 
             {/* Add date form */}
             {addingDate && (
-              <form onSubmit={handleAddDate} style={{ background: '#F7F9FD', borderRadius: 10, padding: '14px', marginBottom: 14, border: '1px solid #BDD8F7' }}>
+              <form onSubmit={handleAddDate} style={{ background: '#F7F9FD', borderRadius: 10, padding: '14px', marginBottom: 14, border: '1px solid #9ed3dc' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
                     <label style={LABEL}>Date to Block *</label>
@@ -247,7 +247,7 @@ export default function Settings() {
                 {dateErr && <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>{dateErr}</div>}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="submit" disabled={savingDate}
-                    style={{ padding: '7px 18px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: savingDate ? '#aaa' : '#378ADD', color: '#fff', cursor: 'pointer' }}>
+                    style={{ padding: '7px 18px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: savingDate ? '#aaa' : '#38a9c2', color: '#fff', cursor: 'pointer' }}>
                     {savingDate ? 'Saving…' : 'Add'}
                   </button>
                   <button type="button" onClick={() => setAddingDate(false)}

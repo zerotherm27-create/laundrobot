@@ -83,9 +83,9 @@ export default function Reports() {
           {PERIODS.map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{
               padding: '6px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer',
-              background: period === p ? '#378ADD' : 'transparent',
+              background: period === p ? '#38a9c2' : 'transparent',
               color: period === p ? '#fff' : '#666',
-              border: '0.5px solid ' + (period === p ? '#378ADD' : '#ccc'),
+              border: '0.5px solid ' + (period === p ? '#38a9c2' : '#ccc'),
             }}>{p}</button>
           ))}
           <button onClick={exportCSV} style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#EAF3DE', color: '#3B6D11', border: '0.5px solid #C0DD97', fontWeight: 500 }}>
@@ -99,7 +99,7 @@ export default function Reports() {
           {/* Summary cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
             {[
-              { label: 'Total Revenue', val: '₱' + revenue.toLocaleString(), color: '#378ADD' },
+              { label: 'Total Revenue', val: '₱' + revenue.toLocaleString(), color: '#38a9c2' },
               { label: 'Total Orders', val: totalOrders, color: '#7F77DD' },
               { label: 'Completed', val: completedOrders, color: '#639922' },
               { label: 'Avg Order Value', val: '₱' + Number(avgOrderValue).toLocaleString(), color: '#1D9E75' },
@@ -122,7 +122,7 @@ export default function Reports() {
                   {days.map(([day, val]) => (
                     <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                       <div style={{ fontSize: 9, color: '#374151' }}>₱{Math.round(val.revenue / 1000)}k</div>
-                      <div style={{ width: '100%', background: '#378ADD', borderRadius: '3px 3px 0 0', height: Math.max(4, (val.revenue / maxRevenue) * 90) + 'px' }} />
+                      <div style={{ width: '100%', background: '#38a9c2', borderRadius: '3px 3px 0 0', height: Math.max(4, (val.revenue / maxRevenue) * 90) + 'px' }} />
                       <div style={{ fontSize: 8, color: '#374151', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
                         {day.slice(0, 5)}
                       </div>
@@ -140,7 +140,7 @@ export default function Reports() {
                   <span style={{ fontSize: 12, color: '#374151' }}>{status}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ width: 80, height: 6, background: '#f0f0ec', borderRadius: 4 }}>
-                      <div style={{ height: 6, borderRadius: 4, width: totalOrders ? (count / totalOrders * 100) + '%' : '0%', background: '#378ADD' }} />
+                      <div style={{ height: 6, borderRadius: 4, width: totalOrders ? (count / totalOrders * 100) + '%' : '0%', background: '#38a9c2' }} />
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 500, minWidth: 20 }}>{count}</span>
                   </div>

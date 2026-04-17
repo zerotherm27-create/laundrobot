@@ -111,8 +111,8 @@ export default function Sidebar({ current, onNav, role }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <span style={{
               fontSize: 10, padding: '3px 8px', borderRadius: 20, fontWeight: 600,
-              background: role === 'superadmin' ? '#FDF3E3' : role === 'admin' ? '#E6F1FB' : '#F0F0EC',
-              color: role === 'superadmin' ? '#BA7517' : role === 'admin' ? '#185FA5' : '#555',
+              background: role === 'superadmin' ? '#FDF3E3' : role === 'admin' ? '#e6f5f8' : '#F0F0EC',
+              color: role === 'superadmin' ? '#BA7517' : role === 'admin' ? '#1a7d94' : '#555',
               textTransform: 'uppercase', letterSpacing: '.05em',
             }}>
               {role}

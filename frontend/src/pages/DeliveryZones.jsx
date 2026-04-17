@@ -80,7 +80,7 @@ export default function DeliveryZones() {
               {zones.map(z => (
                 <tr key={z.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
                   <td style={{ padding: '10px 14px', fontWeight: 500 }}>{z.name}</td>
-                  <td style={{ padding: '10px 14px', color: '#185FA5', fontWeight: 600 }}>₱{Number(z.fee).toLocaleString()}</td>
+                  <td style={{ padding: '10px 14px', color: '#1a7d94', fontWeight: 600 }}>₱{Number(z.fee).toLocaleString()}</td>
                   <td style={{ padding: '10px 14px' }}>
                     <span style={{
                       fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500,

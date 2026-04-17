@@ -105,7 +105,7 @@ export default function Users() {
     try {
       const p = typeof u.permissions === 'string' ? JSON.parse(u.permissions) : (u.permissions || []);
       if (u.role === 'admin' || !p.length) return { label: 'Full access', color: '#2E7D32', bg: '#E6F5E9' };
-      return { label: `${p.length}/${FEATURES.length} features`, color: '#185FA5', bg: '#E6F1FB' };
+      return { label: `${p.length}/${FEATURES.length} features`, color: '#1a7d94', bg: '#e6f5f8' };
     } catch { return { label: 'Full access', color: '#2E7D32', bg: '#E6F5E9' }; }
   };
 
@@ -123,7 +123,7 @@ export default function Users() {
           <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>👥 User Management</h2>
           <p style={{ fontSize: 12, color: '#374151', margin: '4px 0 0' }}>Control who can access which features per branch</p>
         </div>
-        {activeTenantId && <button onClick={openAdd} style={btn('#378ADD', '#fff')}>+ Add User</button>}
+        {activeTenantId && <button onClick={openAdd} style={btn('#38a9c2', '#fff')}>+ Add User</button>}
       </div>
 
       {isSuperAdmin && (
@@ -142,7 +142,7 @@ export default function Users() {
             <div style={{ padding: '3rem', textAlign: 'center', color: '#374151' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>👤</div>
               <p style={{ fontSize: 14 }}>No users yet for {activeTenantName}</p>
-              <button onClick={openAdd} style={{ ...btn('#378ADD', '#fff'), marginTop: 12, padding: '9px 20px', fontSize: 13 }}>+ Add first user</button>
+              <button onClick={openAdd} style={{ ...btn('#38a9c2', '#fff'), marginTop: 12, padding: '9px 20px', fontSize: 13 }}>+ Add first user</button>
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -161,7 +161,7 @@ export default function Users() {
                       <td style={{ padding: '12px 14px', fontWeight: 500 }}>{u.name || '—'}</td>
                       <td style={{ padding: '12px 14px', color: '#374151' }}>{u.email}</td>
                       <td style={{ padding: '12px 14px' }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: u.role === 'admin' ? '#E6F1FB' : '#f0f0ec', color: u.role === 'admin' ? '#185FA5' : '#555', fontWeight: 500 }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: u.role === 'admin' ? '#e6f5f8' : '#f0f0ec', color: u.role === 'admin' ? '#1a7d94' : '#555', fontWeight: 500 }}>
                           {u.role}
                         </span>
                       </td>
@@ -240,14 +240,14 @@ export default function Users() {
                       <div key={feat.key} onClick={() => togglePerm(feat.key)} style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
-                        border: `1.5px solid ${on ? '#378ADD' : '#e8e8e0'}`,
-                        background: on ? '#EEF6FF' : '#fafafa',
+                        border: `1.5px solid ${on ? '#38a9c2' : '#e8e8e0'}`,
+                        background: on ? '#e6f5f8' : '#fafafa',
                       }}>
-                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? '#378ADD' : '#fff', border: `1.5px solid ${on ? '#378ADD' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? '#38a9c2' : '#fff', border: `1.5px solid ${on ? '#38a9c2' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {on && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
                         </div>
                         <span style={{ fontSize: 13 }}>{feat.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? '#185FA5' : '#666' }}>{feat.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? '#1a7d94' : '#666' }}>{feat.label}</span>
                       </div>
                     );
                   })}
@@ -268,7 +268,7 @@ export default function Users() {
             {modal !== 'add' && (
               <div style={{ marginBottom: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
                 <button type="button" onClick={() => { setPwSection(s => !s); setNewPw(''); }}
-                  style={btn(pwSection ? '#f0f2f5' : '#EEF6FF', pwSection ? '#555' : '#185FA5', { width: '100%', padding: '8px' })}>
+                  style={btn(pwSection ? '#f0f2f5' : '#e6f5f8', pwSection ? '#555' : '#1a7d94', { width: '100%', padding: '8px' })}>
                   🔑 {pwSection ? 'Cancel password change' : 'Change password for this user'}
                 </button>
                 {pwSection && (
@@ -285,7 +285,7 @@ export default function Users() {
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setModal(null)} style={btn('#f0f2f5', '#333', { flex: 1 })}>Cancel</button>
-              <button onClick={save} disabled={saving} style={btn('#378ADD', '#fff', { flex: 2, opacity: saving ? 0.6 : 1 })}>
+              <button onClick={save} disabled={saving} style={btn('#38a9c2', '#fff', { flex: 2, opacity: saving ? 0.6 : 1 })}>
                 {saving ? 'Saving…' : modal === 'add' ? 'Create User' : 'Save Changes'}
               </button>
             </div>

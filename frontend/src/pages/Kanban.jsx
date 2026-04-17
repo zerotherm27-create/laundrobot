@@ -68,7 +68,7 @@ export default function Kanban() {
               style={{
                 background: isDragTarget ? '#EFF6FF' : '#F7F7F5',
                 borderRadius: 12, padding: '10px 8px', minHeight: 200,
-                border: isDragTarget ? '1.5px dashed #378ADD' : '1.5px solid transparent',
+                border: isDragTarget ? '1.5px dashed #38a9c2' : '1.5px solid transparent',
                 transition: 'background .15s, border-color .15s',
               }}>
 

@@ -52,7 +52,7 @@ export default function Customers() {
                       </div>
                     </td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{c.phone || '—'}</td>
-                    <td style={{ padding: '10px 12px', color: '#185FA5' }}>{c.email || '—'}</td>
+                    <td style={{ padding: '10px 12px', color: '#1a7d94' }}>{c.email || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{c.fb_id ? '@' + c.fb_id : '—'}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{c.total_orders || 0}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500, color: '#3B6D11' }}>₱{Number(c.total_spent || 0).toLocaleString()}</td>

@@ -48,7 +48,7 @@ export default function Messaging() {
               Variables: {'{name}'} {'{order_id}'} {'{status}'} {'{pickup_time}'}
             </div>
             <button onClick={handleBlast} disabled={sending}
-              style={{ width: '100%', padding: '9px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: sending ? '#6B8EAD' : '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
+              style={{ width: '100%', padding: '9px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: sending ? '#6B8EAD' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
               {sending ? 'Sending...' : 'Send blast message'}
             </button>
             {result && (

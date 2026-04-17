@@ -128,7 +128,7 @@ export default function SuperAdmin() {
         )}
         {tab === 'users' && (
           <button onClick={() => setUserForm({ ...emptyUser, isNew: true })}
-            style={btn('#378ADD', '#fff')}>+ Add user</button>
+            style={btn('#38a9c2', '#fff')}>+ Add user</button>
         )}
       </div>
 
@@ -137,7 +137,7 @@ export default function SuperAdmin() {
         {[
           { label: 'Total branches', val: tenants.length, color: '#BA7517' },
           { label: 'Active branches', val: tenants.filter(t => t.active).length, color: '#1D9E75' },
-          { label: 'Total users', val: users.length, color: '#378ADD' },
+          { label: 'Total users', val: users.length, color: '#38a9c2' },
         ].map(m => (
           <div key={m.label} style={{ background: '#f5f5f3', borderRadius: 8, padding: '1rem' }}>
             <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{m.label}</div>
@@ -258,7 +258,7 @@ export default function SuperAdmin() {
 
             {/* Preview */}
             {cloneSource && cloneTarget && (
-              <div style={{ background: '#E6F1FB', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#185FA5' }}>
+              <div style={{ background: '#e6f5f8', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1a7d94' }}>
                 <strong>{tenantName(cloneSource)}</strong> → <strong>{tenantName(cloneTarget)}</strong>
                 {clearExisting && <span style={{ color: '#856404' }}> · will replace all existing services</span>}
               </div>
@@ -331,7 +331,7 @@ export default function SuperAdmin() {
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{u.name || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{u.email}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: u.role === 'superadmin' ? '#FAEEDA' : '#E6F1FB', color: u.role === 'superadmin' ? '#BA7517' : '#185FA5' }}>
+                      <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: u.role === 'superadmin' ? '#FAEEDA' : '#e6f5f8', color: u.role === 'superadmin' ? '#BA7517' : '#1a7d94' }}>
                         {u.role}
                       </span>
                     </td>
@@ -339,7 +339,7 @@ export default function SuperAdmin() {
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => { setPwModal({ user: u }); setNewPw(''); setConfirmPw(''); setShowPw(false); }}
-                          style={btn('#E6F1FB', '#185FA5')}>🔑 Change Password</button>
+                          style={btn('#e6f5f8', '#1a7d94')}>🔑 Change Password</button>
                         {u.role !== 'superadmin' && (
                           <button onClick={() => handleDeleteUser(u)}
                             style={btn('#FDE8E8', '#A32D2D')}>🗑</button>
@@ -386,7 +386,7 @@ export default function SuperAdmin() {
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleChangePw} disabled={savingPw}
-                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingPw ? '#aaa' : '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
+                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingPw ? '#aaa' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
                 {savingPw ? 'Saving...' : 'Update Password'}
               </button>
               <button onClick={() => setPwModal(null)}
@@ -429,7 +429,7 @@ export default function SuperAdmin() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleSaveUser} disabled={savingUser}
-                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingUser ? '#aaa' : '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
+                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingUser ? '#aaa' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
                 {savingUser ? 'Saving...' : 'Create User'}
               </button>
               <button onClick={() => setUserForm(null)}

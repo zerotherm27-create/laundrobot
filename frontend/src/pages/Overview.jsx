@@ -7,7 +7,7 @@ import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
 const STAT_META = [
-  { label: 'Total Revenue',  icon: '₱', color: '#378ADD', bg: '#E6F1FB' },
+  { label: 'Total Revenue',  icon: '₱', color: '#d4a800', bg: '#FFF8E1' },
   { label: 'Total Orders',   icon: '📋', color: '#7F77DD', bg: '#F0EFFC' },
   { label: 'Active Orders',  icon: '🔄', color: '#BA7517', bg: '#FDF3E3' },
   { label: 'Orders Today',   icon: '📅', color: '#1D9E75', bg: '#EAF3DE' },
@@ -59,7 +59,7 @@ export default function Overview() {
 
       {/* ── Booking link banner ── */}
       {bookingUrl && (
-        <div style={{ background: 'linear-gradient(135deg,#378ADD,#2568BC)', borderRadius: 14, padding: '1.1rem 1.4rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 14, padding: '1.1rem 1.4rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', marginBottom: 3 }}>🌐 Online Booking Link</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bookingUrl}</div>

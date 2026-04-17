@@ -1,4 +1,4 @@
-export function Avatar({ name = '?', size = 32, bg = '#E6F1FB', color = '#185FA5' }) {
+export function Avatar({ name = '?', size = 32, bg = '#e6f5f8', color = '#1a7d94' }) {
   const initials = name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase();
   return (
     <div style={{

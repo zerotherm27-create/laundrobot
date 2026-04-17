@@ -199,7 +199,7 @@ export default function Orders() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setView('active'); setSelected(null); }}
             style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              background: view === 'active' ? '#378ADD' : '#F0F0EC', color: view === 'active' ? '#fff' : '#374151', fontWeight: 600 }}>
+              background: view === 'active' ? '#38a9c2' : '#F0F0EC', color: view === 'active' ? '#fff' : '#374151', fontWeight: 600 }}>
             Active
           </button>
           <button onClick={switchToArchives}
@@ -270,7 +270,7 @@ export default function Orders() {
                       <tr key={o.id}
                         onClick={() => { const next = selected?.id === o.id ? null : o; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); }}
                         style={{ cursor: 'pointer', background: selected?.id === o.id ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
-                        <td style={{ padding: '9px 12px', fontWeight: 500, color: '#185FA5' }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
                           <div>{o.id}</div>
                           {o.booking_ref && o.booking_ref !== o.id && <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600 }}>{o.booking_ref}</div>}
                         </td>
@@ -434,7 +434,7 @@ export default function Orders() {
                 {/* Edit form */}
                 {editMode && (
                   <div style={{ marginTop: 4 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#185FA5', marginBottom: 12 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1a7d94', marginBottom: 12 }}>
                       ✏️ Edit {bookingRef ? `Booking ${bookingRef}` : 'Order'}
                     </div>
 
@@ -477,7 +477,7 @@ export default function Orders() {
                         ))}
 
                         <button onClick={() => setEditItems(prev => [...prev, { service_id: '', price: 0, notes: '' }])}
-                          style={{ width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: '1px dashed #BDD8F7', background: '#EEF6FF', color: '#185FA5', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
+                          style={{ width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: '1px dashed #9ed3dc', background: '#e6f5f8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12 }}>
                           + Add Item
                         </button>
 
@@ -536,7 +536,7 @@ export default function Orders() {
 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={handleEditSave} disabled={editSaving}
-                        style={{ flex: 2, padding: '9px', fontSize: 13, borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: editSaving ? '#93C5FD' : '#378ADD', color: '#fff' }}>
+                        style={{ flex: 2, padding: '9px', fontSize: 13, borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: editSaving ? '#7dd3e0' : '#38a9c2', color: '#fff' }}>
                         {editSaving ? 'Saving…' : '✓ Save Changes'}
                       </button>
                       <button onClick={() => { setEditMode(false); setEditErr(''); }}
@@ -566,7 +566,7 @@ export default function Orders() {
                     </div>
 
                     <button onClick={() => enterEditMode(selected)}
-                      style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#EEF6FF', border: '0.5px solid #BDD8F7', color: '#185FA5' }}>
+                      style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#e6f5f8', border: '0.5px solid #9ed3dc', color: '#1a7d94' }}>
                       ✏️ Edit Order
                     </button>
 
@@ -647,7 +647,7 @@ export default function Orders() {
                         <span style={{ fontSize: 12, color: '#374151' }}>{groupFiltered.length} orders</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 14, color: '#378ADD' }}>₱{groupTotal.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: '#38a9c2' }}>₱{groupTotal.toLocaleString()}</span>
                         <span style={{ color: '#374151', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</span>
                       </div>
                     </div>
@@ -664,7 +664,7 @@ export default function Orders() {
                         <tbody>
                           {groupFiltered.map(o => (
                             <tr key={o.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
-                              <td style={{ padding: '9px 12px', fontWeight: 500, color: '#185FA5' }}>{o.id}</td>
+                              <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>{o.id}</td>
                               <td style={{ padding: '9px 12px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                                   <Avatar name={o.customer_name || '?'} size={24} />

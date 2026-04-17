@@ -240,7 +240,7 @@ export default function Services() {
             + Category
           </button>
           <button onClick={() => openNewSvc()}
-            style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>
+            style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
             + Service
           </button>
         </div>
@@ -293,8 +293,8 @@ export default function Services() {
                               f.options.some(o => Number(typeof o === 'object' ? o.price : 0) > 0)
                             );
                             return hasVarPricing
-                              ? <div style={{ fontSize: 13, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>Prices vary by selection</div>
-                              : <div style={{ fontSize: 18, fontWeight: 600, color: '#185FA5', marginBottom: 2 }}>₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#374151' }}>{s.unit}</span></div>;
+                              ? <div style={{ fontSize: 13, fontWeight: 600, color: '#1a7d94', marginBottom: 2 }}>Prices vary by selection</div>
+                              : <div style={{ fontSize: 18, fontWeight: 600, color: '#1a7d94', marginBottom: 2 }}>₱{Number(s.price).toLocaleString()} <span style={{ fontSize: 11, fontWeight: 400, color: '#374151' }}>{s.unit}</span></div>;
                           })()}
                           {s.description && <div style={{ fontSize: 11, color: '#374151', marginBottom: 8 }}>{s.description}</div>}
                           {s.custom_fields?.length > 0 && (
@@ -534,7 +534,7 @@ export default function Services() {
                                             placeholder="₱ price" style={{ ...S.input, fontSize: 12 }} />
                                         )}
                                         <button onClick={() => saveEditOption(idx)}
-                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500 }}>✓</button>
+                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>✓</button>
                                         <button onClick={() => cancelEditOption(idx)}
                                           style={{ padding: '4px 8px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc' }}>✕</button>
                                       </div>
@@ -548,14 +548,14 @@ export default function Services() {
                                   );
                                 }
                                 return (
-                                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#EEF6FF', borderRadius: 7, border: '1px solid #BDD8F7' }}>
-                                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#185FA5' }}>{optLabel}</span>
+                                  <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: '#e6f5f8', borderRadius: 7, border: '1px solid #9ed3dc' }}>
+                                    <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#1a7d94' }}>{optLabel}</span>
                                     {priceType === 'copy_base' ? (
                                       <span style={{ fontSize: 11, color: '#7C3AED', background: '#F5F3FF', padding: '2px 8px', borderRadius: 4, border: '1px solid #DDD6FE', fontWeight: 600, whiteSpace: 'nowrap' }}>
                                         = base price
                                       </span>
                                     ) : (
-                                      <span style={{ fontSize: 12, color: '#185FA5', background: '#fff', padding: '2px 8px', borderRadius: 4, border: '1px solid #BDD8F7', fontWeight: 600 }}>
+                                      <span style={{ fontSize: 12, color: '#1a7d94', background: '#fff', padding: '2px 8px', borderRadius: 4, border: '1px solid #9ed3dc', fontWeight: 600 }}>
                                         ₱{optPrice.toLocaleString()}
                                       </span>
                                     )}
@@ -593,7 +593,7 @@ export default function Services() {
                               />
                             )}
                             <button onClick={() => addOption(idx)}
-                              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#378ADD', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
                               + Add
                             </button>
                           </div>
@@ -632,7 +632,7 @@ export default function Services() {
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleSvcSave} disabled={saving} style={S.btn('#378ADD', '#fff')}>{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={handleSvcSave} disabled={saving} style={S.btn('#38a9c2', '#fff')}>{saving ? 'Saving…' : 'Save'}</button>
               <button onClick={() => { setSvcForm(null); setPreview(null); setFields([]); }} style={S.btn('#f0f0ec', '#444')}>Cancel</button>
               {!svcForm.isNew && <button onClick={() => handleSvcDelete(svcForm.id)}
                 style={{ padding: '8px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>Delete</button>}
@@ -663,7 +663,7 @@ export default function Services() {
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleCatSave} disabled={saving} style={S.btn('#378ADD', '#fff')}>{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={handleCatSave} disabled={saving} style={S.btn('#38a9c2', '#fff')}>{saving ? 'Saving…' : 'Save'}</button>
               <button onClick={() => setCatForm(null)} style={S.btn('#f0f0ec', '#444')}>Cancel</button>
               {!catForm.isNew && <button onClick={() => handleCatDelete(catForm.id)}
                 style={{ padding: '8px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>Delete</button>}

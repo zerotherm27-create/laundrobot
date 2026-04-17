@@ -120,7 +120,7 @@ export default function Login() {
               <div style={{ textAlign: 'right', marginBottom: 22 }}>
                 <button type="button"
                   onClick={() => { setView('forgot'); setFpEmail(email); setFpError(''); setFpMsg(''); setFpSent(false); }}
-                  style={{ fontSize: 12, color: '#378ADD', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>
+                  style={{ fontSize: 12, color: '#38a9c2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>
                   Forgot password?
                 </button>
               </div>
