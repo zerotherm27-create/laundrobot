@@ -10,16 +10,30 @@ router.post('/blast', auth, async (req, res) => {
     const { rows: [tenant] } = await db.query(
       'SELECT fb_page_access_token FROM tenants WHERE id=$1', [tenantId]
     );
-    let query = 'SELECT DISTINCT c.fb_id, c.name, o.id as order_id, o.status FROM customers c JOIN orders o ON o.customer_id = c.id WHERE c.tenant_id = $1';
-    const params = [tenantId];
-    if (filter_status) { query += ' AND o.status = $2'; params.push(filter_status); }
-    const { rows: customers } = await db.query(query, params);
+    let customers;
+    if (filter_status === 'subscribed') {
+      const { rows } = await db.query(
+        `SELECT fb_id, name, '' as order_id, '' as status
+         FROM customers WHERE tenant_id=$1 AND promo_subscribed=TRUE AND fb_id IS NOT NULL`,
+        [tenantId]
+      );
+      customers = rows;
+    } else {
+      let query = `SELECT DISTINCT ON (c.fb_id) c.fb_id, c.name, o.id as order_id, o.status
+                   FROM customers c JOIN orders o ON o.customer_id=c.id
+                   WHERE c.tenant_id=$1 AND c.fb_id IS NOT NULL`;
+      const params = [tenantId];
+      if (filter_status) { query += ` AND o.status=$2`; params.push(filter_status); }
+      const { rows } = await db.query(query, params);
+      customers = rows;
+    }
     let sent = 0;
     for (const c of customers) {
+      if (!c.fb_id) continue;
       const text = message
         .replace('{name}', c.name || 'Customer')
-        .replace('{order_id}', c.order_id)
-        .replace('{status}', c.status);
+        .replace('{order_id}', c.order_id || '')
+        .replace('{status}', c.status || '');
       await sendMessage(tenant.fb_page_access_token, c.fb_id, text);
       sent++;
     }

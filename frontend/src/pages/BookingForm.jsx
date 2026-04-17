@@ -402,6 +402,23 @@ export default function BookingForm({ tenantId }) {
     return () => clearTimeout(t);
   }, [step, result]);
 
+  // Load FB SDK for Send to Messenger button
+  useEffect(() => {
+    if (step !== 'success') return;
+    const appId = import.meta.env.VITE_FB_APP_ID;
+    if (!appId || !tenant?.fb_page_id) return;
+    window.fbAsyncInit = () => window.FB?.init({ appId, xfbml: true, version: 'v19.0' });
+    if (!document.getElementById('facebook-jssdk')) {
+      const s = document.createElement('script');
+      s.id = 'facebook-jssdk';
+      s.src = 'https://connect.facebook.net/en_US/sdk.js';
+      s.async = true; s.defer = true;
+      document.body.appendChild(s);
+    } else if (window.FB) {
+      window.FB.XFBML.parse();
+    }
+  }, [step, tenant]);
+
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
@@ -454,6 +471,22 @@ export default function BookingForm({ tenantId }) {
                 style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
                 💳 Pay Now
               </a>
+            </div>
+          )}
+          {import.meta.env.VITE_FB_APP_ID && tenant?.fb_page_id && !messengerPsid && (
+            <div style={{ margin: '16px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
+                Get order updates &amp; promos on Messenger
+              </div>
+              <div id="fb-root" />
+              <div
+                className="fb-send-to-messenger"
+                messenger_app_id={import.meta.env.VITE_FB_APP_ID}
+                page_id={tenant.fb_page_id}
+                data-ref={result.booking_ref}
+                color="blue"
+                size="large"
+              />
             </div>
           )}
           <button onClick={closeMiniApp}

@@ -38,6 +38,7 @@ export default function Messaging() {
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
               style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', marginBottom: 14 }}>
               <option value="">All customers</option>
+              <option value="subscribed">🔔 Promo subscribers only</option>
               {STATUSES.map(s => <option key={s} value={s}>Orders: {s}</option>)}
             </select>
             <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>Message</label>

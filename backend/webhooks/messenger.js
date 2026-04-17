@@ -25,7 +25,10 @@ router.post('/', async (req, res) => {
     );
     if (!tenant) { console.log('[webhook] no tenant for page:', pageId); continue; }
     for (const event of (e.messaging || [])) {
-      if (event.message || event.postback) {
+      if (event.optin) {
+        try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
+        catch (err) { console.error('[webhook] optin error:', err.message); }
+      } else if (event.message || event.postback) {
         console.log('[webhook] msg from:', event.sender.id);
         try { await handleMessage(tenant, event.sender.id, event); }
         catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
@@ -163,6 +166,53 @@ async function showServiceCatalog(token, senderId, tenantId, categoryId) {
   await sendCatalog(token, senderId, elements);
 }
 
+// ── Send to Messenger optin handler ─────────────────────────────────────────
+async function handleOptin(tenant, senderId, ref) {
+  const token = tenant.fb_page_access_token;
+  if (!token) return;
+
+  // Link this PSID to customer via booking_ref in data-ref
+  let customerName = null;
+  if (ref) {
+    const { rows: [row] } = await db.query(
+      `SELECT c.id, c.name FROM orders o
+       JOIN customers c ON c.id = o.customer_id
+       WHERE o.booking_ref=$1 AND o.tenant_id=$2 LIMIT 1`,
+      [ref, tenant.id]
+    );
+    if (row) {
+      await db.query(
+        `UPDATE customers SET fb_id=$1 WHERE id=$2 AND tenant_id=$3`,
+        [senderId, row.id, tenant.id]
+      );
+      customerName = row.name;
+    }
+  }
+
+  await sendMessage(token, senderId,
+    `✅ Hi ${customerName || 'there'}! You're now connected. We'll send your order updates right here in Messenger.`
+  );
+  await sendButtons(token, senderId,
+    `🎁 Want to also receive exclusive promos and updates from us? Tap Subscribe!`,
+    [
+      { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
+      { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
+    ]
+  );
+}
+
+// ── Subscribe prompt (shown after natural interactions) ──────────────────────
+async function showSubscribePrompt(token, senderId, customer) {
+  if (customer?.promo_subscribed) return;
+  await sendButtons(token, senderId,
+    `🎁 Want to receive our latest promos and updates? Subscribe to stay in the loop!`,
+    [
+      { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
+      { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
+    ]
+  );
+}
+
 // ── Main message handler ────────────────────────────────────────────────────
 async function handleMessage(tenant, senderId, event) {
   const token    = tenant.fb_page_access_token;
@@ -274,6 +324,7 @@ async function handleMessage(tenant, senderId, event) {
       { title: '❓ More FAQs', payload: 'FAQS' },
       { title: '🏠 Main Menu', payload: 'MAIN_MENU' },
     ]);
+    await showSubscribePrompt(token, senderId, customer);
     return;
   }
 
@@ -304,6 +355,7 @@ async function handleMessage(tenant, senderId, event) {
       ).join('\n\n');
       await sendMessage(token, senderId, `Your recent orders:\n\n${list}\n\nType "book" to place a new order.`);
     }
+    await showSubscribePrompt(token, senderId, customer);
     return;
   }
 
@@ -539,6 +591,7 @@ async function handleMessage(tenant, senderId, event) {
       confirmButtons
     );
     await setState('DONE', {}, {});
+    await showSubscribePrompt(token, senderId, customer);
     return;
   }
 
@@ -569,6 +622,29 @@ async function handleMessage(tenant, senderId, event) {
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
       ]
     );
+    return;
+  }
+
+  // ── Promo subscription ───────────────────────────────────────────────
+  if (text === 'SUBSCRIBE_PROMO') {
+    await db.query(
+      `UPDATE customers SET promo_subscribed=TRUE WHERE tenant_id=$1 AND fb_id=$2`,
+      [tenant.id, senderId]
+    );
+    await sendMessage(token, senderId,
+      `🎉 You're subscribed! We'll send you our latest promos and updates. You can type "unsubscribe" anytime to opt out.`
+    );
+    return;
+  }
+
+  if (text === 'NO_SUBSCRIBE' || lc === 'unsubscribe') {
+    await db.query(
+      `UPDATE customers SET promo_subscribed=FALSE WHERE tenant_id=$1 AND fb_id=$2`,
+      [tenant.id, senderId]
+    );
+    if (lc === 'unsubscribe') {
+      await sendMessage(token, senderId, `✅ You've been unsubscribed from promos. You'll still receive your order updates.`);
+    }
     return;
   }
 
