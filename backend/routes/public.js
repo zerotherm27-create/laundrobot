@@ -3,15 +3,30 @@ const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail } = require('../utils/email');
 
-// GET tenant info (name + logo for branding)
+// GET tenant info (name + logo + store hours for booking form)
 router.get('/:tenantId/info', async (req, res) => {
   try {
     const { rows: [t] } = await db.query(
-      'SELECT name, logo_url, contact_number FROM tenants WHERE id=$1 AND active=TRUE',
+      `SELECT name, logo_url, contact_number,
+              to_char(store_open, 'HH24:MI') AS store_open,
+              to_char(store_close, 'HH24:MI') AS store_close,
+              to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
+       FROM tenants WHERE id=$1 AND active=TRUE`,
       [req.params.tenantId]
     );
     if (!t) return res.status(404).json({ error: 'Shop not found' });
     res.json(t);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET blocked dates for public booking form
+router.get('/:tenantId/blocked-dates', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT date::text, reason FROM blocked_dates WHERE tenant_id=$1 AND date >= CURRENT_DATE ORDER BY date ASC`,
+      [req.params.tenantId]
+    );
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

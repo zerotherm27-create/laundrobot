@@ -22,6 +22,7 @@ const routes = [
   ['/users',      './routes/users'],
   ['/faqs',            './routes/faqs'],
   ['/delivery-zones',  './routes/deliveryZones'],
+  ['/blocked-dates',   './routes/blockedDates'],
   ['/public',          './routes/public'],
 ];
 
@@ -41,7 +42,7 @@ try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));
 // SPA catch-all: all non-API GET requests serve index.html
-app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/delivery-zones|\/public|\/webhook).*/, (req, res) => {
+app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/delivery-zones|\/blocked-dates|\/public|\/webhook).*/, (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 

@@ -1,8 +1,57 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   getPublicTenantInfo, getPublicCategories, getPublicServices,
-  getPublicDeliveryZones, lookupPublicCustomer, createPublicOrder,
+  getPublicDeliveryZones, getPublicBlockedDates, lookupPublicCustomer, createPublicOrder,
 } from '../api.js';
+
+// ── Booking time helpers ────────────────────────────────────────────────────
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function makeTimeSlots(open, close) {
+  if (!open || !close) return [];
+  const [oh, om] = open.split(':').map(Number);
+  const [ch, cm] = close.split(':').map(Number);
+  const slots = [];
+  let cur = oh * 60 + om;
+  const end = ch * 60 + cm;
+  while (cur < end) {
+    const h = Math.floor(cur / 60), m = cur % 60;
+    const hd = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    slots.push({ value: `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`, label: `${hd}:${String(m).padStart(2,'0')} ${ampm}` });
+    cur += 30;
+  }
+  return slots;
+}
+
+function getMinBookingDate(cutoff, blockedSet) {
+  const now = new Date();
+  let d = new Date(now);
+  if (cutoff) {
+    const [ch, cm] = cutoff.split(':').map(Number);
+    if (now.getHours() * 60 + now.getMinutes() >= ch * 60 + cm) {
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  // skip blocked dates
+  let safety = 0;
+  while (blockedSet.has(toLocalDateStr(d)) && safety++ < 60) d.setDate(d.getDate() + 1);
+  return toLocalDateStr(d);
+}
+
+function filterSlotsForDate(slots, dateStr, open) {
+  const now = new Date();
+  const todayStr = toLocalDateStr(now);
+  if (dateStr !== todayStr) return slots;
+  // for today, filter out past slots
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return slots.filter(s => {
+    const [h, m] = s.value.split(':').map(Number);
+    return h * 60 + m > nowMins;
+  });
+}
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontSize: 14,
@@ -48,6 +97,7 @@ export default function BookingForm({ tenantId }) {
   const [categories, setCategories] = useState([]);
   const [services, setServices]   = useState([]);
   const [zones, setZones]         = useState([]);
+  const [blockedDates, setBlockedDates] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
 
@@ -59,7 +109,7 @@ export default function BookingForm({ tenantId }) {
   const [addonQty, setAddonQty]         = useState({});
 
   // Step 2 state
-  const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
   const [savedCustomer, setSavedCustomer] = useState(null);   // repeat customer data
   const [addressMode, setAddressMode]     = useState('new');  // 'saved' | 'new'
   const [lookingUp, setLookingUp]         = useState(false);
@@ -79,11 +129,13 @@ export default function BookingForm({ tenantId }) {
       getPublicCategories(tenantId),
       getPublicServices(tenantId),
       getPublicDeliveryZones(tenantId),
-    ]).then(([t, cats, svcs, z]) => {
+      getPublicBlockedDates(tenantId),
+    ]).then(([t, cats, svcs, z, bd]) => {
       setTenant(t.data);
       setCategories(cats.data);
       setServices(svcs.data);
       setZones(z.data);
+      setBlockedDates(bd.data);
       if (cats.data.length > 0) setActiveCat(cats.data[0].id);
     }).catch(e => {
       if (e.response?.status === 404) setNotFound(true);
@@ -159,7 +211,10 @@ export default function BookingForm({ tenantId }) {
     : [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
 
   function step2Valid() {
-    if (!form.name.trim() || !form.phone.trim() || !form.pickup_date) return false;
+    const hasDateTime = tenant?.store_open
+      ? (form.pickup_date && form.pickup_time)
+      : !!form.pickup_date;
+    if (!form.name.trim() || !form.phone.trim() || !hasDateTime) return false;
     if (addressMode === 'saved') return !!savedCustomer?.address;
     return form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim();
   }
@@ -177,6 +232,9 @@ export default function BookingForm({ tenantId }) {
           customFields.push({ label: f.label, value: fieldValues[f.id] });
         }
       }
+      const pickupDatetime = form.pickup_time
+        ? `${form.pickup_date}T${form.pickup_time}:00`
+        : form.pickup_date;
       const { data } = await createPublicOrder(tenantId, {
         service_id: selectedSvc.id,
         custom_fields: customFields,
@@ -184,7 +242,7 @@ export default function BookingForm({ tenantId }) {
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         address: fullAddress,
-        pickup_date: form.pickup_date,
+        pickup_date: pickupDatetime,
         delivery_zone_id: form.delivery_zone_id ? Number(form.delivery_zone_id) : undefined,
         notes: form.notes.trim() || undefined,
       });
@@ -283,7 +341,7 @@ export default function BookingForm({ tenantId }) {
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             ✕ Close
           </button>
-          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
+          <button onClick={() => { setStep(1); setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setForm({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' }); setSavedCustomer(null); setAddressMode('new'); setResult(null); setPrivacyConsent(false); }}
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 500, cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
             + New Order
           </button>
@@ -693,11 +751,61 @@ export default function BookingForm({ tenantId }) {
             </Field>
 
             <Field label="Preferred Pickup Date & Time" required>
-              <input style={INPUT} type="datetime-local" value={form.pickup_date}
-                onChange={e => setForm(p => ({ ...p, pickup_date: e.target.value }))}
-                onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
-              />
+              {(() => {
+                const blockedSet = new Set(blockedDates.map(b => b.date));
+                const minDate = getMinBookingDate(tenant?.booking_cutoff, blockedSet);
+                const hasHours = !!(tenant?.store_open && tenant?.store_close);
+                const allSlots = hasHours ? makeTimeSlots(tenant.store_open, tenant.store_close) : [];
+                const availableSlots = form.pickup_date ? filterSlotsForDate(allSlots, form.pickup_date, tenant?.store_open) : allSlots;
+                const isDateBlocked = d => blockedSet.has(d);
+
+                return hasHours ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input style={INPUT} type="date"
+                      value={form.pickup_date} min={minDate}
+                      onChange={e => {
+                        const d = e.target.value;
+                        if (isDateBlocked(d)) return;
+                        setForm(p => ({ ...p, pickup_date: d, pickup_time: '' }));
+                      }}
+                      onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                    />
+                    {form.pickup_date && (
+                      <select style={INPUT} value={form.pickup_time}
+                        onChange={e => setForm(p => ({ ...p, pickup_time: e.target.value }))}>
+                        <option value="">— Select pickup time —</option>
+                        {availableSlots.map(s => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                        {availableSlots.length === 0 && (
+                          <option disabled>No slots available — please pick another date</option>
+                        )}
+                      </select>
+                    )}
+                    {tenant?.booking_cutoff && (
+                      <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5 }}>
+                        ⏰ Same-day bookings close at {(() => {
+                          const [h, m] = tenant.booking_cutoff.split(':').map(Number);
+                          return `${h > 12 ? h-12 : h}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
+                        })()}. Earliest available: {minDate}
+                      </div>
+                    )}
+                    {blockedDates.length > 0 && (
+                      <div style={{ fontSize: 11, color: '#A32D2D' }}>
+                        🚫 Some dates are unavailable — blocked dates are not selectable.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <input style={INPUT} type="datetime-local" value={form.pickup_date}
+                    min={minDate + 'T00:00'}
+                    onChange={e => setForm(p => ({ ...p, pickup_date: e.target.value }))}
+                    onFocus={e => { e.target.style.borderColor = '#378ADD'; e.target.style.boxShadow = '0 0 0 3px rgba(55,138,221,.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; }}
+                  />
+                );
+              })()}
             </Field>
 
             <Field label="Special Instructions">
@@ -772,7 +880,10 @@ export default function BookingForm({ tenantId }) {
               {[
                 ['Service', selectedSvc?.name],
                 isPerKg && w > 0 ? ['Estimated Weight', `${w} kg`] : null,
-                ['Pickup', form.pickup_date ? new Date(form.pickup_date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '—'],
+                ['Pickup', form.pickup_date ? (() => {
+                  const dt = form.pickup_time ? new Date(`${form.pickup_date}T${form.pickup_time}`) : new Date(form.pickup_date);
+                  return dt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+                })() : '—'],
                 ['Address', fullAddress],
                 selectedZone ? ['Delivery Zone', selectedZone.name] : null,
               ].filter(Boolean).map(([k, v]) => (

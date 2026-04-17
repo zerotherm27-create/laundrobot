@@ -70,15 +70,20 @@ export const createDeliveryZone = data       => api.post('/delivery-zones', data
 export const updateDeliveryZone = (id, data) => api.put(`/delivery-zones/${id}`, data);
 export const deleteDeliveryZone = id         => api.delete(`/delivery-zones/${id}`);
 
+export const getBlockedDates   = ()         => api.get('/blocked-dates');
+export const createBlockedDate = data       => api.post('/blocked-dates', data);
+export const deleteBlockedDate = id         => api.delete(`/blocked-dates/${id}`);
+
 // Public booking API (no auth required)
 const PUBLIC_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const pub    = url        => axios.get(`${PUBLIC_BASE}${url}`);
 const pubPost = (url, d)  => axios.post(`${PUBLIC_BASE}${url}`, d);
 
-export const getPublicTenantInfo   = id     => pub(`/public/${id}/info`);
-export const getPublicCategories   = id     => pub(`/public/${id}/categories`);
-export const getPublicServices     = id     => pub(`/public/${id}/services`);
-export const getPublicDeliveryZones  = id        => pub(`/public/${id}/delivery-zones`);
+export const getPublicTenantInfo     = id          => pub(`/public/${id}/info`);
+export const getPublicCategories     = id          => pub(`/public/${id}/categories`);
+export const getPublicServices       = id          => pub(`/public/${id}/services`);
+export const getPublicDeliveryZones  = id          => pub(`/public/${id}/delivery-zones`);
+export const getPublicBlockedDates   = id          => pub(`/public/${id}/blocked-dates`);
 export const lookupPublicCustomer    = (id, phone) => pub(`/public/${id}/customer`, { params: { phone } });
 export const createPublicOrder       = (id, data)  => pubPost(`/public/${id}/orders`, data);
 
