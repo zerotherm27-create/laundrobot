@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const axios = require('axios');
 const db = require('../db');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = require('../utils/messenger');
 const { createInvoice } = require('../utils/xendit');
@@ -38,15 +39,33 @@ router.post('/', async (req, res) => {
 });
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-async function getOrCreateCustomer(tenantId, senderId) {
+async function getFBFirstName(token, senderId) {
+  try {
+    const { data } = await axios.get(
+      `https://graph.facebook.com/v19.0/${senderId}?fields=first_name&access_token=${token}`,
+      { timeout: 4000 }
+    );
+    return data.first_name || null;
+  } catch { return null; }
+}
+
+async function getOrCreateCustomer(tenantId, senderId, token) {
   let { rows: [customer] } = await db.query(
     'SELECT * FROM customers WHERE tenant_id=$1 AND fb_id=$2', [tenantId, senderId]
   );
   if (!customer) {
+    const firstName = token ? await getFBFirstName(token, senderId) : null;
     const { rows: [c] } = await db.query(
-      'INSERT INTO customers (tenant_id, fb_id) VALUES ($1,$2) RETURNING *', [tenantId, senderId]
+      'INSERT INTO customers (tenant_id, fb_id, name) VALUES ($1,$2,$3) RETURNING *',
+      [tenantId, senderId, firstName]
     );
     customer = c;
+  } else if (!customer.name && token) {
+    const firstName = await getFBFirstName(token, senderId);
+    if (firstName) {
+      await db.query('UPDATE customers SET name=$1 WHERE id=$2', [firstName, customer.id]);
+      customer.name = firstName;
+    }
   }
   return customer;
 }
@@ -222,7 +241,7 @@ async function handleMessage(tenant, senderId, event) {
   const step     = conv.step;
   const data     = conv.data || {};
   const setState = makeSetState(tenant.id, senderId);
-  const customer = await getOrCreateCustomer(tenant.id, senderId);
+  const customer = await getOrCreateCustomer(tenant.id, senderId, token);
 
   // ── Needs human — bot stays silent unless customer resets ────────────
   if (conv.needs_human) {
@@ -257,8 +276,9 @@ async function handleMessage(tenant, senderId, event) {
     const bookButton = appUrl
       ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenant.id}`, webview_height_ratio: 'full', messenger_extensions: true }
       : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
+    const greeting = customer.name ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome to ${tenant.name}!` : `👋 Hi! Welcome to ${tenant.name}!`;
     await sendButtons(token, senderId,
-      `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
+      `${greeting}\n\nWhat would you like to do?`,
       [
         bookButton,
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
@@ -656,7 +676,7 @@ async function handleMessage(tenant, senderId, event) {
       await sendButtons(token, senderId, aiReply, [
         { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-        { type: 'postback', title: '👤 Talk to Human', payload: 'HUMAN_REQUEST' },
+        { type: 'postback', title: '👤 Talk to Staff', payload: 'HUMAN_REQUEST' },
       ]);
       return;
     }
