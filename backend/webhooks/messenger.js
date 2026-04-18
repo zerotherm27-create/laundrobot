@@ -649,6 +649,7 @@ async function handleMessage(tenant, senderId, event) {
   }
 
   // ── Fallback — try AI first, then default menu ───────────────────────
+  console.log('[ai-check] ai_enabled:', tenant.ai_enabled, '| has text:', !!event.message?.text, '| step:', step, '| text:', text);
   if (tenant.ai_enabled && event.message?.text) {
     const aiReply = await askGemini(tenant.id, text);
     if (aiReply) {
