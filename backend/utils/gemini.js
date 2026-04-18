@@ -74,7 +74,7 @@ async function askGemini(tenantId, userMessage) {
     );
     return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
   } catch (err) {
-    console.warn('[gemini] error:', err.response?.data?.error?.message || err.message);
+    console.warn('[gemini] error:', JSON.stringify(err.response?.data || err.message));
     return null;
   }
 }
