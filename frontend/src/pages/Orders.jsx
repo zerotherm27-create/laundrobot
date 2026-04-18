@@ -339,7 +339,7 @@ export default function Orders() {
                     )}
                   </tbody>
                 </table>
-                </div> {/* end table-scroll */}
+                </div>
               )}
             </div>
 

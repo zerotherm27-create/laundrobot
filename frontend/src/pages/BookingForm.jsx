@@ -1198,7 +1198,7 @@ export default function BookingForm({ tenantId }) {
                 </div>
               )}
             </div>
-            )} {/* end !selfPickup address block */}
+            )}
 
             {/* ── Delivery Fee / Self-pickup badge ── */}
             {selfPickup ? (
@@ -1261,7 +1261,7 @@ export default function BookingForm({ tenantId }) {
                   </div>
                 )}
               </Field>
-            )} {/* end selfPickup ternary */}
+            )}
 
             <Field label="Preferred Pickup Date & Time" required>
               {(() => {

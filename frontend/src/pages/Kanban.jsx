@@ -246,7 +246,7 @@ export default function Kanban() {
           );
         })}
       </div>
-      </div> {/* end kanban-wrapper */}
+      </div>
 
       {/* ── Order Detail Modal ── */}
       {modalOrder && (
