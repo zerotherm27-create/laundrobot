@@ -12,14 +12,43 @@ async function buildShopContext(tenantId) {
     { rows: zones },
   ] = await Promise.all([
     db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions FROM tenants WHERE id=$1`, [tenantId]),
-    db.query(`SELECT name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
+    db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
   ]);
 
-  const serviceList = services.map(s =>
-    `- ${s.name}: ₱${Number(s.price).toLocaleString()} ${s.unit}${s.description ? ` (${s.description})` : ''}`
-  ).join('\n');
+  const serviceIds = services.map(s => s.id);
+  let fieldsByService = {};
+  if (serviceIds.length) {
+    const { rows: fields } = await db.query(
+      `SELECT service_id, label, field_type, options FROM service_custom_fields WHERE service_id = ANY($1) AND field_type='select' ORDER BY sort_order ASC`,
+      [serviceIds]
+    );
+    for (const f of fields) {
+      if (!fieldsByService[f.service_id]) fieldsByService[f.service_id] = [];
+      fieldsByService[f.service_id].push(f);
+    }
+  }
+
+  const serviceList = services.map(s => {
+    const basePrice = Number(s.price);
+    const fields = fieldsByService[s.id] || [];
+    const pricedFields = fields
+      .map(f => {
+        const pricedOptions = (f.options || []).filter(o => Number(o.price) > 0);
+        if (!pricedOptions.length) return null;
+        return `  ${f.label}: ${pricedOptions.map(o => `${o.label} ₱${Number(o.price).toLocaleString()}`).join(', ')}`;
+      })
+      .filter(Boolean);
+
+    if (basePrice > 0) {
+      return `- ${s.name}: ₱${basePrice.toLocaleString()} ${s.unit}${s.description ? ` (${s.description})` : ''}${pricedFields.length ? '\n' + pricedFields.join('\n') : ''}`;
+    } else if (pricedFields.length) {
+      return `- ${s.name}${s.description ? ` (${s.description})` : ''}:\n${pricedFields.join('\n')}`;
+    } else {
+      return `- ${s.name}${s.description ? ` (${s.description})` : ''}: Contact us for pricing`;
+    }
+  }).join('\n');
 
   const faqList = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n');
 
