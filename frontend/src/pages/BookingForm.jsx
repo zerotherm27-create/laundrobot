@@ -532,19 +532,35 @@ export default function BookingForm({ tenantId }) {
     if (step !== 'success') return;
     const appId = import.meta.env.VITE_FB_APP_ID;
     if (!appId || !tenant?.fb_page_id) return;
-    const parse = () => { try { window.FB?.XFBML?.parse(); } catch (_) {} };
-    window.fbAsyncInit = () => {
-      window.FB?.init({ appId, xfbml: true, version: 'v19.0' });
-      setTimeout(parse, 300);
+
+    // Poll until XFBML is available then parse (handles all timing cases)
+    const tryParse = (attempt = 0) => {
+      if (window.FB?.XFBML) {
+        try { window.FB.XFBML.parse(); } catch (_) {}
+      } else if (attempt < 20) {
+        setTimeout(() => tryParse(attempt + 1), 300);
+      }
     };
-    if (!document.getElementById('facebook-jssdk')) {
-      const s = document.createElement('script');
-      s.id = 'facebook-jssdk';
-      s.src = 'https://connect.facebook.net/en_US/sdk.js';
-      s.async = true; s.defer = true;
-      document.body.appendChild(s);
-    } else if (window.FB) {
-      setTimeout(parse, 100);
+
+    if (window.FB) {
+      // SDK already loaded and initialized — parse immediately
+      tryParse();
+    } else {
+      // Preserve any existing init callback (don't double-init)
+      const prev = window.fbAsyncInit;
+      window.fbAsyncInit = () => {
+        if (prev) prev();
+        window.FB.init({ appId, xfbml: false, version: 'v19.0' });
+        tryParse();
+      };
+      if (!document.getElementById('facebook-jssdk')) {
+        const s = document.createElement('script');
+        s.id = 'facebook-jssdk';
+        s.src = 'https://connect.facebook.net/en_US/sdk.js';
+        s.async = true; s.defer = true;
+        document.body.appendChild(s);
+      }
+      // If script is already loading, our fbAsyncInit above will be called when ready
     }
   }, [step, tenant]);
 
@@ -607,7 +623,6 @@ export default function BookingForm({ tenantId }) {
               <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
                 Get order updates &amp; promos on Messenger
               </div>
-              <div id="fb-root" />
               <div
                 className="fb-send-to-messenger"
                 messenger_app_id={import.meta.env.VITE_FB_APP_ID}
