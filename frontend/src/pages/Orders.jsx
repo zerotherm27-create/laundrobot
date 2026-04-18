@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
+import CreateOrderModal from './CreateOrderModal.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -61,6 +62,15 @@ export default function Orders() {
   const [notifyMsg, setNotifyMsg]     = useState('');
   const [notifySending, setNotifySending] = useState(false);
   const [notifyResult, setNotifyResult]   = useState(''); // 'ok' | 'err:...'
+
+  // Create order modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Payment link
+  const [payLinkLoading, setPayLinkLoading] = useState(false);
+  const [payLinkUrl,     setPayLinkUrl]     = useState('');   // generated or existing
+  const [payLinkErr,     setPayLinkErr]     = useState('');
+  const [payLinkCopied,  setPayLinkCopied]  = useState(false);
 
   const loadActive = useCallback(() => {
     setLoading(true);
@@ -228,6 +238,10 @@ export default function Orders() {
       <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500, margin: 0 }}>Orders</h2>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowCreateModal(true)}
+            className="btn-primary" style={{ gap: 6 }}>
+            ➕ New Order
+          </button>
           <button onClick={() => { setView('active'); setSelected(null); }}
             style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               background: view === 'active' ? '#38a9c2' : '#F0F0EC', color: view === 'active' ? '#fff' : '#374151', fontWeight: 600 }}>
@@ -303,7 +317,7 @@ export default function Orders() {
                       const isSelected = (selected?.booking_ref || selected?.id) === gKey;
                       return (
                       <tr key={gKey}
-                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); }}
+                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); }}
                         style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
                           <div>{g.booking_ref || g.id}</div>
@@ -507,6 +521,70 @@ export default function Orders() {
                       )
                     )}
                   </>
+                )}
+
+                {/* ── Payment Link ── */}
+                {!editMode && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                      💳 Payment Link
+                    </div>
+
+                    {payLinkUrl ? (
+                      /* Show existing / generated link */
+                      <div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#F0FDF4', border: '1px solid #34D399', borderRadius: 8, padding: '9px 12px', marginBottom: 8 }}>
+                          <span style={{ flex: 1, fontSize: 11, color: '#065F46', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {payLinkUrl}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(payLinkUrl).then(() => {
+                                setPayLinkCopied(true);
+                                setTimeout(() => setPayLinkCopied(false), 2000);
+                              });
+                            }}
+                            style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+                              background: payLinkCopied ? '#1D9E75' : '#38a9c2', color: '#fff', transition: 'background .2s' }}>
+                            {payLinkCopied ? '✓ Copied!' : '📋 Copy'}
+                          </button>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setPayLinkLoading(true); setPayLinkErr('');
+                            try {
+                              const { data } = await generatePaymentLink(selected.orderIds[0]);
+                              setPayLinkUrl(data.payment_url);
+                            } catch (e) { setPayLinkErr(e.response?.data?.error || 'Failed to regenerate link'); }
+                            setPayLinkLoading(false);
+                          }}
+                          disabled={payLinkLoading}
+                          style={{ fontSize: 11, color: '#374151', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', textDecoration: 'underline' }}>
+                          {payLinkLoading ? 'Generating…' : '↺ Regenerate link'}
+                        </button>
+                      </div>
+                    ) : (
+                      /* No link yet — show generate button */
+                      <div>
+                        <button
+                          onClick={async () => {
+                            setPayLinkLoading(true); setPayLinkErr('');
+                            try {
+                              const { data } = await generatePaymentLink(selected.orderIds[0]);
+                              setPayLinkUrl(data.payment_url);
+                            } catch (e) { setPayLinkErr(e.response?.data?.error || 'Failed to generate link'); }
+                            setPayLinkLoading(false);
+                          }}
+                          disabled={payLinkLoading}
+                          style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: payLinkLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          {payLinkLoading
+                            ? <><span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #9ED3DC', borderTopColor: '#38a9c2', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Generating…</>
+                            : '💳 Generate Payment Link'}
+                        </button>
+                        {payLinkErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{payLinkErr}</div>}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Edit form */}
@@ -789,6 +867,14 @@ export default function Orders() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Create Order Modal ── */}
+      {showCreateModal && (
+        <CreateOrderModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => { loadActive(); }}
+        />
       )}
     </div>
   );

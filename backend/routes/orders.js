@@ -192,6 +192,68 @@ router.patch('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST generate (or regenerate) a Xendit payment link for an existing order
+router.post('/:id/payment-link', auth, async (req, res) => {
+  try {
+    // Fetch order + customer email
+    const { rows: [order] } = await db.query(
+      `SELECT o.*, c.email AS customer_email
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Pull all sibling orders in the same booking
+    let relatedOrders = [order];
+    if (order.booking_ref) {
+      const { rows } = await db.query(
+        `SELECT * FROM orders WHERE booking_ref = $1 AND tenant_id = $2`,
+        [order.booking_ref, req.user.tenant_id]
+      );
+      if (rows.length) relatedOrders = rows;
+    }
+
+    // Tenant Xendit config
+    const { rows: [tenant] } = await db.query(
+      `SELECT xendit_api_key, name FROM tenants WHERE id = $1`,
+      [req.user.tenant_id]
+    );
+    if (!tenant?.xendit_api_key) {
+      return res.status(400).json({ error: 'Xendit is not configured for this branch. Add your API key in Settings.' });
+    }
+
+    // Total = all service prices + delivery fee on first order
+    const servicesTotal = relatedOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+    const deliveryFee   = Number(order.delivery_fee || 0);
+    const total = servicesTotal + deliveryFee;
+    if (total <= 0) return res.status(400).json({ error: 'Order total is ₱0 — cannot generate a payment link.' });
+
+    const ref = order.booking_ref || order.id;
+
+    const invoice = await createInvoice(tenant.xendit_api_key, {
+      externalId:        `${ref}-MANUAL-${Date.now()}`,
+      amount:            total,
+      payerEmail:        order.customer_email || undefined,
+      description:       `${tenant.name} — ${ref}`,
+    });
+
+    // Persist on all related orders
+    const ids = relatedOrders.map(o => o.id);
+    await db.query(
+      `UPDATE orders SET xendit_invoice_id = $1, xendit_invoice_url = $2
+       WHERE id = ANY($3::text[]) AND tenant_id = $4`,
+      [invoice.id, invoice.invoiceUrl, ids, req.user.tenant_id]
+    );
+
+    res.json({ payment_url: invoice.invoiceUrl });
+  } catch (err) {
+    console.error('[payment-link]', err.message);
+    res.status(500).json({ error: err.response?.data?.message || err.message });
+  }
+});
+
 // POST send order-update notification to customer via Messenger
 router.post('/:id/notify-update', auth, async (req, res) => {
   const { old_price, new_price, new_service_name, message_override } = req.body;

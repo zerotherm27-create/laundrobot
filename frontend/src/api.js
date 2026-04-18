@@ -31,7 +31,8 @@ export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}`, { st
 export const updateOrder = (id, data) => api.patch(`/orders/${id}`, data);
 export const updateBooking = (ref, items, customNote, customPrice) =>
   api.put(`/orders/booking/${ref}`, { items, custom_note: customNote || '', custom_price: customPrice || 0 });
-export const notifyOrderUpdate = (id, data) => api.post(`/orders/${id}/notify-update`, data);
+export const notifyOrderUpdate    = (id, data) => api.post(`/orders/${id}/notify-update`, data);
+export const generatePaymentLink  = id          => api.post(`/orders/${id}/payment-link`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 
 export const getServices = () => api.get('/services');
