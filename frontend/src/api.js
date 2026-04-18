@@ -106,7 +106,6 @@ export const getPublicDeliveryZones    = id        => pub(`/public/${id}/deliver
 export const getPublicDeliveryBrackets = id        => pub(`/public/${id}/delivery-brackets`);
 export const getPublicGeocode          = q         => axios.get(`${PUBLIC_BASE}/public/geocode`, { params: { q } });
 export const getPublicAddressSuggest   = q         => axios.get(`${PUBLIC_BASE}/public/geocode/suggest`, { params: { q } });
-export const getPublicReverseGeocode   = (lat, lng) => axios.get(`${PUBLIC_BASE}/public/geocode/reverse`, { params: { lat, lng } });
 export const getPublicBlockedDates   = id                  => pub(`/public/${id}/blocked-dates`);
 export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLIC_BASE}/public/${id}/promo`, { params: { code, total } });
 export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });

@@ -21,21 +21,6 @@ router.get('/geocode', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Reverse geocode — lat/lng → address string
-router.get('/geocode/reverse', async (req, res) => {
-  const { lat, lng } = req.query;
-  if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
-  try {
-    const { data } = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-      params: { lat, lon: lng, format: 'json' },
-      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
-      timeout: 8000,
-    });
-    if (!data?.display_name) return res.json(null);
-    res.json({ address: data.display_name });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // Address autocomplete — returns up to 5 suggestions with coords
 router.get('/geocode/suggest', async (req, res) => {
   const { q } = req.query;
