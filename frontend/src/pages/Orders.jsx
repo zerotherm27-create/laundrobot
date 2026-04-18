@@ -185,13 +185,24 @@ export default function Orders() {
     } catch { alert('Failed to archive.'); }
   }
 
-  // Active orders filter
+  // Active orders filter — group first so amount filter applies to booking total
   const filtered = orders.filter(o => {
     if (filterStatus !== 'ALL' && o.status !== filterStatus) return false;
     if (search && !o.customer_name?.toLowerCase().includes(search.toLowerCase()) &&
                   !o.id?.toLowerCase().includes(search.toLowerCase()) &&
                   !o.booking_ref?.toLowerCase().includes(search.toLowerCase())) return false;
-    const amt = Number(o.price);
+    return true;
+  });
+
+  // Collect booking_refs that matched so the full group is always shown together
+  const matchedRefs = new Set(filtered.filter(o => o.booking_ref).map(o => o.booking_ref));
+  const filteredComplete = orders.filter(o =>
+    filtered.includes(o) || (o.booking_ref && matchedRefs.has(o.booking_ref))
+  );
+
+  // Group, then apply amount filter on group total
+  const groupedFiltered = groupByBookingRef(filteredComplete).filter(g => {
+    const amt = Number(g.price);
     if (minAmt !== '' && amt < Number(minAmt)) return false;
     if (maxAmt !== '' && amt > Number(maxAmt)) return false;
     return true;
@@ -286,7 +297,7 @@ export default function Orders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groupByBookingRef(filtered).map(g => {
+                    {groupedFiltered.map(g => {
                       const gKey = g.booking_ref || g.id;
                       const isSelected = (selected?.booking_ref || selected?.id) === gKey;
                       return (
@@ -322,7 +333,7 @@ export default function Orders() {
                       </tr>
                       );
                     })}
-                    {filtered.length === 0 && (
+                    {groupedFiltered.length === 0 && (
                       <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No orders found</td></tr>
                     )}
                   </tbody>
