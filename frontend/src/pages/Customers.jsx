@@ -19,11 +19,36 @@ export default function Customers() {
     c.fb_id?.toLowerCase().includes(search.toLowerCase())
   );
 
+  function downloadCSV() {
+    const headers = ['Name', 'Phone', 'Email', 'Address', 'FB Messenger', 'Total Orders', 'Total Spent', 'Customer Since'];
+    const rows = customers.map(c => [
+      c.name || '',
+      c.phone || '',
+      c.email || '',
+      c.address || '',
+      c.fb_id || '',
+      c.total_orders || 0,
+      Number(c.total_spent || 0).toFixed(2),
+      c.created_at ? new Date(c.created_at).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `customers-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Customers</h2>
-        <div style={{ fontSize: 13, color: '#374151' }}>{customers.length} total customers</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#374151' }}>{customers.length} total customers</span>
+          <button onClick={downloadCSV} disabled={!customers.length}
+            style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
+            ⬇ Download CSV
+          </button>
+        </div>
       </div>
 
       <input value={search} onChange={e => setSearch(e.target.value)}
