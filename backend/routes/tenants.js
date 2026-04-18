@@ -133,9 +133,9 @@ router.put('/:id', auth, superadminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST clone services from one tenant to another
+// POST clone data from one tenant to another
 router.post('/clone-services', auth, superadminOnly, async (req, res) => {
-  const { source_tenant_id, target_tenant_id, clear_existing } = req.body;
+  const { source_tenant_id, target_tenant_id, clear_existing, clone_options } = req.body;
   if (!source_tenant_id || !target_tenant_id) {
     return res.status(400).json({ error: 'source_tenant_id and target_tenant_id are required' });
   }
@@ -143,11 +143,21 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Source and target branches must be different' });
   }
 
+  const opts = {
+    services:       clone_options?.services       !== false,
+    settings:       clone_options?.settings       || false,
+    faqs:           clone_options?.faqs           || false,
+    delivery_zones: clone_options?.delivery_zones !== false,
+  };
+
+  if (!opts.services && !opts.settings && !opts.faqs && !opts.delivery_zones) {
+    return res.status(400).json({ error: 'Select at least one item to clone.' });
+  }
+
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Verify both tenants exist
     const { rows: tenantCheck } = await client.query(
       `SELECT id FROM tenants WHERE id = ANY($1)`, [[source_tenant_id, target_tenant_id]]
     );
@@ -156,83 +166,132 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
       return res.status(404).json({ error: 'One or both branches not found' });
     }
 
-    // Optionally wipe existing services + categories from target
-    if (clear_existing) {
-      await client.query(`DELETE FROM services WHERE tenant_id = $1`, [target_tenant_id]);
-      await client.query(`DELETE FROM service_categories WHERE tenant_id = $1`, [target_tenant_id]);
-    }
+    const stats = { categories: 0, services: 0, custom_fields: 0, delivery_zones: 0, faqs: 0 };
 
-    // ── Clone categories ──────────────────────────────────────────────
-    const { rows: sourceCats } = await client.query(
-      `SELECT * FROM service_categories WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
-      [source_tenant_id]
-    );
+    // ── Clone services + categories ───────────────────────────────────
+    if (opts.services) {
+      if (clear_existing) {
+        await client.query(`DELETE FROM services WHERE tenant_id = $1`, [target_tenant_id]);
+        await client.query(`DELETE FROM service_categories WHERE tenant_id = $1`, [target_tenant_id]);
+      }
 
-    // Map old category id → new category id
-    const catIdMap = {};
-    for (const cat of sourceCats) {
-      const { rows: [newCat] } = await client.query(
-        `INSERT INTO service_categories (tenant_id, name, sort_order, active)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [target_tenant_id, cat.name, cat.sort_order, cat.active]
+      const { rows: sourceCats } = await client.query(
+        `SELECT * FROM service_categories WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+        [source_tenant_id]
       );
-      catIdMap[cat.id] = newCat.id;
-    }
-
-    // ── Clone services ────────────────────────────────────────────────
-    const { rows: sourceSvcs } = await client.query(
-      `SELECT * FROM services WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
-      [source_tenant_id]
-    );
-
-    let clonedServices = 0;
-    let clonedFields   = 0;
-
-    for (const svc of sourceSvcs) {
-      const newCategoryId = svc.category_id ? (catIdMap[svc.category_id] || null) : null;
-
-      const { rows: [newSvc] } = await client.query(
-        `INSERT INTO services
-           (tenant_id, name, price, unit, description, active, category_id, sort_order, image_url)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-        [target_tenant_id, svc.name, svc.price, svc.unit, svc.description,
-         svc.active, newCategoryId, svc.sort_order, svc.image_url]
-      );
-      clonedServices++;
-
-      // Clone custom fields for this service
-      const { rows: fields } = await client.query(
-        `SELECT * FROM service_custom_fields WHERE service_id = $1 ORDER BY sort_order ASC`,
-        [svc.id]
-      );
-      for (const f of fields) {
-        await client.query(
-          `INSERT INTO service_custom_fields
-             (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-          [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order,
-           f.options, f.min_value, f.max_value, f.unit_price]
+      const catIdMap = {};
+      for (const cat of sourceCats) {
+        const { rows: [newCat] } = await client.query(
+          `INSERT INTO service_categories (tenant_id, name, sort_order, active)
+           VALUES ($1,$2,$3,$4) RETURNING id`,
+          [target_tenant_id, cat.name, cat.sort_order, cat.active]
         );
-        clonedFields++;
+        catIdMap[cat.id] = newCat.id;
+      }
+      stats.categories = sourceCats.length;
+
+      const { rows: sourceSvcs } = await client.query(
+        `SELECT * FROM services WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+        [source_tenant_id]
+      );
+      for (const svc of sourceSvcs) {
+        const newCategoryId = svc.category_id ? (catIdMap[svc.category_id] || null) : null;
+        const { rows: [newSvc] } = await client.query(
+          `INSERT INTO services
+             (tenant_id, name, price, unit, description, active, category_id, sort_order, image_url)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+          [target_tenant_id, svc.name, svc.price, svc.unit, svc.description,
+           svc.active, newCategoryId, svc.sort_order, svc.image_url]
+        );
+        stats.services++;
+        const { rows: fields } = await client.query(
+          `SELECT * FROM service_custom_fields WHERE service_id = $1 ORDER BY sort_order ASC`,
+          [svc.id]
+        );
+        for (const f of fields) {
+          await client.query(
+            `INSERT INTO service_custom_fields
+               (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order,
+             f.options, f.min_value, f.max_value, f.unit_price]
+          );
+          stats.custom_fields++;
+        }
       }
     }
 
-    // ── Clone delivery zones ──────────────────────────────────────────────
-    if (clear_existing) {
-      await client.query(`DELETE FROM delivery_zones WHERE tenant_id = $1`, [target_tenant_id]);
+    // ── Clone delivery zones ──────────────────────────────────────────
+    if (opts.delivery_zones) {
+      if (clear_existing) {
+        await client.query(`DELETE FROM delivery_zones WHERE tenant_id = $1`, [target_tenant_id]);
+        await client.query(`DELETE FROM delivery_brackets WHERE tenant_id = $1`, [target_tenant_id]);
+      }
+
+      const { rows: sourceZones } = await client.query(
+        `SELECT * FROM delivery_zones WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+        [source_tenant_id]
+      );
+      for (const z of sourceZones) {
+        await client.query(
+          `INSERT INTO delivery_zones (tenant_id, name, fee, active, sort_order, custom_note)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [target_tenant_id, z.name, z.fee, z.active, z.sort_order, z.custom_note]
+        );
+        stats.delivery_zones++;
+      }
+
+      const { rows: sourceBrackets } = await client.query(
+        `SELECT * FROM delivery_brackets WHERE tenant_id = $1 ORDER BY min_km ASC`,
+        [source_tenant_id]
+      );
+      for (const b of sourceBrackets) {
+        await client.query(
+          `INSERT INTO delivery_brackets (tenant_id, min_km, max_km, fee, sort_order)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [target_tenant_id, b.min_km, b.max_km, b.fee, b.sort_order]
+        );
+      }
     }
 
-    const { rows: sourceZones } = await client.query(
-      `SELECT * FROM delivery_zones WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
-      [source_tenant_id]
-    );
-
-    for (const z of sourceZones) {
-      await client.query(
-        `INSERT INTO delivery_zones (tenant_id, name, fee, active, sort_order, custom_note)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [target_tenant_id, z.name, z.fee, z.active, z.sort_order, z.custom_note]
+    // ── Clone settings ────────────────────────────────────────────────
+    if (opts.settings) {
+      const { rows: [src] } = await client.query(
+        `SELECT store_open, store_close, booking_cutoff, minimum_order,
+                ai_enabled, ai_instructions, contact_number,
+                delivery_note, delivery_radius, shop_address, shop_lat, shop_lng
+         FROM tenants WHERE id=$1`, [source_tenant_id]
       );
+      await client.query(
+        `UPDATE tenants SET
+           store_open=$1, store_close=$2, booking_cutoff=$3, minimum_order=$4,
+           ai_enabled=$5, ai_instructions=$6, contact_number=$7,
+           delivery_note=$8, delivery_radius=$9, shop_address=$10, shop_lat=$11, shop_lng=$12
+         WHERE id=$13`,
+        [src.store_open, src.store_close, src.booking_cutoff, src.minimum_order,
+         src.ai_enabled, src.ai_instructions, src.contact_number,
+         src.delivery_note, src.delivery_radius, src.shop_address, src.shop_lat, src.shop_lng,
+         target_tenant_id]
+      );
+    }
+
+    // ── Clone FAQs ────────────────────────────────────────────────────
+    if (opts.faqs) {
+      if (clear_existing) {
+        await client.query(`DELETE FROM faqs WHERE tenant_id = $1`, [target_tenant_id]);
+      }
+      const { rows: sourceFaqs } = await client.query(
+        `SELECT * FROM faqs WHERE tenant_id = $1 ORDER BY sort_order ASC, id ASC`,
+        [source_tenant_id]
+      );
+      for (const f of sourceFaqs) {
+        await client.query(
+          `INSERT INTO faqs (tenant_id, question, answer, active, sort_order)
+           VALUES ($1,$2,$3,$4,$5)`,
+          [target_tenant_id, f.question, f.answer, f.active, f.sort_order]
+        );
+        stats.faqs++;
+      }
     }
 
     await client.query('COMMIT');
@@ -242,12 +301,7 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
 
     res.json({
       message: `Successfully cloned from "${sourceTenant.name}" to "${targetTenant.name}"`,
-      stats: {
-        categories: sourceCats.length,
-        services: clonedServices,
-        custom_fields: clonedFields,
-        delivery_zones: sourceZones.length,
-      },
+      stats,
     });
   } catch (err) {
     await client.query('ROLLBACK');

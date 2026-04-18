@@ -51,8 +51,8 @@ export const createTenant = data => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
 export const getMyTenantSettings = () => api.get('/tenants/settings');
 export const updateMyTenantSettings = data => api.put('/tenants/settings', data);
-export const cloneServices = (sourceTenantId, targetTenantId, clearExisting) =>
-  api.post('/tenants/clone-services', { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId, clear_existing: clearExisting });
+export const cloneServices = (sourceTenantId, targetTenantId, clearExisting, cloneOptions) =>
+  api.post('/tenants/clone-services', { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId, clear_existing: clearExisting, clone_options: cloneOptions });
 
 export const getHumanConversations = () => api.get('/conversations/human');
 export const releaseConversation = (fbUserId, message) => api.post(`/conversations/${fbUserId}/release`, { message });

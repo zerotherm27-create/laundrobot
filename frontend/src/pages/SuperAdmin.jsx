@@ -30,12 +30,13 @@ export default function SuperAdmin() {
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
-  // Clone services
+  // Clone
   const [cloneSource, setCloneSource] = useState('');
   const [cloneTarget, setCloneTarget] = useState('');
   const [clearExisting, setClearExisting] = useState(false);
+  const [cloneOptions, setCloneOptions] = useState({ services: true, settings: false, faqs: false, delivery_zones: true });
   const [cloning, setCloning] = useState(false);
-  const [cloneResult, setCloneResult] = useState(null); // { message, stats } or { error }
+  const [cloneResult, setCloneResult] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -97,19 +98,22 @@ export default function SuperAdmin() {
 
   const tenantName = (tid) => tenants.find(t => t.id === tid)?.name || '—';
 
-  // ── Clone services ──
+  // ── Clone ──
   async function handleClone() {
     if (!cloneSource || !cloneTarget) return alert('Please select both source and target branches.');
     if (cloneSource === cloneTarget) return alert('Source and target must be different branches.');
+    const selected = Object.entries(cloneOptions).filter(([, v]) => v).map(([k]) => k);
+    if (!selected.length) return alert('Select at least one item to clone.');
     const srcName = tenantName(cloneSource);
     const tgtName = tenantName(cloneTarget);
+    const items = selected.map(k => ({ services: 'Services', settings: 'Settings', faqs: 'FAQs', delivery_zones: 'Delivery Zones' }[k])).join(', ');
     const confirmMsg = clearExisting
-      ? `⚠️ This will DELETE all existing services and delivery zones in "${tgtName}" and replace them with data from "${srcName}".\n\nAre you sure?`
-      : `Copy all services and delivery zones from "${srcName}" → "${tgtName}"?\n\nExisting data in "${tgtName}" will be kept.`;
+      ? `⚠️ This will DELETE and replace ${items} in "${tgtName}" with data from "${srcName}".\n\nAre you sure?`
+      : `Copy ${items} from "${srcName}" → "${tgtName}"?\n\nExisting data in "${tgtName}" will be kept.`;
     if (!confirm(confirmMsg)) return;
     setCloning(true); setCloneResult(null);
     try {
-      const { data } = await cloneServices(cloneSource, cloneTarget, clearExisting);
+      const { data } = await cloneServices(cloneSource, cloneTarget, clearExisting, cloneOptions);
       setCloneResult({ success: true, message: data.message, stats: data.stats });
     } catch (err) {
       setCloneResult({ success: false, message: err.response?.data?.error || err.message });
@@ -239,18 +243,41 @@ export default function SuperAdmin() {
               </select>
             </div>
 
+            {/* What to clone */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 8, fontWeight: 500 }}>What to clone</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { key: 'services',       label: '🧺 Services',       desc: 'Categories, services, and all custom fields' },
+                  { key: 'settings',       label: '⚙️ Settings',       desc: 'Store hours, AI instructions, contact number, delivery settings' },
+                  { key: 'faqs',           label: '❓ FAQs',            desc: 'All FAQ entries' },
+                  { key: 'delivery_zones', label: '📍 Delivery Zones',  desc: 'Named zones and fee brackets' },
+                ].map(({ key, label, desc }) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '9px 12px', borderRadius: 8, border: `0.5px solid ${cloneOptions[key] ? '#38a9c2' : '#e8e8e0'}`, background: cloneOptions[key] ? '#e6f5f8' : '#fafaf8' }}>
+                    <input type="checkbox" checked={cloneOptions[key]}
+                      onChange={e => setCloneOptions(p => ({ ...p, [key]: e.target.checked }))}
+                      style={{ marginTop: 2, flexShrink: 0, accentColor: '#38a9c2' }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: cloneOptions[key] ? '#1a7d94' : '#333' }}>{label}</div>
+                      <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* Option: clear existing */}
             <div style={{ background: clearExisting ? '#FFF3CD' : '#f9f9f7', border: `0.5px solid ${clearExisting ? '#F5C843' : '#e8e8e0'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 20 }}>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={clearExisting} onChange={e => setClearExisting(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500, color: clearExisting ? '#856404' : '#333' }}>
-                    {clearExisting ? '⚠️ Replace existing services' : 'Replace existing services'}
+                    {clearExisting ? '⚠️ Replace existing data' : 'Replace existing data'}
                   </div>
                   <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>
                     {clearExisting
-                      ? 'All current services and delivery zones in the target branch will be deleted before copying.'
-                      : 'New services and zones will be added on top of existing ones in the target branch.'}
+                      ? 'Selected data in the target branch will be deleted before copying.'
+                      : 'New data will be added on top of existing ones in the target branch.'}
                   </div>
                 </div>
               </label>
@@ -260,7 +287,7 @@ export default function SuperAdmin() {
             {cloneSource && cloneTarget && (
               <div style={{ background: '#e6f5f8', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1a7d94' }}>
                 <strong>{tenantName(cloneSource)}</strong> → <strong>{tenantName(cloneTarget)}</strong>
-                {clearExisting && <span style={{ color: '#856404' }}> · will replace all existing services</span>}
+                {clearExisting && <span style={{ color: '#856404' }}> · will replace selected data</span>}
               </div>
             )}
 
@@ -276,10 +303,12 @@ export default function SuperAdmin() {
                   <>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>✅ {cloneResult.message}</div>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <span>📁 {cloneResult.stats.categories} categories</span>
-                      <span>🧺 {cloneResult.stats.services} services</span>
-                      <span>✦ {cloneResult.stats.custom_fields} custom fields</span>
-                      <span>📍 {cloneResult.stats.delivery_zones} delivery zones</span>
+                      {cloneResult.stats.categories > 0 && <span>📁 {cloneResult.stats.categories} categories</span>}
+                      {cloneResult.stats.services > 0 && <span>🧺 {cloneResult.stats.services} services</span>}
+                      {cloneResult.stats.custom_fields > 0 && <span>✦ {cloneResult.stats.custom_fields} custom fields</span>}
+                      {cloneResult.stats.delivery_zones > 0 && <span>📍 {cloneResult.stats.delivery_zones} delivery zones</span>}
+                      {cloneResult.stats.faqs > 0 && <span>❓ {cloneResult.stats.faqs} FAQs</span>}
+                      {cloneOptions.settings && <span>⚙️ Settings copied</span>}
                     </div>
                   </>
                 ) : (
@@ -301,14 +330,14 @@ export default function SuperAdmin() {
 
           {/* Info box */}
           <div style={{ background: '#f5f5f3', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: '#374151', lineHeight: 1.6 }}>
-            <strong style={{ color: '#333' }}>What gets cloned:</strong>
+            <strong style={{ color: '#333' }}>What each option copies:</strong>
             <ul style={{ marginTop: 6, paddingLeft: 16 }}>
-              <li>All service categories (names, sort order, active status)</li>
-              <li>All services (name, price, unit, description, image, sort order)</li>
-              <li>All custom fields per service (labels, types, options, pricing)</li>
-              <li>All delivery zones (name, fee, custom note, sort order)</li>
+              <li><strong>Services</strong> — categories, services, custom fields and pricing options</li>
+              <li><strong>Settings</strong> — store hours, booking cutoff, minimum order, AI toggle and instructions, contact number, delivery note and radius, shop location</li>
+              <li><strong>FAQs</strong> — all FAQ questions and answers</li>
+              <li><strong>Delivery Zones</strong> — named zones and distance-based fee brackets</li>
             </ul>
-            <div style={{ marginTop: 8, color: '#374151' }}>Note: Customer orders and data are never copied.</div>
+            <div style={{ marginTop: 8, color: '#374151' }}>Customer orders and data are never copied.</div>
           </div>
         </div>
       )}
