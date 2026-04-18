@@ -78,6 +78,13 @@ export const createDeliveryZone = data       => api.post('/delivery-zones', data
 export const updateDeliveryZone = (id, data) => api.put(`/delivery-zones/${id}`, data);
 export const deleteDeliveryZone = id         => api.delete(`/delivery-zones/${id}`);
 
+export const getDeliveryBrackets    = ()         => api.get('/delivery-brackets');
+export const saveShopLocation       = data       => api.put('/delivery-brackets/shop-location', data);
+export const geocodeAddress         = address    => api.get('/delivery-brackets/geocode', { params: { address } });
+export const createDeliveryBracket  = data       => api.post('/delivery-brackets', data);
+export const updateDeliveryBracket  = (id, data) => api.put(`/delivery-brackets/${id}`, data);
+export const deleteDeliveryBracket  = id         => api.delete(`/delivery-brackets/${id}`);
+
 export const getBlockedDates   = ()         => api.get('/blocked-dates');
 export const createBlockedDate = data       => api.post('/blocked-dates', data);
 export const deleteBlockedDate = id         => api.delete(`/blocked-dates/${id}`);
@@ -95,7 +102,9 @@ const pubPost = (url, d)  => axios.post(`${PUBLIC_BASE}${url}`, d);
 export const getPublicTenantInfo     = id          => pub(`/public/${id}/info`);
 export const getPublicCategories     = id          => pub(`/public/${id}/categories`);
 export const getPublicServices       = id          => pub(`/public/${id}/services`);
-export const getPublicDeliveryZones  = id          => pub(`/public/${id}/delivery-zones`);
+export const getPublicDeliveryZones    = id        => pub(`/public/${id}/delivery-zones`);
+export const getPublicDeliveryBrackets = id        => pub(`/public/${id}/delivery-brackets`);
+export const getPublicGeocode          = q         => axios.get(`${PUBLIC_BASE}/public/geocode`, { params: { q } });
 export const getPublicBlockedDates   = id                  => pub(`/public/${id}/blocked-dates`);
 export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLIC_BASE}/public/${id}/promo`, { params: { code, total } });
 export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });

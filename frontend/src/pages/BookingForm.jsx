@@ -1,8 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import {
   getPublicTenantInfo, getPublicCategories, getPublicServices,
-  getPublicDeliveryZones, getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
+  getPublicDeliveryZones, getPublicDeliveryBrackets, getPublicGeocode,
+  getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
 } from '../api.js';
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
 // ── Booking time helpers ────────────────────────────────────────────────────
 function toLocalDateStr(d) {
@@ -97,7 +106,17 @@ export default function BookingForm({ tenantId }) {
   const [categories, setCategories] = useState([]);
   const [services, setServices]   = useState([]);
   const [zones, setZones]         = useState([]);
+  const [bracketInfo, setBracketInfo] = useState(null); // { brackets, shop_lat, shop_lng, delivery_radius, delivery_note }
+  const [bracketFee, setBracketFee]   = useState(null); // number or null
+  const [bracketDistKm, setBracketDistKm] = useState(null);
+  const [bracketError, setBracketError]   = useState('');
+  const [customerCoords, setCustomerCoords] = useState(null); // { lat, lng }
+  const [geocoding, setGeocoding]         = useState(false);
   const [blockedDates, setBlockedDates] = useState([]);
+  const mapContainerRef = useRef(null);
+  const leafletMapRef   = useRef(null);
+  const leafletCustRef  = useRef(null); // customer marker
+  const geocodeTimer    = useRef(null);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
 
@@ -157,12 +176,14 @@ export default function BookingForm({ tenantId }) {
       getPublicCategories(tenantId),
       getPublicServices(tenantId),
       getPublicDeliveryZones(tenantId),
+      getPublicDeliveryBrackets(tenantId),
       getPublicBlockedDates(tenantId),
-    ]).then(([t, cats, svcs, z, bd]) => {
+    ]).then(([t, cats, svcs, z, br, bd]) => {
       setTenant(t.data);
       setCategories(cats.data);
       setServices(svcs.data);
       setZones(z.data);
+      if (br.data?.shop_lat && br.data?.shop_lng) setBracketInfo(br.data);
       setBlockedDates(bd.data);
       if (cats.data.length > 0) setActiveCat(cats.data[0].id);
     }).catch(e => {
@@ -269,7 +290,9 @@ export default function BookingForm({ tenantId }) {
   const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
 
   const selectedZone = zones.find(z => z.id === Number(form.delivery_zone_id)) || null;
-  const deliveryFee = selectedZone ? Number(selectedZone.fee) : 0;
+  const deliveryFee = bracketInfo
+    ? (bracketFee !== null ? bracketFee : 0)
+    : (selectedZone ? Number(selectedZone.fee) : 0);
   const total = subtotal + addonTotal + deliveryFee;
 
   // Cart totals (Step 2+)
@@ -382,7 +405,9 @@ export default function BookingForm({ tenantId }) {
         email: form.email.trim() || undefined,
         address: fullAddress,
         pickup_date: pickupDatetime,
-        delivery_zone_id: form.delivery_zone_id ? Number(form.delivery_zone_id) : undefined,
+        delivery_zone_id: (!bracketInfo && form.delivery_zone_id) ? Number(form.delivery_zone_id) : undefined,
+        customer_lat: (bracketInfo && customerCoords) ? customerCoords.lat : undefined,
+        customer_lng: (bracketInfo && customerCoords) ? customerCoords.lng : undefined,
         notes: form.notes.trim() || undefined,
         promo_code: appliedPromo?.code || undefined,
         fb_id: messengerPsid || undefined,
@@ -393,6 +418,85 @@ export default function BookingForm({ tenantId }) {
       setSubmitErr(e.response?.data?.error || 'Something went wrong. Please try again.');
     } finally { setSubmitting(false); }
   }
+
+  // Geocode customer address and compute bracket fee
+  useEffect(() => {
+    if (!bracketInfo) return;
+    if (addressMode === 'saved' && savedCustomer?.address) {
+      // use saved address string
+      clearTimeout(geocodeTimer.current);
+      geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address), 600);
+      return;
+    }
+    const { addr_unit, addr_street, addr_barangay, addr_city } = form;
+    if (!addr_street.trim() || !addr_barangay.trim() || !addr_city.trim()) {
+      setCustomerCoords(null); setBracketFee(null); setBracketDistKm(null); setBracketError('');
+      return;
+    }
+    const q = [addr_unit, addr_street, addr_barangay, addr_city].filter(Boolean).join(', ');
+    clearTimeout(geocodeTimer.current);
+    geocodeTimer.current = setTimeout(() => triggerGeocode(q), 800);
+  }, [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city, addressMode, savedCustomer, bracketInfo]);
+
+  async function triggerGeocode(q) {
+    if (!bracketInfo) return;
+    setGeocoding(true); setBracketError('');
+    try {
+      const { data } = await getPublicGeocode(q);
+      if (!data?.lat) { setBracketError('Address not found on map — please enter a more specific address.'); return; }
+      const lat = Number(data.lat), lng = Number(data.lng);
+      setCustomerCoords({ lat, lng });
+      computeBracketFee(lat, lng);
+    } catch { setBracketError('Could not locate address. Please check and try again.'); }
+    finally { setGeocoding(false); }
+  }
+
+  function computeBracketFee(lat, lng) {
+    if (!bracketInfo?.shop_lat) return;
+    const dist = haversineKm(lat, lng, Number(bracketInfo.shop_lat), Number(bracketInfo.shop_lng));
+    setBracketDistKm(dist);
+    const radius = Number(bracketInfo.delivery_radius || 15);
+    if (dist > radius) {
+      setBracketFee(null);
+      setBracketError(`Sorry, your address is ${dist.toFixed(1)} km away — outside our ${radius} km delivery range.`);
+      return;
+    }
+    const brackets = (bracketInfo.brackets || []).sort((a, b) => a.min_km - b.min_km);
+    const bracket = brackets.find(b => dist >= Number(b.min_km) && dist < Number(b.max_km));
+    setBracketFee(bracket ? Number(bracket.fee) : 0);
+    setBracketError('');
+  }
+
+  // Init / update Leaflet map when customerCoords changes
+  useEffect(() => {
+    if (!bracketInfo || !customerCoords || !mapContainerRef.current) return;
+    if (!window.L) return;
+    const { lat, lng } = customerCoords;
+    const shopLat = Number(bracketInfo.shop_lat), shopLng = Number(bracketInfo.shop_lng);
+    if (!leafletMapRef.current) {
+      window.L.Icon.Default.mergeOptions({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+      const map = window.L.map(mapContainerRef.current).setView([lat, lng], 14);
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+      }).addTo(map);
+      window.L.marker([shopLat, shopLng]).addTo(map).bindPopup('📍 Shop').openPopup();
+      const custMarker = window.L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup('📦 Your location');
+      custMarker.on('dragend', () => {
+        const { lat: la, lng: lo } = custMarker.getLatLng();
+        setCustomerCoords({ lat: la, lng: lo });
+        computeBracketFee(la, lo);
+      });
+      leafletMapRef.current = map;
+      leafletCustRef.current = custMarker;
+    } else {
+      leafletCustRef.current?.setLatLng([lat, lng]);
+      leafletMapRef.current.setView([lat, lng], 14);
+    }
+  }, [customerCoords]);
 
   // Auto-close after success only if no payment URL (Messenger mini-app flow)
   useEffect(() => {
@@ -967,27 +1071,60 @@ export default function BookingForm({ tenantId }) {
               )}
             </div>
 
-            <Field label="Pick-up / Delivery Zone" required={false} style={{ marginTop: 16 }}>
-              <select style={INPUT} value={form.delivery_zone_id}
-                onChange={e => setForm(p => ({ ...p, delivery_zone_id: e.target.value }))}>
-                <option value="">{zones.length > 0 ? '— Select your area —' : 'No delivery zones set up'}</option>
-                {zones.map(z => (
-                  <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()} delivery fee</option>
-                ))}
-              </select>
-              {form.delivery_zone_id && selectedZone && (
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ fontSize: 12, color: '#1a7d94', fontWeight: 600 }}>
-                    +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
+            {/* ── Delivery Fee ── */}
+            {bracketInfo ? (
+              <div style={{ marginBottom: 16 }}>
+                <label style={LABEL}>Delivery Fee</label>
+                {geocoding && (
+                  <div style={{ fontSize: 12, color: '#374151', padding: '8px 0' }}>📍 Locating your address…</div>
+                )}
+                {bracketError && !geocoding && (
+                  <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', borderRadius: 7, padding: '8px 12px', marginBottom: 6 }}>
+                    ⚠️ {bracketError}
                   </div>
-                  {selectedZone.custom_note && (
-                    <div style={{ marginTop: 5, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
-                      ℹ️ {selectedZone.custom_note}
+                )}
+                {!bracketError && bracketFee !== null && !geocoding && (
+                  <div style={{ fontSize: 12, color: '#1a7d94', fontWeight: 600, marginBottom: 6 }}>
+                    +₱{bracketFee.toLocaleString()} delivery fee ({bracketDistKm?.toFixed(1)} km from shop)
+                  </div>
+                )}
+                {!geocoding && !customerCoords && !bracketError && (
+                  <div style={{ fontSize: 12, color: '#374151', padding: '4px 0' }}>
+                    Fill in your address above to auto-calculate delivery fee.
+                  </div>
+                )}
+                {customerCoords && (
+                  <div ref={mapContainerRef} style={{ width: '100%', height: 200, borderRadius: 10, border: '1.5px solid #9ED3DC', overflow: 'hidden', marginTop: 6 }} />
+                )}
+                {bracketInfo.delivery_note && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
+                    ℹ️ {bracketInfo.delivery_note}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Field label="Pick-up / Delivery Zone" required={false} style={{ marginTop: 16 }}>
+                <select style={INPUT} value={form.delivery_zone_id}
+                  onChange={e => setForm(p => ({ ...p, delivery_zone_id: e.target.value }))}>
+                  <option value="">{zones.length > 0 ? '— Select your area —' : 'No delivery zones set up'}</option>
+                  {zones.map(z => (
+                    <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()} delivery fee</option>
+                  ))}
+                </select>
+                {form.delivery_zone_id && selectedZone && (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ fontSize: 12, color: '#1a7d94', fontWeight: 600 }}>
+                      +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
                     </div>
-                  )}
-                </div>
-              )}
-            </Field>
+                    {selectedZone.custom_note && (
+                      <div style={{ marginTop: 5, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
+                        ℹ️ {selectedZone.custom_note}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Field>
+            )}
 
             <Field label="Preferred Pickup Date & Time" required>
               {(() => {
@@ -1074,7 +1211,7 @@ export default function BookingForm({ tenantId }) {
               ))}
               {deliveryFee > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 8 }}>
-                  <span style={{ color: '#374151' }}>Delivery — {selectedZone?.name}</span>
+                  <span style={{ color: '#374151' }}>Delivery{!bracketInfo && selectedZone ? ` — ${selectedZone.name}` : bracketDistKm ? ` (${bracketDistKm.toFixed(1)} km)` : ''}</span>
                   <span style={{ fontWeight: 600 }}>₱{deliveryFee.toLocaleString()}</span>
                 </div>
               )}

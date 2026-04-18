@@ -1,8 +1,25 @@
 const router = require('express').Router();
+const axios = require('axios');
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
+const { haversine } = require('./deliveryBrackets');
+
+// Public geocode proxy (Nominatim requires User-Agent set server-side)
+router.get('/geocode', async (req, res) => {
+  const { q } = req.query;
+  if (!q?.trim()) return res.status(400).json({ error: 'query required' });
+  try {
+    const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: { q: q.trim(), format: 'json', limit: 1, countrycodes: 'ph' },
+      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
+      timeout: 8000,
+    });
+    if (!data.length) return res.json(null);
+    res.json({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // GET tenant info (name + logo + store hours for booking form)
 router.get('/:tenantId/info', async (req, res) => {
@@ -92,6 +109,18 @@ router.get('/:tenantId/delivery-zones', async (req, res) => {
       [req.params.tenantId]
     );
     res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET delivery brackets + shop location
+router.get('/:tenantId/delivery-brackets', async (req, res) => {
+  try {
+    const [{ rows: brackets }, { rows: [t] }] = await Promise.all([
+      db.query('SELECT min_km, max_km, fee FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC', [req.params.tenantId]),
+      db.query('SELECT shop_lat, shop_lng, delivery_note, delivery_radius FROM tenants WHERE id=$1 AND active=TRUE', [req.params.tenantId]),
+    ]);
+    if (!t) return res.status(404).json({ error: 'Not found' });
+    res.json({ brackets, shop_lat: t.shop_lat ? Number(t.shop_lat) : null, shop_lng: t.shop_lng ? Number(t.shop_lng) : null, delivery_note: t.delivery_note, delivery_radius: Number(t.delivery_radius) || 15 });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -197,7 +226,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, notes, promo_code, fb_id } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id } = req.body;
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
@@ -212,9 +241,31 @@ router.post('/:tenantId/orders', async (req, res) => {
       cart.map(item => calcItemPrice(req.params.tenantId, item.service_id, item.custom_fields))
     );
 
-    // Delivery zone
+    // Delivery fee — bracket-based (lat/lng) or legacy zone
     let deliveryFee = 0, zoneName = null;
-    if (delivery_zone_id) {
+    if (customer_lat && customer_lng) {
+      const { rows: [shopTenant] } = await db.query(
+        'SELECT shop_lat, shop_lng, delivery_radius FROM tenants WHERE id=$1', [req.params.tenantId]
+      );
+      if (shopTenant?.shop_lat && shopTenant?.shop_lng) {
+        const distKm = haversine(Number(shopTenant.shop_lat), Number(shopTenant.shop_lng), Number(customer_lat), Number(customer_lng));
+        const radius = Number(shopTenant.delivery_radius) || 15;
+        if (distKm > radius) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Sorry, your address is ${distKm.toFixed(1)}km away — outside our ${radius}km delivery area.` });
+        }
+        const { rows: brackets } = await db.query(
+          'SELECT min_km, max_km, fee FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC', [req.params.tenantId]
+        );
+        for (const b of brackets) {
+          if (distKm >= Number(b.min_km) && distKm <= Number(b.max_km)) {
+            deliveryFee = Number(b.fee);
+            zoneName = `${distKm.toFixed(1)}km`;
+            break;
+          }
+        }
+      }
+    } else if (delivery_zone_id) {
       const { rows: [zone] } = await db.query(
         'SELECT * FROM delivery_zones WHERE id=$1 AND tenant_id=$2 AND active=TRUE',
         [delivery_zone_id, req.params.tenantId]

@@ -1,160 +1,246 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
-  getDeliveryZones, createDeliveryZone, updateDeliveryZone, deleteDeliveryZone,
+  getDeliveryBrackets, saveShopLocation, geocodeAddress,
+  createDeliveryBracket, updateDeliveryBracket, deleteDeliveryBracket,
 } from '../api.js';
 
-const EMPTY = { name: '', fee: '', active: true, sort_order: 0, custom_note: '' };
+const DEFAULT_BRACKETS = [
+  { min_km: 0,  max_km: 3,  fee: 60  },
+  { min_km: 3,  max_km: 6,  fee: 100 },
+  { min_km: 6,  max_km: 10, fee: 150 },
+  { min_km: 10, max_km: 15, fee: 200 },
+];
+
+const INP = {
+  padding: '7px 10px', fontSize: 13, borderRadius: 6,
+  border: '0.5px solid #D1D5DB', width: '100%', boxSizing: 'border-box',
+  fontFamily: 'inherit', outline: 'none',
+};
 
 export default function DeliveryZones() {
-  const [zones,   setZones]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(null); // null | 'add' | zone object
-  const [form,    setForm]    = useState(EMPTY);
-  const [saving,  setSaving]  = useState(false);
-  const [err,     setErr]     = useState('');
+  const [brackets, setBrackets]       = useState([]);
+  const [shopAddress, setShopAddress] = useState('');
+  const [shopLat, setShopLat]         = useState(null);
+  const [shopLng, setShopLng]         = useState(null);
+  const [deliveryNote, setDeliveryNote] = useState('');
+  const [deliveryRadius, setDeliveryRadius] = useState(15);
+  const [loading, setLoading]         = useState(true);
+  const [locSaving, setLocSaving]     = useState(false);
+  const [locErr, setLocErr]           = useState('');
+  const [locMsg, setLocMsg]           = useState('');
+  const [geocoding, setGeocoding]     = useState(false);
+  const [bracketSaving, setBracketSaving] = useState(false);
+  const [bracketErr, setBracketErr]   = useState('');
+  const [bracketMsg, setBracketMsg]   = useState('');
+  const [editRows, setEditRows]       = useState([]); // local editable copy
+  const mapRef    = useRef(null);
+  const leafletMapRef  = useRef(null);
+  const shopMarkerRef  = useRef(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { loadAll(); }, []);
 
-  async function load() {
-    try { const r = await getDeliveryZones(); setZones(r.data); }
-    catch {} finally { setLoading(false); }
+  async function loadAll() {
+    try {
+      const r = await getDeliveryBrackets();
+      setBrackets(r.data.brackets || []);
+      setShopAddress(r.data.shop_address || '');
+      setShopLat(r.data.shop_lat || null);
+      setShopLng(r.data.shop_lng || null);
+      setDeliveryNote(r.data.delivery_note || '');
+      setDeliveryRadius(r.data.delivery_radius || 15);
+      setEditRows(r.data.brackets?.length ? r.data.brackets.map(b => ({ ...b })) : DEFAULT_BRACKETS.map(b => ({ ...b })));
+      if (r.data.shop_lat && r.data.shop_lng) initMap(Number(r.data.shop_lat), Number(r.data.shop_lng));
+    } catch {}
+    finally { setLoading(false); }
   }
 
-  function openAdd() { setForm(EMPTY); setErr(''); setModal('add'); }
-  function openEdit(z) { setForm({ name: z.name, fee: z.fee, active: z.active, sort_order: z.sort_order, custom_note: z.custom_note || '' }); setErr(''); setModal(z); }
+  function initMap(lat, lng) {
+    if (!window.L) return;
+    if (!mapRef.current) return;
+    if (leafletMapRef.current) {
+      leafletMapRef.current.setView([lat, lng], 15);
+      shopMarkerRef.current?.setLatLng([lat, lng]);
+      return;
+    }
+    window.L.Icon.Default.mergeOptions({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+    const map = window.L.map(mapRef.current).setView([lat, lng], 15);
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(map);
+    const marker = window.L.marker([lat, lng]).addTo(map).bindPopup('📍 Your Shop').openPopup();
+    leafletMapRef.current = map;
+    shopMarkerRef.current = marker;
+  }
 
-  async function handleSave(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return setErr('Zone name is required');
-    if (form.fee === '' || isNaN(form.fee)) return setErr('Valid delivery fee is required');
-    setSaving(true); setErr('');
+  async function handleGeocode() {
+    if (!shopAddress.trim()) return setLocErr('Please enter the shop address first.');
+    setGeocoding(true); setLocErr('');
     try {
-      const payload = { name: form.name.trim(), fee: parseFloat(form.fee), active: form.active, sort_order: Number(form.sort_order) || 0, custom_note: form.custom_note.trim() || null };
-      if (modal === 'add') {
-        const r = await createDeliveryZone(payload);
-        setZones(prev => [...prev, r.data]);
-      } else {
-        const r = await updateDeliveryZone(modal.id, payload);
-        setZones(prev => prev.map(z => z.id === modal.id ? r.data : z));
+      const { data } = await geocodeAddress(shopAddress.trim());
+      if (!data) return setLocErr('Address not found. Try a more specific address.');
+      setShopLat(data.lat); setShopLng(data.lng);
+      setTimeout(() => initMap(data.lat, data.lng), 100);
+    } catch (e) { setLocErr('Geocoding failed: ' + (e.response?.data?.error || e.message)); }
+    finally { setGeocoding(false); }
+  }
+
+  async function handleSaveLocation() {
+    if (!shopLat || !shopLng) return setLocErr('Please find the shop location on the map first.');
+    setLocSaving(true); setLocErr(''); setLocMsg('');
+    try {
+      await saveShopLocation({ shop_address: shopAddress, shop_lat: shopLat, shop_lng: shopLng, delivery_note: deliveryNote, delivery_radius: deliveryRadius });
+      setLocMsg('Shop location saved!');
+    } catch (e) { setLocErr(e.response?.data?.error || 'Failed to save.'); }
+    finally { setLocSaving(false); }
+  }
+
+  async function handleSaveBrackets() {
+    setBracketSaving(true); setBracketErr(''); setBracketMsg('');
+    try {
+      // Delete all existing brackets then recreate
+      for (const b of brackets) {
+        await deleteDeliveryBracket(b.id);
       }
-      setModal(null);
-    } catch (e) { setErr(e.response?.data?.error || 'Something went wrong'); }
-    finally { setSaving(false); }
+      const created = [];
+      for (let i = 0; i < editRows.length; i++) {
+        const row = editRows[i];
+        const { data } = await createDeliveryBracket({ min_km: Number(row.min_km), max_km: Number(row.max_km), fee: Number(row.fee), sort_order: i });
+        created.push(data);
+      }
+      setBrackets(created);
+      setBracketMsg('Delivery brackets saved!');
+    } catch (e) { setBracketErr(e.response?.data?.error || 'Failed to save brackets.'); }
+    finally { setBracketSaving(false); }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this delivery zone?')) return;
-    try {
-      await deleteDeliveryZone(id);
-      setZones(prev => prev.filter(z => z.id !== id));
-    } catch (e) { alert(e.response?.data?.error || 'Delete failed'); }
-  }
+  if (loading) return <div style={{ padding: '2rem', color: '#374151', fontSize: 13 }}>Loading...</div>;
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 500 }}>Delivery Zones</h2>
-        <button onClick={openAdd} className="btn-primary">+ Add Zone</button>
+      <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Delivery Settings</h2>
+
+      {/* ── Shop Location ── */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Shop Location</div>
+        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Shop Address</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input style={{ ...INP, flex: 1 }} value={shopAddress} onChange={e => setShopAddress(e.target.value)}
+                placeholder="e.g. 123 Rizal Ave, Makati City, Metro Manila"
+                onKeyDown={e => e.key === 'Enter' && handleGeocode()} />
+              <button onClick={handleGeocode} disabled={geocoding}
+                style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: '#38a9c2', color: '#fff', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {geocoding ? 'Finding…' : '📍 Find on Map'}
+              </button>
+            </div>
+          </div>
+
+          {/* Map preview */}
+          {shopLat && shopLng && (
+            <div ref={mapRef} style={{ width: '100%', height: 220, borderRadius: 8, border: '0.5px solid #E2E8F0', marginBottom: 14, overflow: 'hidden' }} />
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Max Delivery Radius (km)</label>
+              <input style={INP} type="number" min="1" max="50" value={deliveryRadius}
+                onChange={e => setDeliveryRadius(e.target.value)} placeholder="15" />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>
+                Coordinates {shopLat && shopLng ? <span style={{ color: '#38a9c2', fontWeight: 400 }}>✓ Set</span> : <span style={{ color: '#374151', fontWeight: 400 }}>Not set yet</span>}
+              </label>
+              <input style={{ ...INP, background: '#F7F7F5', color: '#374151' }} readOnly
+                value={shopLat && shopLng ? `${Number(shopLat).toFixed(5)}, ${Number(shopLng).toFixed(5)}` : 'Use "Find on Map" to set'} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>
+              Delivery Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(shown to customers on booking form)</span>
+            </label>
+            <textarea style={{ ...INP, resize: 'vertical', minHeight: 60 }} value={deliveryNote}
+              onChange={e => setDeliveryNote(e.target.value)}
+              placeholder="e.g. Delivery available Monday to Saturday, 9AM–6PM. Free delivery for orders above ₱500." />
+          </div>
+
+          {locErr && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 6, background: '#FCEBEB', color: '#A32D2D', fontSize: 12 }}>{locErr}</div>}
+          {locMsg && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', fontSize: 12 }}>✓ {locMsg}</div>}
+
+          <button onClick={handleSaveLocation} disabled={locSaving}
+            style={{ padding: '8px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: locSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit', fontWeight: 500 }}>
+            {locSaving ? 'Saving…' : 'Save Shop Location'}
+          </button>
+        </div>
       </div>
 
-      <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ padding: '2rem', color: '#374151', fontSize: 13 }}>Loading...</div>
-        ) : zones.length === 0 ? (
-          <div style={{ padding: '2.5rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>📍</div>
-            <div style={{ fontWeight: 500, marginBottom: 6 }}>No delivery zones yet</div>
-            <div style={{ fontSize: 12, color: '#374151', marginBottom: 16 }}>Add zones with custom delivery fees shown to customers during online booking.</div>
-            <button onClick={openAdd} className="btn-primary">+ Add First Zone</button>
-          </div>
-        ) : (
+      {/* ── Delivery Brackets ── */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Delivery Fee Brackets</div>
+          <button
+            onClick={() => setEditRows(prev => [...prev, { min_km: '', max_km: '', fee: '' }])}
+            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, border: '0.5px solid #38a9c2', background: '#fff', color: '#38a9c2', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+            + Add Row
+          </button>
+        </div>
+        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f5f5f3' }}>
-                {['Zone / Location', 'Delivery Fee', 'Status', ''].map(h => (
+                {['From (km)', 'To (km)', 'Delivery Fee (₱)', ''].map(h => (
                   <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {zones.map(z => (
-                <tr key={z.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
-                  <td style={{ padding: '10px 14px', fontWeight: 500 }}>{z.name}</td>
-                  <td style={{ padding: '10px 14px', color: '#1a7d94', fontWeight: 600 }}>₱{Number(z.fee).toLocaleString()}</td>
-                  <td style={{ padding: '10px 14px' }}>
-                    <span style={{
-                      fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500,
-                      background: z.active ? '#EAF3DE' : '#F0F0EC',
-                      color: z.active ? '#3B6D11' : '#374151',
-                    }}>{z.active ? 'Active' : 'Inactive'}</span>
+              {editRows.map((row, i) => (
+                <tr key={i} style={{ borderTop: '0.5px solid #f0f0ec' }}>
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={{ ...INP, width: 90 }} type="number" min="0" step="0.5" value={row.min_km}
+                      onChange={e => setEditRows(prev => prev.map((r, j) => j === i ? { ...r, min_km: e.target.value } : r))} />
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
-                    <button onClick={() => openEdit(z)}
-                      style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', cursor: 'pointer', marginRight: 6 }}>
-                      Edit
-                    </button>
-                    <button onClick={() => handleDelete(z.id)}
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={{ ...INP, width: 90 }} type="number" min="0" step="0.5" value={row.max_km}
+                      onChange={e => setEditRows(prev => prev.map((r, j) => j === i ? { ...r, max_km: e.target.value } : r))} />
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={{ ...INP, width: 120 }} type="number" min="0" step="1" value={row.fee}
+                      onChange={e => setEditRows(prev => prev.map((r, j) => j === i ? { ...r, fee: e.target.value } : r))} />
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <button onClick={() => setEditRows(prev => prev.filter((_, j) => j !== i))}
                       style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
-                      Delete
+                      Remove
                     </button>
                   </td>
                 </tr>
               ))}
+              {editRows.length === 0 && (
+                <tr><td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No brackets yet — click "+ Add Row"</td></tr>
+              )}
             </tbody>
           </table>
-        )}
-      </div>
 
-      {/* Modal */}
-      {modal && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal-card" style={{ width: 420, padding: '1.75rem' }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20 }}>
-              {modal === 'add' ? '+ Add Delivery Zone' : 'Edit Delivery Zone'}
-            </div>
-            <form onSubmit={handleSave}>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Zone / Location Name *</label>
-                <input className="input-base" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Makati, Quezon City, BGC" required />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Delivery Fee (₱) *</label>
-                <input className="input-base" type="number" min="0" step="0.01" value={form.fee}
-                  onChange={e => setForm(p => ({ ...p, fee: e.target.value }))}
-                  placeholder="e.g. 50" required />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Sort Order</label>
-                <input className="input-base" type="number" min="0" value={form.sort_order}
-                  onChange={e => setForm(p => ({ ...p, sort_order: e.target.value }))}
-                  placeholder="0" />
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Custom Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(shown to customer)</span></label>
-                <textarea className="input-base" rows={3} value={form.custom_note}
-                  onChange={e => setForm(p => ({ ...p, custom_note: e.target.value }))}
-                  placeholder="e.g. Covers Barangays 1–5 only. Delivery is same-day if booked before 2 PM."
-                  style={{ resize: 'vertical', minHeight: 70 }} />
-              </div>
-              <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" id="zone-active" checked={form.active}
-                  onChange={e => setForm(p => ({ ...p, active: e.target.checked }))} style={{ width: 14, height: 14 }} />
-                <label htmlFor="zone-active" style={{ fontSize: 13, cursor: 'pointer' }}>Active (visible to customers)</label>
-              </div>
-              {err && <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 7, background: '#FCEBEB', color: '#A32D2D', fontSize: 12 }}>{err}</div>}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" disabled={saving} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: 9 }}>
-                  {saving ? 'Saving…' : 'Save Zone'}
-                </button>
-                <button type="button" onClick={() => setModal(null)} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: 9 }}>
-                  Cancel
-                </button>
-              </div>
-            </form>
+          <div style={{ padding: '12px 14px', borderTop: '0.5px solid #f0f0ec', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 12 }}>
+            {bracketErr && <span style={{ fontSize: 12, color: '#A32D2D' }}>{bracketErr}</span>}
+            {bracketMsg && <span style={{ fontSize: 12, color: '#3B6D11' }}>✓ {bracketMsg}</span>}
+            <button onClick={handleSaveBrackets} disabled={bracketSaving}
+              style={{ marginLeft: 'auto', padding: '8px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: bracketSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit', fontWeight: 500 }}>
+              {bracketSaving ? 'Saving…' : 'Save Brackets'}
+            </button>
           </div>
         </div>
-      )}
+        <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
+          ℹ️ Fee is based on straight-line distance from your shop to the customer's pin on the map.
+          Orders beyond the max radius are rejected automatically.
+        </div>
+      </div>
     </div>
   );
 }
