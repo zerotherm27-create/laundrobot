@@ -1,9 +1,24 @@
 const router = require('express').Router();
 const axios = require('axios');
 const db = require('../db');
-const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = require('../utils/messenger');
+const messengerUtils = require('../utils/messenger');
+const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = messengerUtils;
+const igUtils = require('../utils/instagram');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
+
+function makeSends(channel, token, igUserId) {
+  if (channel === 'instagram') {
+    return {
+      sendMessage:      (t, r, text)         => igUtils.sendMessage(t, igUserId, r, text),
+      sendButtons:      (t, r, text, btns)   => igUtils.sendButtons(t, igUserId, r, text, btns),
+      sendQuickReplies: (t, r, text, replies) => igUtils.sendQuickReplies(t, igUserId, r, text, replies),
+      sendCatalog:      (t, r, els)          => igUtils.sendCatalog(t, igUserId, r, els),
+      sendTaggedMessage:(t, r, text)         => igUtils.sendMessage(t, igUserId, r, text),
+    };
+  }
+  return { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog };
+}
 
 // ── Webhook verification ────────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -18,6 +33,27 @@ router.post('/', async (req, res) => {
   res.sendStatus(200);
   const { object, entry } = req.body;
   console.log('[webhook] received object:', object, 'entries:', entry?.length);
+
+  // ── Instagram ──
+  if (object === 'instagram') {
+    for (const e of entry) {
+      const igId = e.id;
+      const { rows: [tenant] } = await db.query(
+        'SELECT * FROM tenants WHERE ig_user_id = $1 AND active = TRUE', [igId]
+      );
+      if (!tenant) { console.log('[ig-webhook] no tenant for ig_user_id:', igId); continue; }
+      for (const event of (e.messaging || [])) {
+        if (event.message || event.postback) {
+          console.log('[ig-webhook] msg from:', event.sender.id);
+          try { await handleMessage(tenant, event.sender.id, event, 'instagram'); }
+          catch (err) { console.error('[ig-webhook] error:', err.response?.data || err.message); }
+        }
+      }
+    }
+    return;
+  }
+
+  // ── Messenger ──
   if (object !== 'page') return;
   for (const e of entry) {
     const pageId = e.id;
@@ -31,7 +67,7 @@ router.post('/', async (req, res) => {
         catch (err) { console.error('[webhook] optin error:', err.message); }
       } else if (event.message || event.postback) {
         console.log('[webhook] msg from:', event.sender.id);
-        try { await handleMessage(tenant, event.sender.id, event); }
+        try { await handleMessage(tenant, event.sender.id, event, 'messenger'); }
         catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
       }
     }
@@ -133,21 +169,21 @@ function nextInfoStep(customer) {
 }
 
 // ── Catalog helpers ─────────────────────────────────────────────────────────
-async function showCategoryMenu(token, senderId, tenantId) {
+async function showCategoryMenu(sends, token, senderId, tenantId) {
   const { rows: cats } = await db.query(
     `SELECT * FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`,
     [tenantId]
   );
 
-  if (cats.length === 0) return showServiceCatalog(token, senderId, tenantId, null);
-  if (cats.length === 1) return showServiceCatalog(token, senderId, tenantId, cats[0].id);
+  if (cats.length === 0) return showServiceCatalog(sends, token, senderId, tenantId, null);
+  if (cats.length === 1) return showServiceCatalog(sends, token, senderId, tenantId, cats[0].id);
 
   const replies = cats.map(c => ({ title: c.name, payload: `CAT:${c.id}:${c.name}` }));
   replies.push({ title: '🛍 All Services', payload: 'CAT:ALL:All Services' });
-  await sendQuickReplies(token, senderId, '🧺 What type of laundry service are you looking for?', replies);
+  await sends.sendQuickReplies(token, senderId, '🧺 What type of laundry service are you looking for?', replies);
 }
 
-async function showServiceCatalog(token, senderId, tenantId, categoryId) {
+async function showServiceCatalog(sends, token, senderId, tenantId, categoryId) {
   let query, params;
   if (!categoryId || categoryId === 'ALL') {
     query = `SELECT s.*, c.name AS category_name FROM services s
@@ -165,7 +201,7 @@ async function showServiceCatalog(token, senderId, tenantId, categoryId) {
 
   const { rows: services } = await db.query(query, params);
   if (services.length === 0) {
-    await sendMessage(token, senderId, 'No services available in this category yet. Type "hi" to go back.');
+    await sends.sendMessage(token, senderId, 'No services available in this category yet. Type "hi" to go back.');
     return;
   }
 
@@ -181,14 +217,15 @@ async function showServiceCatalog(token, senderId, tenantId, categoryId) {
     ? `Here are our ${catName} services 👇 Tap "Book This" to order:`
     : `Here are all our services 👇 Tap "Book This" to order:`;
 
-  await sendMessage(token, senderId, intro);
-  await sendCatalog(token, senderId, elements);
+  await sends.sendMessage(token, senderId, intro);
+  await sends.sendCatalog(token, senderId, elements);
 }
 
 // ── Send to Messenger optin handler ─────────────────────────────────────────
 async function handleOptin(tenant, senderId, ref) {
   const token = tenant.fb_page_access_token;
   if (!token) return;
+  const sends = makeSends('messenger', token, null);
 
   // Link this PSID to customer via booking_ref in data-ref
   let customerName = null;
@@ -208,10 +245,10 @@ async function handleOptin(tenant, senderId, ref) {
     }
   }
 
-  await sendMessage(token, senderId,
+  await sends.sendMessage(token, senderId,
     `✅ Hi ${customerName || 'there'}! You're now connected. We'll send your order updates right here in Messenger.`
   );
-  await sendButtons(token, senderId,
+  await sends.sendButtons(token, senderId,
     `🎁 Want to also receive exclusive promos and updates from us? Tap Subscribe!`,
     [
       { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
@@ -221,9 +258,9 @@ async function handleOptin(tenant, senderId, ref) {
 }
 
 // ── Subscribe prompt (shown after natural interactions) ──────────────────────
-async function showSubscribePrompt(token, senderId, customer) {
+async function showSubscribePrompt(sends, token, senderId, customer) {
   if (customer?.promo_subscribed) return;
-  await sendButtons(token, senderId,
+  await sends.sendButtons(token, senderId,
     `🎁 Want to receive our latest promos and updates? Subscribe to stay in the loop!`,
     [
       { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
@@ -233,8 +270,15 @@ async function showSubscribePrompt(token, senderId, customer) {
 }
 
 // ── Main message handler ────────────────────────────────────────────────────
-async function handleMessage(tenant, senderId, event) {
+async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   const token    = tenant.fb_page_access_token;
+  const sends    = makeSends(channel, token, tenant.ig_user_id);
+  // Shadow module-level send imports so all existing call sites below work unchanged
+  const sendMessage      = sends.sendMessage.bind(sends);
+  const sendButtons      = sends.sendButtons.bind(sends);
+  const sendQuickReplies = sends.sendQuickReplies.bind(sends);
+  const sendCatalog      = sends.sendCatalog.bind(sends);
+  const sendTaggedMessage= sends.sendTaggedMessage.bind(sends);
   const text     = event.message?.quick_reply?.payload || event.postback?.payload || event.message?.text || '';
   const lc       = text.toLowerCase().trim();
   const conv     = await getConv(tenant.id, senderId);
@@ -305,14 +349,14 @@ async function handleMessage(tenant, senderId, event) {
       await setState('MENU', {}, {});
     } else {
       await setState('SELECT_CATEGORY', {}, {});
-      await showCategoryMenu(token, senderId, tenant.id);
+      await showCategoryMenu(sends, token, senderId, tenant.id);
     }
     return;
   }
 
   if (lc === 'services' || text === 'SERVICES') {
     await setState('SELECT_CATEGORY', {}, {});
-    await showCategoryMenu(token, senderId, tenant.id);
+    await showCategoryMenu(sends, token, senderId, tenant.id);
     return;
   }
 
@@ -344,7 +388,7 @@ async function handleMessage(tenant, senderId, event) {
       { title: '❓ More FAQs', payload: 'FAQS' },
       { title: '🏠 Main Menu', payload: 'MAIN_MENU' },
     ]);
-    await showSubscribePrompt(token, senderId, customer);
+    await showSubscribePrompt(sends, token, senderId, customer);
     return;
   }
 
@@ -375,7 +419,7 @@ async function handleMessage(tenant, senderId, event) {
       ).join('\n\n');
       await sendMessage(token, senderId, `Your recent orders:\n\n${list}\n\nType "book" to place a new order.`);
     }
-    await showSubscribePrompt(token, senderId, customer);
+    await showSubscribePrompt(sends, token, senderId, customer);
     return;
   }
 
@@ -384,7 +428,7 @@ async function handleMessage(tenant, senderId, event) {
     const parts = text.split(':');
     const catId = parts[1];
     await setState('SELECT_SERVICE', {}, {});
-    await showServiceCatalog(token, senderId, tenant.id, catId === 'ALL' ? null : catId);
+    await showServiceCatalog(sends, token, senderId, tenant.id, catId === 'ALL' ? null : catId);
     return;
   }
 
@@ -611,7 +655,7 @@ async function handleMessage(tenant, senderId, event) {
       confirmButtons
     );
     await setState('DONE', {}, {});
-    await showSubscribePrompt(token, senderId, customer);
+    await showSubscribePrompt(sends, token, senderId, customer);
     return;
   }
 

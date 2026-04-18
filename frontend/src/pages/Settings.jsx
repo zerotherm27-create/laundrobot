@@ -40,6 +40,7 @@ export default function Settings() {
   const [minimumOrder,   setMinimumOrder]   = useState('');
   const [aiEnabled,      setAiEnabled]      = useState(false);
   const [aiInstructions, setAiInstructions] = useState('');
+  const [igUserId,       setIgUserId]       = useState('');
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
@@ -74,6 +75,7 @@ export default function Settings() {
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
       setAiEnabled(!!s.data.ai_enabled);
       setAiInstructions(s.data.ai_instructions || '');
+      setIgUserId(s.data.ig_user_id || '');
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
@@ -96,6 +98,7 @@ export default function Settings() {
         booking_cutoff: bookingCutoff || null,
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
+        ig_user_id: igUserId,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -198,6 +201,19 @@ export default function Settings() {
                   Requires <strong>GEMINI_API_KEY</strong> env var on your server. Free tier: 1,500 requests/day.
                 </div>
               )}
+            </SectionCard>
+
+            {/* Instagram Messaging */}
+            <SectionCard icon="📸" iconBg="#FCE7F3" title="Instagram Messaging"
+              subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
+              <label style={LABEL}>Instagram Business User ID</label>
+              <input value={igUserId} onChange={e => setIgUserId(e.target.value)}
+                placeholder="e.g. 17841400000000000"
+                style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
+                Found in Meta Business Suite → Settings → Instagram Account → Account ID.
+                Leave blank to keep Instagram messaging disabled.
+              </div>
             </SectionCard>
 
             {/* Customer Contact Number */}
