@@ -340,8 +340,6 @@ export default function Orders() {
                     {[
                       ['Address', selected.address || selected.customer_address || '—'],
                       ['Service', selected.service_name],
-                      ['Weight', selected.weight ? selected.weight + ' kg' : '—'],
-                      ['Amount', '₱' + Number(selected.price).toLocaleString()],
                       ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
                       ['Notes', selected.notes || '—'],
                       ['Via Messenger', selected.fb_id ? '✓ Yes' : '✗ Web booking'],
@@ -351,6 +349,31 @@ export default function Orders() {
                         <span style={{ fontWeight: 500, textAlign: 'right' }}>{v}</span>
                       </div>
                     ))}
+
+                    {/* Customer selections breakdown */}
+                    {selected.custom_selections?.length > 0 && (
+                      <div style={{ borderTop: '0.5px solid #f0f0ec', paddingTop: 8, marginTop: 2 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Order Details</div>
+                        {selected.custom_selections.map((sel, i) => {
+                          if (!sel.value && sel.value !== 0) return null;
+                          const displayVal = typeof sel.value === 'number' || !isNaN(Number(sel.value))
+                            ? sel.value
+                            : sel.value;
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                              <span style={{ color: '#6B7280' }}>{sel.label}</span>
+                              <span style={{ fontWeight: 500, color: '#111827' }}>{displayVal}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Amount — shown after breakdown */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
+                      <span style={{ color: '#374151', flexShrink: 0 }}>Amount</span>
+                      <span style={{ fontWeight: 700, color: '#111827', fontSize: 14 }}>₱{Number(selected.price).toLocaleString()}</span>
+                    </div>
 
                     {selected.xendit_invoice_url && (
                       <a href={selected.xendit_invoice_url} target="_blank" rel="noreferrer"
