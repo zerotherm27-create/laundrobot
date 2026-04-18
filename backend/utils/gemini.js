@@ -6,15 +6,16 @@ const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemi
 async function buildShopContext(tenantId) {
   const [
     { rows: [tenant] },
-
     { rows: services },
     { rows: faqs },
     { rows: zones },
+    { rows: brackets },
   ] = await Promise.all([
-    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions FROM tenants WHERE id=$1`, [tenantId]),
+    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note FROM tenants WHERE id=$1`, [tenantId]),
     db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
+    db.query(`SELECT min_km, max_km, fee FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC`, [tenantId]),
   ]);
 
   const serviceIds = services.map(s => s.id);
@@ -52,9 +53,16 @@ async function buildShopContext(tenantId) {
 
   const faqList = faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n');
 
-  const zoneList = zones.length
-    ? zones.map(z => `- ${z.name}: ₱${Number(z.fee).toLocaleString()} delivery fee`).join('\n')
-    : 'No delivery zones set up yet.';
+  let deliveryInfo;
+  if (brackets.length) {
+    const radius = tenant.delivery_radius ? `${tenant.delivery_radius} km` : null;
+    const bracketLines = brackets.map(b => `- ${b.min_km}–${b.max_km} km: ₱${Number(b.fee).toLocaleString()}`).join('\n');
+    deliveryInfo = `Fee is based on straight-line distance from the shop to the customer's address.\n${bracketLines}${radius ? `\nMaximum delivery radius: ${radius}` : ''}${tenant.delivery_note ? `\nNote: ${tenant.delivery_note}` : ''}`;
+  } else if (zones.length) {
+    deliveryInfo = zones.map(z => `- ${z.name}: ₱${Number(z.fee).toLocaleString()} delivery fee`).join('\n');
+  } else {
+    deliveryInfo = 'No delivery zones set up yet.';
+  }
 
   const hours = (tenant.store_open && tenant.store_close)
     ? `${tenant.store_open} – ${tenant.store_close}`
@@ -76,8 +84,8 @@ ${tenant.contact_number ? `Contact: ${tenant.contact_number}` : ''}
 SERVICES:
 ${serviceList || 'No services listed yet.'}
 
-DELIVERY ZONES:
-${zoneList}
+DELIVERY:
+${deliveryInfo}
 
 ${faqs.length ? `FAQs:\n${faqList}` : ''}
 
