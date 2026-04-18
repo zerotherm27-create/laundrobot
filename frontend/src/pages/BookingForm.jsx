@@ -388,8 +388,16 @@ export default function BookingForm({ tenantId }) {
       ? (form.pickup_date && form.pickup_time)
       : !!form.pickup_date;
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !hasDateTime) return false;
-    if (addressMode === 'saved') return !!savedCustomer?.address;
-    return form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim();
+    const hasAddress = addressMode === 'saved'
+      ? !!savedCustomer?.address
+      : !!(form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim());
+    if (!hasAddress) return false;
+    if (bracketInfo) {
+      if (geocoding) return false;
+      if (bracketError) return false;
+      if (bracketFee === null) return false;
+    }
+    return true;
   }
 
   async function handleSubmit() {
@@ -462,7 +470,7 @@ export default function BookingForm({ tenantId }) {
       return;
     }
     const brackets = (bracketInfo.brackets || []).sort((a, b) => a.min_km - b.min_km);
-    const bracket = brackets.find(b => dist >= Number(b.min_km) && dist < Number(b.max_km));
+    const bracket = brackets.find(b => dist >= Number(b.min_km) && dist <= Number(b.max_km));
     setBracketFee(bracket ? Number(bracket.fee) : 0);
     setBracketError('');
   }
@@ -496,7 +504,20 @@ export default function BookingForm({ tenantId }) {
       leafletCustRef.current?.setLatLng([lat, lng]);
       leafletMapRef.current.setView([lat, lng], 14);
     }
+    return () => {};
   }, [customerCoords]);
+
+  // Cleanup Leaflet on unmount
+  useEffect(() => {
+    return () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+        leafletCustRef.current = null;
+      }
+      clearTimeout(geocodeTimer.current);
+    };
+  }, []);
 
   // Auto-close after success only if no payment URL (Messenger mini-app flow)
   useEffect(() => {
