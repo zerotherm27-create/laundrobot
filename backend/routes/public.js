@@ -6,7 +6,7 @@ const { sendNewOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 const { haversine } = require('./deliveryBrackets');
 
-// Public geocode proxy (Nominatim requires User-Agent set server-side)
+// Public geocode proxy — single result (kept for saved-address geocoding)
 router.get('/geocode', async (req, res) => {
   const { q } = req.query;
   if (!q?.trim()) return res.status(400).json({ error: 'query required' });
@@ -18,6 +18,30 @@ router.get('/geocode', async (req, res) => {
     });
     if (!data.length) return res.json(null);
     res.json({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Address autocomplete — returns up to 5 suggestions with coords
+router.get('/geocode/suggest', async (req, res) => {
+  const { q } = req.query;
+  if (!q?.trim() || q.trim().length < 3) return res.json([]);
+  try {
+    const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: { q: q.trim(), format: 'json', limit: 5, countrycodes: 'ph', addressdetails: 1 },
+      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
+      timeout: 8000,
+    });
+    res.json(data.map(r => {
+      // Build a short label: first 3 comma-parts of display_name
+      const parts = r.display_name.split(',').map(s => s.trim());
+      const label = parts.slice(0, 3).join(', ');
+      return {
+        lat: parseFloat(r.lat),
+        lng: parseFloat(r.lon),
+        label,
+        full: r.display_name,
+      };
+    }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

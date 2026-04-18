@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   getPublicTenantInfo, getPublicCategories, getPublicServices,
   getPublicDeliveryZones, getPublicDeliveryBrackets, getPublicGeocode,
+  getPublicAddressSuggest,
   getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
 } from '../api.js';
 
@@ -117,6 +118,7 @@ export default function BookingForm({ tenantId }) {
   const leafletMapRef   = useRef(null);
   const leafletCustRef  = useRef(null); // customer marker
   const geocodeTimer    = useRef(null);
+  const suggestTimer    = useRef(null);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
 
@@ -128,8 +130,13 @@ export default function BookingForm({ tenantId }) {
   const [addonQty, setAddonQty]         = useState({});
   const [addonOwn, setAddonOwn]         = useState({}); // { [fieldId]: true } when "I'll provide my own"
 
+  // Address autocomplete state
+  const [addrSuggestions, setAddrSuggestions]   = useState([]);
+  const [addrSuggestLoading, setAddrSuggestLoading] = useState(false);
+  const [addrLocked, setAddrLocked]             = useState(false); // true once a suggestion is selected
+
   // Step 2 state
-  const [form, setForm] = useState({ name: '', phone: '', email: '', addr_unit: '', addr_street: '', addr_barangay: '', addr_city: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', addr_text: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
   const [savedCustomer, setSavedCustomer] = useState(null);   // repeat customer data
   const [addressMode, setAddressMode]     = useState('new');  // 'saved' | 'new'
   const [lookingUp, setLookingUp]         = useState(false);
@@ -380,7 +387,7 @@ export default function BookingForm({ tenantId }) {
 
   const fullAddress = addressMode === 'saved' && savedCustomer?.address
     ? savedCustomer.address
-    : [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city].filter(Boolean).join(', ');
+    : form.addr_text;
 
   function step2Valid() {
     if (!cart.length) return false;
@@ -390,7 +397,7 @@ export default function BookingForm({ tenantId }) {
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !hasDateTime) return false;
     const hasAddress = addressMode === 'saved'
       ? !!savedCustomer?.address
-      : !!(form.addr_unit.trim() && form.addr_street.trim() && form.addr_barangay.trim() && form.addr_city.trim());
+      : !!(addrLocked && form.addr_text.trim());
     if (!hasAddress) return false;
     if (bracketInfo) {
       if (geocoding) return false;
@@ -427,24 +434,37 @@ export default function BookingForm({ tenantId }) {
     } finally { setSubmitting(false); }
   }
 
-  // Geocode customer address and compute bracket fee
+  // Geocode saved address when bracket system is active
+  // (New addresses use autocomplete — coords set directly on suggestion select)
   useEffect(() => {
     if (!bracketInfo) return;
     if (addressMode === 'saved' && savedCustomer?.address) {
-      // use saved address string
       clearTimeout(geocodeTimer.current);
       geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address), 600);
-      return;
-    }
-    const { addr_unit, addr_street, addr_barangay, addr_city } = form;
-    if (!addr_street.trim() || !addr_barangay.trim() || !addr_city.trim()) {
+    } else if (addressMode === 'new') {
+      // Reset when switching to new address mode
       setCustomerCoords(null); setBracketFee(null); setBracketDistKm(null); setBracketError('');
-      return;
     }
-    const q = [addr_unit, addr_street, addr_barangay, addr_city].filter(Boolean).join(', ');
-    clearTimeout(geocodeTimer.current);
-    geocodeTimer.current = setTimeout(() => triggerGeocode(q), 800);
-  }, [form.addr_unit, form.addr_street, form.addr_barangay, form.addr_city, addressMode, savedCustomer, bracketInfo]);
+  }, [addressMode, savedCustomer, bracketInfo]);
+
+  function clearAddrSelection() {
+    setAddrLocked(false);
+    setForm(p => ({ ...p, addr_text: '' }));
+    setCustomerCoords(null);
+    setBracketFee(null);
+    setBracketDistKm(null);
+    setBracketError('');
+    setAddrSuggestions([]);
+  }
+
+  async function fetchSuggestions(q) {
+    setAddrSuggestLoading(true);
+    try {
+      const { data } = await getPublicAddressSuggest(q);
+      setAddrSuggestions(data || []);
+    } catch { setAddrSuggestions([]); }
+    finally { setAddrSuggestLoading(false); }
+  }
 
   async function triggerGeocode(q) {
     if (!bracketInfo) return;
@@ -516,6 +536,7 @@ export default function BookingForm({ tenantId }) {
         leafletCustRef.current = null;
       }
       clearTimeout(geocodeTimer.current);
+      clearTimeout(suggestTimer.current);
     };
   }, []);
 
@@ -1078,35 +1099,77 @@ export default function BookingForm({ tenantId }) {
                 </div>
               )}
 
-              {/* New address fields — shown when no saved customer OR user chose "Enter new" */}
+              {/* New address — autocomplete search */}
               {addressMode === 'new' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <input style={INPUT} value={form.addr_unit} required
-                    onChange={e => setForm(p => ({ ...p, addr_unit: e.target.value }))}
-                    placeholder="Building Name / Condo / Hotel / House No. *"
-                    onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  <input style={INPUT} value={form.addr_street} required
-                    onChange={e => setForm(p => ({ ...p, addr_street: e.target.value }))}
-                    placeholder="Street Name *"
-                    onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                  />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <input style={INPUT} value={form.addr_barangay} required
-                      onChange={e => setForm(p => ({ ...p, addr_barangay: e.target.value }))}
-                      placeholder="Barangay *"
-                      onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                      onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                    />
-                    <input style={INPUT} value={form.addr_city} required
-                      onChange={e => setForm(p => ({ ...p, addr_city: e.target.value }))}
-                      placeholder="City *"
-                      onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                      onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </div>
+                <div style={{ position: 'relative' }}>
+                  {addrLocked ? (
+                    /* Confirmed selection */
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#E6F5F8', borderRadius: 8, border: '1.5px solid #38a9c2' }}>
+                      <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>📍</span>
+                      <span style={{ flex: 1, fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{form.addr_text}</span>
+                      <button type="button" onClick={clearAddrSelection}
+                        style={{ flexShrink: 0, fontSize: 11, padding: '3px 9px', borderRadius: 5, border: '1px solid #38a9c2', background: '#fff', color: '#1a7d94', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                        Change
+                      </button>
+                    </div>
+                  ) : (
+                    /* Search input */
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        style={{ ...INPUT, paddingRight: 38 }}
+                        value={form.addr_text}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setForm(p => ({ ...p, addr_text: val }));
+                          setAddrLocked(false);
+                          setCustomerCoords(null); setBracketFee(null); setBracketDistKm(null); setBracketError('');
+                          clearTimeout(suggestTimer.current);
+                          if (val.trim().length >= 3) {
+                            suggestTimer.current = setTimeout(() => fetchSuggestions(val), 450);
+                          } else {
+                            setAddrSuggestions([]);
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setAddrSuggestions([]), 200)}
+                        placeholder="Type your address to search… (e.g. 123 Rizal St, Barangay X)"
+                        autoComplete="off"
+                        onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
+                      />
+                      <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>
+                        {addrSuggestLoading ? '⏳' : '🔍'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Suggestions dropdown */}
+                  {addrSuggestions.length > 0 && !addrLocked && (
+                    <div style={{ position: 'absolute', zIndex: 50, top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1.5px solid #9ED3DC', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.14)', overflow: 'hidden' }}>
+                      {addrSuggestions.map((s, i) => (
+                        <button key={i} type="button"
+                          onMouseDown={() => {
+                            setForm(p => ({ ...p, addr_text: s.full }));
+                            setAddrLocked(true);
+                            setAddrSuggestions([]);
+                            setCustomerCoords({ lat: s.lat, lng: s.lng });
+                            computeBracketFee(s.lat, s.lng);
+                          }}
+                          style={{ display: 'block', width: '100%', padding: '10px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: i < addrSuggestions.length - 1 ? '0.5px solid #EEF0F4' : 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#F0F7FF'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{s.label}</div>
+                          <div style={{ fontSize: 11, color: '#374151', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.full}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No results hint */}
+                  {!addrSuggestLoading && form.addr_text.trim().length >= 3 && addrSuggestions.length === 0 && !addrLocked && (
+                    <div style={{ fontSize: 11, color: '#374151', marginTop: 6, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
+                      💡 No results yet — try adding barangay or city name (e.g. "123 Rizal St, Makati")
+                    </div>
+                  )}
                 </div>
               )}
             </div>
