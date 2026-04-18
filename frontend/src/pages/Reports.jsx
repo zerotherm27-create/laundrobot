@@ -97,7 +97,7 @@ export default function Reports() {
       {loading ? <div style={{ color: '#374151', fontSize: 14 }}>Loading...</div> : (
         <>
           {/* Summary cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
+          <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
             {[
               { label: 'Total Revenue', val: '₱' + revenue.toLocaleString(), color: '#38a9c2' },
               { label: 'Total Orders', val: totalOrders, color: '#7F77DD' },
@@ -111,7 +111,7 @@ export default function Reports() {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             {/* Revenue chart */}
             <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Revenue over time</div>
@@ -149,7 +149,7 @@ export default function Reports() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* Top services */}
             <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Top services</div>

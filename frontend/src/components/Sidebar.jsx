@@ -16,7 +16,7 @@ const NAV = [
   { key: 'Settings',  icon: '⚙️', label: 'Settings' },
 ];
 
-export default function Sidebar({ current, onNav, role }) {
+export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
   const [pwOpen,  setPwOpen]  = useState(false);
   const [form,    setForm]    = useState({ current: '', newPw: '', confirm: '' });
@@ -47,13 +47,16 @@ export default function Sidebar({ current, onNav, role }) {
 
   return (
     <>
-      <aside style={{
+      {/* Mobile backdrop */}
+      <div className={`sidebar-mobile-overlay${open ? ' open' : ''}`} onClick={onClose} />
+
+      <aside className={`sidebar-drawer${open ? ' open' : ''}`} style={{
         width: 230, minHeight: '100vh', background: '#fff',
         borderRight: '0.5px solid #E8E8E0', display: 'flex',
         flexDirection: 'column', flexShrink: 0,
         position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
       }}>
-        {/* ── Logo ── */}
+        {/* ── Logo + mobile close button ── */}
         <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '0.5px solid #F0F0EC' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img src="/logo.png" alt="LaundroBot" style={{
@@ -62,12 +65,17 @@ export default function Sidebar({ current, onNav, role }) {
               flexShrink: 0,
               background: '#fff',
             }} />
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', letterSpacing: '-.2px' }}>LaundroBot</div>
               <div style={{ fontSize: 11, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
                 {user?.tenant_name || 'Super Admin'}
               </div>
             </div>
+            {/* Close button — only visible on mobile (CSS hides on desktop) */}
+            <button className="hamburger-btn" onClick={onClose} aria-label="Close menu"
+              style={{ fontSize: 18, color: '#6B7280', padding: 4 }}>
+              ✕
+            </button>
           </div>
         </div>
 

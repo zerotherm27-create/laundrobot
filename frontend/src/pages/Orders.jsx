@@ -225,7 +225,7 @@ export default function Orders() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <div className="page-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500, margin: 0 }}>Orders</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setView('active'); setSelected(null); }}
@@ -244,7 +244,7 @@ export default function Orders() {
       {/* ── ACTIVE VIEW ── */}
       {view === 'active' && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="filter-row" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search name, order ID, booking ref…"
               style={{ ...INPUT_S, width: 230 }} />
@@ -282,12 +282,13 @@ export default function Orders() {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 16 }}>
+          <div className="orders-grid" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 16 }}>
             {/* Table */}
             <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
               {loading ? (
                 <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div>
               ) : (
+                <div className="table-scroll">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: '#f5f5f3' }}>
@@ -338,6 +339,7 @@ export default function Orders() {
                     )}
                   </tbody>
                 </table>
+                </div> {/* end table-scroll */}
               )}
             </div>
 

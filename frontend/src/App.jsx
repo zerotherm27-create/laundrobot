@@ -40,6 +40,7 @@ const PAGE_TITLES = {
 function Dashboard() {
   const { user } = useAuth();
   const [page, setPage] = useState('Kanban');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const Page = PAGES[page] || Overview;
 
   // Update page title on navigation
@@ -48,15 +49,32 @@ function Dashboard() {
     document.title = `${title} — LaundroBot`;
   }, [page]);
 
+  function navigate(p) {
+    setPage(p);
+    setSidebarOpen(false); // close drawer on mobile after nav
+  }
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5' }}>
-      <Sidebar current={page} onNav={setPage} role={user.role} />
-      <main style={{
-        flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
-        maxWidth: 'calc(100vw - 230px)',
-      }}>
-        <Page />
-      </main>
+    <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
+      {/* ── Mobile top bar ── */}
+      <div className="mobile-topbar">
+        <button className="hamburger-btn" onClick={() => setSidebarOpen(o => !o)} aria-label="Open menu">
+          ☰
+        </button>
+        <span className="mobile-topbar-title">{PAGE_TITLES[page] || page}</span>
+        <img src="/logo.png" alt="LaundroBot" style={{ width: 28, height: 28, borderRadius: 5, objectFit: 'contain' }} />
+      </div>
+
+      {/* ── Main row (sidebar + content) ── */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <Sidebar current={page} onNav={navigate} role={user.role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="dashboard-main" style={{
+          flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
+          maxWidth: 'calc(100vw - 230px)',
+        }}>
+          <Page />
+        </main>
+      </div>
     </div>
   );
 }

@@ -97,7 +97,8 @@ export default function Kanban() {
         <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>Drag cards or use arrows to move orders. Click any card to view full details.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, alignItems: 'start' }}>
+      <div className="kanban-wrapper">
+      <div className="kanban-board" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, alignItems: 'start' }}>
         {STATUSES.map(status => {
           const col = groupByBookingRef(orders.filter(o => o.status === status));
           const isDragTarget = dragOver === status;
@@ -245,6 +246,7 @@ export default function Kanban() {
           );
         })}
       </div>
+      </div> {/* end kanban-wrapper */}
 
       {/* ── Order Detail Modal ── */}
       {modalOrder && (
