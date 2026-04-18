@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   getPublicTenantInfo, getPublicCategories, getPublicServices,
   getPublicDeliveryZones, getPublicDeliveryBrackets, getPublicGeocode,
-  getPublicAddressSuggest,
+  getPublicAddressSuggest, getPublicReverseGeocode,
   getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
 } from '../api.js';
 
@@ -134,6 +134,8 @@ export default function BookingForm({ tenantId }) {
   const [addrSuggestions, setAddrSuggestions]   = useState([]);
   const [addrSuggestLoading, setAddrSuggestLoading] = useState(false);
   const [addrLocked, setAddrLocked]             = useState(false); // true once a suggestion is selected
+  const [geolocating, setGeolocating]           = useState(false);
+  const [geoError, setGeoError]                 = useState('');
 
   // Step 2 state
   const [form, setForm] = useState({ name: '', phone: '', email: '', addr_text: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
@@ -455,6 +457,43 @@ export default function BookingForm({ tenantId }) {
     setBracketDistKm(null);
     setBracketError('');
     setAddrSuggestions([]);
+    setGeoError('');
+  }
+
+  function useCurrentLocation() {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGeolocating(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const { latitude: lat, longitude: lng } = coords;
+        try {
+          const { data } = await getPublicReverseGeocode(lat, lng);
+          if (!data?.address) {
+            setGeoError('Could not find your address. Try searching manually.');
+            setGeolocating(false);
+            return;
+          }
+          setForm(p => ({ ...p, addr_text: data.address }));
+          setAddrLocked(true);
+          setAddrSuggestions([]);
+          setCustomerCoords({ lat, lng });
+          computeBracketFee(lat, lng);
+        } catch {
+          setGeoError('Could not look up your address. Try searching manually.');
+        }
+        setGeolocating(false);
+      },
+      (err) => {
+        setGeolocating(false);
+        if (err.code === 1) setGeoError('Location access denied. Please allow location in your browser settings.');
+        else setGeoError('Could not get your location. Try searching manually.');
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
   }
 
   async function fetchSuggestions(q) {
@@ -1102,6 +1141,18 @@ export default function BookingForm({ tenantId }) {
               {/* New address — autocomplete search */}
               {addressMode === 'new' && (
                 <div style={{ position: 'relative' }}>
+                  {/* Use current location button */}
+                  {!addrLocked && (
+                    <button type="button" onClick={useCurrentLocation} disabled={geolocating}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '7px 12px', borderRadius: 8, border: '1.5px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', fontSize: 12, fontWeight: 600, cursor: geolocating ? 'default' : 'pointer', fontFamily: 'inherit', opacity: geolocating ? 0.7 : 1 }}>
+                      {geolocating ? '📡 Getting location…' : '📡 Use my current location'}
+                    </button>
+                  )}
+                  {geoError && (
+                    <div style={{ fontSize: 11, color: '#A32D2D', background: '#FCEBEB', borderRadius: 6, padding: '6px 10px', marginBottom: 8 }}>
+                      ⚠️ {geoError}
+                    </div>
+                  )}
                   {addrLocked ? (
                     /* Confirmed selection */
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#E6F5F8', borderRadius: 8, border: '1.5px solid #38a9c2' }}>
