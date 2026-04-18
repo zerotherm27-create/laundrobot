@@ -532,7 +532,11 @@ export default function BookingForm({ tenantId }) {
     if (step !== 'success') return;
     const appId = import.meta.env.VITE_FB_APP_ID;
     if (!appId || !tenant?.fb_page_id) return;
-    window.fbAsyncInit = () => window.FB?.init({ appId, xfbml: true, version: 'v19.0' });
+    const parse = () => { try { window.FB?.XFBML?.parse(); } catch (_) {} };
+    window.fbAsyncInit = () => {
+      window.FB?.init({ appId, xfbml: true, version: 'v19.0' });
+      setTimeout(parse, 300);
+    };
     if (!document.getElementById('facebook-jssdk')) {
       const s = document.createElement('script');
       s.id = 'facebook-jssdk';
@@ -540,7 +544,7 @@ export default function BookingForm({ tenantId }) {
       s.async = true; s.defer = true;
       document.body.appendChild(s);
     } else if (window.FB) {
-      window.FB.XFBML.parse();
+      setTimeout(parse, 100);
     }
   }, [step, tenant]);
 
