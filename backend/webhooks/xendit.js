@@ -67,10 +67,10 @@ router.post('/', async (req, res) => {
               `✅ Payment Received!\n\n` +
               `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
               `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
-              `We'll check your order for confirmation.\n\n`;
-            if (tenant.contact_number) {
-              msg += `📞 Questions? SMS or call us at ${tenant.contact_number}`;
-            }
+              `We'll check your order for confirmation.\n\n` +
+              `For concerns, reach out to us using the following contact details:\n` +
+              `📧 Email: washup@thelaundryproject.ph\n` +
+              (tenant.contact_number ? `📱 Contact: ${tenant.contact_number} (WhatsApp & Viber)` : '');
             sendMessage(tenant.fb_page_access_token, first.fb_id, msg).catch(e => {
               console.warn('[xendit webhook] messenger notify failed:', e.response?.data?.error?.message || e.message);
             });
