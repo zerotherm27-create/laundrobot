@@ -134,6 +134,7 @@ export default function BookingForm({ tenantId }) {
   const [addrSuggestions, setAddrSuggestions]   = useState([]);
   const [addrSuggestLoading, setAddrSuggestLoading] = useState(false);
   const [addrLocked, setAddrLocked]             = useState(false); // true once a suggestion is selected
+  const [selfPickup, setSelfPickup]             = useState(false); // customer drops off & picks up themselves
 
   // Step 2 state
   const [form, setForm] = useState({ name: '', phone: '', email: '', addr_text: '', pickup_date: '', pickup_time: '', delivery_zone_id: '', notes: '' });
@@ -297,8 +298,8 @@ export default function BookingForm({ tenantId }) {
   const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
 
   const selectedZone = zones.find(z => z.id === Number(form.delivery_zone_id)) || null;
-  const deliveryFee = bracketInfo
-    ? (bracketFee !== null ? bracketFee : 0)
+  const deliveryFee = selfPickup ? 0
+    : bracketInfo ? (bracketFee !== null ? bracketFee : 0)
     : (selectedZone ? Number(selectedZone.fee) : 0);
   const total = subtotal + addonTotal + deliveryFee;
 
@@ -395,14 +396,16 @@ export default function BookingForm({ tenantId }) {
       ? (form.pickup_date && form.pickup_time)
       : !!form.pickup_date;
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !hasDateTime) return false;
-    const hasAddress = addressMode === 'saved'
-      ? !!savedCustomer?.address
-      : !!(addrLocked && form.addr_text.trim());
-    if (!hasAddress) return false;
-    if (bracketInfo) {
-      if (geocoding) return false;
-      if (bracketError) return false;
-      if (bracketFee === null) return false;
+    if (!selfPickup) {
+      const hasAddress = addressMode === 'saved'
+        ? !!savedCustomer?.address
+        : !!(addrLocked && form.addr_text.trim());
+      if (!hasAddress) return false;
+      if (bracketInfo) {
+        if (geocoding) return false;
+        if (bracketError) return false;
+        if (bracketFee === null) return false;
+      }
     }
     return true;
   }
@@ -413,17 +416,19 @@ export default function BookingForm({ tenantId }) {
       const pickupDatetime = form.pickup_time
         ? `${form.pickup_date}T${form.pickup_time}:00`
         : form.pickup_date;
+      const selfPickupNote = selfPickup ? '[Self drop-off & pick-up]' : '';
+      const combinedNotes = [selfPickupNote, form.notes.trim()].filter(Boolean).join(' ');
       const { data } = await createPublicOrder(tenantId, {
         cart: cart.map(item => ({ service_id: item.service_id, custom_fields: item.custom_fields })),
         name: form.name.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
-        address: fullAddress,
+        address: selfPickup ? 'Self drop-off & pick-up' : fullAddress,
         pickup_date: pickupDatetime,
-        delivery_zone_id: (!bracketInfo && form.delivery_zone_id) ? Number(form.delivery_zone_id) : undefined,
-        customer_lat: (bracketInfo && customerCoords) ? customerCoords.lat : undefined,
-        customer_lng: (bracketInfo && customerCoords) ? customerCoords.lng : undefined,
-        notes: form.notes.trim() || undefined,
+        delivery_zone_id: (!selfPickup && !bracketInfo && form.delivery_zone_id) ? Number(form.delivery_zone_id) : undefined,
+        customer_lat: (!selfPickup && bracketInfo && customerCoords) ? customerCoords.lat : undefined,
+        customer_lng: (!selfPickup && bracketInfo && customerCoords) ? customerCoords.lng : undefined,
+        notes: combinedNotes || undefined,
         promo_code: appliedPromo?.code || undefined,
         fb_id: messengerPsid || undefined,
       });
@@ -1063,6 +1068,26 @@ export default function BookingForm({ tenantId }) {
               />
             </Field>
 
+            {/* ── Delivery mode toggle ── */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ ...LABEL, marginBottom: 8 }}>How would you like your laundry handled? <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span></label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button type="button" onClick={() => setSelfPickup(false)}
+                  style={{ padding: '12px 10px', borderRadius: 10, border: `2px solid ${!selfPickup ? '#38a9c2' : '#E2E8F0'}`, background: !selfPickup ? '#E6F5F8' : '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all .15s' }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🚚</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: !selfPickup ? '#1a7d94' : '#374151' }}>Pick-up & Delivery</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>We'll come to you</div>
+                </button>
+                <button type="button" onClick={() => { setSelfPickup(true); setBracketFee(null); setBracketError(''); }}
+                  style={{ padding: '12px 10px', borderRadius: 10, border: `2px solid ${selfPickup ? '#38a9c2' : '#E2E8F0'}`, background: selfPickup ? '#E6F5F8' : '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all .15s' }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🏪</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: selfPickup ? '#1a7d94' : '#374151' }}>I'll Drop Off & Pick Up</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Bring it to our shop</div>
+                </button>
+              </div>
+            </div>
+
+            {!selfPickup && (
             <div style={{ marginBottom: 6 }}>
               <label style={{ ...LABEL, marginBottom: 10 }}>Pickup Address <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span></label>
 
@@ -1173,9 +1198,18 @@ export default function BookingForm({ tenantId }) {
                 </div>
               )}
             </div>
+            )} {/* end !selfPickup address block */}
 
-            {/* ── Delivery Fee ── */}
-            {bracketInfo ? (
+            {/* ── Delivery Fee / Self-pickup badge ── */}
+            {selfPickup ? (
+              <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid #34D399', background: '#F0FDF4', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 22 }}>🏪</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#065F46' }}>No delivery fee!</div>
+                  <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>You'll drop off and pick up at our shop. Date & time below is when we expect you.</div>
+                </div>
+              </div>
+            ) : bracketInfo ? (
               <div style={{ marginBottom: 16 }}>
                 <label style={LABEL}>Delivery Fee</label>
                 {geocoding && (
@@ -1227,7 +1261,7 @@ export default function BookingForm({ tenantId }) {
                   </div>
                 )}
               </Field>
-            )}
+            )} {/* end selfPickup ternary */}
 
             <Field label="Preferred Pickup Date & Time" required>
               {(() => {
@@ -1392,8 +1426,8 @@ export default function BookingForm({ tenantId }) {
                   const dt = form.pickup_time ? new Date(`${form.pickup_date}T${form.pickup_time}`) : new Date(form.pickup_date);
                   return dt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
                 })() : '—'],
-                ['Address', fullAddress],
-                selectedZone ? ['Delivery Zone', selectedZone.name] : null,
+                ['Address', selfPickup ? '🏪 Self drop-off & pick-up at shop' : fullAddress],
+                (!selfPickup && selectedZone) ? ['Delivery Zone', selectedZone.name] : null,
               ].filter(Boolean).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px solid #E8E8E0' }}>
                   <span style={{ color: '#374151', flexShrink: 0, marginRight: 12 }}>{k}</span>
@@ -1431,7 +1465,7 @@ export default function BookingForm({ tenantId }) {
               ))}
               {deliveryFee > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, marginTop: 4, borderTop: '1px solid #E8E8E0' }}>
-                  <span style={{ color: '#374151' }}>Delivery — {selectedZone?.name}</span>
+                  <span style={{ color: '#374151' }}>Delivery{selectedZone?.name ? ` — ${selectedZone.name}` : bracketDistKm ? ` (${bracketDistKm.toFixed(1)} km)` : ''}</span>
                   <span style={{ fontWeight: 500 }}>₱{deliveryFee.toLocaleString()}</span>
                 </div>
               )}
