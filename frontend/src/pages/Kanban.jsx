@@ -7,9 +7,22 @@ const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLET
 const STATUS_ICONS  = { 'NEW ORDER':'⭐','FOR PICK UP':'⬆️','PROCESSING':'⚙️','FOR DELIVERY':'🚚','COMPLETED':'✅' };
 const STATUS_LABELS = { 'NEW ORDER':'New','FOR PICK UP':'For Pick Up','PROCESSING':'Processing','FOR DELIVERY':'For Delivery','COMPLETED':'Completed' };
 
+function groupByBookingRef(orders) {
+  const map = new Map();
+  for (const o of orders) {
+    const key = o.booking_ref || o.id;
+    if (!map.has(key)) map.set(key, { ...o, price: 0, services: [], orderIds: [] });
+    const g = map.get(key);
+    g.price += Number(o.price);
+    g.services.push({ service_name: o.service_name, price: Number(o.price) });
+    g.orderIds.push(o.id);
+  }
+  return Array.from(map.values());
+}
+
 export default function Kanban() {
   const [orders,     setOrders]     = useState([]);
-  const [dragId,     setDragId]     = useState(null);
+  const [dragIds,    setDragIds]    = useState(null);
   const [dragOver,   setDragOver]   = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [expanded,   setExpanded]   = useState(new Set()); // card IDs in expanded view
@@ -21,32 +34,35 @@ export default function Kanban() {
       .catch(() => setLoading(false));
   }, []);
 
-  async function moveStatus(id, status) {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    try { await updateOrderStatus(id, status); }
+  async function moveStatus(orderIds, status) {
+    const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status } : o));
+    try { await Promise.all(ids.map(id => updateOrderStatus(id, status))); }
     catch { getOrders().then(r => setOrders(r.data)); }
   }
 
-  function move(id, dir, e) {
+  function move(g, dir, e) {
     e.stopPropagation();
-    const o    = orders.find(x => x.id === id);
-    const next = STATUSES[STATUSES.indexOf(o.status) + dir];
-    if (next) moveStatus(id, next);
+    const next = STATUSES[STATUSES.indexOf(g.status) + dir];
+    if (next) moveStatus(g.orderIds, next);
   }
 
-  function toggleCard(id, e) {
+  function toggleCard(gKey, e) {
     e.stopPropagation();
     setExpanded(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(gKey)) next.delete(gKey); else next.add(gKey);
       return next;
     });
   }
 
-  function setColExpanded(colOrders, expand) {
+  function setColExpanded(colGroups, expand) {
     setExpanded(prev => {
       const next = new Set(prev);
-      colOrders.forEach(o => expand ? next.add(o.id) : next.delete(o.id));
+      colGroups.forEach(g => {
+        const key = g.booking_ref || g.id;
+        expand ? next.add(key) : next.delete(key);
+      });
       return next;
     });
   }
@@ -83,15 +99,15 @@ export default function Kanban() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, alignItems: 'start' }}>
         {STATUSES.map(status => {
-          const col = orders.filter(o => o.status === status);
+          const col = groupByBookingRef(orders.filter(o => o.status === status));
           const isDragTarget = dragOver === status;
-          const allExpanded  = col.length > 0 && col.every(o => expanded.has(o.id));
+          const allExpanded  = col.length > 0 && col.every(g => expanded.has(g.booking_ref || g.id));
 
           return (
             <div key={status}
               onDragOver={e => { e.preventDefault(); setDragOver(status); }}
               onDragLeave={() => setDragOver(null)}
-              onDrop={e => { e.preventDefault(); if (dragId) moveStatus(dragId, status); setDragId(null); setDragOver(null); }}
+              onDrop={e => { e.preventDefault(); if (dragIds) moveStatus(dragIds, status); setDragIds(null); setDragOver(null); }}
               style={{
                 background: isDragTarget ? '#EFF6FF' : '#F7F7F5',
                 borderRadius: 12, padding: '10px 8px', minHeight: 200,
@@ -121,38 +137,39 @@ export default function Kanban() {
               </div>
 
               {/* Cards */}
-              {col.map(o => {
-                const isExpanded = expanded.has(o.id);
+              {col.map(g => {
+                const gKey = g.booking_ref || g.id;
+                const isExpanded = expanded.has(gKey);
                 return (
-                  <div key={o.id}
+                  <div key={gKey}
                     draggable
-                    onDragStart={() => setDragId(o.id)}
-                    onDragEnd={() => { setDragId(null); setDragOver(null); }}
-                    onClick={e => openModal(o, e)}
+                    onDragStart={() => setDragIds(g.orderIds)}
+                    onDragEnd={() => { setDragIds(null); setDragOver(null); }}
+                    onClick={e => openModal(g, e)}
                     style={{
                       background: '#fff',
                       border: '0.5px solid #E8E8E0',
                       borderLeft: `3px solid ${STATUS_COLORS[status]}`,
                       borderRadius: 10, padding: '9px 10px',
                       marginBottom: 8, cursor: 'pointer',
-                      opacity: dragId === o.id ? 0.45 : 1,
-                      boxShadow: dragId === o.id ? 'none' : 'var(--shadow-xs)',
+                      opacity: dragIds?.some(id => g.orderIds.includes(id)) ? 0.45 : 1,
+                      boxShadow: dragIds?.some(id => g.orderIds.includes(id)) ? 'none' : 'var(--shadow-xs)',
                       transition: 'opacity .15s, box-shadow .15s, transform .15s',
                       userSelect: 'none',
                     }}
-                    onMouseEnter={e => { if (dragId !== o.id) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                    onMouseEnter={e => { if (!dragIds) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
                     onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                   >
                     {/* Always-visible header row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <Avatar name={o.customer_name || '?'} size={26} bg={STATUS_BG[status]} color={STATUS_COLORS[status]} />
+                      <Avatar name={g.customer_name || '?'} size={26} bg={STATUS_BG[status]} color={STATUS_COLORS[status]} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {o.customer_name || 'Unknown'}
+                          {g.customer_name || 'Unknown'}
                         </div>
-                        <div style={{ fontSize: 10, color: '#374151', fontFamily: 'monospace' }}>{o.id}</div>
+                        <div style={{ fontSize: 10, color: '#374151', fontFamily: 'monospace' }}>{g.booking_ref || g.id}</div>
                       </div>
-                      <button onClick={e => toggleCard(o.id, e)}
+                      <button onClick={e => toggleCard(gKey, e)}
                         title={isExpanded ? 'Minimize' : 'Expand'}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 11, padding: '2px', lineHeight: 1, flexShrink: 0 }}>
                         {isExpanded ? '▲' : '▼'}
@@ -162,42 +179,53 @@ export default function Kanban() {
                     {/* Price + paid — always visible */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_COLORS[status] }}>
-                        ₱{Number(o.price).toLocaleString()}
+                        ₱{Number(g.price).toLocaleString()}
                       </span>
-                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 600, background: o.paid ? '#EAF3DE' : '#FCEBEB', color: o.paid ? '#3B6D11' : '#A32D2D' }}>
-                        {o.paid ? 'Paid' : 'Unpaid'}
+                      <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 600, background: g.paid ? '#EAF3DE' : '#FCEBEB', color: g.paid ? '#3B6D11' : '#A32D2D' }}>
+                        {g.paid ? 'Paid' : 'Unpaid'}
                       </span>
                     </div>
 
                     {/* Expanded content */}
                     {isExpanded && (
                       <>
-                        {o.service_name && (
-                          <div style={{ fontSize: 11, color: '#374151', marginTop: 6, fontWeight: 500 }}>{o.service_name}</div>
+                        {g.services.length > 1 ? (
+                          <div style={{ marginTop: 6 }}>
+                            {g.services.map((s, i) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#374151', marginTop: i === 0 ? 0 : 3 }}>
+                                <span>{s.service_name}</span>
+                                <span style={{ fontWeight: 600 }}>₱{s.price.toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          g.services[0]?.service_name && (
+                            <div style={{ fontSize: 11, color: '#374151', marginTop: 6, fontWeight: 500 }}>{g.services[0].service_name}</div>
+                          )
                         )}
-                        {o.pickup_date && (
+                        {g.pickup_date && (
                           <div style={{ fontSize: 10, color: '#374151', marginTop: 4 }}>
-                            📅 {new Date(o.pickup_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            📅 {new Date(g.pickup_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         )}
                         {/* Move buttons */}
                         <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
                           <button
-                            onClick={e => move(o.id, -1, e)}
-                            disabled={STATUSES.indexOf(o.status) === 0}
+                            onClick={e => move(g, -1, e)}
+                            disabled={STATUSES.indexOf(g.status) === 0}
                             style={{
                               flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
                               background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151',
-                              opacity: STATUSES.indexOf(o.status) === 0 ? 0.3 : 1,
+                              opacity: STATUSES.indexOf(g.status) === 0 ? 0.3 : 1,
                               fontFamily: 'inherit', fontWeight: 500,
                             }}>◀</button>
                           <button
-                            onClick={e => move(o.id, 1, e)}
-                            disabled={STATUSES.indexOf(o.status) === STATUSES.length - 1}
+                            onClick={e => move(g, 1, e)}
+                            disabled={STATUSES.indexOf(g.status) === STATUSES.length - 1}
                             style={{
                               flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
                               background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151',
-                              opacity: STATUSES.indexOf(o.status) === STATUSES.length - 1 ? 0.3 : 1,
+                              opacity: STATUSES.indexOf(g.status) === STATUSES.length - 1 ? 0.3 : 1,
                               fontFamily: 'inherit', fontWeight: 500,
                             }}>▶</button>
                         </div>
@@ -228,10 +256,7 @@ export default function Kanban() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Order Details</div>
-                <div style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace', marginTop: 2 }}>{modalOrder.id}</div>
-                {modalOrder.booking_ref && modalOrder.booking_ref !== modalOrder.id && (
-                  <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600, marginTop: 1 }}>{modalOrder.booking_ref}</div>
-                )}
+                <div style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace', marginTop: 2 }}>{modalOrder.booking_ref || modalOrder.id}</div>
               </div>
               <button onClick={() => setModalOrder(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', lineHeight: 1, padding: 0 }}>×</button>
@@ -248,7 +273,9 @@ export default function Kanban() {
 
             {/* Detail rows */}
             {[
-              ['Service',  modalOrder.service_name || '—'],
+              ['Service',  modalOrder.services?.length > 1
+                ? modalOrder.services.map(s => s.service_name).join(', ')
+                : (modalOrder.services?.[0]?.service_name || modalOrder.service_name || '—')],
               ['Address',  modalOrder.address || modalOrder.customer_address || '—'],
               ['Weight',   modalOrder.weight ? modalOrder.weight + ' kg' : '—'],
               ['Amount',   '₱' + Number(modalOrder.price).toLocaleString()],
@@ -275,7 +302,7 @@ export default function Kanban() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {STATUSES.map(s => (
                   <button key={s} onClick={() => {
-                    moveStatus(modalOrder.id, s);
+                    moveStatus(modalOrder.orderIds, s);
                     setModalOrder(prev => ({ ...prev, status: s }));
                   }} style={{
                     padding: '5px 10px', fontSize: 11, borderRadius: 6, cursor: 'pointer',

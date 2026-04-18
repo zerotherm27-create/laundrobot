@@ -7,6 +7,19 @@ const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLET
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+function groupByBookingRef(orders) {
+  const map = new Map();
+  for (const o of orders) {
+    const key = o.booking_ref || o.id;
+    if (!map.has(key)) map.set(key, { ...o, price: 0, services: [], orderIds: [] });
+    const g = map.get(key);
+    g.price += Number(o.price);
+    g.services.push({ service_name: o.service_name, price: Number(o.price), custom_selections: o.custom_selections });
+    g.orderIds.push(o.id);
+  }
+  return Array.from(map.values());
+}
+
 function groupByMonth(orders) {
   const groups = {};
   for (const o of orders) {
@@ -147,16 +160,18 @@ export default function Orders() {
     } finally { setNotifySending(false); }
   }
 
-  async function handleStatusUpdate(id, status) {
-    await updateOrderStatus(id, status);
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
-    setSelected(prev => prev?.id === id ? { ...prev, status } : prev);
+  async function handleStatusUpdate(orderIds, status) {
+    const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+    await Promise.all(ids.map(id => updateOrderStatus(id, status)));
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status } : o));
+    setSelected(prev => prev ? { ...prev, status } : prev);
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Delete this order?')) return;
-    await deleteOrder(id);
-    setOrders(prev => prev.filter(o => o.id !== id));
+  async function handleDelete(orderIds) {
+    const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+    if (!confirm(ids.length > 1 ? `Delete this booking (${ids.length} orders)?` : 'Delete this order?')) return;
+    await Promise.all(ids.map(id => deleteOrder(id)));
+    setOrders(prev => prev.filter(o => !ids.includes(o.id)));
     setSelected(null);
   }
 
@@ -271,34 +286,42 @@ export default function Orders() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map(o => (
-                      <tr key={o.id}
-                        onClick={() => { const next = selected?.id === o.id ? null : o; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); }}
-                        style={{ cursor: 'pointer', background: selected?.id === o.id ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
+                    {groupByBookingRef(filtered).map(g => {
+                      const gKey = g.booking_ref || g.id;
+                      const isSelected = (selected?.booking_ref || selected?.id) === gKey;
+                      return (
+                      <tr key={gKey}
+                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); }}
+                        style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
-                          <div>{o.id}</div>
-                          {o.booking_ref && o.booking_ref !== o.id && <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600 }}>{o.booking_ref}</div>}
+                          <div>{g.booking_ref || g.id}</div>
+                          {g.services.length > 1 && <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600 }}>{g.services.length} services</div>}
                         </td>
                         <td style={{ padding: '9px 12px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                            <Avatar name={o.customer_name || '?'} size={26} />
-                            {o.customer_name}
+                            <Avatar name={g.customer_name || '?'} size={26} />
+                            {g.customer_name}
                           </div>
                         </td>
-                        <td style={{ padding: '9px 12px', color: '#374151' }}>{o.service_name}</td>
-                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827' }}>₱{Number(o.price).toLocaleString()}</td>
-                        <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
-                          {o.pickup_date ? new Date(o.pickup_date).toLocaleString() : '—'}
+                        <td style={{ padding: '9px 12px', color: '#374151' }}>
+                          {g.services.length > 1
+                            ? g.services.map(s => s.service_name).join(', ')
+                            : g.services[0]?.service_name}
                         </td>
-                        <td style={{ padding: '9px 12px' }}><StatusBadge status={o.status} /></td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827' }}>₱{Number(g.price).toLocaleString()}</td>
+                        <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
+                          {g.pickup_date ? new Date(g.pickup_date).toLocaleString() : '—'}
+                        </td>
+                        <td style={{ padding: '9px 12px' }}><StatusBadge status={g.status} /></td>
                         <td style={{ padding: '9px 12px' }}>
                           <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4,
-                            background: o.paid ? '#EAF3DE' : '#FCEBEB', color: o.paid ? '#3B6D11' : '#A32D2D' }}>
-                            {o.paid ? 'Paid' : 'Unpaid'}
+                            background: g.paid ? '#EAF3DE' : '#FCEBEB', color: g.paid ? '#3B6D11' : '#A32D2D' }}>
+                            {g.paid ? 'Paid' : 'Unpaid'}
                           </span>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {filtered.length === 0 && (
                       <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No orders found</td></tr>
                     )}
@@ -313,10 +336,7 @@ export default function Orders() {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 15 }}>{selected.id}</div>
-                    {selected.booking_ref && selected.booking_ref !== selected.id && (
-                      <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>{selected.booking_ref}</div>
-                    )}
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>{selected.booking_ref || selected.id}</div>
                     <div style={{ fontSize: 12, color: '#374151' }}>
                       {selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}
                     </div>
@@ -339,7 +359,6 @@ export default function Orders() {
                   <>
                     {[
                       ['Address', selected.address || selected.customer_address || '—'],
-                      ['Service', selected.service_name],
                       ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
                       ['Notes', selected.notes || '—'],
                       ['Via Messenger', selected.fb_id ? '✓ Yes' : '✗ Web booking'],
@@ -349,6 +368,24 @@ export default function Orders() {
                         <span style={{ fontWeight: 500, textAlign: 'right' }}>{v}</span>
                       </div>
                     ))}
+
+                    {/* Services breakdown */}
+                    {selected.services?.length > 1 ? (
+                      <div style={{ borderTop: '0.5px solid #f0f0ec', paddingTop: 8, marginTop: 2 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Services</div>
+                        {selected.services.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                            <span>{s.service_name}</span>
+                            <span style={{ fontWeight: 600 }}>₱{Number(s.price).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
+                        <span style={{ color: '#374151', flexShrink: 0, marginRight: 8 }}>Service</span>
+                        <span style={{ fontWeight: 500, textAlign: 'right' }}>{selected.services?.[0]?.service_name || selected.service_name || '—'}</span>
+                      </div>
+                    )}
 
                     {/* Customer selections breakdown */}
                     {selected.custom_selections?.length > 0 && (
@@ -603,7 +640,7 @@ export default function Orders() {
                       <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>Update status</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {STATUSES.map(s => (
-                          <button key={s} onClick={() => handleStatusUpdate(selected.id, s)} style={{
+                          <button key={s} onClick={() => handleStatusUpdate(selected.orderIds, s)} style={{
                             padding: '4px 9px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
                             background: selected.status === s ? STATUS_COLORS[s] : STATUS_BG[s],
                             color: selected.status === s ? '#fff' : STATUS_COLORS[s],
@@ -629,7 +666,7 @@ export default function Orders() {
                       </button>
                     )}
 
-                    <button onClick={() => handleDelete(selected.id)}
+                    <button onClick={() => handleDelete(selected.orderIds)}
                       style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>
                       Delete order
                     </button>
