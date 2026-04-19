@@ -6,6 +6,19 @@ import {
   getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
 } from '../api.js';
 
+function getStartsAt(svc) {
+  if (Number(svc.price) > 0) return null;
+  const prices = [];
+  for (const f of (svc.custom_fields || [])) {
+    if (f.field_type !== 'select') continue;
+    for (const o of (Array.isArray(f.options) ? f.options : [])) {
+      if (typeof o === 'object' && (o.price_type || 'fixed') !== 'copy_base' && Number(o.price || 0) > 0)
+        prices.push(Number(o.price));
+    }
+  }
+  return prices.length ? Math.min(...prices) : null;
+}
+
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -768,7 +781,14 @@ export default function BookingForm({ tenantId }) {
                         )}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>₱{Number(svc.price).toLocaleString()}</div>
+                        {(() => { const sa = getStartsAt(svc); return sa != null ? (
+                          <>
+                            <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>Starts at</div>
+                            <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>₱{sa.toLocaleString()}</div>
+                          </>
+                        ) : (
+                          <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>₱{Number(svc.price).toLocaleString()}</div>
+                        ); })()}
                         <div style={{ fontSize: 11, color: '#374151' }}>{svc.unit || 'flat'}</div>
                       </div>
                     </div>

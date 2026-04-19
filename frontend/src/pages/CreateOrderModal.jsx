@@ -4,6 +4,19 @@ import { getServices, getCategories, getDeliveryZones, createPublicOrder } from 
 
 const STATUSES = ['NEW ORDER', 'FOR PICK UP', 'PROCESSING', 'FOR DELIVERY', 'COMPLETED'];
 
+function getStartsAt(svc) {
+  if (Number(svc.price) > 0) return null;
+  const prices = [];
+  for (const f of (svc.custom_fields || [])) {
+    if (f.field_type !== 'select') continue;
+    for (const o of (Array.isArray(f.options) ? f.options : [])) {
+      if (typeof o === 'object' && (o.price_type || 'fixed') !== 'copy_base' && Number(o.price || 0) > 0)
+        prices.push(Number(o.price));
+    }
+  }
+  return prices.length ? Math.min(...prices) : null;
+}
+
 function normalizeOpts(options) {
   if (!Array.isArray(options)) return [];
   return options.map(o => typeof o === 'object' && o !== null
@@ -283,7 +296,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                         background: selectedSvc?.id === svc.id ? '#E6F5F8' : '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'all .15s' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: selectedSvc?.id === svc.id ? '#1a7d94' : '#111827' }}>{svc.name}</div>
                       <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
-                        ₱{Number(svc.price).toLocaleString()} {svc.unit ? `/ ${svc.unit}` : ''}
+                        {(() => { const sa = getStartsAt(svc); return sa != null ? `Starts at ₱${sa.toLocaleString()}` : `₱${Number(svc.price).toLocaleString()}${svc.unit ? ` / ${svc.unit}` : ''}`; })()}
                       </div>
                     </button>
                   ))}
