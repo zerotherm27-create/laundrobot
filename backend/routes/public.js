@@ -262,7 +262,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, initial_status, paid: initialPaid, source } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, initial_status, paid: initialPaid, source, custom_delivery_fee } = req.body;
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
@@ -277,8 +277,12 @@ router.post('/:tenantId/orders', async (req, res) => {
       cart.map(item => calcItemPrice(req.params.tenantId, item.service_id, item.custom_fields))
     );
 
-    // Delivery fee — bracket-based (lat/lng) or legacy zone
+    // Delivery fee — custom override takes priority, then bracket-based or legacy zone
     let deliveryFee = 0, zoneName = null;
+    if (custom_delivery_fee != null && custom_delivery_fee !== '') {
+      deliveryFee = Math.max(0, Number(custom_delivery_fee) || 0);
+      zoneName = 'Custom';
+    } else
     if (customer_lat && customer_lng) {
       const { rows: [shopTenant] } = await db.query(
         'SELECT shop_lat, shop_lng, delivery_radius FROM tenants WHERE id=$1', [req.params.tenantId]

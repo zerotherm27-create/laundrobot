@@ -50,9 +50,10 @@ export default function CreateOrderModal({ onClose, onCreated }) {
   const [custEmail, setCustEmail] = useState('');
 
   // Delivery
-  const [selfPickup, setSelfPickup] = useState(false);
-  const [address,    setAddress]    = useState('');
-  const [zoneId,     setZoneId]     = useState('');
+  const [selfPickup,       setSelfPickup]       = useState(false);
+  const [address,          setAddress]          = useState('');
+  const [zoneId,           setZoneId]           = useState('');
+  const [customDeliveryFee, setCustomDeliveryFee] = useState('');
 
   // Schedule
   const [pickupDate, setPickupDate] = useState('');
@@ -110,9 +111,10 @@ export default function CreateOrderModal({ onClose, onCreated }) {
     : 0;
   const subtotal   = selectedSvc ? (hasVarPricing ? varTotal * (qty > 1 ? qty : 1) : baseSubtotal + varTotal) : 0;
   const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
-  const selectedZone = zones.find(z => z.id === Number(zoneId));
-  const deliveryFee  = selfPickup ? 0 : (selectedZone ? Number(selectedZone.fee) : 0);
-  const totalPreview = subtotal + addonTotal + deliveryFee;
+  const selectedZone   = zones.find(z => z.id === Number(zoneId));
+  const parsedCustomFee = customDeliveryFee !== '' ? parseFloat(customDeliveryFee) || 0 : null;
+  const deliveryFee    = selfPickup ? 0 : (parsedCustomFee != null ? parsedCustomFee : (selectedZone ? Number(selectedZone.fee) : 0));
+  const totalPreview   = subtotal + addonTotal + deliveryFee;
 
   const visibleServices = activeCat ? services.filter(s => s.category_id === activeCat) : services;
 
@@ -157,8 +159,9 @@ export default function CreateOrderModal({ onClose, onCreated }) {
         email:            custEmail.trim() || undefined,
         address:          selfPickup ? 'Self drop-off & pick-up' : address.trim(),
         pickup_date:      pickupDatetime,
-        delivery_zone_id: (!selfPickup && zoneId) ? Number(zoneId) : undefined,
-        notes:            combinedNotes || undefined,
+        delivery_zone_id:    (!selfPickup && zoneId) ? Number(zoneId) : undefined,
+        custom_delivery_fee: (!selfPickup && parsedCustomFee != null) ? parsedCustomFee : undefined,
+        notes:               combinedNotes || undefined,
         initial_status:   initStatus !== 'NEW ORDER' ? initStatus : undefined,
         paid:             paid || undefined,
         source:           'admin',
@@ -390,16 +393,25 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                       onChange={e => setAddress(e.target.value)}
                       placeholder="House no., street, barangay, city…" />
                   </Field>
-                  {zones.length > 0 && (
-                    <Field label="Delivery Zone">
-                      <select style={INP} value={zoneId} onChange={e => setZoneId(e.target.value)}>
-                        <option value="">— No zone / custom fee —</option>
-                        {zones.map(z => (
-                          <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()}</option>
-                        ))}
-                      </select>
+                  <div style={{ display: 'grid', gridTemplateColumns: zones.length > 0 ? '1fr 1fr' : '1fr', gap: '0 14px' }}>
+                    {zones.length > 0 && (
+                      <Field label="Delivery Zone">
+                        <select style={INP} value={zoneId} onChange={e => { setZoneId(e.target.value); setCustomDeliveryFee(''); }}>
+                          <option value="">— No zone —</option>
+                          {zones.map(z => (
+                            <option key={z.id} value={z.id}>{z.name} — ₱{Number(z.fee).toLocaleString()}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
+                    <Field label={parsedCustomFee != null ? '✏️ Custom Delivery Fee (override)' : 'Custom Delivery Fee (optional override)'}>
+                      <input style={{ ...INP, borderColor: parsedCustomFee != null ? '#F59E0B' : '#D1D5DB', background: parsedCustomFee != null ? '#FFFBEB' : '#FAFAFA' }}
+                        type="number" min="0" step="1"
+                        value={customDeliveryFee}
+                        onChange={e => { setCustomDeliveryFee(e.target.value); if (e.target.value !== '') setZoneId(''); }}
+                        placeholder={selectedZone ? `Zone fee: ₱${Number(selectedZone.fee).toLocaleString()}` : '₱ amount'} />
                     </Field>
-                  )}
+                  </div>
                 </>
               )}
 
@@ -454,7 +466,10 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                   )}
                   {deliveryFee > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ color: '#374151' }}>Delivery{selectedZone ? ` — ${selectedZone.name}` : ''}</span>
+                      <span style={{ color: '#374151' }}>
+                        Delivery{parsedCustomFee != null ? ' — Custom' : selectedZone ? ` — ${selectedZone.name}` : ''}
+                        {parsedCustomFee != null && <span style={{ marginLeft: 6, fontSize: 11, background: '#FEF3C7', color: '#92400E', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>override</span>}
+                      </span>
                       <span>₱{deliveryFee.toLocaleString()}</span>
                     </div>
                   )}
