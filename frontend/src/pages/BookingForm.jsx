@@ -179,6 +179,9 @@ export default function BookingForm({ tenantId }) {
   const [submitErr,  setSubmitErr]  = useState('');
   const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
 
+  // Detect if running inside Messenger/Facebook app webview
+  const isInMessengerWebview = /FBAN|FBAV|FB_IAB|MessengerLiteForiOS/.test(navigator.userAgent);
+
   useEffect(() => {
     // Try to capture Messenger PSID from Extensions SDK (only works inside Messenger webview)
     const tryGetPsid = () => {
@@ -668,7 +671,7 @@ export default function BookingForm({ tenantId }) {
               </a>
             </div>
           )}
-          {import.meta.env.VITE_FB_APP_ID && tenant?.fb_page_id && !messengerPsid && (
+          {import.meta.env.VITE_FB_APP_ID && tenant?.fb_page_id && !messengerPsid && !isInMessengerWebview && (
             <div style={{ margin: '16px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
                 Get order updates &amp; promos on Messenger
