@@ -527,8 +527,8 @@ export default function BookingForm({ tenantId }) {
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
       }).addTo(map);
-      window.L.marker([shopLat, shopLng], { icon: pinIcon }).addTo(map).bindPopup('📍 Shop').openPopup();
-      const custMarker = window.L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map).bindPopup('📦 Your location');
+      window.L.marker([shopLat, shopLng], { icon: pinIcon }).addTo(map).bindPopup('📍 Shop');
+      const custMarker = window.L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map).bindPopup('📦 Your location').openPopup();
       custMarker.on('dragend', () => {
         const { lat: la, lng: lo } = custMarker.getLatLng();
         setCustomerCoords({ lat: la, lng: lo });
