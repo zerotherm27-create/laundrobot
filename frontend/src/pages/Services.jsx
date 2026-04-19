@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService,
 
 const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
-const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, sync_qty: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, sync_qty: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed', _newOptionTurnaround: '' };
 
 const FIELD_TYPES = [
   { value: 'text',     label: 'Short text' },
@@ -56,6 +56,7 @@ export default function Services() {
       _newOption: '',
       _newOptionPrice: '',
       _newOptionPriceType: 'fixed',
+      _newOptionTurnaround: '',
     })));
   }
 
@@ -92,12 +93,15 @@ export default function Services() {
     setFields(prev => prev.map((f, i) => {
       if (i !== fieldIdx) return f;
       const label = (f._newOption || '').trim();
-      if (!label) return { ...f, _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+      const reset = { _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed', _newOptionTurnaround: '' };
+      if (!label) return { ...f, ...reset };
       const existingLabels = (f.options || []).map(o => typeof o === 'object' ? o.label : o);
-      if (existingLabels.includes(label)) return { ...f, _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+      if (existingLabels.includes(label)) return { ...f, ...reset };
       const priceType = f._newOptionPriceType || 'fixed';
       const price = priceType === 'copy_base' ? 0 : (parseFloat(f._newOptionPrice) || 0);
-      return { ...f, options: [...(f.options || []), { label, price, price_type: priceType }], _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
+      const td = f._newOptionTurnaround !== '' ? parseInt(f._newOptionTurnaround) || null : null;
+      const newOpt = { label, price, price_type: priceType, ...(td != null ? { turnaround_days: td } : {}) };
+      return { ...f, options: [...(f.options || []), newOpt], ...reset };
     }));
   }
 
@@ -114,7 +118,8 @@ export default function Services() {
       const label = typeof opt === 'object' ? opt.label : String(opt);
       const price = typeof opt === 'object' ? opt.price : 0;
       const price_type = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
-      return { ...f, _editingOptIdx: optIdx, _editOptLabel: label, _editOptPrice: String(price), _editOptPriceType: price_type };
+      const turnaround = typeof opt === 'object' && opt.turnaround_days != null ? String(opt.turnaround_days) : '';
+      return { ...f, _editingOptIdx: optIdx, _editOptLabel: label, _editOptPrice: String(price), _editOptPriceType: price_type, _editOptTurnaround: turnaround };
     }));
   }
 
@@ -125,16 +130,17 @@ export default function Services() {
       if (!label) return f;
       const priceType = f._editOptPriceType || 'fixed';
       const price = priceType === 'copy_base' ? 0 : (parseFloat(f._editOptPrice) || 0);
+      const td = f._editOptTurnaround !== '' && f._editOptTurnaround != null ? parseInt(f._editOptTurnaround) || null : null;
       const newOptions = f.options.map((o, oi) =>
-        oi === f._editingOptIdx ? { label, price, price_type: priceType } : o
+        oi === f._editingOptIdx ? { label, price, price_type: priceType, ...(td != null ? { turnaround_days: td } : {}) } : o
       );
-      return { ...f, options: newOptions, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed' };
+      return { ...f, options: newOptions, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed', _editOptTurnaround: '' };
     }));
   }
 
   function cancelEditOption(fieldIdx) {
     setFields(prev => prev.map((f, i) =>
-      i === fieldIdx ? { ...f, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed' } : f
+      i === fieldIdx ? { ...f, _editingOptIdx: undefined, _editOptLabel: '', _editOptPrice: '', _editOptPriceType: 'fixed', _editOptTurnaround: '' } : f
     ));
   }
 
@@ -145,7 +151,7 @@ export default function Services() {
       ...f,
       _key: Date.now() + Math.random(),
       options: Array.isArray(f.options) ? f.options.map(o => ({ ...o })) : [],
-      _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed',
+      _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed', _newOptionTurnaround: '',
     })));
   }
 
@@ -537,10 +543,11 @@ export default function Services() {
                                 const optPrice  = typeof opt === 'object' ? Number(opt.price || 0) : 0;
                                 const priceType = typeof opt === 'object' ? (opt.price_type || 'fixed') : 'fixed';
                                 const isEditing = f._editingOptIdx === oi;
+                                const optTurnaround = typeof opt === 'object' && opt.turnaround_days != null ? opt.turnaround_days : null;
                                 if (isEditing) {
                                   return (
                                     <div key={oi} style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', background: '#FFF9E6', borderRadius: 7, border: '1px solid #F5D165' }}>
-                                      <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._editOptPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} auto auto`, gap: 5, alignItems: 'center' }}>
+                                      <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._editOptPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} 72px auto auto`, gap: 5, alignItems: 'center' }}>
                                         <input value={f._editOptLabel || ''} onChange={e => updateField(idx, '_editOptLabel', e.target.value)}
                                           style={{ ...S.input, fontSize: 12 }} placeholder="Option label" />
                                         {(f._editOptPriceType || 'fixed') === 'copy_base' ? (
@@ -551,17 +558,22 @@ export default function Services() {
                                           <input type="number" min="0" step="1" value={f._editOptPrice || ''} onChange={e => updateField(idx, '_editOptPrice', e.target.value)}
                                             placeholder="₱ price" style={{ ...S.input, fontSize: 12 }} />
                                         )}
+                                        <input type="number" min="1" max="30" step="1" value={f._editOptTurnaround || ''} onChange={e => updateField(idx, '_editOptTurnaround', e.target.value)}
+                                          placeholder="⏱ days" title="Turnaround override (days)" style={{ ...S.input, fontSize: 12 }} />
                                         <button onClick={() => saveEditOption(idx)}
                                           style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>✓</button>
                                         <button onClick={() => cancelEditOption(idx)}
                                           style={{ padding: '4px 8px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc' }}>✕</button>
                                       </div>
-                                      <button type="button"
-                                        onClick={() => updateField(idx, '_editOptPriceType', (f._editOptPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
-                                        style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', textAlign: 'left',
-                                          color: (f._editOptPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                                        {(f._editOptPriceType || 'fixed') === 'copy_base' ? '↩ Switch to fixed price' : '= Switch to copy base price'}
-                                      </button>
+                                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                        <button type="button"
+                                          onClick={() => updateField(idx, '_editOptPriceType', (f._editOptPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
+                                          style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', textAlign: 'left',
+                                            color: (f._editOptPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                                          {(f._editOptPriceType || 'fixed') === 'copy_base' ? '↩ Switch to fixed price' : '= Switch to copy base price'}
+                                        </button>
+                                        <span style={{ fontSize: 11, color: '#6B7280' }}>⏱ = turnaround override (leave blank to use service default)</span>
+                                      </div>
                                     </div>
                                   );
                                 }
@@ -577,6 +589,11 @@ export default function Services() {
                                         ₱{optPrice.toLocaleString()}
                                       </span>
                                     )}
+                                    {optTurnaround != null && (
+                                      <span style={{ fontSize: 11, color: '#D97706', background: '#FEF3C7', padding: '2px 7px', borderRadius: 4, border: '1px solid #FCD34D', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                        ⏱ {optTurnaround}d
+                                      </span>
+                                    )}
                                     <button onClick={() => startEditOption(idx, oi)} title="Edit option"
                                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#374151', fontSize: 13, padding: '0 2px', lineHeight: 1 }}>✎</button>
                                     <button onClick={() => removeOption(idx, oi)}
@@ -588,12 +605,12 @@ export default function Services() {
                           )}
 
                           {/* Add new option */}
-                          <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._newOptionPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} auto`, gap: 6 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: `1fr ${(f._newOptionPriceType || 'fixed') === 'copy_base' ? 'auto' : '80px'} 72px auto`, gap: 6 }}>
                             <input
                               value={f._newOption || ''}
                               onChange={e => updateField(idx, '_newOption', e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
-                              placeholder="Option label (e.g. Express 1 day)"
+                              placeholder="Option label (e.g. Express)"
                               style={{ ...S.input, fontSize: 12 }}
                             />
                             {(f._newOptionPriceType || 'fixed') === 'copy_base' ? (
@@ -610,6 +627,15 @@ export default function Services() {
                                 style={{ ...S.input, fontSize: 12 }}
                               />
                             )}
+                            <input
+                              type="number" min="1" max="30" step="1"
+                              value={f._newOptionTurnaround || ''}
+                              onChange={e => updateField(idx, '_newOptionTurnaround', e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOption(idx); } }}
+                              placeholder="⏱ days"
+                              title="Turnaround override in days (optional)"
+                              style={{ ...S.input, fontSize: 12 }}
+                            />
                             <button onClick={() => addOption(idx)}
                               style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>
                               + Add
@@ -617,14 +643,17 @@ export default function Services() {
                           </div>
 
                           {/* Price type toggle */}
-                          <button type="button"
-                            onClick={() => updateField(idx, '_newOptionPriceType', (f._newOptionPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
-                            style={{ marginTop: 6, fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit',
-                              color: (f._newOptionPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
-                            {(f._newOptionPriceType || 'fixed') === 'copy_base'
-                              ? '↩ Switch to fixed price'
-                              : '= Switch to copy base price (e.g. Express doubles the bag price)'}
-                          </button>
+                          <div style={{ marginTop: 6, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <button type="button"
+                              onClick={() => updateField(idx, '_newOptionPriceType', (f._newOptionPriceType || 'fixed') === 'copy_base' ? 'fixed' : 'copy_base')}
+                              style={{ fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                                color: (f._newOptionPriceType || 'fixed') === 'copy_base' ? '#7C3AED' : '#374151', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+                              {(f._newOptionPriceType || 'fixed') === 'copy_base'
+                                ? '↩ Switch to fixed price'
+                                : '= Switch to copy base price (e.g. Express doubles the bag price)'}
+                            </button>
+                            <span style={{ fontSize: 11, color: '#9CA3AF' }}>⏱ days = optional turnaround override (e.g. 1 for Express)</span>
+                          </div>
                         </div>
                       )}
 

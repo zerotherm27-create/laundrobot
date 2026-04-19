@@ -245,7 +245,19 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
       }, 0)
     : basePrice;
 
-  return { service, effectiveSubtotal, addonTotal, weight };
+  // Resolve turnaround: use selected option's override if present, else service default
+  let resolvedTurnaround = Number(service.turnaround_days || 2);
+  for (const fd of selectFieldDefs) {
+    const cf = (custom_fields || []).find(c => c.label === fd.label);
+    if (!cf?.value) continue;
+    const opt = (Array.isArray(fd.options) ? fd.options : []).find(o => typeof o === 'object' ? o.label === cf.value : o === cf.value);
+    if (opt && typeof opt === 'object' && opt.turnaround_days != null && opt.turnaround_days !== '') {
+      resolvedTurnaround = Number(opt.turnaround_days);
+      break;
+    }
+  }
+
+  return { service, effectiveSubtotal, addonTotal, weight, resolvedTurnaround };
 }
 
 // POST create order (public booking) — supports multi-service cart
@@ -363,10 +375,11 @@ router.post('/:tenantId/orders', async (req, res) => {
       const orderStatus = initial_status || 'NEW ORDER';
       const orderPaid   = initialPaid === true || initialPaid === 'true' ? true : false;
 
-      // Auto-calculate delivery_date = pickup_date + max turnaround_days across all cart items
+      // Auto-calculate delivery_date = pickup_date + max resolvedTurnaround across all cart items
+      // resolvedTurnaround already accounts for per-option overrides (e.g. Express = 1 day)
       let deliveryDate = null;
       try {
-        const maxTurnaround = Math.max(...pricedItems.map(pi => Number(pi.service.turnaround_days || 2)));
+        const maxTurnaround = Math.max(...pricedItems.map(pi => pi.resolvedTurnaround));
         const pd = new Date(pickup_date.trim());
         if (!isNaN(pd.getTime())) {
           pd.setDate(pd.getDate() + maxTurnaround);
