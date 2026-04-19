@@ -187,7 +187,7 @@ export default function DeliveryZones() {
             <div ref={mapRef} style={{ width: '100%', height: 220, borderRadius: 8, border: '0.5px solid #E2E8F0', marginBottom: 14, overflow: 'hidden' }} />
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div className="delivery-loc-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Max Delivery Radius (km)</label>
               <input style={INP} type="number" min="1" max="50" value={deliveryRadius}
@@ -232,7 +232,8 @@ export default function DeliveryZones() {
           </button>
         </div>
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: 420, borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f5f5f3' }}>
                 {['From (km)', 'To (km)', 'Delivery Fee (₱)', ''].map(h => (
@@ -268,6 +269,7 @@ export default function DeliveryZones() {
               )}
             </tbody>
           </table>
+          </div>
 
           <div style={{ padding: '12px 14px', borderTop: '0.5px solid #f0f0ec', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 12 }}>
             {bracketErr && <span style={{ fontSize: 12, color: '#A32D2D' }}>{bracketErr}</span>}
@@ -308,7 +310,8 @@ export default function DeliveryZones() {
             </div>
           )}
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, display: zones.length > 0 || zoneForm ? 'table' : 'none' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse', fontSize: 13, display: zones.length > 0 || zoneForm ? 'table' : 'none' }}>
             <thead>
               <tr style={{ background: '#f5f5f3' }}>
                 {['Zone Name', 'Fee (₱)', 'Note', 'Active', ''].map(h => (
@@ -411,6 +414,7 @@ export default function DeliveryZones() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

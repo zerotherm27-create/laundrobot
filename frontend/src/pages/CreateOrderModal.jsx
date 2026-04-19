@@ -393,7 +393,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                       onChange={e => setAddress(e.target.value)}
                       placeholder="House no., street, barangay, city…" />
                   </Field>
-                  <div style={{ display: 'grid', gridTemplateColumns: zones.length > 0 ? '1fr 1fr' : '1fr', gap: '0 14px' }}>
+                  <div className="modal-2col" style={{ display: 'grid', gridTemplateColumns: zones.length > 0 ? '1fr 1fr' : '1fr', gap: '0 14px' }}>
                     {zones.length > 0 && (
                       <Field label="Delivery Zone">
                         <select style={INP} value={zoneId} onChange={e => { setZoneId(e.target.value); setCustomDeliveryFee(''); }}>
@@ -415,7 +415,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                 </>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+              <div className="modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
                 <Field label="Pickup Date" required>
                   <input style={INP} type="date" value={pickupDate}
                     min={new Date().toISOString().slice(0,10)}
@@ -429,7 +429,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               <div style={{ height: 1, background: '#E8E8E0', margin: '4px 0 16px' }} />
 
               {/* ── Order settings ── */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
+              <div className="modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
                 <Field label="Initial Status">
                   <select style={INP} value={initStatus} onChange={e => setInitStatus(e.target.value)}>
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
