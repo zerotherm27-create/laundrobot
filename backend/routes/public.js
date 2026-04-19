@@ -407,13 +407,16 @@ router.post('/:tenantId/orders', async (req, res) => {
     // Xendit invoice (one for the whole booking)
     let paymentUrl = null;
     try {
-      const { rows: [t] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [req.params.tenantId]);
+      const { rows: [t] } = await db.query('SELECT xendit_api_key, fb_page_id FROM tenants WHERE id=$1', [req.params.tenantId]);
       if (t?.xendit_api_key) {
         const invoice = await createInvoice(t.xendit_api_key, {
           externalId: bookingRef,
           amount: grandTotal,
           payerEmail: email?.trim() || undefined,
           description: `Booking ${bookingRef} — ${pricedItems.map(i => i.service.name).join(', ')}`,
+          successRedirectUrl: t.fb_page_id
+            ? `https://m.me/${t.fb_page_id}?ref=${bookingRef}`
+            : undefined,
         });
         await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE booking_ref=$2', [invoice.invoiceUrl, bookingRef]);
         paymentUrl = invoice.invoiceUrl;

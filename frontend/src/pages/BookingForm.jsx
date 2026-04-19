@@ -632,30 +632,6 @@ export default function BookingForm({ tenantId }) {
               </a>
             </div>
           )}
-          {tenant?.fb_page_id && !messengerPsid && (
-            <div style={{ margin: '16px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
-                Get order updates &amp; promos on Messenger
-              </div>
-              <a
-                href={`https://m.me/${tenant.fb_page_id}?ref=${result.booking_ref}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8,
-                  padding: '10px 20px', borderRadius: 10,
-                  background: '#0084ff', color: '#fff',
-                  fontWeight: 600, fontSize: 14, textDecoration: 'none',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 36 36" fill="currentColor">
-                  <path d="M18 2C9.16 2 2 8.71 2 17c0 4.57 1.96 8.67 5.09 11.56V34l4.86-2.67A17.3 17.3 0 0 0 18 32c8.84 0 16-6.71 16-15S26.84 2 18 2zm1.67 20.19-4.06-4.33-7.93 4.33 8.72-9.27 4.16 4.33 7.83-4.33-8.72 9.27z"/>
-                </svg>
-                Connect on Messenger
-              </a>
-            </div>
-          )}
           <button onClick={closeMiniApp}
             style={{ padding: '11px 32px', borderRadius: 10, border: '1.5px solid #CBD5E0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
             Done
