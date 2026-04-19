@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
 
-const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
+const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
 const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, sync_qty: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed', _newOptionTurnaround: '' };
 
