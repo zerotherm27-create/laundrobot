@@ -161,6 +161,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
         notes:            combinedNotes || undefined,
         initial_status:   initStatus !== 'NEW ORDER' ? initStatus : undefined,
         paid:             paid || undefined,
+        source:           'admin',
       });
 
       setResult(data);

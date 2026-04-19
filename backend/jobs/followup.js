@@ -103,6 +103,7 @@ async function runFollowUp() {
       JOIN tenants  t ON t.id = o.tenant_id
       WHERE o.paid = FALSE
         AND o.status != 'CANCELLED'
+        AND (o.source IS NULL OR o.source != 'admin')
         AND o.created_at < NOW() - INTERVAL '${CANCEL_AFTER_MINUTES} minutes'
     `);
 

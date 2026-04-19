@@ -262,7 +262,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, initial_status, paid: initialPaid } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, initial_status, paid: initialPaid, source } = req.body;
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
@@ -387,14 +387,15 @@ router.post('/:tenantId/orders', async (req, res) => {
         }
       } catch (_) {}
 
+      const orderSource = source || 'web';
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
-                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
         [orderId, req.params.tenantId, customerId, service.id,
          weight, itemTotal, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
-         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate]
+         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource]
       );
       createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
     }
