@@ -134,6 +134,8 @@ export default function BookingForm({ tenantId }) {
   const [addrSuggestions, setAddrSuggestions]   = useState([]);
   const [addrSuggestLoading, setAddrSuggestLoading] = useState(false);
   const [addrLocked, setAddrLocked]             = useState(false); // true once a suggestion is selected
+  const [addrUnit, setAddrUnit]                 = useState('');   // unit/house no. + landmark
+  const [pinConfirmed, setPinConfirmed]         = useState(false); // map pin confirmation
   const [selfPickup, setSelfPickup]             = useState(false); // customer drops off & picks up themselves
 
   // Step 2 state
@@ -388,7 +390,9 @@ export default function BookingForm({ tenantId }) {
 
   const fullAddress = addressMode === 'saved' && savedCustomer?.address
     ? savedCustomer.address
-    : form.addr_text;
+    : addrUnit.trim()
+      ? `${addrUnit.trim()}, ${form.addr_text}`
+      : form.addr_text;
 
   function step2Valid() {
     if (!cart.length) return false;
@@ -401,10 +405,14 @@ export default function BookingForm({ tenantId }) {
         ? !!savedCustomer?.address
         : !!(addrLocked && form.addr_text.trim());
       if (!hasAddress) return false;
+      // Require unit/landmark for new addresses
+      if (addressMode === 'new' && addrLocked && !addrUnit.trim()) return false;
       if (bracketInfo) {
         if (geocoding) return false;
         if (bracketError) return false;
         if (bracketFee === null) return false;
+        // Require pin confirmation when map is visible
+        if (customerCoords && !pinConfirmed) return false;
       }
     }
     return true;
@@ -454,6 +462,8 @@ export default function BookingForm({ tenantId }) {
 
   function clearAddrSelection() {
     setAddrLocked(false);
+    setAddrUnit('');
+    setPinConfirmed(false);
     setForm(p => ({ ...p, addr_text: '' }));
     setCustomerCoords(null);
     setBracketFee(null);
@@ -1129,13 +1139,33 @@ export default function BookingForm({ tenantId }) {
                 <div style={{ position: 'relative' }}>
                   {addrLocked ? (
                     /* Confirmed selection */
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#E6F5F8', borderRadius: 8, border: '1.5px solid #38a9c2' }}>
-                      <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>📍</span>
-                      <span style={{ flex: 1, fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{form.addr_text}</span>
-                      <button type="button" onClick={clearAddrSelection}
-                        style={{ flexShrink: 0, fontSize: 11, padding: '3px 9px', borderRadius: 5, border: '1px solid #38a9c2', background: '#fff', color: '#1a7d94', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
-                        Change
-                      </button>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#E6F5F8', borderRadius: 8, border: '1.5px solid #38a9c2' }}>
+                        <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>📍</span>
+                        <span style={{ flex: 1, fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{form.addr_text}</span>
+                        <button type="button" onClick={clearAddrSelection}
+                          style={{ flexShrink: 0, fontSize: 11, padding: '3px 9px', borderRadius: 5, border: '1px solid #38a9c2', background: '#fff', color: '#1a7d94', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
+                          Change
+                        </button>
+                      </div>
+                      {/* Unit / landmark — required */}
+                      <div style={{ marginTop: 10 }}>
+                        <label style={{ ...LABEL, marginBottom: 5 }}>
+                          Unit / House No. / Landmark <span style={{ color: '#E53E3E' }}>*</span>
+                        </label>
+                        <input
+                          style={{ ...INPUT, borderColor: addrUnit.trim() ? '#38a9c2' : '#E2E8F0' }}
+                          value={addrUnit}
+                          onChange={e => setAddrUnit(e.target.value)}
+                          placeholder="e.g. Unit 3B, 2nd floor, beside Mercury Drug"
+                          autoComplete="off"
+                        />
+                        {!addrUnit.trim() && (
+                          <div style={{ fontSize: 11, color: '#D97706', marginTop: 5 }}>
+                            ⚠️ Required — helps our rider find you exactly.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     /* Search input */
@@ -1189,10 +1219,15 @@ export default function BookingForm({ tenantId }) {
                     </div>
                   )}
 
-                  {/* No results hint */}
-                  {!addrSuggestLoading && form.addr_text.trim().length >= 3 && addrSuggestions.length === 0 && !addrLocked && (
+                  {/* Must-select hint — typed but not locked */}
+                  {!addrLocked && form.addr_text.trim().length >= 3 && addrSuggestions.length === 0 && !addrSuggestLoading && (
                     <div style={{ fontSize: 11, color: '#374151', marginTop: 6, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
                       💡 No results yet — try adding barangay or city name (e.g. "123 Rizal St, Makati")
+                    </div>
+                  )}
+                  {!addrLocked && form.addr_text.trim().length >= 3 && addrSuggestions.length > 0 && (
+                    <div style={{ fontSize: 11, color: '#D97706', marginTop: 6 }}>
+                      👆 Please select your address from the list above to continue.
                     </div>
                   )}
                 </div>
@@ -1231,7 +1266,21 @@ export default function BookingForm({ tenantId }) {
                   </div>
                 )}
                 {customerCoords && (
-                  <div ref={mapContainerRef} style={{ width: '100%', height: 200, borderRadius: 10, border: '1.5px solid #9ED3DC', overflow: 'hidden', marginTop: 6 }} />
+                  <div>
+                    <div ref={mapContainerRef} style={{ width: '100%', height: 200, borderRadius: 10, border: '1.5px solid #9ED3DC', overflow: 'hidden', marginTop: 6 }} />
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 10, cursor: 'pointer',
+                      padding: '10px 12px', borderRadius: 8,
+                      background: pinConfirmed ? '#F0FDF4' : '#FFFBEB',
+                      border: `1.5px solid ${pinConfirmed ? '#34D399' : '#FCD34D'}` }}>
+                      <input type="checkbox" checked={pinConfirmed} onChange={e => setPinConfirmed(e.target.checked)}
+                        style={{ marginTop: 1, flexShrink: 0, accentColor: '#38a9c2', width: 15, height: 15 }} />
+                      <span style={{ fontSize: 12, color: pinConfirmed ? '#065F46' : '#92400E', lineHeight: 1.5 }}>
+                        {pinConfirmed
+                          ? '✓ Pin confirmed — we know where to pick up your laundry.'
+                          : 'Please confirm the pin is at or near your location. You can drag it to adjust.'}
+                      </span>
+                    </label>
+                  </div>
                 )}
                 {bracketInfo.delivery_note && (
                   <div style={{ marginTop: 8, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
