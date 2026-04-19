@@ -293,8 +293,10 @@ export default function DeliveryZones() {
               Used as the delivery fee dropdown when no shop location is set. Also available when creating orders manually.
             </div>
           </div>
-          <button onClick={() => { setZoneForm({ name: '', fee: '', active: true, sort_order: zones.length, custom_note: '' }); setZoneErr(''); }}
-            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, border: '0.5px solid #38a9c2', background: '#fff', color: '#38a9c2', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap' }}>
+          <button
+            onClick={() => { setZoneForm({ name: '', fee: '', active: true, sort_order: zones.length, custom_note: '' }); setZoneErr(''); }}
+            disabled={!!zoneForm}
+            style={{ padding: '5px 12px', fontSize: 12, borderRadius: 6, border: '0.5px solid #38a9c2', background: '#fff', color: '#38a9c2', cursor: zoneForm ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 500, whiteSpace: 'nowrap', opacity: zoneForm ? 0.5 : 1 }}>
             + Add Zone
           </button>
         </div>
@@ -306,83 +308,109 @@ export default function DeliveryZones() {
             </div>
           )}
 
-          {zones.length > 0 && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: '#f5f5f3' }}>
-                  {['Zone Name', 'Fee (₱)', 'Note', 'Active', ''].map(h => (
-                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {zones.map(zone => (
-                  <tr key={zone.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 500 }}>{zone.name}</td>
-                    <td style={{ padding: '10px 14px' }}>₱{Number(zone.fee).toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', color: '#6B7280', fontSize: 12 }}>{zone.custom_note || '—'}</td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <button onClick={() => handleZoneToggleActive(zone)}
-                        style={{ padding: '3px 10px', fontSize: 12, borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
-                          background: zone.active ? '#EAF3DE' : '#F3F4F6', color: zone.active ? '#3B6D11' : '#6B7280' }}>
-                        {zone.active ? 'Active' : 'Inactive'}
-                      </button>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, display: zones.length > 0 || zoneForm ? 'table' : 'none' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f3' }}>
+                {['Zone Name', 'Fee (₱)', 'Note', 'Active', ''].map(h => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {zones.map(zone => {
+                const isEditing = zoneForm?.id === zone.id;
+                return (
+                  <tr key={zone.id} style={{ borderTop: '0.5px solid #f0f0ec', background: isEditing ? '#FAFAF8' : '#fff' }}>
+                    <td style={{ padding: isEditing ? '8px 14px' : '10px 14px', fontWeight: 500 }}>
+                      {isEditing
+                        ? <input style={{ ...INP }} value={zoneForm.name} onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))} placeholder="Zone name" autoFocus />
+                        : zone.name}
                     </td>
-                    <td style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => { setZoneForm({ ...zone }); setZoneErr(''); }}
-                          style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer' }}>
-                          Edit
-                        </button>
-                        <button onClick={() => handleZoneDelete(zone.id)}
-                          style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
-                          Delete
-                        </button>
-                      </div>
+                    <td style={{ padding: isEditing ? '8px 14px' : '10px 14px' }}>
+                      {isEditing
+                        ? <input style={{ ...INP, width: 100 }} type="number" min="0" step="1" value={zoneForm.fee} onChange={e => setZoneForm(p => ({ ...p, fee: e.target.value }))} placeholder="0" />
+                        : `₱${Number(zone.fee).toLocaleString()}`}
+                    </td>
+                    <td style={{ padding: isEditing ? '8px 14px' : '10px 14px', color: '#6B7280', fontSize: 12 }}>
+                      {isEditing
+                        ? <input style={INP} value={zoneForm.custom_note || ''} onChange={e => setZoneForm(p => ({ ...p, custom_note: e.target.value }))} placeholder="Optional note" />
+                        : (zone.custom_note || '—')}
+                    </td>
+                    <td style={{ padding: isEditing ? '8px 14px' : '10px 14px' }}>
+                      {isEditing
+                        ? <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <input type="checkbox" checked={zoneForm.active !== false} onChange={e => setZoneForm(p => ({ ...p, active: e.target.checked }))} />
+                            Active
+                          </label>
+                        : <button onClick={() => handleZoneToggleActive(zone)}
+                            style={{ padding: '3px 10px', fontSize: 12, borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                              background: zone.active ? '#EAF3DE' : '#F3F4F6', color: zone.active ? '#3B6D11' : '#6B7280' }}>
+                            {zone.active ? 'Active' : 'Inactive'}
+                          </button>}
+                    </td>
+                    <td style={{ padding: isEditing ? '8px 14px' : '10px 14px' }}>
+                      {isEditing
+                        ? <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {zoneErr && <span style={{ fontSize: 11, color: '#A32D2D', marginRight: 4 }}>{zoneErr}</span>}
+                            <button onClick={handleZoneSave} disabled={zoneSaving}
+                              style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, border: 'none', background: zoneSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                              {zoneSaving ? 'Saving…' : 'Save'}
+                            </button>
+                            <button onClick={() => { setZoneForm(null); setZoneErr(''); }}
+                              style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        : <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => { setZoneForm({ ...zone }); setZoneErr(''); }}
+                              style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                              Edit
+                            </button>
+                            <button onClick={() => handleZoneDelete(zone.id)}
+                              style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                              Delete
+                            </button>
+                          </div>}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                );
+              })}
 
-          {/* Add / Edit zone form */}
-          {zoneForm && (
-            <div style={{ padding: '16px 14px', borderTop: zones.length > 0 ? '0.5px solid #f0f0ec' : 'none', background: '#FAFAF8' }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>{zoneForm.id ? 'Edit Zone' : 'New Zone'}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 1fr', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Zone Name *</label>
-                  <input style={INP} value={zoneForm.name} onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Nearby, City Center, Provincial" />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Fee (₱) *</label>
-                  <input style={INP} type="number" min="0" step="1" value={zoneForm.fee} onChange={e => setZoneForm(p => ({ ...p, fee: e.target.value }))} placeholder="0" />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Custom Note</label>
-                  <input style={INP} value={zoneForm.custom_note || ''} onChange={e => setZoneForm(p => ({ ...p, custom_note: e.target.value }))} placeholder="Optional note shown to customers" />
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={zoneForm.active !== false} onChange={e => setZoneForm(p => ({ ...p, active: e.target.checked }))} />
-                  Active (visible on booking form)
-                </label>
-                {zoneErr && <span style={{ fontSize: 12, color: '#A32D2D' }}>{zoneErr}</span>}
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                  <button onClick={() => setZoneForm(null)}
-                    style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Cancel
-                  </button>
-                  <button onClick={handleZoneSave} disabled={zoneSaving}
-                    style={{ padding: '7px 16px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: zoneSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit', fontWeight: 500 }}>
-                    {zoneSaving ? 'Saving…' : zoneForm.id ? 'Save Changes' : 'Add Zone'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+              {/* New zone row — only shown when adding */}
+              {zoneForm && !zoneForm.id && (
+                <tr style={{ borderTop: '0.5px solid #f0f0ec', background: '#FAFAF8' }}>
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={INP} value={zoneForm.name} onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))} placeholder="Zone name" autoFocus />
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={{ ...INP, width: 100 }} type="number" min="0" step="1" value={zoneForm.fee} onChange={e => setZoneForm(p => ({ ...p, fee: e.target.value }))} placeholder="0" />
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <input style={INP} value={zoneForm.custom_note || ''} onChange={e => setZoneForm(p => ({ ...p, custom_note: e.target.value }))} placeholder="Optional note" />
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <input type="checkbox" checked={zoneForm.active !== false} onChange={e => setZoneForm(p => ({ ...p, active: e.target.checked }))} />
+                      Active
+                    </label>
+                  </td>
+                  <td style={{ padding: '8px 14px' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {zoneErr && <span style={{ fontSize: 11, color: '#A32D2D', marginRight: 4 }}>{zoneErr}</span>}
+                      <button onClick={handleZoneSave} disabled={zoneSaving}
+                        style={{ fontSize: 12, padding: '4px 12px', borderRadius: 6, border: 'none', background: zoneSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        {zoneSaving ? 'Saving…' : 'Add'}
+                      </button>
+                      <button onClick={() => { setZoneForm(null); setZoneErr(''); }}
+                        style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
