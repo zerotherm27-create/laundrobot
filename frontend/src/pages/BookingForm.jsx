@@ -517,17 +517,18 @@ export default function BookingForm({ tenantId }) {
     const { lat, lng } = customerCoords;
     const shopLat = Number(bracketInfo.shop_lat), shopLng = Number(bracketInfo.shop_lng);
     if (!leafletMapRef.current) {
-      window.L.Icon.Default.mergeOptions({
+      const pinIcon = window.L.icon({
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
       });
       const map = window.L.map(mapContainerRef.current).setView([lat, lng], 14);
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
       }).addTo(map);
-      window.L.marker([shopLat, shopLng]).addTo(map).bindPopup('📍 Shop').openPopup();
-      const custMarker = window.L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup('📦 Your location');
+      window.L.marker([shopLat, shopLng], { icon: pinIcon }).addTo(map).bindPopup('📍 Shop').openPopup();
+      const custMarker = window.L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map).bindPopup('📦 Your location');
       custMarker.on('dragend', () => {
         const { lat: la, lng: lo } = custMarker.getLatLng();
         setCustomerCoords({ lat: la, lng: lo });

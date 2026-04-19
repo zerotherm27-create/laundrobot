@@ -104,16 +104,17 @@ export default function DeliveryZones() {
       shopMarkerRef.current?.setLatLng([lat, lng]);
       return;
     }
-    window.L.Icon.Default.mergeOptions({
+    const pinIcon = window.L.icon({
       iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
       iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
       shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
     });
     const map = window.L.map(mapRef.current).setView([lat, lng], 15);
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
     }).addTo(map);
-    const marker = window.L.marker([lat, lng]).addTo(map).bindPopup('📍 Your Shop').openPopup();
+    const marker = window.L.marker([lat, lng], { icon: pinIcon }).addTo(map).bindPopup('📍 Your Shop').openPopup();
     leafletMapRef.current = map;
     shopMarkerRef.current = marker;
   }
