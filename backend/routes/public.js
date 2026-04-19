@@ -101,8 +101,6 @@ router.get('/:tenantId/services', async (req, res) => {
         [svc.id]
       );
       svc.custom_fields = fields;
-      // Skip base64 images — not usable in img tags for public form
-      if (svc.image_url && svc.image_url.startsWith('data:')) svc.image_url = null;
     }
     res.json(services);
   } catch (err) { res.status(500).json({ error: err.message }); }
