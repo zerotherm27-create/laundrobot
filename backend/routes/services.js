@@ -68,14 +68,14 @@ router.get('/', auth, async (req, res) => {
 
 // POST create service
 router.post('/', auth, async (req, res) => {
-  const { name, price, unit, description, category_id, sort_order, image_url, custom_fields } = req.body;
+  const { name, price, unit, description, category_id, sort_order, image_url, custom_fields, turnaround_days } = req.body;
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO services (tenant_id, name, price, unit, description, category_id, sort_order, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.tenant_id, name, price, unit || 'per kg', description, category_id || null, sort_order || 0, image_url || null]
+      `INSERT INTO services (tenant_id, name, price, unit, description, category_id, sort_order, image_url, turnaround_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.tenant_id, name, price, unit || 'per kg', description, category_id || null, sort_order || 0, image_url || null, turnaround_days != null ? Number(turnaround_days) : 2]
     );
     await saveFields(client, rows[0].id, custom_fields);
     await client.query('COMMIT');
@@ -89,15 +89,16 @@ router.post('/', auth, async (req, res) => {
 
 // PUT update service
 router.put('/:id', auth, async (req, res) => {
-  const { name, price, unit, description, active, category_id, sort_order, image_url, custom_fields } = req.body;
+  const { name, price, unit, description, active, category_id, sort_order, image_url, custom_fields, turnaround_days } = req.body;
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `UPDATE services SET name=$1, price=$2, unit=$3, description=$4, active=$5,
-                           category_id=$6, sort_order=$7, image_url=$8
-       WHERE id=$9 AND tenant_id=$10 RETURNING *`,
-      [name, price, unit, description, active, category_id || null, sort_order || 0, image_url || null, req.params.id, req.user.tenant_id]
+                           category_id=$6, sort_order=$7, image_url=$8, turnaround_days=$9
+       WHERE id=$10 AND tenant_id=$11 RETURNING *`,
+      [name, price, unit, description, active, category_id || null, sort_order || 0, image_url || null,
+       turnaround_days != null ? Number(turnaround_days) : 2, req.params.id, req.user.tenant_id]
     );
     if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Service not found' }); }
     await saveFields(client, rows[0].id, custom_fields);

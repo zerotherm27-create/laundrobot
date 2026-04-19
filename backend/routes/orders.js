@@ -171,16 +171,17 @@ router.get('/:id', auth, async (req, res) => {
 
 // PATCH update order status / notes / service / price
 router.patch('/:id', auth, async (req, res) => {
-  const { status, notes, paid, service_id, weight, price } = req.body;
+  const { status, notes, paid, service_id, weight, price, delivery_date } = req.body;
   try {
     const fields = [];
     const params = [];
-    if (status     !== undefined) { fields.push(`status = $${params.length + 1}`);     params.push(status); }
-    if (notes      !== undefined) { fields.push(`notes = $${params.length + 1}`);      params.push(notes); }
-    if (paid       !== undefined) { fields.push(`paid = $${params.length + 1}`);       params.push(paid); }
-    if (service_id !== undefined) { fields.push(`service_id = $${params.length + 1}`); params.push(service_id); }
-    if (weight     !== undefined) { fields.push(`weight = $${params.length + 1}`);     params.push(weight || null); }
-    if (price      !== undefined) { fields.push(`price = $${params.length + 1}`);      params.push(price); }
+    if (status        !== undefined) { fields.push(`status = $${params.length + 1}`);        params.push(status); }
+    if (notes         !== undefined) { fields.push(`notes = $${params.length + 1}`);         params.push(notes); }
+    if (paid          !== undefined) { fields.push(`paid = $${params.length + 1}`);          params.push(paid); }
+    if (service_id    !== undefined) { fields.push(`service_id = $${params.length + 1}`);    params.push(service_id); }
+    if (weight        !== undefined) { fields.push(`weight = $${params.length + 1}`);        params.push(weight || null); }
+    if (price         !== undefined) { fields.push(`price = $${params.length + 1}`);         params.push(price); }
+    if (delivery_date !== undefined) { fields.push(`delivery_date = $${params.length + 1}`); params.push(delivery_date || null); }
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
     params.push(req.params.id, req.user.tenant_id);
     const { rows } = await db.query(

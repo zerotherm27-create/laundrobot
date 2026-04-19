@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
 
-const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0 };
+const emptyService  = { name: '', price: '', unit: 'per kg', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
 const emptyCategory = { name: '', sort_order: 0, active: true };
 const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, sync_qty: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed' };
 
@@ -367,6 +367,18 @@ export default function Services() {
                 <input type={type} value={svcForm[field]} onChange={e => setSvcForm(p => ({ ...p, [field]: e.target.value }))} style={S.input} />
               </div>
             ))}
+
+            {/* Turnaround days */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Turnaround time (days) <span style={{ fontWeight: 400, color: '#6B7280' }}>— how long until delivery after pickup</span></label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="number" min="1" max="30" value={svcForm.turnaround_days ?? 2}
+                  onChange={e => setSvcForm(p => ({ ...p, turnaround_days: +e.target.value }))} style={{ ...S.input, width: 80 }} />
+                <span style={{ fontSize: 12, color: '#374151' }}>
+                  day{(svcForm.turnaround_days ?? 2) !== 1 ? 's' : ''} after pickup → delivery date auto-calculated
+                </span>
+              </div>
+            </div>
 
             {/* Sort order */}
             <div style={{ marginBottom: 12 }}>

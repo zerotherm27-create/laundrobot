@@ -362,14 +362,26 @@ router.post('/:tenantId/orders', async (req, res) => {
 
       const orderStatus = initial_status || 'NEW ORDER';
       const orderPaid   = initialPaid === true || initialPaid === 'true' ? true : false;
+
+      // Auto-calculate delivery_date = pickup_date + max turnaround_days across all cart items
+      let deliveryDate = null;
+      try {
+        const maxTurnaround = Math.max(...pricedItems.map(pi => Number(pi.service.turnaround_days || 2)));
+        const pd = new Date(pickup_date.trim());
+        if (!isNaN(pd.getTime())) {
+          pd.setDate(pd.getDate() + maxTurnaround);
+          deliveryDate = pd.toISOString();
+        }
+      } catch (_) {}
+
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
-                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
         [orderId, req.params.tenantId, customerId, service.id,
          weight, itemTotal, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
-         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid]
+         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate]
       );
       createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
     }
