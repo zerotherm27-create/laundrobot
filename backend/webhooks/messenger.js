@@ -65,10 +65,19 @@ router.post('/', async (req, res) => {
       if (event.optin) {
         try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
         catch (err) { console.error('[webhook] optin error:', err.message); }
+      } else if (event.referral) {
+        try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
+        catch (err) { console.error('[webhook] referral error:', err.message); }
       } else if (event.message || event.postback) {
         console.log('[webhook] msg from:', event.sender.id);
-        try { await handleMessage(tenant, event.sender.id, event, 'messenger'); }
-        catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
+        // Handle GET_STARTED postback that carries an m.me ref param
+        if (event.postback?.payload === 'GET_STARTED' && event.postback?.referral?.ref) {
+          try { await handleOptin(tenant, event.sender.id, event.postback.referral.ref); }
+          catch (err) { console.error('[webhook] referral optin error:', err.message); }
+        } else {
+          try { await handleMessage(tenant, event.sender.id, event, 'messenger'); }
+          catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
+        }
       }
     }
   }

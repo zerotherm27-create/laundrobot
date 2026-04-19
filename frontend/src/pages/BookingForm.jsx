@@ -179,9 +179,6 @@ export default function BookingForm({ tenantId }) {
   const [submitErr,  setSubmitErr]  = useState('');
   const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
 
-  // Detect if running inside Messenger/Facebook app webview
-  const isInMessengerWebview = /FBAN|FBAV|FB_IAB|MessengerLiteForiOS/.test(navigator.userAgent);
-
   useEffect(() => {
     // Try to capture Messenger PSID from Extensions SDK (only works inside Messenger webview)
     const tryGetPsid = () => {
@@ -580,42 +577,6 @@ export default function BookingForm({ tenantId }) {
     return () => clearTimeout(t);
   }, [step, result]);
 
-  // Load FB SDK for Send to Messenger button
-  useEffect(() => {
-    if (step !== 'success') return;
-    const appId = import.meta.env.VITE_FB_APP_ID;
-    if (!appId || !tenant?.fb_page_id) return;
-
-    // Poll until XFBML is available then parse (handles all timing cases)
-    const tryParse = (attempt = 0) => {
-      if (window.FB?.XFBML) {
-        try { window.FB.XFBML.parse(); } catch (_) {}
-      } else if (attempt < 20) {
-        setTimeout(() => tryParse(attempt + 1), 300);
-      }
-    };
-
-    if (window.FB) {
-      // SDK already loaded and initialized — parse immediately
-      tryParse();
-    } else {
-      // Preserve any existing init callback (don't double-init)
-      const prev = window.fbAsyncInit;
-      window.fbAsyncInit = () => {
-        if (prev) prev();
-        window.FB.init({ appId, xfbml: false, version: 'v19.0' });
-        tryParse();
-      };
-      if (!document.getElementById('facebook-jssdk')) {
-        const s = document.createElement('script');
-        s.id = 'facebook-jssdk';
-        s.src = 'https://connect.facebook.net/en_US/sdk.js';
-        s.async = true; s.defer = true;
-        document.body.appendChild(s);
-      }
-      // If script is already loading, our fbAsyncInit above will be called when ready
-    }
-  }, [step, tenant]);
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
@@ -671,19 +632,28 @@ export default function BookingForm({ tenantId }) {
               </a>
             </div>
           )}
-          {import.meta.env.VITE_FB_APP_ID && tenant?.fb_page_id && !messengerPsid && !isInMessengerWebview && (
+          {tenant?.fb_page_id && !messengerPsid && (
             <div style={{ margin: '16px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
                 Get order updates &amp; promos on Messenger
               </div>
-              <div
-                className="fb-send-to-messenger"
-                messenger_app_id={import.meta.env.VITE_FB_APP_ID}
-                page_id={tenant.fb_page_id}
-                data-ref={result.booking_ref}
-                color="blue"
-                size="large"
-              />
+              <a
+                href={`https://m.me/${tenant.fb_page_id}?ref=${result.booking_ref}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '10px 20px', borderRadius: 10,
+                  background: '#0084ff', color: '#fff',
+                  fontWeight: 600, fontSize: 14, textDecoration: 'none',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 36 36" fill="currentColor">
+                  <path d="M18 2C9.16 2 2 8.71 2 17c0 4.57 1.96 8.67 5.09 11.56V34l4.86-2.67A17.3 17.3 0 0 0 18 32c8.84 0 16-6.71 16-15S26.84 2 18 2zm1.67 20.19-4.06-4.33-7.93 4.33 8.72-9.27 4.16 4.33 7.83-4.33-8.72 9.27z"/>
+                </svg>
+                Connect on Messenger
+              </a>
             </div>
           )}
           <button onClick={closeMiniApp}
