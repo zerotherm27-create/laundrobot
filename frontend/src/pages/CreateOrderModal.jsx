@@ -95,9 +95,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
   }, []);
 
   // ── Price calculation (preview only — backend calculates actual price) ──
-  const isPerKg       = !!selectedSvc?.unit?.toLowerCase().includes('kg');
   const basePrice     = selectedSvc ? Number(selectedSvc.price) : 0;
-  const w             = parseFloat(weight) || 0;
   const selectFields  = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'select');
   const addonFields   = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'addon');
   const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
@@ -118,9 +116,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
   }, 0);
 
   const baseSubtotal = selectedSvc
-    ? (isPerKg && w > 0 ? basePrice * w
-      : qty > 0 ? (hasVarPricing ? 0 : basePrice * qty)
-      : (hasVarPricing ? 0 : basePrice))
+    ? (qty > 0 ? (hasVarPricing ? 0 : basePrice * qty) : (hasVarPricing ? 0 : basePrice))
     : 0;
   const subtotal   = selectedSvc ? (hasVarPricing ? varTotal * (qty > 1 ? qty : 1) : baseSubtotal + varTotal) : 0;
   const addonTotal = addonFields.reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
@@ -145,12 +141,11 @@ export default function CreateOrderModal({ onClose, onCreated }) {
     setSubmitting(true); setError('');
     try {
       const customFields = [];
-      if (isPerKg && weight) customFields.push({ label: 'Weight (kg)', value: weight });
       for (const f of (selectedSvc.custom_fields || [])) {
         if (f.field_type === 'addon') {
           const aq = addonQty[f.id] || 0;
           if (aq > 0) customFields.push({ label: f.label, value: String(aq), unit_price: f.unit_price });
-        } else if (f.field_type !== 'weight' && fieldValues[f.id]) {
+        } else if (fieldValues[f.id]) {
           customFields.push({ label: f.label, value: fieldValues[f.id] });
         }
       }
@@ -346,21 +341,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                     );
                     return null;
                   })}
-                  {/* Weight field (if service is per-kg and no explicit weight field) */}
-                  {isPerKg && !(selectedSvc.custom_fields || []).find(f => f.field_type === 'weight') && (
-                    <Field label="Weight (kg)" required>
-                      <input type="number" min="0" step="0.1" style={INP} value={weight}
-                        onChange={e => setWeight(e.target.value)} placeholder="e.g. 3.5" />
-                    </Field>
-                  )}
                 </div>
-              )}
-              {/* Weight field for per-kg services with no custom fields */}
-              {selectedSvc && isPerKg && !(selectedSvc.custom_fields || []).length && (
-                <Field label="Weight (kg)" required>
-                  <input type="number" min="0" step="0.1" style={INP} value={weight}
-                    onChange={e => setWeight(e.target.value)} placeholder="e.g. 3.5" />
-                </Field>
               )}
 
               <div style={{ height: 1, background: '#E8E8E0', margin: '4px 0 16px' }} />

@@ -218,8 +218,6 @@ export default function BookingForm({ tenantId }) {
     ? services.filter(s => s.category_id === activeCat)
     : services;
 
-  const isPerKg = selectedSvc?.unit?.toLowerCase().includes('kg');
-  const w = parseFloat(weight) || 0;
   const price = selectedSvc ? Number(selectedSvc.price) : 0;
 
   // First number-type field drives qty multiplier (non-kg services)
@@ -285,7 +283,7 @@ export default function BookingForm({ tenantId }) {
     : new Set();
 
   const baseSubtotal = selectedSvc
-    ? (isPerKg && w > 0 ? price * w : qty > 0 ? (hasVariationPricing ? 0 : price * qty) : (hasVariationPricing ? 0 : price))
+    ? (qty > 0 ? (hasVariationPricing ? 0 : price * qty) : (hasVariationPricing ? 0 : price))
     : 0;
 
   const subtotal = selectedSvc
@@ -340,19 +338,18 @@ export default function BookingForm({ tenantId }) {
 
   function addToCart() {
     const customFields = [];
-    if (isPerKg && weight) customFields.push({ label: 'Weight (kg)', value: weight });
     for (const f of (selectedSvc.custom_fields || [])) {
       if (f.field_type === 'addon') {
         if (!isAddonVisible(f)) continue;
         const aqty = addonQty[f.id] || 0;
         if (aqty > 0) customFields.push({ label: f.label, value: String(aqty), unit_price: f.unit_price });
-      } else if (!f.label?.toLowerCase().includes('weight') && fieldValues[f.id] !== undefined) {
+      } else if (fieldValues[f.id] !== undefined) {
         customFields.push({ label: f.label, value: fieldValues[f.id] });
       }
     }
     const displayLines = [];
     if (!hasVariationPricing && baseSubtotal > 0) {
-      displayLines.push({ label: `${selectedSvc.name}${isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}`, price: baseSubtotal });
+      displayLines.push({ label: `${selectedSvc.name}${qty > 0 ? ` × ${qty}` : ''}`, price: baseSubtotal });
     }
     selectFields.forEach(f => {
       const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
@@ -384,7 +381,6 @@ export default function BookingForm({ tenantId }) {
 
   function step1Valid() {
     if (!selectedSvc) return false;
-    if (isPerKg && (!weight || parseFloat(weight) <= 0)) return false;
     for (const f of (selectedSvc.custom_fields || [])) {
       if (f.field_type === 'addon') {
         if (f.required && isAddonVisible(f)) {
@@ -753,21 +749,8 @@ export default function BookingForm({ tenantId }) {
                   📝 Service Details — {selectedSvc.name}
                 </div>
 
-                {/* Weight field for per-kg services */}
-                {isPerKg && (
-                  <Field label="Estimated Weight (kg)" required>
-                    <input
-                      style={INPUT} type="number" min="0.1" step="0.1"
-                      value={weight} onChange={e => setWeight(e.target.value)}
-                      placeholder="e.g. 5"
-                      onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                      onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                    />
-                  </Field>
-                )}
-
-                {/* Other custom fields */}
-                {(selectedSvc.custom_fields || []).filter(f => !f.label?.toLowerCase().includes('weight') || !isPerKg).map(f => {
+                {/* Custom fields */}
+                {(selectedSvc.custom_fields || []).map(f => {
                   // Add-on field: stepper UI
                   if (f.field_type === 'addon') {
                     if (!isAddonVisible(f)) return null;
@@ -859,7 +842,7 @@ export default function BookingForm({ tenantId }) {
                   }
                   // Regular fields (text, number, textarea)
                   return (
-                    <Field key={f.id} label={f.label + (f.field_type === 'number' && !isPerKg ? ' (× price)' : '')} required={f.required}>
+                    <Field key={f.id} label={f.label + (f.field_type === 'number' ? ' (× price)' : '')} required={f.required}>
                       {f.field_type === 'textarea' ? (
                         <textarea
                           style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
@@ -890,7 +873,7 @@ export default function BookingForm({ tenantId }) {
                   <div style={{ marginTop: 12, background: '#E6F5F8', borderRadius: 10, padding: '10px 14px', border: '1px solid #9ED3DC' }}>
                     {baseSubtotal > 0 && !hasVariationPricing && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#1a7d94', marginBottom: 4 }}>
-                        <span>{selectedSvc.name}{isPerKg && w > 0 ? ` (${w} kg)` : qty > 0 ? ` × ${qty}` : ''}</span>
+                        <span>{selectedSvc.name}{qty > 0 ? ` × ${qty}` : ''}</span>
                         <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
                       </div>
                     )}
