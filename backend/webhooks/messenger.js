@@ -726,11 +726,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   if (tenant.ai_enabled && event.message?.text) {
     const aiReply = await askGemini(tenant.id, text);
     if (aiReply) {
-      await sendButtons(token, senderId, aiReply, [
-        { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
-        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-        { type: 'postback', title: '👤 Talk to Staff', payload: 'HUMAN_REQUEST' },
-      ]);
+      await sendMessage(token, senderId, aiReply);
       return;
     }
   }
