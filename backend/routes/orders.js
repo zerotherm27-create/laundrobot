@@ -2,7 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
-const { createInvoice } = require('../utils/xendit');
+const { createInvoice, createRefund } = require('../utils/xendit');
 
 // GET all orders for tenant (archived=true to fetch archives)
 router.get('/', auth, async (req, res) => {
@@ -304,6 +304,75 @@ router.post('/:id/notify-update', auth, async (req, res) => {
   } catch (err) {
     console.error('[notify-update]', err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
+// POST cancel order (+ auto-refund if paid via Xendit)
+router.post('/:id/cancel', auth, async (req, res) => {
+  try {
+    // Fetch the order + tenant Xendit key
+    const { rows: [order] } = await db.query(
+      `SELECT o.*, t.xendit_api_key FROM orders o
+       JOIN tenants t ON t.id = o.tenant_id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status === 'CANCELLED') return res.status(400).json({ error: 'Order is already cancelled' });
+
+    // Find all sibling orders (same booking_ref) to cancel together
+    let orderIds = [order.id];
+    let invoiceId = order.xendit_invoice_id;
+    let totalAmount = Number(order.price);
+
+    if (order.booking_ref) {
+      const { rows: siblings } = await db.query(
+        `SELECT id, price, xendit_invoice_id FROM orders WHERE booking_ref=$1 AND tenant_id=$2`,
+        [order.booking_ref, req.user.tenant_id]
+      );
+      if (siblings.length) {
+        orderIds = siblings.map(s => s.id);
+        totalAmount = siblings.reduce((sum, s) => sum + Number(s.price), 0);
+        invoiceId = siblings.find(s => s.xendit_invoice_id)?.xendit_invoice_id || invoiceId;
+      }
+    }
+
+    // Cancel all orders
+    await db.query(
+      `UPDATE orders SET status='CANCELLED' WHERE id = ANY($1::text[]) AND tenant_id=$2`,
+      [orderIds, req.user.tenant_id]
+    );
+
+    // Not paid — done
+    if (!order.paid) {
+      return res.json({ ok: true, cancelled: true, refund_status: 'not_applicable', message: 'Order cancelled.' });
+    }
+
+    // Paid but no Xendit invoice on record
+    if (!invoiceId || !order.xendit_api_key) {
+      return res.json({ ok: true, cancelled: true, refund_status: 'manual', message: 'Order cancelled. No Xendit payment found — process refund manually if needed.' });
+    }
+
+    // Attempt Xendit refund
+    try {
+      await createRefund(order.xendit_api_key, { invoiceId, amount: totalAmount, reason: 'CANCELLATION' });
+      return res.json({
+        ok: true, cancelled: true, refund_status: 'success',
+        message: `Refund of ₱${Number(totalAmount).toLocaleString('en-PH')} processed successfully via Xendit.`,
+      });
+    } catch (e) {
+      const msg = e.response?.data?.message || e.message || '';
+      const isMethodIssue = /not support|refundable|channel|method/i.test(msg);
+      return res.json({
+        ok: true, cancelled: true, refund_status: 'manual',
+        message: isMethodIssue
+          ? 'Manual refund required — payment method does not support auto-refund.'
+          : `Manual refund required — ${msg}`,
+      });
+    }
+  } catch (err) {
+    console.error('[cancel-order]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

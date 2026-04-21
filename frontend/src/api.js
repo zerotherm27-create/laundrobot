@@ -34,6 +34,7 @@ export const updateBooking = (ref, items, customNote, customPrice) =>
 export const notifyOrderUpdate    = (id, data) => api.post(`/orders/${id}/notify-update`, data);
 export const generatePaymentLink  = id          => api.post(`/orders/${id}/payment-link`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
+export const cancelOrder = id => api.post(`/orders/${id}/cancel`);
 
 export const getServices = () => api.get('/services');
 export const createService = data => api.post('/services', data);

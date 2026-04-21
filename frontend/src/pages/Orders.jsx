@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
@@ -76,6 +76,10 @@ export default function Orders() {
 
   // Create order modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Cancel order
+  const [cancelling, setCancelling]     = useState(false);
+  const [cancelResult, setCancelResult] = useState(null); // { refund_status, message }
 
   // Payment link
   const [payLinkLoading, setPayLinkLoading] = useState(false);
@@ -328,7 +332,7 @@ export default function Orders() {
                       const isSelected = (selected?.booking_ref || selected?.id) === gKey;
                       return (
                       <tr key={gKey}
-                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); }}
+                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); }}
                         style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
                           <div>{g.booking_ref || g.id}</div>
@@ -631,6 +635,47 @@ export default function Orders() {
                         </button>
                         {payLinkErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{payLinkErr}</div>}
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Cancel Order ── */}
+                {!editMode && selected.status !== 'CANCELLED' && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+                    {cancelResult ? (
+                      <div style={{
+                        padding: '10px 14px', borderRadius: 8, fontSize: 13,
+                        background: cancelResult.refund_status === 'success' ? '#EAF3DE' : '#FEF3C7',
+                        border: `1px solid ${cancelResult.refund_status === 'success' ? '#86EFAC' : '#FCD34D'}`,
+                        color: cancelResult.refund_status === 'success' ? '#166534' : '#92400E',
+                      }}>
+                        {cancelResult.refund_status === 'success' ? '✅ ' : '⚠️ '}{cancelResult.message}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const isPaid = selected.paid;
+                          const confirmMsg = isPaid
+                            ? `Cancel this order?\n\nThis order was paid — we'll attempt an auto-refund of ₱${Number(selected.price).toLocaleString()} via Xendit.`
+                            : `Cancel this order? This cannot be undone.`;
+                          if (!confirm(confirmMsg)) return;
+                          setCancelling(true);
+                          try {
+                            const { data } = await cancelOrder(selected.orderIds[0]);
+                            setCancelResult(data);
+                            setOrders(prev => prev.map(o =>
+                              selected.orderIds.includes(o.id) ? { ...o, status: 'CANCELLED' } : o
+                            ));
+                            setSelected(prev => prev ? { ...prev, status: 'CANCELLED' } : prev);
+                          } catch (e) {
+                            alert('Error: ' + (e.response?.data?.error || e.message));
+                          }
+                          setCancelling(false);
+                        }}
+                        disabled={cancelling}
+                        style={{ width: '100%', padding: '8px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: '1px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: cancelling ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                        {cancelling ? '⏳ Cancelling…' : '✕ Cancel Order'}
+                      </button>
                     )}
                   </div>
                 )}

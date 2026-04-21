@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, updateOrder } from '../api.js';
+import { getOrders, updateOrderStatus, updateOrder, cancelOrder } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 
@@ -106,6 +106,8 @@ export default function Kanban() {
   const [expanded,   setExpanded]   = useState(new Set());
   const [modalOrder, setModalOrder] = useState(null);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [cancelling,    setCancelling]    = useState(false);
+  const [cancelResult,  setCancelResult]  = useState(null);
 
   // Delivery date override state (inside modal)
   const [editingDelivery, setEditingDelivery] = useState(false);
@@ -156,6 +158,7 @@ export default function Kanban() {
     setModalOrder(g);
     setEditingDelivery(false);
     setDeliveryInput(g.delivery_date ? g.delivery_date.slice(0, 10) : '');
+    setCancelResult(null);
   }
 
   async function saveDeliveryDate() {
@@ -595,6 +598,47 @@ export default function Kanban() {
             <div style={{ marginTop: 8, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               Created {modalOrder.created_at ? new Date(modalOrder.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
             </div>
+
+            {/* ── Cancel Order ── */}
+            {modalOrder.status !== 'CANCELLED' && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+                {cancelResult ? (
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 8, fontSize: 13,
+                    background: cancelResult.refund_status === 'success' ? '#EAF3DE' : '#FEF3C7',
+                    border: `1px solid ${cancelResult.refund_status === 'success' ? '#86EFAC' : '#FCD34D'}`,
+                    color: cancelResult.refund_status === 'success' ? '#166534' : '#92400E',
+                  }}>
+                    {cancelResult.refund_status === 'success' ? '✅ ' : '⚠️ '}{cancelResult.message}
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      const isPaid = modalOrder.paid;
+                      const confirmMsg = isPaid
+                        ? `Cancel this order?\n\nThis order was paid — we'll attempt an auto-refund of ₱${Number(modalOrder.price).toLocaleString()} via Xendit.`
+                        : `Cancel this order? This cannot be undone.`;
+                      if (!confirm(confirmMsg)) return;
+                      setCancelling(true);
+                      try {
+                        const { data } = await cancelOrder(modalOrder.orderIds[0]);
+                        setCancelResult(data);
+                        setOrders(prev => prev.map(o =>
+                          modalOrder.orderIds.includes(o.id) ? { ...o, status: 'CANCELLED' } : o
+                        ));
+                        setModalOrder(prev => prev ? { ...prev, status: 'CANCELLED' } : prev);
+                      } catch (e) {
+                        alert('Error: ' + (e.response?.data?.error || e.message));
+                      }
+                      setCancelling(false);
+                    }}
+                    disabled={cancelling}
+                    style={{ width: '100%', padding: '8px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: '1px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: cancelling ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    {cancelling ? '⏳ Cancelling…' : '✕ Cancel Order'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
