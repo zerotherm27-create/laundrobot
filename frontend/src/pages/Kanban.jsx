@@ -80,8 +80,18 @@ function groupByBookingRef(orders) {
     if (!map.has(key)) map.set(key, { ...o, price: 0, services: [], orderIds: [] });
     const g = map.get(key);
     g.price += Number(o.price);
-    g.services.push({ service_name: o.service_name, price: Number(o.price) });
+    g.services.push({
+      service_name: o.service_name,
+      price: Number(o.price),
+      weight: o.weight,
+      service_unit_price: o.service_unit_price,
+      service_unit: o.service_unit,
+      custom_selections: o.custom_selections,
+    });
     g.orderIds.push(o.id);
+    if (o.promo_code && !g.promo_code) g.promo_code = o.promo_code;
+    if (Number(o.promo_discount) > 0 && !g.promo_discount) g.promo_discount = Number(o.promo_discount);
+    if (Number(o.delivery_fee) > 0 && !g.delivery_fee) g.delivery_fee = Number(o.delivery_fee);
   }
   return Array.from(map.values());
 }
@@ -431,23 +441,100 @@ export default function Kanban() {
               </div>
             </div>
 
-            {/* Detail rows */}
+            {/* Info rows */}
             {[
-              ['Service',   modalOrder.services?.length > 1
-                ? modalOrder.services.map(s => s.service_name).join(', ')
-                : (modalOrder.services?.[0]?.service_name || modalOrder.service_name || '—')],
-              ['Address',   modalOrder.address || modalOrder.customer_address || '—'],
-              ['Weight',    modalOrder.weight ? modalOrder.weight + ' kg' : '—'],
-              ['Amount',    '₱' + Number(modalOrder.price).toLocaleString()],
-              ['Pickup',    modalOrder.pickup_date ? fmtDateTime(modalOrder.pickup_date) : '—'],
-              ['Notes',     modalOrder.notes || '—'],
-              ['Paid',      modalOrder.paid ? '✓ Paid' : '✗ Unpaid'],
+              ['Address', modalOrder.address || modalOrder.customer_address || '—'],
+              ['Pickup',  modalOrder.pickup_date ? fmtDateTime(modalOrder.pickup_date) : '—'],
+              ['Notes',   modalOrder.notes || '—'],
             ].map(([k, v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderTop: '0.5px solid #F0F0EC', fontSize: 13 }}>
                 <span style={{ color: '#374151', flexShrink: 0 }}>{k}</span>
-                <span style={{ fontWeight: 500, textAlign: 'right', color: k === 'Paid' ? (modalOrder.paid ? '#3B6D11' : '#A32D2D') : '#111827', wordBreak: 'break-word' }}>{v}</span>
+                <span style={{ fontWeight: 500, textAlign: 'right', color: '#111827', wordBreak: 'break-word' }}>{v}</span>
               </div>
             ))}
+
+            {/* ── Full transaction breakdown ── */}
+            <div style={{ borderTop: '0.5px solid #F0F0EC', marginTop: 6, paddingTop: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Order Breakdown</div>
+
+              {/* Services */}
+              {modalOrder.services?.length > 1
+                ? modalOrder.services.map((s, i) => (
+                    <div key={i} style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 500 }}>
+                        <span>{s.service_name || 'Service'}</span>
+                        <span>₱{Number(s.price).toLocaleString()}</span>
+                      </div>
+                      {s.weight > 0 && s.service_unit_price > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                          <span>{s.weight} {s.service_unit || 'unit'} × ₱{Number(s.service_unit_price).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {s.custom_selections?.map((sel, j) => sel.value ? (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                          <span>{sel.label}: {sel.value}</span>
+                          {sel.unit_price > 0 && <span>+₱{Number(sel.unit_price).toLocaleString()}</span>}
+                        </div>
+                      ) : null)}
+                    </div>
+                  ))
+                : (
+                    <div style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 500 }}>
+                        <span>{modalOrder.services?.[0]?.service_name || modalOrder.service_name || 'Service'}</span>
+                        <span>₱{Number(modalOrder.price).toLocaleString()}</span>
+                      </div>
+                      {modalOrder.weight > 0 && modalOrder.services?.[0]?.service_unit_price > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                          <span>{modalOrder.weight} {modalOrder.services?.[0]?.service_unit || 'unit'} × ₱{Number(modalOrder.services?.[0]?.service_unit_price).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {modalOrder.services?.[0]?.custom_selections?.map((sel, j) => sel.value ? (
+                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                          <span>{sel.label}: {sel.value}</span>
+                          {sel.unit_price > 0 && <span>+₱{Number(sel.unit_price).toLocaleString()}</span>}
+                        </div>
+                      ) : null)}
+                    </div>
+                  )
+              }
+
+              {/* Delivery fee */}
+              {Number(modalOrder.delivery_fee) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <span style={{ color: '#374151' }}>Delivery{modalOrder.delivery_zone ? ` — ${modalOrder.delivery_zone}` : ''}</span>
+                  <span style={{ fontWeight: 500 }}>₱{Number(modalOrder.delivery_fee).toLocaleString()}</span>
+                </div>
+              )}
+
+              {/* Promo */}
+              {Number(modalOrder.promo_discount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                  <span style={{ color: '#7C3AED', fontWeight: 600 }}>🎟️ Promo{modalOrder.promo_code ? ` (${modalOrder.promo_code})` : ''}</span>
+                  <span style={{ fontWeight: 700, color: '#7C3AED' }}>−₱{Number(modalOrder.promo_discount).toLocaleString()}</span>
+                </div>
+              )}
+
+              {/* Grand total */}
+              {(() => {
+                const servicesTotal = modalOrder.services?.reduce((s, o) => s + Number(o.price), 0) ?? Number(modalOrder.price);
+                const grandTotal = servicesTotal + Number(modalOrder.delivery_fee || 0) - Number(modalOrder.promo_discount || 0);
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>
+                    <span style={{ fontWeight: 700 }}>Total</span>
+                    <span style={{ fontWeight: 700, color: '#111827' }}>₱{grandTotal.toLocaleString()}</span>
+                  </div>
+                );
+              })()}
+
+              {/* Paid status */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                <span style={{ color: '#374151' }}>Payment</span>
+                <span style={{ fontWeight: 600, color: modalOrder.paid ? '#3B6D11' : '#A32D2D' }}>
+                  {modalOrder.paid ? '✓ Paid' : '✗ Unpaid'}
+                </span>
+              </div>
+            </div>
 
             {/* Delivery date row — editable */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '0.5px solid #F0F0EC', fontSize: 13 }}>
