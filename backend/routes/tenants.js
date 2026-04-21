@@ -211,10 +211,13 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
         for (const f of fields) {
           await client.query(
             `INSERT INTO service_custom_fields
-               (service_id, label, field_type, placeholder, required, sort_order, options, min_value, max_value, unit_price)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+               (service_id, label, field_type, placeholder, required, sort_order, options,
+                min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
             [newSvc.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order,
-             f.options, f.min_value, f.max_value, f.unit_price]
+             f.options != null ? JSON.stringify(f.options) : null,
+             f.min_value, f.max_value, f.unit_price,
+             f.allow_own ?? false, f.linked_to_field_label ?? null, f.linked_to_value ?? null, f.sync_qty ?? false]
           );
           stats.custom_fields++;
         }
