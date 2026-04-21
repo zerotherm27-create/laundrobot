@@ -628,10 +628,6 @@ export default function BookingForm({ tenantId }) {
               </a>
             </div>
           )}
-          <button onClick={closeMiniApp}
-            style={{ padding: '11px 32px', borderRadius: 10, border: '1.5px solid #CBD5E0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Done
-          </button>
         </div>
       </div>
     );

@@ -1,9 +1,11 @@
 const axios = require('axios');
 
 const BASE = 'https://graph.facebook.com/v19.0/me/messenger_profile';
+const GRAPH = 'https://graph.facebook.com/v19.0';
 
 /**
  * Sets up the Messenger profile for a page:
+ * - Webhook subscription  → subscribes page to messages, postbacks, optins, referrals
  * - Whitelisted domains  → required for webview mini-app to open inside Messenger
  * - Get Started button   → triggers GET_STARTED postback on first open
  * - Greeting text        → shown before customer starts chatting
@@ -11,6 +13,19 @@ const BASE = 'https://graph.facebook.com/v19.0/me/messenger_profile';
  */
 async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
   const name = tenantName || 'us';
+
+  // ── 0. Subscribe page to webhook events ─────────────────────────────────
+  try {
+    const pageInfo = await axios.get(`${GRAPH}/me?fields=id&access_token=${pageToken}`);
+    const pageId = pageInfo.data.id;
+    await axios.post(
+      `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
+      { subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals'] }
+    );
+    console.log(`[messenger-profile] webhook subscribed for page ${pageId}`);
+  } catch (e) {
+    console.warn(`[messenger-profile] webhook subscription failed for ${name}:`, e.response?.data?.error?.message || e.message);
+  }
 
   // ── 1. Whitelist domain (required for messenger_extensions webview) ──────
   if (appUrl) {

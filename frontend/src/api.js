@@ -50,6 +50,7 @@ export const getCustomers = () => api.get('/customers');
 export const getTenants = () => api.get('/tenants');
 export const createTenant = data => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
+export const deleteTenant = (id) => api.delete(`/tenants/${id}`);
 export const getMyTenantSettings = () => api.get('/tenants/settings');
 export const updateMyTenantSettings = data => api.put('/tenants/settings', data);
 export const cloneServices = (sourceTenantId, targetTenantId, clearExisting, cloneOptions) =>

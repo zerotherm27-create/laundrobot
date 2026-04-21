@@ -15,8 +15,19 @@ function groupByBookingRef(orders) {
     if (!map.has(key)) map.set(key, { ...o, price: 0, services: [], orderIds: [] });
     const g = map.get(key);
     g.price += Number(o.price);
-    g.services.push({ service_name: o.service_name, price: Number(o.price), custom_selections: o.custom_selections });
+    g.services.push({
+      service_name: o.service_name,
+      price: Number(o.price),
+      weight: o.weight,
+      service_unit_price: o.service_unit_price,
+      service_unit: o.service_unit,
+      custom_selections: o.custom_selections,
+    });
     g.orderIds.push(o.id);
+    // Carry promo + delivery from first item that has them
+    if (o.promo_code && !g.promo_code) g.promo_code = o.promo_code;
+    if (Number(o.promo_discount) > 0 && !g.promo_discount) g.promo_discount = Number(o.promo_discount);
+    if (Number(o.delivery_fee) > 0 && !g.delivery_fee_total) g.delivery_fee = Number(o.delivery_fee);
   }
   return Array.from(map.values());
 }
@@ -387,8 +398,8 @@ export default function Orders() {
                     {[
                       ['Address', selected.address || selected.customer_address || '—'],
                       ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
-                      ['Notes', selected.notes || '—'],
-                      ['Via Messenger', selected.fb_id ? '✓ Yes' : '✗ Web booking'],
+                      ['Source', selected.fb_id ? '💬 Messenger' : '🌐 Web booking'],
+                      ...(selected.notes ? [['Notes', selected.notes]] : []),
                     ].map(([k, v]) => (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
                         <span style={{ color: '#374151', flexShrink: 0, marginRight: 8 }}>{k}</span>
@@ -396,47 +407,84 @@ export default function Orders() {
                       </div>
                     ))}
 
-                    {/* Services breakdown */}
-                    {selected.services?.length > 1 ? (
-                      <div style={{ borderTop: '0.5px solid #f0f0ec', paddingTop: 8, marginTop: 2 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Services</div>
-                        {selected.services.map((s, i) => (
-                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                            <span>{s.service_name}</span>
-                            <span style={{ fontWeight: 600 }}>₱{Number(s.price).toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                        <span style={{ color: '#374151', flexShrink: 0, marginRight: 8 }}>Service</span>
-                        <span style={{ fontWeight: 500, textAlign: 'right' }}>{selected.services?.[0]?.service_name || selected.service_name || '—'}</span>
-                      </div>
-                    )}
+                    {/* ── Services breakdown ── */}
+                    <div style={{ borderTop: '0.5px solid #f0f0ec', paddingTop: 8, marginTop: 4 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Services</div>
 
-                    {/* Customer selections breakdown */}
-                    {selected.custom_selections?.length > 0 && (
-                      <div style={{ borderTop: '0.5px solid #f0f0ec', paddingTop: 8, marginTop: 2 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Order Details</div>
-                        {selected.custom_selections.map((sel, i) => {
-                          if (!sel.value && sel.value !== 0) return null;
-                          const displayVal = typeof sel.value === 'number' || !isNaN(Number(sel.value))
-                            ? sel.value
-                            : sel.value;
-                          return (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
-                              <span style={{ color: '#6B7280' }}>{sel.label}</span>
-                              <span style={{ fontWeight: 500, color: '#111827' }}>{displayVal}</span>
+                      {selected.services?.length > 1 ? (
+                        // Multi-service booking
+                        selected.services.map((s, i) => (
+                          <div key={i} style={{ marginBottom: 8 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+                              <span>{s.service_name}</span>
+                              <span>₱{Number(s.price).toLocaleString()}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            {s.weight > 0 && s.service_unit_price > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                                <span>{s.weight} {s.service_unit || 'unit'} × ₱{Number(s.service_unit_price).toLocaleString()}</span>
+                                <span>₱{(Number(s.weight) * Number(s.service_unit_price)).toLocaleString()}</span>
+                              </div>
+                            )}
+                            {s.custom_selections?.map((sel, j) => sel.value ? (
+                              <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                                <span>{sel.label}: {sel.value}</span>
+                                {sel.unit_price > 0 && <span>₱{Number(sel.unit_price).toLocaleString()}</span>}
+                              </div>
+                            ) : null)}
+                          </div>
+                        ))
+                      ) : (
+                        // Single service
+                        <div style={{ marginBottom: 4 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
+                            <span>{selected.services?.[0]?.service_name || selected.service_name || '—'}</span>
+                            <span>₱{Number(selected.price).toLocaleString()}</span>
+                          </div>
+                          {selected.weight > 0 && selected.service_unit_price > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                              <span>{selected.weight} {selected.service_unit || 'unit'} × ₱{Number(selected.service_unit_price).toLocaleString()}</span>
+                              <span>₱{(Number(selected.weight) * Number(selected.service_unit_price)).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {selected.custom_selections?.map((sel, j) => sel.value ? (
+                            <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
+                              <span>{sel.label}: {sel.value}</span>
+                              {sel.unit_price > 0 && <span>+₱{Number(sel.unit_price).toLocaleString()}</span>}
+                            </div>
+                          ) : null)}
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Amount — shown after breakdown */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
-                      <span style={{ color: '#374151', flexShrink: 0 }}>Amount</span>
-                      <span style={{ fontWeight: 700, color: '#111827', fontSize: 14 }}>₱{Number(selected.price).toLocaleString()}</span>
+                    {/* ── Price summary ── */}
+                    <div style={{ borderTop: '0.5px solid #f0f0ec', marginTop: 4, paddingTop: 6 }}>
+                      {/* Delivery fee */}
+                      {Number(selected.delivery_fee) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                          <span style={{ color: '#374151' }}>Delivery{selected.delivery_zone ? ` — ${selected.delivery_zone}` : ''}</span>
+                          <span style={{ fontWeight: 500 }}>₱{Number(selected.delivery_fee).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {/* Promo */}
+                      {Number(selected.promo_discount) > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
+                          <span style={{ color: '#7C3AED', fontWeight: 600 }}>🎟️ Promo{selected.promo_code ? ` (${selected.promo_code})` : ''}</span>
+                          <span style={{ fontWeight: 700, color: '#7C3AED' }}>−₱{Number(selected.promo_discount).toLocaleString()}</span>
+                        </div>
+                      )}
+                      {/* Total */}
+                      {(() => {
+                        const servicesTotal = selected.services?.length > 1
+                          ? selected.services.reduce((s, o) => s + Number(o.price), 0)
+                          : Number(selected.price);
+                        const grandTotal = servicesTotal + Number(selected.delivery_fee || 0) - Number(selected.promo_discount || 0);
+                        return (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>
+                            <span style={{ fontWeight: 700 }}>Total</span>
+                            <span style={{ fontWeight: 700, color: '#111827', fontSize: 15 }}>₱{Math.max(0, grandTotal).toLocaleString()}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {selected.xendit_invoice_url && (

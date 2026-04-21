@@ -11,7 +11,8 @@ router.get('/', auth, async (req, res) => {
     const offset = (page - 1) * limit;
     const isArchived = archived === 'true';
     let query = `
-      SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address, s.name as service_name
+      SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
+             s.name as service_name, s.price as service_unit_price, s.unit as service_unit
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
       LEFT JOIN services s ON s.id = o.service_id

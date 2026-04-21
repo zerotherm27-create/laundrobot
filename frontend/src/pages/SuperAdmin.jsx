@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getTenants, createTenant, updateTenant, getUsers, createUser, deleteUser, changePassword, cloneServices } from '../api.js';
+import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices } from '../api.js';
 
 const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
@@ -59,6 +59,15 @@ export default function SuperAdmin() {
       setTenantForm(null);
     } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
     setSavingTenant(false);
+  }
+
+  // ── Tenant delete ──
+  async function handleDeleteTenant(t) {
+    if (!confirm(`Delete branch "${t.name}"?\n\nThis will also delete all orders, customers, and data for this branch. This cannot be undone.`)) return;
+    try {
+      await deleteTenant(t.id);
+      setTenants(prev => prev.filter(x => x.id !== t.id));
+    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
   }
 
   // ── User save ──
@@ -187,10 +196,14 @@ export default function SuperAdmin() {
                       </span>
                     </td>
                     <td style={{ padding: '10px 12px' }}>
-                      <button onClick={() => setTenantForm({ ...t, isNew: false })}
-                        style={{ fontSize: 12, padding: '4px 12px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151' }}>
-                        Edit
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => setTenantForm({ ...t, isNew: false })}
+                          style={{ fontSize: 12, padding: '4px 12px', borderRadius: 5, cursor: 'pointer', background: 'transparent', border: '0.5px solid #ccc', color: '#374151' }}>
+                          Edit
+                        </button>
+                        <button onClick={() => handleDeleteTenant(t)}
+                          style={btn('#FDE8E8', '#A32D2D')}>🗑</button>
+                      </div>
                     </td>
                   </tr>
                 ))}

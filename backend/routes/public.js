@@ -392,12 +392,14 @@ router.post('/:tenantId/orders', async (req, res) => {
       const orderSource = source || 'web';
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
-                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,
+                             promo_code, promo_discount)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         [orderId, req.params.tenantId, customerId, service.id,
          weight, itemTotal, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
-         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource]
+         cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource,
+         i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0]
       );
       createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
     }
