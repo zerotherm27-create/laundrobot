@@ -421,7 +421,7 @@ export default function Orders() {
                           <div key={i} style={{ marginBottom: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
                               <span>{s.service_name}</span>
-                              <span>₱{Number(s.price).toLocaleString()}</span>
+                              <span>₱{(Number(s.price) - (i === 0 ? Number(selected.delivery_fee || 0) : 0)).toLocaleString()}</span>
                             </div>
                             {s.weight > 0 && s.service_unit_price > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -442,7 +442,7 @@ export default function Orders() {
                         <div style={{ marginBottom: 4 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
                             <span>{selected.services?.[0]?.service_name || selected.service_name || '—'}</span>
-                            <span>₱{Number(selected.price).toLocaleString()}</span>
+                            <span>₱{(Number(selected.price) - Number(selected.delivery_fee || 0)).toLocaleString()}</span>
                           </div>
                           {selected.weight > 0 && selected.service_unit_price > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -478,9 +478,9 @@ export default function Orders() {
                       )}
                       {/* Total */}
                       {(() => {
-                        const servicesTotal = selected.services?.length > 1
+                        const servicesTotal = (selected.services?.length > 1
                           ? selected.services.reduce((s, o) => s + Number(o.price), 0)
-                          : Number(selected.price);
+                          : Number(selected.price)) - Number(selected.delivery_fee || 0);
                         const grandTotal = servicesTotal + Number(selected.delivery_fee || 0) - Number(selected.promo_discount || 0);
                         return (
                           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>

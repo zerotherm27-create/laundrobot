@@ -14,18 +14,19 @@ router.post('/', async (req, res) => {
   if (status !== 'PAID') return res.sendStatus(200);
 
   try {
-    // external_id is booking_ref (BKG-xxxxxx) for multi-cart orders, or order id for legacy
-    const isBkgRef = String(external_id).startsWith('BKG-');
+    // Strip the "-MANUAL-<timestamp>" suffix added by admin-generated payment links
+    const refId = String(external_id).replace(/-MANUAL-\d+$/, '');
+    const isBkgRef = refId.startsWith('BKG-');
 
     if (isBkgRef) {
       await db.query(
         `UPDATE orders SET paid=TRUE, status='PAID', xendit_invoice_id=$1 WHERE booking_ref=$2`,
-        [xenditInvoiceId, external_id]
+        [xenditInvoiceId, refId]
       );
     } else {
       await db.query(
         `UPDATE orders SET paid=TRUE, status='PAID', xendit_invoice_id=$1 WHERE id=$2`,
-        [xenditInvoiceId, external_id]
+        [xenditInvoiceId, refId]
       );
     }
 
