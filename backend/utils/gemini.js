@@ -2,6 +2,7 @@ const axios = require('axios');
 const db = require('../db');
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const HISTORY_LIMIT = 10; // messages to keep per conversation
 
 async function buildShopContext(tenantId) {
   const [
@@ -38,16 +39,16 @@ async function buildShopContext(tenantId) {
       .map(f => {
         const pricedOptions = (f.options || []).filter(o => Number(o.price) > 0);
         if (!pricedOptions.length) return null;
-        return `  ${f.label}: ${pricedOptions.map(o => `${o.label} ₱${Number(o.price).toLocaleString()}`).join(', ')}`;
+        return `  ${f.label}: ${pricedOptions.map(o => `${o.label} +₱${Number(o.price).toLocaleString()}`).join(', ')}`;
       })
       .filter(Boolean);
 
     if (basePrice > 0) {
-      return `- ${s.name}: ₱${basePrice.toLocaleString()} ${s.unit}${s.description ? ` (${s.description})` : ''}${pricedFields.length ? '\n' + pricedFields.join('\n') : ''}`;
+      return `- ${s.name}: ₱${basePrice.toLocaleString()} ${s.unit}${s.description ? ` — ${s.description}` : ''}${pricedFields.length ? '\n' + pricedFields.join('\n') : ''}`;
     } else if (pricedFields.length) {
-      return `- ${s.name}${s.description ? ` (${s.description})` : ''}:\n${pricedFields.join('\n')}`;
+      return `- ${s.name}${s.description ? ` — ${s.description}` : ''}:\n${pricedFields.join('\n')}`;
     } else {
-      return `- ${s.name}${s.description ? ` (${s.description})` : ''}: Contact us for pricing`;
+      return `- ${s.name}${s.description ? ` — ${s.description}` : ''}: Contact us for pricing`;
     }
   }).join('\n');
 
@@ -57,59 +58,104 @@ async function buildShopContext(tenantId) {
   if (brackets.length) {
     const radius = tenant.delivery_radius ? `${tenant.delivery_radius} km` : null;
     const bracketLines = brackets.map(b => `- ${b.min_km}–${b.max_km} km: ₱${Number(b.fee).toLocaleString()}`).join('\n');
-    deliveryInfo = `Fee is based on straight-line distance from the shop to the customer's address.\n${bracketLines}${radius ? `\nMaximum delivery radius: ${radius}` : ''}${tenant.delivery_note ? `\nNote: ${tenant.delivery_note}` : ''}`;
+    deliveryInfo = `Distance-based pricing from shop:\n${bracketLines}${radius ? `\nMax radius: ${radius} km` : ''}${tenant.delivery_note ? `\nNote: ${tenant.delivery_note}` : ''}`;
   } else if (zones.length) {
-    deliveryInfo = zones.map(z => `- ${z.name}: ₱${Number(z.fee).toLocaleString()} delivery fee`).join('\n');
+    deliveryInfo = zones.map(z => `- ${z.name}: ₱${Number(z.fee).toLocaleString()}`).join('\n');
   } else {
-    deliveryInfo = 'No delivery zones set up yet.';
+    deliveryInfo = 'No delivery zones configured yet.';
   }
 
   const hours = (tenant.store_open && tenant.store_close)
     ? `${tenant.store_open} – ${tenant.store_close}`
     : 'Contact us for hours.';
 
-  return `You are a friendly customer service assistant for ${tenant.name}, a laundry service business in the Philippines.
-${tenant.ai_instructions ? `\nCUSTOM INSTRUCTIONS (follow these strictly):\n${tenant.ai_instructions}\n` : ''}
-Answer customer questions about services, prices, delivery, and scheduling.
-Be concise — keep replies under 3 sentences. Use plain text only (no markdown, no asterisks).
-Respond naturally in whatever language the customer uses (English, Tagalog, or Taglish).
-If you don't know something specific, suggest they contact the shop directly.
-Never make up prices or policies not listed below.
+  return `You are a helpful, friendly customer service assistant for ${tenant.name}, a laundry service in the Philippines.
+${tenant.ai_instructions ? `\nSPECIAL INSTRUCTIONS (follow strictly):\n${tenant.ai_instructions}\n` : ''}
+Your job: answer questions about services, pricing, delivery, and schedules accurately and warmly.
+Keep replies conversational and concise — 1 to 3 sentences unless a detailed answer is clearly needed.
+Use plain text only — no markdown, no asterisks, no bullet symbols.
+Match the customer's language naturally (English, Tagalog, or Taglish).
+Never invent prices, policies, or information not listed below.
+If unsure, say you'll check and ask them to contact the shop.
 
-SHOP INFO:
-Name: ${tenant.name}
-Operating Hours: ${hours}
-${tenant.contact_number ? `Contact: ${tenant.contact_number}` : ''}
+SHOP: ${tenant.name}
+HOURS: ${hours}
+${tenant.contact_number ? `CONTACT: ${tenant.contact_number}` : ''}
 
 SERVICES:
 ${serviceList || 'No services listed yet.'}
 
-DELIVERY:
+DELIVERY FEES:
 ${deliveryInfo}
 
-${faqs.length ? `FAQs:\n${faqList}` : ''}
+${faqs.length ? `FREQUENTLY ASKED QUESTIONS:\n${faqList}` : ''}
 
-IMPORTANT: You do NOT process bookings — for booking, tell customers to tap "Book Now" or type "book".
-If asked to cancel or reschedule an existing order, tell them to contact the shop directly.`;
+IMPORTANT LIMITS:
+- You cannot process, book, cancel, or reschedule orders — direct them to tap "Book Now" or type "book".
+- For order changes or cancellations, ask them to contact the shop directly.`;
 }
 
-async function askGemini(tenantId, userMessage) {
+async function getHistory(tenantId, senderId) {
+  try {
+    const { rows: [conv] } = await db.query(
+      `SELECT data FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+      [tenantId, senderId]
+    );
+    return conv?.data?.ai_history || [];
+  } catch { return []; }
+}
+
+async function saveHistory(tenantId, senderId, history) {
+  try {
+    await db.query(
+      `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
+       VALUES ($1, $2, 'AI', jsonb_build_object('ai_history', $3::jsonb), NOW())
+       ON CONFLICT (tenant_id, fb_user_id)
+       DO UPDATE SET data = conversations.data || jsonb_build_object('ai_history', $3::jsonb), updated_at=NOW()`,
+      [tenantId, senderId, JSON.stringify(history)]
+    );
+  } catch { /* non-critical */ }
+}
+
+async function askGemini(tenantId, userMessage, senderId) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   try {
-    const systemContext = await buildShopContext(tenantId);
+    const [systemContext, history] = await Promise.all([
+      buildShopContext(tenantId),
+      senderId ? getHistory(tenantId, senderId) : Promise.resolve([]),
+    ]);
+
+    // Build contents: prior history + current message
+    const contents = [
+      ...history,
+      { role: 'user', parts: [{ text: userMessage }] },
+    ];
+
     const { data } = await axios.post(
       `${GEMINI_URL}?key=${apiKey}`,
       {
-        contents: [
-          { role: 'user', parts: [{ text: systemContext + '\n\nCustomer message: ' + userMessage }] },
-        ],
-        generationConfig: { maxOutputTokens: 200, temperature: 0.4 },
+        system_instruction: { parts: [{ text: systemContext }] },
+        contents,
+        generationConfig: { maxOutputTokens: 500, temperature: 0.65 },
       },
-      { timeout: 8000 }
+      { timeout: 10000 }
     );
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+
+    // Persist updated history (keep last HISTORY_LIMIT pairs)
+    if (reply && senderId) {
+      const updated = [
+        ...history,
+        { role: 'user',  parts: [{ text: userMessage }] },
+        { role: 'model', parts: [{ text: reply }] },
+      ].slice(-HISTORY_LIMIT);
+      saveHistory(tenantId, senderId, updated);
+    }
+
+    return reply;
   } catch (err) {
     console.warn('[gemini] error:', JSON.stringify(err.response?.data || err.message));
     return null;
