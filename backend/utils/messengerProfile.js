@@ -1,18 +1,15 @@
 const axios = require('axios');
 
-const BASE = 'https://graph.facebook.com/v19.0/me/messenger_profile';
 const GRAPH = 'https://graph.facebook.com/v19.0';
 
 /**
- * Sets up the Messenger profile for a page:
- * - Webhook subscription  → subscribes page to messages, postbacks, optins, referrals
- * - Whitelisted domains  → required for webview mini-app to open inside Messenger
- * - Get Started button   → triggers GET_STARTED postback on first open
- * - Greeting text        → shown before customer starts chatting
- * - Persistent menu      → always-visible menu; Book Now opens webview if APP_URL is set
+ * Sets up the Messenger profile for a page + optional Instagram account:
+ * - Webhook subscription, whitelisted domains, Get Started, greeting, persistent menu
+ * - If igUserId is provided, also sets the Instagram persistent menu
  */
-async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
+async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, igUserId) {
   const name = tenantName || 'us';
+  const fbBase = `${GRAPH}/me/messenger_profile`;
 
   // ── 0. Subscribe page to webhook events ─────────────────────────────────
   try {
@@ -30,7 +27,7 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
   // ── 1. Whitelist domain (required for messenger_extensions webview) ──────
   if (appUrl) {
     try {
-      await axios.post(`${BASE}?access_token=${pageToken}`, {
+      await axios.post(`${fbBase}?access_token=${pageToken}`, {
         whitelisted_domains: [appUrl],
       });
       console.log(`[messenger-profile] whitelisted domain: ${appUrl}`);
@@ -40,7 +37,7 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
   }
 
   // ── 2. Get Started + greeting ────────────────────────────────────────────
-  await axios.post(`${BASE}?access_token=${pageToken}`, {
+  await axios.post(`${fbBase}?access_token=${pageToken}`, {
     get_started: { payload: 'GET_STARTED' },
     greeting: [
       {
@@ -50,8 +47,8 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
     ],
   });
 
-  // ── 3. Persistent menu ───────────────────────────────────────────────────
-  const bookAction = appUrl && tenantId
+  // ── 3. Facebook persistent menu (supports webview) ───────────────────────
+  const fbBookAction = appUrl && tenantId
     ? {
         type: 'web_url',
         title: '🛒 Book Now',
@@ -61,23 +58,39 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl) {
       }
     : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
 
+  const menuItems = [
+    fbBookAction,
+    { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+    { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+  ];
+
   try {
-    await axios.post(`${BASE}?access_token=${pageToken}`, {
-      persistent_menu: [
-        {
-          locale: 'default',
-          composer_input_disabled: false,
-          call_to_actions: [
-            bookAction,
-            { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS' },
-            { type: 'postback', title: '❓ FAQs',           payload: 'FAQS'      },
-          ],
-        },
-      ],
+    await axios.post(`${fbBase}?access_token=${pageToken}`, {
+      persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: menuItems }],
     });
-    console.log(`[messenger-profile] persistent menu set for ${name}`);
+    console.log(`[messenger-profile] Facebook persistent menu set for ${name}`);
   } catch (e) {
-    console.warn(`[messenger-profile] persistent menu skipped for ${name}:`, e.response?.data?.error?.message || e.message);
+    console.warn(`[messenger-profile] Facebook persistent menu skipped for ${name}:`, e.response?.data?.error?.message || e.message);
+  }
+
+  // ── 4. Instagram persistent menu (no messenger_extensions) ───────────────
+  if (igUserId) {
+    const igBookAction = appUrl && tenantId
+      ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenantId}`, webview_height_ratio: 'full' }
+      : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
+
+    try {
+      await axios.post(`${GRAPH}/${igUserId}/messenger_profile?access_token=${pageToken}`, {
+        persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: [
+          igBookAction,
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+        ]}],
+      });
+      console.log(`[messenger-profile] Instagram persistent menu set for ${name}`);
+    } catch (e) {
+      console.warn(`[messenger-profile] Instagram persistent menu skipped for ${name}:`, e.response?.data?.error?.message || e.message);
+    }
   }
 
   console.log(`[messenger-profile] setup complete for ${name}`);

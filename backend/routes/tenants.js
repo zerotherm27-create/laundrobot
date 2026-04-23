@@ -62,11 +62,11 @@ router.put('/settings', auth, async (req, res) => {
 router.post('/settings/setup-messenger', auth, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, fb_page_access_token FROM tenants WHERE id=$1`, [req.user.tenant_id]
+      `SELECT id, name, fb_page_access_token, ig_user_id FROM tenants WHERE id=$1`, [req.user.tenant_id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     if (!tenant.fb_page_access_token) return res.status(400).json({ error: 'No Facebook page token configured.' });
-    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, tenant.id, process.env.APP_URL);
+    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, tenant.id, process.env.APP_URL, tenant.ig_user_id);
     res.json({ message: 'Messenger menu reset successfully.' });
   } catch (err) {
     console.error('[setup-messenger]', err.response?.data || err.message);
@@ -122,10 +122,10 @@ router.post('/', auth, superadminOnly, async (req, res) => {
 router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT name, fb_page_access_token FROM tenants WHERE id=$1`, [req.params.id]
+      `SELECT name, fb_page_access_token, ig_user_id FROM tenants WHERE id=$1`, [req.params.id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
-    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, req.params.id, process.env.APP_URL);
+    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, req.params.id, process.env.APP_URL, tenant.ig_user_id);
     res.json({ message: 'Messenger profile configured successfully' });
   } catch (err) {
     console.error('[setup-messenger]', err.response?.data || err.message);

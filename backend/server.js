@@ -66,10 +66,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     const db = require('./db');
     const { setupMessengerProfile } = require('./utils/messengerProfile');
-    const { rows: tenants } = await db.query(`SELECT id, name, fb_page_access_token FROM tenants WHERE active=TRUE`);
+    const { rows: tenants } = await db.query(`SELECT id, name, fb_page_access_token, ig_user_id FROM tenants WHERE active=TRUE`);
     for (const t of tenants) {
       try {
-        await setupMessengerProfile(t.fb_page_access_token, t.name, t.id, process.env.APP_URL);
+        await setupMessengerProfile(t.fb_page_access_token, t.name, t.id, process.env.APP_URL, t.ig_user_id);
       } catch (e) {
         console.warn(`[startup] messenger profile failed for ${t.name}:`, e.response?.data?.error?.message || e.message);
       }
