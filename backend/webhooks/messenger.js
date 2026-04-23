@@ -2,7 +2,7 @@ const router = require('express').Router();
 const axios = require('axios');
 const db = require('../db');
 const messengerUtils = require('../utils/messenger');
-const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog } = messengerUtils;
+const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping } = messengerUtils;
 const igUtils = require('../utils/instagram');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
@@ -724,7 +724,9 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Fallback — try AI first, then default menu ───────────────────────
   console.log('[ai-check] ai_enabled:', tenant.ai_enabled, '| has text:', !!event.message?.text, '| step:', step, '| text:', text);
   if (tenant.ai_enabled && event.message?.text) {
+    sendTyping(token, senderId, true).catch(() => {});
     const aiReply = await askGemini(tenant.id, text, senderId);
+    sendTyping(token, senderId, false).catch(() => {});
     if (aiReply) {
       await sendMessage(token, senderId, aiReply);
       return;

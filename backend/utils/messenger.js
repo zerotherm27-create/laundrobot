@@ -6,6 +6,11 @@ async function post(token, body) {
   await axios.post(`${GRAPH_URL}?access_token=${token}`, body);
 }
 
+// Typing indicator
+async function sendTyping(token, recipientId, on = true) {
+  await post(token, { recipient: { id: recipientId }, sender_action: on ? 'typing_on' : 'typing_off' });
+}
+
 // Plain text message
 async function sendMessage(token, recipientId, text) {
   await post(token, { recipient: { id: recipientId }, message: { text } });
@@ -77,4 +82,4 @@ async function sendCatalog(token, recipientId, elements) {
   });
 }
 
-module.exports = { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog };
+module.exports = { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping };
