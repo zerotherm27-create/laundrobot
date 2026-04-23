@@ -43,7 +43,11 @@ router.post('/', async (req, res) => {
       );
       if (!tenant) { console.log('[ig-webhook] no tenant for ig_user_id:', igId); continue; }
       for (const event of (e.messaging || [])) {
-        if (event.message || event.postback) {
+        // Admin replied from Instagram — sender is the IG business account
+        if (event.message && event.sender.id === String(tenant.ig_user_id)) {
+          try { await pauseAiForCustomer(tenant, event.recipient.id); }
+          catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+        } else if (event.message || event.postback) {
           console.log('[ig-webhook] msg from:', event.sender.id);
           try { await handleMessage(tenant, event.sender.id, event, 'instagram'); }
           catch (err) { console.error('[ig-webhook] error:', err.response?.data || err.message); }
@@ -68,6 +72,10 @@ router.post('/', async (req, res) => {
       } else if (event.referral) {
         try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
         catch (err) { console.error('[webhook] referral error:', err.message); }
+      } else if (event.message?.is_echo) {
+        // Admin replied from Facebook Page Inbox — pause AI for this customer
+        try { await pauseAiForCustomer(tenant, event.recipient.id); }
+        catch (err) { console.error('[webhook] echo-pause error:', err.message); }
       } else if (event.message || event.postback) {
         console.log('[webhook] msg from:', event.sender.id);
         // Handle GET_STARTED postback that carries an m.me ref param
@@ -276,6 +284,21 @@ async function showSubscribePrompt(sends, token, senderId, customer) {
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
     ]
   );
+}
+
+// ── Pause AI for a customer (called on admin echo) ───────────────────────────
+async function pauseAiForCustomer(tenant, customerId) {
+  const pauseHours = tenant.ai_pause_hours || 2;
+  if (!pauseHours) return; // 0 = disabled
+  const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
+  await db.query(
+    `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
+     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3), NOW())
+     ON CONFLICT (tenant_id, fb_user_id)
+     DO UPDATE SET data = conversations.data || jsonb_build_object('ai_paused_until', $3::text), updated_at=NOW()`,
+    [tenant.id, customerId, pauseUntil]
+  );
+  console.log(`[ai-pause] paused for ${customerId} until ${pauseUntil}`);
 }
 
 // ── Main message handler ────────────────────────────────────────────────────

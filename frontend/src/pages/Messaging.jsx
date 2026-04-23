@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sendBlast, getBlastHistory, getHumanConversations, releaseConversation, replyToCustomer } from '../api.js';
+import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi } from '../api.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -8,36 +8,22 @@ export default function Messaging() {
   const [filterStatus, setFilterStatus] = useState('');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
-  const [history, setHistory] = useState([]);
-
-  // Human takeover
-  const [humanConvs, setHumanConvs] = useState([]);
-  const [replyText,  setReplyText]  = useState({});
-  const [replyBusy,  setReplyBusy]  = useState({});
+  const [history,        setHistory]        = useState([]);
+  const [pausedCustomers,setPausedCustomers] = useState([]);
+  const [releasingId,    setReleasingId]    = useState(null);
 
   useEffect(() => {
     getBlastHistory().then(r => setHistory(r.data)).catch(() => {});
-    getHumanConversations().then(r => setHumanConvs(r.data)).catch(() => {});
+    getPausedCustomers().then(r => setPausedCustomers(r.data)).catch(() => {});
   }, []);
 
-  async function handleReply(fbUserId) {
-    const msg = replyText[fbUserId]?.trim();
-    if (!msg) return;
-    setReplyBusy(p => ({ ...p, [fbUserId]: true }));
+  async function handleReleaseAi(fbUserId) {
+    setReleasingId(fbUserId);
     try {
-      await replyToCustomer(fbUserId, msg);
-      setReplyText(p => ({ ...p, [fbUserId]: '' }));
-      alert('Sent! AI is paused for this customer.');
-    } catch (err) {
-      alert('Failed: ' + (err.response?.data?.error || err.message));
-    } finally { setReplyBusy(p => ({ ...p, [fbUserId]: false })); }
-  }
-
-  async function handleRelease(fbUserId) {
-    try {
-      await releaseConversation(fbUserId, '');
-      setHumanConvs(p => p.filter(c => c.fb_user_id !== fbUserId));
+      await releaseAi(fbUserId);
+      setPausedCustomers(p => p.filter(c => c.fb_user_id !== fbUserId));
     } catch { alert('Failed to release.'); }
+    finally { setReleasingId(null); }
   }
 
   async function handleBlast() {
@@ -56,38 +42,27 @@ export default function Messaging() {
   return (
     <div>
       <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Messaging</h2>
-      {/* ── Human takeover panel ── */}
-      {humanConvs.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, color: '#A32D2D' }}>
-            🙋 Customers waiting for your reply ({humanConvs.length})
+      {/* ── AI Paused Customers ── */}
+      {pausedCustomers.length > 0 && (
+        <div style={{ marginBottom: 20, background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>🤫 AI Paused ({pausedCustomers.length})</div>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 12 }}>
+            AI is silenced for these customers because you replied to them. It resumes automatically when the pause expires.
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {humanConvs.map(c => (
-              <div key={c.fb_user_id} style={{ background: '#fff', border: '1px solid #F09595', borderRadius: 12, padding: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{c.customer_name || 'Unknown'}</span>
-                    {c.customer_phone && <span style={{ fontSize: 12, color: '#374151', marginLeft: 8 }}>{c.customer_phone}</span>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {pausedCustomers.map(c => (
+              <div key={c.fb_user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#F9FAFB', border: '0.5px solid #E2E8F0' }}>
+                <div>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{c.customer_name || c.fb_user_id}</span>
+                  {c.customer_phone && <span style={{ fontSize: 12, color: '#374151', marginLeft: 8 }}>{c.customer_phone}</span>}
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                    Resumes {new Date(c.ai_paused_until).toLocaleString()}
                   </div>
-                  <button onClick={() => handleRelease(c.fb_user_id)}
-                    style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #ccc', background: '#F3F4F6', color: '#374151', cursor: 'pointer' }}>
-                    Release to bot
-                  </button>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <textarea
-                    value={replyText[c.fb_user_id] || ''}
-                    onChange={e => setReplyText(p => ({ ...p, [c.fb_user_id]: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(c.fb_user_id); } }}
-                    rows={2} placeholder="Type a reply... (Enter to send, Shift+Enter for new line)"
-                    style={{ flex: 1, padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1px solid #D1D5DB', resize: 'none', fontFamily: 'inherit', outline: 'none' }} />
-                  <button onClick={() => handleReply(c.fb_user_id)} disabled={replyBusy[c.fb_user_id]}
-                    style={{ padding: '0 16px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none',
-                      background: replyBusy[c.fb_user_id] ? '#7dd3e0' : '#38a9c2', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    {replyBusy[c.fb_user_id] ? 'Sending…' : 'Send & Pause AI'}
-                  </button>
-                </div>
+                <button onClick={() => handleReleaseAi(c.fb_user_id)} disabled={releasingId === c.fb_user_id}
+                  style={{ fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {releasingId === c.fb_user_id ? 'Releasing…' : 'Release to AI'}
+                </button>
               </div>
             ))}
           </div>

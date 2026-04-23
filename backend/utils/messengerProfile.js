@@ -17,7 +17,7 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
     const pageId = pageInfo.data.id;
     await axios.post(
       `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
-      { subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals'] }
+      { subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals', 'message_echoes'] }
     );
     console.log(`[messenger-profile] webhook subscribed for page ${pageId}`);
   } catch (e) {

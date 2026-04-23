@@ -19,26 +19,32 @@ router.get('/human', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST reply to a customer — sends message and pauses AI for that customer
-router.post('/:fbUserId/reply', auth, async (req, res) => {
-  const { message } = req.body;
-  if (!message?.trim()) return res.status(400).json({ error: 'Message is required.' });
+// GET customers with AI currently paused
+router.get('/paused', auth, async (req, res) => {
   try {
-    const { rows: [tenant] } = await db.query(
-      'SELECT fb_page_access_token, ai_pause_hours FROM tenants WHERE id=$1', [req.user.tenant_id]
+    const { rows } = await db.query(
+      `SELECT cv.fb_user_id, cv.data->>'ai_paused_until' AS ai_paused_until,
+              c.name AS customer_name, c.phone AS customer_phone
+       FROM conversations cv
+       LEFT JOIN customers c ON c.tenant_id=cv.tenant_id AND c.fb_id=cv.fb_user_id
+       WHERE cv.tenant_id=$1
+         AND (cv.data->>'ai_paused_until')::timestamptz > NOW()
+       ORDER BY (cv.data->>'ai_paused_until')::timestamptz ASC`,
+      [req.user.tenant_id]
     );
-    if (!tenant?.fb_page_access_token) return res.status(400).json({ error: 'No page token configured.' });
-    await sendMessage(tenant.fb_page_access_token, req.params.fbUserId, message.trim());
-    const pauseHours = tenant.ai_pause_hours || 2;
-    const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST release AI for a customer (clear the pause)
+router.post('/:fbUserId/release-ai', auth, async (req, res) => {
+  try {
     await db.query(
-      `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
-       VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3), NOW())
-       ON CONFLICT (tenant_id, fb_user_id)
-       DO UPDATE SET data = conversations.data || jsonb_build_object('ai_paused_until', $3::text), updated_at=NOW()`,
-      [req.user.tenant_id, req.params.fbUserId, pauseUntil]
+      `UPDATE conversations SET data = data - 'ai_paused_until', updated_at=NOW()
+       WHERE tenant_id=$1 AND fb_user_id=$2`,
+      [req.user.tenant_id, req.params.fbUserId]
     );
-    res.json({ ok: true, ai_paused_until: pauseUntil });
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
