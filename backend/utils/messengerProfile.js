@@ -37,40 +37,34 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
   }
 
   // ── 2. Get Started + greeting ────────────────────────────────────────────
-  await axios.post(`${fbBase}?access_token=${pageToken}`, {
-    get_started: { payload: 'GET_STARTED' },
-    greeting: [
-      {
-        locale: 'default',
-        text: `👋 Hi {{user_first_name}}! Welcome to ${name}.\n\nTap "Get Started" to book your laundry pickup!`,
-      },
-    ],
-  });
+  let fbError = null;
+  try {
+    await axios.post(`${fbBase}?access_token=${pageToken}`, {
+      get_started: { payload: 'GET_STARTED' },
+      greeting: [{ locale: 'default', text: `👋 Hi {{user_first_name}}! Welcome to ${name}.\n\nTap "Get Started" to book your laundry pickup!` }],
+    });
+  } catch (e) {
+    fbError = e.response?.data?.error?.message || e.message;
+    console.warn(`[messenger-profile] get_started/greeting failed for ${name}:`, fbError);
+  }
 
   // ── 3. Facebook persistent menu (supports webview) ───────────────────────
   const fbBookAction = appUrl && tenantId
-    ? {
-        type: 'web_url',
-        title: '🛒 Book Now',
-        url: `${appUrl}/book/${tenantId}`,
-        webview_height_ratio: 'full',
-        messenger_extensions: true,
-      }
+    ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenantId}`, webview_height_ratio: 'full', messenger_extensions: true }
     : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
-
-  const menuItems = [
-    fbBookAction,
-    { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-    { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-  ];
 
   try {
     await axios.post(`${fbBase}?access_token=${pageToken}`, {
-      persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: menuItems }],
+      persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: [
+        fbBookAction,
+        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+      ]}],
     });
     console.log(`[messenger-profile] Facebook persistent menu set for ${name}`);
   } catch (e) {
-    console.warn(`[messenger-profile] Facebook persistent menu skipped for ${name}:`, e.response?.data?.error?.message || e.message);
+    fbError = e.response?.data?.error?.message || e.message;
+    console.warn(`[messenger-profile] Facebook persistent menu failed for ${name}:`, fbError);
   }
 
   // ── 4. Instagram persistent menu (postback only — web_url not supported) ───
@@ -92,7 +86,7 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
   }
 
   console.log(`[messenger-profile] setup complete for ${name}`);
-  return { igError };
+  return { fbError, igError };
 }
 
 module.exports = { setupMessengerProfile };

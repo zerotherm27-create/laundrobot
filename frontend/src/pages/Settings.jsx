@@ -382,10 +382,13 @@ export default function Settings() {
               setResettingMenu(true); setMenuResetMsg('');
               try {
                 const { data } = await resetMessengerMenu();
-                if (data.igError) {
-                  setMenuResetMsg(`✅ Facebook menu reset! ⚠️ Instagram warning: ${data.igError}`);
+                const parts = [];
+                if (data.fbError) parts.push(`Messenger: ${data.fbError}`);
+                if (data.igError) parts.push(`Instagram: ${data.igError}`);
+                if (parts.length) {
+                  setMenuResetMsg('⚠️ ' + parts.join(' | '));
                 } else {
-                  setMenuResetMsg('✅ Messenger & Instagram menu reset! Customers will see the updated menu shortly.');
+                  setMenuResetMsg('✅ Messenger & Instagram menu reset successfully!');
                 }
               } catch (err) {
                 setMenuResetMsg('❌ ' + (err.response?.data?.error || 'Failed to reset menu.'));
