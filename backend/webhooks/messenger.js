@@ -268,7 +268,7 @@ async function handleOptin(tenant, senderId, ref) {
   await sends.sendButtons(token, senderId,
     `🎁 Want to also receive exclusive promos and updates from us? Tap Subscribe!`,
     [
-      { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
+      { type: 'postback', title: '✅ Get Updates', payload: 'SUBSCRIBE_PROMO' },
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
     ]
   );
@@ -280,7 +280,7 @@ async function showSubscribePrompt(sends, token, senderId, customer) {
   await sends.sendButtons(token, senderId,
     `🎁 Want to receive our latest promos and updates? Subscribe to stay in the loop!`,
     [
-      { type: 'postback', title: '✅ Subscribe', payload: 'SUBSCRIBE_PROMO' },
+      { type: 'postback', title: '✅ Get Updates', payload: 'SUBSCRIBE_PROMO' },
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
     ]
   );
