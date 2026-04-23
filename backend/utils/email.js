@@ -146,4 +146,52 @@ async function sendPaidOrderEmail(tenantId, { orderId, serviceName, customerName
   }
 }
 
-module.exports = { sendNewOrderEmail, sendPaidOrderEmail };
+async function sendCustomerOrderEmail(tenantId, { orderId, customerName, customerEmail, serviceName, pickupDate, address, total, paymentUrl }) {
+  if (!customerEmail) return;
+  try {
+    const { rows: [tenant] } = await db.query('SELECT name, contact_number FROM tenants WHERE id=$1', [tenantId]);
+    const shopName = tenant?.name || 'Your Shop';
+
+    const formattedDate = pickupDate
+      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+      : '—';
+
+    const tableRows = [
+      ['Booking Ref',    orderId],
+      ['Service',        serviceName],
+      ['Pickup Address', address],
+      ['Pickup Date',    formattedDate],
+      ['Total Amount',   `₱${Number(total).toLocaleString()}`],
+    ];
+
+    const payBtn = paymentUrl
+      ? `<a href="${paymentUrl}" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#38a9c2;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">Pay Now</a>`
+      : '';
+
+    const contactLine = tenant?.contact_number
+      ? `<p style="font-size:13px;color:#374151;margin-top:16px;">Questions? Contact us at <strong>${tenant.contact_number}</strong></p>`
+      : '';
+
+    const body = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">✅ Booking Confirmed!</div>
+        <div style="font-size:14px;color:#6B7280;">Hi ${customerName}, your laundry booking has been received. Here's your summary:</div>
+      </div>
+      <div style="background:#F9FAFB;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+        ${orderTable(tableRows)}
+      </div>
+      ${payBtn}
+      ${contactLine}`;
+
+    await sendEmail({
+      to: [customerEmail],
+      subject: `✅ Booking Confirmed — ${orderId} | ${shopName}`,
+      html: emailWrapper(shopName, body),
+    });
+    console.log(`[email] customer confirmation ${orderId} sent to ${customerEmail}`);
+  } catch (err) {
+    console.warn('[email] sendCustomerOrderEmail failed:', err.response?.data || err.message);
+  }
+}
+
+module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail };

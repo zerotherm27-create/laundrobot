@@ -2,7 +2,7 @@ const router = require('express').Router();
 const axios = require('axios');
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
-const { sendNewOrderEmail } = require('../utils/email');
+const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 const { haversine } = require('./deliveryBrackets');
 
@@ -468,7 +468,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       }
     }
 
-    // Email notification
+    // Tenant new order notification
     sendNewOrderEmail(req.params.tenantId, {
       orderId: bookingRef,
       serviceName: pricedItems.map(i => i.service.name).join(', '),
@@ -479,7 +479,19 @@ router.post('/:tenantId/orders', async (req, res) => {
       deliveryZone: zoneName || null,
       total: grandTotal,
       paymentUrl,
-    }).catch(() => {});
+    }).catch(e => console.warn('[email] new order notify failed:', e.response?.data || e.message));
+
+    // Customer booking confirmation
+    sendCustomerOrderEmail(req.params.tenantId, {
+      orderId: bookingRef,
+      customerName: name.trim(),
+      customerEmail: email?.trim() || null,
+      serviceName: pricedItems.map(i => i.service.name).join(', '),
+      pickupDate: pickup_date.trim(),
+      address: address.trim(),
+      total: grandTotal,
+      paymentUrl,
+    }).catch(e => console.warn('[email] customer confirm failed:', e.response?.data || e.message));
 
     res.json({
       booking_ref: bookingRef,
