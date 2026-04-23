@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { sendPaidOrderEmail } = require('../utils/email');
+const { sendPaidOrderEmail, sendCustomerPaymentEmail } = require('../utils/email');
 const { sendMessage } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
       const { rows: orders } = await db.query(
         `SELECT o.id, o.tenant_id, o.price, o.address, o.booking_ref,
                 s.name AS service_name,
-                c.name AS customer_name, c.phone AS customer_phone, c.fb_id
+                c.name AS customer_name, c.phone AS customer_phone, c.fb_id, c.email AS customer_email
          FROM orders o
          LEFT JOIN services s ON s.id = o.service_id
          LEFT JOIN customers c ON c.id = o.customer_id
@@ -46,7 +46,16 @@ router.post('/', async (req, res) => {
       if (orders.length > 0) {
         const first = orders[0];
 
-        // Email notification (non-blocking)
+        // Email notifications (non-blocking)
+        sendCustomerPaymentEmail(first.tenant_id, {
+          orderId: first.booking_ref || first.id,
+          customerName: first.customer_name,
+          customerEmail: first.customer_email,
+          serviceName: orders.map(o => o.service_name).join(', '),
+          address: first.address,
+          total: orders.reduce((s, o) => s + Number(o.price), 0),
+        }).catch(e => console.warn('[xendit] customer payment email failed:', e.message));
+
         sendPaidOrderEmail(first.tenant_id, {
           orderId: first.booking_ref || first.id,
           serviceName: orders.map(o => o.service_name).join(', '),

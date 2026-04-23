@@ -194,4 +194,45 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
   }
 }
 
-module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail };
+async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, customerEmail, serviceName, address, total }) {
+  if (!customerEmail) return;
+  try {
+    const { rows: [tenant] } = await db.query('SELECT name, contact_number FROM tenants WHERE id=$1', [tenantId]);
+    const shopName = tenant?.name || 'Your Shop';
+
+    const tableRows = [
+      ['Booking Ref',  orderId],
+      ['Service',      serviceName],
+      ['Pickup Address', address],
+      ['Amount Paid',  `₱${Number(total).toLocaleString()}`],
+    ];
+
+    const contactLine = tenant?.contact_number
+      ? `<p style="font-size:13px;color:#374151;margin-top:16px;">Questions? Reach us at <strong>${tenant.contact_number}</strong></p>`
+      : '';
+
+    const body = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">💚 Payment Confirmed!</div>
+        <div style="font-size:14px;color:#6B7280;">Hi ${customerName}, we're excited to be of service to you! Your payment has been received and your order is all set.</div>
+      </div>
+      <div style="background:#F0FDF4;border-radius:8px;padding:16px 20px;margin-bottom:20px;border:1px solid #BBF7D0;">
+        ${orderTable(tableRows)}
+      </div>
+      <div style="font-size:13px;color:#374151;background:#F9FAFB;padding:12px 16px;border-radius:8px;border-left:4px solid #38a9c2;">
+        🧺 Sit back and relax — we'll take care of the rest. Thank you for trusting <strong>${shopName}</strong>!
+      </div>
+      ${contactLine}`;
+
+    await sendEmail({
+      to: [customerEmail],
+      subject: `💚 Payment Confirmed — ${orderId} | ${shopName}`,
+      html: emailWrapper(shopName, body),
+    });
+    console.log(`[email] customer payment confirmation ${orderId} sent to ${customerEmail}`);
+  } catch (err) {
+    console.warn('[email] sendCustomerPaymentEmail failed:', err.response?.data || err.message);
+  }
+}
+
+module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail };
