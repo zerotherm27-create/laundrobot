@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
          LEFT JOIN services s ON s.id = o.service_id
          LEFT JOIN customers c ON c.id = o.customer_id
          WHERE ${isBkgRef ? 'o.booking_ref=$1' : 'o.id=$1'}`,
-        [external_id]
+        [refId]
       );
 
       if (orders.length > 0) {
