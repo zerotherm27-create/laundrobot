@@ -54,6 +54,7 @@ export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
 export const deleteTenant = (id) => api.delete(`/tenants/${id}`);
 export const getMyTenantSettings = () => api.get('/tenants/settings');
 export const updateMyTenantSettings = data => api.put('/tenants/settings', data);
+export const resetMessengerMenu = () => api.post('/tenants/settings/setup-messenger');
 export const cloneServices = (sourceTenantId, targetTenantId, clearExisting, cloneOptions) =>
   api.post('/tenants/clone-services', { source_tenant_id: sourceTenantId, target_tenant_id: targetTenantId, clear_existing: clearExisting, clone_options: cloneOptions });
 

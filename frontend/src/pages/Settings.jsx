@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu } from '../api.js';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -63,6 +63,10 @@ export default function Settings() {
   const [promoForm,      setPromoForm]      = useState({ code: '', discount_type: 'fixed', discount_value: '', min_order: '', max_uses: '', expires_at: '' });
   const [savingPromo,    setSavingPromo]    = useState(false);
   const [promoErr,       setPromoErr]       = useState('');
+
+  // Messenger menu reset
+  const [resettingMenu,  setResettingMenu]  = useState(false);
+  const [menuResetMsg,   setMenuResetMsg]   = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -348,6 +352,34 @@ export default function Settings() {
               </div>
             )}
           </div>
+
+          {/* ── Messenger Menu ── */}
+          <SectionCard icon="💬" iconBg="#E0F2FE" title="Facebook Messenger Menu"
+            subtitle="Reset the persistent menu shown to all customers in Messenger">
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 12, lineHeight: 1.6 }}>
+              If customers are still seeing an old menu from a previous chatbot (e.g. Chatgenie), click below to override it with your current menu.
+            </div>
+            {menuResetMsg && (
+              <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 7, fontSize: 13,
+                background: menuResetMsg.startsWith('✅') ? '#EAF7EC' : '#FCEBEB',
+                color: menuResetMsg.startsWith('✅') ? '#1D6A3B' : '#A32D2D' }}>
+                {menuResetMsg}
+              </div>
+            )}
+            <button type="button" disabled={resettingMenu} onClick={async () => {
+              setResettingMenu(true); setMenuResetMsg('');
+              try {
+                await resetMessengerMenu();
+                setMenuResetMsg('✅ Messenger menu reset! Customers will see the updated menu shortly.');
+              } catch (err) {
+                setMenuResetMsg('❌ ' + (err.response?.data?.error || 'Failed to reset menu.'));
+              } finally { setResettingMenu(false); }
+            }} style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none',
+              cursor: resettingMenu ? 'not-allowed' : 'pointer',
+              background: resettingMenu ? '#7dd3e0' : '#0ea5e9', color: '#fff', fontFamily: 'inherit' }}>
+              {resettingMenu ? 'Resetting…' : 'Reset Messenger Menu'}
+            </button>
+          </SectionCard>
 
           {/* ── Promo Codes ── */}
           <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginTop: 16 }}>
