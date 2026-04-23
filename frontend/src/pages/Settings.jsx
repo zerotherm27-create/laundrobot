@@ -381,8 +381,12 @@ export default function Settings() {
             <button type="button" disabled={resettingMenu} onClick={async () => {
               setResettingMenu(true); setMenuResetMsg('');
               try {
-                await resetMessengerMenu();
-                setMenuResetMsg('✅ Messenger menu reset! Customers will see the updated menu shortly.');
+                const { data } = await resetMessengerMenu();
+                if (data.igError) {
+                  setMenuResetMsg(`✅ Facebook menu reset! ⚠️ Instagram warning: ${data.igError}`);
+                } else {
+                  setMenuResetMsg('✅ Messenger & Instagram menu reset! Customers will see the updated menu shortly.');
+                }
               } catch (err) {
                 setMenuResetMsg('❌ ' + (err.response?.data?.error || 'Failed to reset menu.'));
               } finally { setResettingMenu(false); }

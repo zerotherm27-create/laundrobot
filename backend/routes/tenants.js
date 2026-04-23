@@ -67,8 +67,11 @@ router.post('/settings/setup-messenger', auth, async (req, res) => {
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     if (!tenant.fb_page_access_token) return res.status(400).json({ error: 'No Facebook page token configured.' });
-    await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, tenant.id, process.env.APP_URL, tenant.ig_user_id);
-    res.json({ message: 'Messenger menu reset successfully.' });
+    const { igError } = await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, tenant.id, process.env.APP_URL, tenant.ig_user_id);
+    res.json({
+      message: 'Messenger menu reset successfully.' + (igError ? ` Instagram warning: ${igError}` : ''),
+      igError: igError || null,
+    });
   } catch (err) {
     console.error('[setup-messenger]', err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data?.error?.message || err.message });
