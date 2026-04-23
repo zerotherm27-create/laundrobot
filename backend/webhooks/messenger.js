@@ -724,6 +724,15 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Fallback — try AI first, then default menu ───────────────────────
   console.log('[ai-check] ai_enabled:', tenant.ai_enabled, '| has text:', !!event.message?.text, '| step:', step, '| text:', text);
   if (tenant.ai_enabled && event.message?.text) {
+    // Skip AI if human replied recently (pause window active)
+    const { rows: [conv] } = await db.query(
+      `SELECT data FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+      [tenant.id, senderId]
+    );
+    const pausedUntil = conv?.data?.ai_paused_until;
+    if (pausedUntil && new Date(pausedUntil) > new Date()) {
+      return; // human takeover active — stay silent
+    }
     sendTyping(token, senderId, true).catch(() => {});
     const aiReply = await askGemini(tenant.id, text, senderId);
     sendTyping(token, senderId, false).catch(() => {});

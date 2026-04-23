@@ -60,6 +60,7 @@ export const cloneServices = (sourceTenantId, targetTenantId, clearExisting, clo
 
 export const getHumanConversations = () => api.get('/conversations/human');
 export const releaseConversation = (fbUserId, message) => api.post(`/conversations/${fbUserId}/release`, { message });
+export const replyToCustomer = (fbUserId, message) => api.post(`/conversations/${fbUserId}/reply`, { message });
 
 export const sendBlast = (message, filter_status) =>
   api.post('/messaging/blast', { message, filter_status });

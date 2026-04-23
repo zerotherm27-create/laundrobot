@@ -40,6 +40,7 @@ export default function Settings() {
   const [minimumOrder,   setMinimumOrder]   = useState('');
   const [aiEnabled,      setAiEnabled]      = useState(false);
   const [aiInstructions, setAiInstructions] = useState('');
+  const [aiPauseHours,   setAiPauseHours]   = useState('2');
   const [igUserId,       setIgUserId]       = useState('');
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
@@ -79,6 +80,7 @@ export default function Settings() {
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
       setAiEnabled(!!s.data.ai_enabled);
       setAiInstructions(s.data.ai_instructions || '');
+      setAiPauseHours(s.data.ai_pause_hours != null ? String(s.data.ai_pause_hours) : '2');
       setIgUserId(s.data.ig_user_id || '');
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
@@ -102,6 +104,7 @@ export default function Settings() {
         booking_cutoff: bookingCutoff || null,
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
+        ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
         ig_user_id: igUserId,
       });
       setSaved(true);
@@ -198,6 +201,15 @@ export default function Settings() {
                 />
                 <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>
                   These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label style={LABEL}>AI Pause After Human Reply (hours)</label>
+                <input type="number" min="0" max="24" step="1" value={aiPauseHours}
+                  onChange={e => setAiPauseHours(e.target.value)}
+                  style={{ ...INPUT, width: 100 }} onFocus={FOCUS} onBlur={BLUR} />
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 4, lineHeight: 1.5 }}>
+                  When you manually reply to a customer, AI stays silent for this many hours. Set to 0 to disable the pause.
                 </div>
               </div>
               {aiEnabled && (
