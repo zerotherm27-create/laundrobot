@@ -409,6 +409,15 @@ export default function Settings() {
               background: resettingMenu ? '#7dd3e0' : '#0ea5e9', color: '#fff', fontFamily: 'inherit' }}>
               {resettingMenu ? 'Resetting…' : 'Reset Messenger Menu'}
             </button>
+
+            <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 8, background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#0369A1', marginBottom: 6 }}>ℹ️ How it works for customers</div>
+              <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.7 }}>
+                <div>• The menu does <strong>not</strong> pop up automatically — customers tap the <strong>☰ icon</strong> at the bottom-left of the chat to open it.</div>
+                <div>• The <strong>greeting message</strong> and <strong>Get Started</strong> button only appear for customers who have <strong>never messaged your page before</strong>.</div>
+                <div>• To share your Messenger link with customers, use: <strong>m.me/YourPageName</strong></div>
+              </div>
+            </div>
           </SectionCard>
 
           {/* ── Promo Codes ── */}
