@@ -108,6 +108,7 @@ const PUBLIC_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const pub    = url        => axios.get(`${PUBLIC_BASE}${url}`);
 const pubPost = (url, d)  => axios.post(`${PUBLIC_BASE}${url}`, d);
 
+export const getPublicBootstrap       = id          => pub(`/public/${id}/bootstrap`);
 export const getPublicTenantInfo     = id          => pub(`/public/${id}/info`);
 export const getPublicCategories     = id          => pub(`/public/${id}/categories`);
 export const getPublicServices       = id          => pub(`/public/${id}/services`);
