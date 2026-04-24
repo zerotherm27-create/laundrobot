@@ -37,7 +37,7 @@ const s = StyleSheet.create({
 });
 
 function fmt(n) {
-  return `\u20B1${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `Php ${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function InvoiceDocument({ order, shop }) {
