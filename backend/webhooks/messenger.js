@@ -364,7 +364,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   }
 
   // ── Global commands ──────────────────────────────────────────────────
-  if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED') {
+  if (lc === 'hi' || lc === 'hello' || lc === 'start' || lc === 'get started' || lc === 'menu' || text === 'GET_STARTED') {
     const appUrl = process.env.APP_URL;
     const bookButton = appUrl
       ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenant.id}`, webview_height_ratio: 'full', messenger_extensions: true }
