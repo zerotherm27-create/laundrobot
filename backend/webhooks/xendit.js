@@ -33,6 +33,7 @@ router.post('/', async (req, res) => {
 
     // Load order + customer + tenant for notifications
     try {
+      console.log('[xendit] looking up refId:', refId, '| isBkgRef:', isBkgRef);
       const { rows: orders } = await db.query(
         `SELECT o.id, o.tenant_id, o.price, o.address, o.booking_ref,
                 s.name AS service_name,
@@ -43,6 +44,7 @@ router.post('/', async (req, res) => {
          WHERE ${isBkgRef ? 'o.booking_ref=$1' : 'o.id=$1'}`,
         [refId]
       );
+      console.log('[xendit] orders found:', orders.length, '| fb_id:', orders[0]?.fb_id, '| customer_email:', orders[0]?.customer_email);
 
       if (orders.length > 0) {
         const first = orders[0];
