@@ -266,7 +266,7 @@ async function handleOptin(tenant, senderId, ref) {
     `✅ Hi ${customerName || 'there'}! You're now connected. We'll send your order updates right here in Messenger.`
   );
   await sends.sendButtons(token, senderId,
-    `🎁 Want to also receive exclusive promos and updates from us? Tap Subscribe!`,
+    `🎁 Want to also receive exclusive promos and updates from us? Tap Get Updates!`,
     [
       { type: 'postback', title: '✅ Get Updates', payload: 'SUBSCRIBE_PROMO' },
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
@@ -278,7 +278,7 @@ async function handleOptin(tenant, senderId, ref) {
 async function showSubscribePrompt(sends, token, senderId, customer) {
   if (customer?.promo_subscribed) return;
   await sends.sendButtons(token, senderId,
-    `🎁 Want to receive our latest promos and updates? Subscribe to stay in the loop!`,
+    `🎁 Want to receive our latest promos and updates? Tap Get Updates to stay in the loop!`,
     [
       { type: 'postback', title: '✅ Get Updates', payload: 'SUBSCRIBE_PROMO' },
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
