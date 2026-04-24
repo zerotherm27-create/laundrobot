@@ -86,22 +86,31 @@ router.get('/:tenantId/categories', async (req, res) => {
 // GET active services with custom fields
 router.get('/:tenantId/services', async (req, res) => {
   try {
-    const { rows: services } = await db.query(
-      `SELECT s.id, s.name, s.price, s.unit, s.description, s.image_url, s.category_id,
-              c.name AS category_name
-       FROM services s
-       LEFT JOIN service_categories c ON c.id = s.category_id
-       WHERE s.tenant_id=$1 AND s.active=TRUE
-       ORDER BY s.sort_order, s.id`,
-      [req.params.tenantId]
-    );
-    for (const svc of services) {
-      const { rows: fields } = await db.query(
-        'SELECT id, label, field_type, placeholder, required, options, min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order',
-        [svc.id]
-      );
-      svc.custom_fields = fields;
+    const [{ rows: services }, { rows: allFields }] = await Promise.all([
+      db.query(
+        `SELECT s.id, s.name, s.price, s.unit, s.description, s.image_url, s.category_id,
+                c.name AS category_name
+         FROM services s
+         LEFT JOIN service_categories c ON c.id = s.category_id
+         WHERE s.tenant_id=$1 AND s.active=TRUE
+         ORDER BY s.sort_order, s.id`,
+        [req.params.tenantId]
+      ),
+      db.query(
+        `SELECT id, service_id, label, field_type, placeholder, required, options,
+                min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty
+         FROM service_custom_fields
+         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE)
+         ORDER BY sort_order`,
+        [req.params.tenantId]
+      ),
+    ]);
+    const fieldMap = {};
+    for (const f of allFields) {
+      if (!fieldMap[f.service_id]) fieldMap[f.service_id] = [];
+      fieldMap[f.service_id].push(f);
     }
+    for (const svc of services) svc.custom_fields = fieldMap[svc.id] || [];
     res.json(services);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
