@@ -218,6 +218,15 @@ export default function Orders() {
     } catch { alert('Failed to archive.'); }
   }
 
+  async function handleMarkPaid() {
+    if (!confirm(`Mark ${selected.booking_ref || selected.id} as PAID?`)) return;
+    try {
+      await Promise.all(selected.orderIds.map(id => updateOrder(id, { paid: true })));
+      setSelected(prev => prev ? { ...prev, paid: true } : prev);
+      setOrders(prev => prev.map(o => selected.orderIds.includes(o.id) ? { ...o, paid: true } : o));
+    } catch (e) { alert('Failed: ' + (e.response?.data?.error || e.message)); }
+  }
+
   async function handleDownloadInvoice() {
     if (!shopInfo) return;
     const blob = await pdf(<InvoiceDocument order={selected} shop={shopInfo} />).toBlob();
@@ -884,6 +893,14 @@ export default function Orders() {
                       }}
                         style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#F7F7F5', border: '0.5px solid #E2E8F0', color: '#374151' }}>
                         📦 Archive this month's completed orders
+                      </button>
+                    )}
+
+                    {/* ── Mark as Paid ── */}
+                    {!selected.paid && (
+                      <button onClick={handleMarkPaid}
+                        style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534' }}>
+                        💰 Mark as Paid
                       </button>
                     )}
 
