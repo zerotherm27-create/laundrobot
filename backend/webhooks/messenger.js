@@ -20,6 +20,13 @@ function makeSends(channel, token, igUserId) {
   return { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog };
 }
 
+function bookBtn(tenantId) {
+  const appUrl = process.env.APP_URL;
+  return appUrl
+    ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenantId}`, webview_height_ratio: 'full', messenger_extensions: true }
+    : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
+}
+
 // ── Webhook verification ────────────────────────────────────────────────────
 router.get('/', (req, res) => {
   if (req.query['hub.verify_token'] === process.env.FB_VERIFY_TOKEN) {
@@ -354,7 +361,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     await sendButtons(token, senderId,
       `${greeting}\n\nWhat would you like to do?`,
       [
-        { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
+        bookBtn(tenant.id),
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
@@ -365,15 +372,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
 
   // ── Global commands ──────────────────────────────────────────────────
   if (lc === 'hi' || lc === 'hello' || lc === 'start' || lc === 'get started' || lc === 'menu' || text === 'GET_STARTED') {
-    const appUrl = process.env.APP_URL;
-    const bookButton = appUrl
-      ? { type: 'web_url', title: '🛒 Book Now', url: `${appUrl}/book/${tenant.id}`, webview_height_ratio: 'full', messenger_extensions: true }
-      : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
     const greeting = customer.name ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome to ${tenant.name}!` : `👋 Hi! Welcome to ${tenant.name}!`;
     await sendButtons(token, senderId,
       `${greeting}\n\nWhat would you like to do?`,
       [
-        bookButton,
+        bookBtn(tenant.id),
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
@@ -383,20 +386,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   }
 
   if (lc === 'book' || text === 'BOOK' || lc === 'menu') {
-    const appUrl = process.env.APP_URL;
-    if (appUrl) {
-      await sendButtons(token, senderId,
-        `📱 Tap below to open our booking form — it opens right here inside Messenger!`,
-        [{
-          type: 'web_url',
-          title: '🧺 Open Booking Form',
-          url: `${appUrl}/book/${tenant.id}`,
-          webview_height_ratio: 'full',
-          messenger_extensions: true,
-        }]
-      );
-      await setState('MENU', {}, {});
-    } else {
+    if (!process.env.APP_URL) {
       await setState('SELECT_CATEGORY', {}, {});
       await showCategoryMenu(sends, token, senderId, tenant.id);
     }
@@ -444,7 +434,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   if (text === 'MAIN_MENU') {
     await sendButtons(token, senderId, `What would you like to do?`,
       [
-        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
+        bookBtn(tenant.id),
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
         { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
       ]
@@ -687,11 +677,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       ? [
           { type: 'web_url', url: paymentUrl, title: '💳 Pay Now' },
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' },
+          { ...bookBtn(tenant.id), title: '🛒 Book Again' },
         ]
       : [
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' },
+          { ...bookBtn(tenant.id), title: '🛒 Book Again' },
         ];
 
     await sendButtons(token, senderId,
@@ -731,7 +721,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
         ? `Your order has been cancelled. No worries! 😊`
         : `Okay, no problem! What would you like to do?`,
       [
-        { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK' },
+        bookBtn(tenant.id),
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
       ]
     );
@@ -785,7 +775,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   await sendButtons(token, senderId,
     `I didn't quite get that. 😊 What would you like to do?`,
     [
-      { type: 'postback', title: '🛒 Book Now',      payload: 'BOOK'     },
+      bookBtn(tenant.id),
       { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS'},
       { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
     ]
