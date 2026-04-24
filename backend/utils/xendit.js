@@ -40,4 +40,12 @@ async function createRefund(apiKey, { invoiceId, amount, reason }) {
   return data;
 }
 
-module.exports = { createInvoice, createRefund };
+async function getInvoiceStatus(apiKey, invoiceId) {
+  const { data } = await axios.get(
+    `https://api.xendit.co/v2/invoices/${invoiceId}`,
+    { auth: { username: apiKey, password: '' } }
+  );
+  return { status: data.status, id: data.id };
+}
+
+module.exports = { createInvoice, createRefund, getInvoiceStatus };

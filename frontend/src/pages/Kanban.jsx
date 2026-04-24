@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings } from '../api.js';
+import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings, verifyPayment } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -140,6 +140,15 @@ export default function Kanban() {
       setModalOrder(prev => prev ? { ...prev, paid: true } : prev);
       setOrders(prev => prev.map(o => modalOrder.orderIds.includes(o.id) ? { ...o, paid: true } : o));
     } catch (e) { alert('Failed: ' + (e.response?.data?.error || e.message)); }
+  }
+
+  async function handleVerifyPayment() {
+    try {
+      const { data } = await verifyPayment(modalOrder.orderIds[0]);
+      if (data.already_paid) { alert('Already marked as paid.'); return; }
+      setModalOrder(prev => prev ? { ...prev, paid: true } : prev);
+      setOrders(prev => prev.map(o => modalOrder.orderIds.includes(o.id) ? { ...o, paid: true } : o));
+    } catch (e) { alert(e.response?.data?.error || e.message); }
   }
 
   async function handleDownloadInvoice() {
@@ -647,6 +656,14 @@ export default function Kanban() {
             {/* ── Mark as Paid ── */}
             {!modalOrder.paid && (
               <button onClick={handleMarkPaid}
+                style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534' }}>
+                💰 Mark as Paid
+              </button>
+            )}
+
+            {/* ── Mark as Paid ── */}
+            {!modalOrder.paid && modalOrder.xendit_invoice_id && (
+              <button onClick={handleVerifyPayment}
                 style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534' }}>
                 💰 Mark as Paid
               </button>

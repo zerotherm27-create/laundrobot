@@ -2,7 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
-const { createInvoice, createRefund } = require('../utils/xendit');
+const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
 const { sendInvoiceEmail } = require('../utils/email');
 
 // GET all orders for tenant (archived=true to fetch archives)
@@ -374,6 +374,38 @@ router.post('/:id/cancel', auth, async (req, res) => {
   } catch (err) {
     console.error('[cancel-order]', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST verify Xendit payment and mark order as paid if confirmed
+router.post('/:id/verify-payment', auth, async (req, res) => {
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT o.id, o.xendit_invoice_id, o.paid, o.booking_ref
+       FROM orders o WHERE o.id=$1 AND o.tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.paid) return res.json({ ok: true, already_paid: true });
+    if (!order.xendit_invoice_id) return res.status(400).json({ error: 'No payment link generated for this order.' });
+
+    const { rows: [tenant] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [req.user.tenant_id]);
+    if (!tenant?.xendit_api_key) return res.status(400).json({ error: 'Xendit not configured.' });
+
+    const { status } = await getInvoiceStatus(tenant.xendit_api_key, order.xendit_invoice_id);
+    if (status !== 'PAID') {
+      return res.status(400).json({ error: `Invoice is not paid yet — current status: ${status}` });
+    }
+
+    // Confirmed paid — update all orders in the same booking
+    await db.query(
+      `UPDATE orders SET paid=TRUE WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[verify-payment]', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data?.message || err.message });
   }
 });
 
