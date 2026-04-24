@@ -45,6 +45,66 @@ router.get('/geocode/suggest', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET all booking-form data in one request
+router.get('/:tenantId/bootstrap', async (req, res) => {
+  const id = req.params.tenantId;
+  try {
+    const [
+      { rows: [tenant] },
+      { rows: categories },
+      { rows: services },
+      { rows: allFields },
+      { rows: zones },
+      { rows: brackets },
+      { rows: [bracketMeta] },
+      { rows: blockedDates },
+    ] = await Promise.all([
+      db.query(
+        `SELECT name, logo_url, contact_number, minimum_order, fb_page_id,
+                to_char(store_open, 'HH24:MI') AS store_open,
+                to_char(store_close, 'HH24:MI') AS store_close,
+                to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
+         FROM tenants WHERE id=$1 AND active=TRUE`, [id]
+      ),
+      db.query(`SELECT id, name FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id`, [id]),
+      db.query(
+        `SELECT s.id, s.name, s.price, s.unit, s.description, s.image_url, s.category_id,
+                c.name AS category_name
+         FROM services s LEFT JOIN service_categories c ON c.id=s.category_id
+         WHERE s.tenant_id=$1 AND s.active=TRUE ORDER BY s.sort_order, s.id`, [id]
+      ),
+      db.query(
+        `SELECT id, service_id, label, field_type, placeholder, required, options,
+                min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty
+         FROM service_custom_fields
+         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE)
+         ORDER BY sort_order`, [id]
+      ),
+      db.query(`SELECT id, name, fee, custom_note FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id`, [id]),
+      db.query(`SELECT min_km, max_km, fee FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC`, [id]),
+      db.query(`SELECT shop_lat, shop_lng, delivery_note, delivery_radius FROM tenants WHERE id=$1 AND active=TRUE`, [id]),
+      db.query(`SELECT date::text, reason FROM blocked_dates WHERE tenant_id=$1 AND date >= CURRENT_DATE ORDER BY date ASC`, [id]),
+    ]);
+    if (!tenant) return res.status(404).json({ error: 'Shop not found' });
+    const fieldMap = {};
+    for (const f of allFields) {
+      if (!fieldMap[f.service_id]) fieldMap[f.service_id] = [];
+      fieldMap[f.service_id].push(f);
+    }
+    for (const svc of services) svc.custom_fields = fieldMap[svc.id] || [];
+    res.json({
+      tenant,
+      categories,
+      services,
+      zones,
+      bracketInfo: bracketMeta?.shop_lat && bracketMeta?.shop_lng
+        ? { brackets, shop_lat: Number(bracketMeta.shop_lat), shop_lng: Number(bracketMeta.shop_lng), delivery_note: bracketMeta.delivery_note, delivery_radius: Number(bracketMeta.delivery_radius) || 15 }
+        : null,
+      blockedDates,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET tenant info (name + logo + store hours for booking form)
 router.get('/:tenantId/info', async (req, res) => {
   try {

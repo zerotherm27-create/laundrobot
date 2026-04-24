@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import {
-  getPublicTenantInfo, getPublicCategories, getPublicServices,
-  getPublicDeliveryZones, getPublicDeliveryBrackets, getPublicGeocode,
+  getPublicBootstrap, getPublicGeocode,
   getPublicAddressSuggest,
-  getPublicBlockedDates, lookupPublicCustomer, createPublicOrder, validatePublicPromo,
+  lookupPublicCustomer, createPublicOrder, validatePublicPromo,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -194,21 +193,14 @@ export default function BookingForm({ tenantId }) {
     // Retry after SDK loads
     setTimeout(tryGetPsid, 1500);
 
-    Promise.all([
-      getPublicTenantInfo(tenantId),
-      getPublicCategories(tenantId),
-      getPublicServices(tenantId),
-      getPublicDeliveryZones(tenantId),
-      getPublicDeliveryBrackets(tenantId),
-      getPublicBlockedDates(tenantId),
-    ]).then(([t, cats, svcs, z, br, bd]) => {
-      setTenant(t.data);
-      setCategories(cats.data);
-      setServices(svcs.data);
-      setZones(z.data);
-      if (br.data?.shop_lat && br.data?.shop_lng) setBracketInfo(br.data);
-      setBlockedDates(bd.data);
-      if (cats.data.length > 0) setActiveCat(cats.data[0].id);
+    getPublicBootstrap(tenantId).then(({ data }) => {
+      setTenant(data.tenant);
+      setCategories(data.categories);
+      setServices(data.services);
+      setZones(data.zones);
+      if (data.bracketInfo) setBracketInfo(data.bracketInfo);
+      setBlockedDates(data.blockedDates);
+      if (data.categories.length > 0) setActiveCat(data.categories[0].id);
     }).catch(e => {
       if (e.response?.status === 404) setNotFound(true);
     }).finally(() => setLoading(false));
