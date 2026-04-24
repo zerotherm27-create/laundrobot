@@ -5,7 +5,8 @@ const { sendMessage } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
-  if (callbackToken !== process.env.XENDIT_CALLBACK_TOKEN) {
+  console.log('[xendit] received token:', callbackToken, '| expected:', process.env.XENDIT_CALLBACK_TOKEN);
+  if (process.env.XENDIT_CALLBACK_TOKEN && callbackToken !== process.env.XENDIT_CALLBACK_TOKEN) {
     return res.status(403).json({ error: 'Invalid callback token' });
   }
 
