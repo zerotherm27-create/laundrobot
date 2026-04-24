@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices } from '../api.js';
 
-const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', admin_email: '', admin_password: '', active: true };
+const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', logo_url: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
 
 const btn = (bg, color, extra = {}) => ({
@@ -488,7 +488,7 @@ export default function SuperAdmin() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 16 }}>{tenantForm.isNew ? 'Add branch' : 'Edit branch'}</div>
-            {[['name','Branch name','text'],['fb_page_id','Facebook Page ID','text'],['fb_page_access_token','Page Access Token','text'],['xendit_api_key','Xendit API Key','text']].map(([field, label, type]) => (
+            {[['name','Branch name','text'],['fb_page_id','Facebook Page ID','text'],['fb_page_access_token','Page Access Token','text'],['xendit_api_key','Xendit API Key','text'],['logo_url','Logo URL','text']].map(([field, label, type]) => (
               <div key={field} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>{label}</label>
                 <input type={type} value={tenantForm[field] || ''} onChange={e => setTenantForm(p => ({ ...p, [field]: e.target.value }))}
