@@ -13,7 +13,7 @@ router.get('/settings', auth, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
       `SELECT id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
-              ig_user_id, ai_pause_hours,
+              ig_user_id, ai_pause_hours, shop_address,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -36,7 +36,7 @@ router.put('/settings', auth, async (req, res) => {
            ig_user_id=$9, ai_pause_hours=$10
        WHERE id=$11
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
-                 ig_user_id, ai_pause_hours,
+                 ig_user_id, ai_pause_hours, shop_address,
                  to_char(store_open, 'HH24:MI') AS store_open,
                  to_char(store_close, 'HH24:MI') AS store_close,
                  to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff`,

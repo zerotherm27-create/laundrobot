@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings } from '../api.js';
+import { pdf } from '@react-pdf/renderer';
+import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
@@ -87,6 +89,11 @@ export default function Orders() {
   const [payLinkErr,     setPayLinkErr]     = useState('');
   const [payLinkCopied,  setPayLinkCopied]  = useState(false);
 
+  // Invoice
+  const [shopInfo,        setShopInfo]        = useState(null);
+  const [invoiceSending,  setInvoiceSending]  = useState(false);
+  const [invoiceResult,   setInvoiceResult]   = useState(''); // 'ok' | 'err:...'
+
   const loadActive = useCallback(() => {
     setLoading(true);
     getOrders().then(r => setOrders(r.data)).finally(() => setLoading(false));
@@ -94,6 +101,7 @@ export default function Orders() {
 
   useEffect(() => {
     getServices().then(r => setServices(r.data)).catch(() => {});
+    getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
   }, []);
 
   const loadArchived = useCallback(() => {
@@ -208,6 +216,35 @@ export default function Orders() {
       loadActive();
       setArchived([]); // force reload next time archives tab is opened
     } catch { alert('Failed to archive.'); }
+  }
+
+  async function handleDownloadInvoice() {
+    if (!shopInfo) return;
+    const blob = await pdf(<InvoiceDocument order={selected} shop={shopInfo} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `invoice-${selected.booking_ref || selected.id}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleSendInvoice() {
+    const email = selected.customer_email;
+    if (!email) { alert('No email on file for this customer.'); return; }
+    if (!shopInfo) return;
+    setInvoiceSending(true); setInvoiceResult('');
+    try {
+      const blob = await pdf(<InvoiceDocument order={selected} shop={shopInfo} />).toBlob();
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
+        try {
+          await sendInvoice(selected.orderIds[0], base64, email);
+          setInvoiceResult('ok');
+        } catch (e) { setInvoiceResult('err:' + (e.response?.data?.error || e.message)); }
+        setInvoiceSending(false);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) { setInvoiceResult('err:' + e.message); setInvoiceSending(false); }
   }
 
   // Active orders filter — group first so amount filter applies to booking total
@@ -332,7 +369,7 @@ export default function Orders() {
                       const isSelected = (selected?.booking_ref || selected?.id) === gKey;
                       return (
                       <tr key={gKey}
-                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); }}
+                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); setInvoiceResult(''); }}
                         style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
                           <div>{g.booking_ref || g.id}</div>
@@ -849,6 +886,21 @@ export default function Orders() {
                         📦 Archive this month's completed orders
                       </button>
                     )}
+
+                    {/* ── Invoice ── */}
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600 }}>
+                          📄 Download PDF
+                        </button>
+                        <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600 }}>
+                          {invoiceSending ? '⏳ Sending…' : '📧 Send to Email'}
+                        </button>
+                      </div>
+                      {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534' }}>✅ Invoice sent to {selected.customer_email}</div>}
+                      {invoiceResult.startsWith('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>⚠️ {invoiceResult.slice(4)}</div>}
+                    </div>
 
                     <button onClick={() => handleDelete(selected.orderIds)}
                       style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#FCEBEB', border: '0.5px solid #F09595', color: '#A32D2D' }}>

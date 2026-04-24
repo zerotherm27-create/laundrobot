@@ -194,6 +194,29 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
   }
 }
 
+async function sendInvoiceEmail({ to, shopName, invoiceId, customerName, pdfBase64 }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) { console.warn('[email] RESEND_API_KEY not set — skipping invoice email'); return; }
+  const body = `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">🧾 Your Invoice</div>
+      <div style="font-size:14px;color:#6B7280;">Hi ${customerName}, please find your invoice for booking <strong>${invoiceId}</strong> attached to this email.</div>
+    </div>
+    <div style="font-size:13px;color:#374151;background:#F9FAFB;padding:12px 16px;border-radius:8px;border-left:4px solid #38a9c2;">
+      🧺 Thank you for choosing <strong>${shopName}</strong>! We appreciate your trust in us.
+    </div>`;
+  await axios.post(RESEND_API, {
+    from: getFrom(),
+    to: [to],
+    subject: `🧾 Invoice ${invoiceId} — ${shopName}`,
+    html: emailWrapper(shopName, body),
+    attachments: [{ filename: `invoice-${invoiceId}.pdf`, content: pdfBase64 }],
+  }, {
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+  });
+  console.log(`[email] invoice ${invoiceId} sent to ${to}`);
+}
+
 async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, customerEmail, serviceName, address, total }) {
   if (!customerEmail) return;
   try {
@@ -235,4 +258,4 @@ async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, custo
   }
 }
 
-module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail };
+module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail, sendInvoiceEmail };

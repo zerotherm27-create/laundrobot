@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
 const { createInvoice, createRefund } = require('../utils/xendit');
+const { sendInvoiceEmail } = require('../utils/email');
 
 // GET all orders for tenant (archived=true to fetch archives)
 router.get('/', auth, async (req, res) => {
@@ -372,6 +373,35 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
   } catch (err) {
     console.error('[cancel-order]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST send invoice PDF to customer email
+router.post('/:id/send-invoice', auth, async (req, res) => {
+  const { pdf_base64, customer_email } = req.body;
+  if (!pdf_base64 || !customer_email) {
+    return res.status(400).json({ error: 'pdf_base64 and customer_email required' });
+  }
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT o.booking_ref, c.name AS customer_name
+       FROM orders o LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id=$1 AND o.tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const { rows: [tenant] } = await db.query('SELECT name FROM tenants WHERE id=$1', [req.user.tenant_id]);
+    await sendInvoiceEmail({
+      to: customer_email,
+      shopName: tenant?.name || 'Your Shop',
+      invoiceId: order.booking_ref || req.params.id,
+      customerName: order.customer_name || 'Customer',
+      pdfBase64: pdf_base64,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[send-invoice]', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });

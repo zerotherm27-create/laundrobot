@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, updateOrder, cancelOrder } from '../api.js';
+import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings } from '../api.js';
+import { pdf } from '@react-pdf/renderer';
+import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 
@@ -108,6 +110,9 @@ export default function Kanban() {
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   const [cancelResult,  setCancelResult]  = useState(null);
+  const [shopInfo,       setShopInfo]       = useState(null);
+  const [invoiceSending, setInvoiceSending] = useState(false);
+  const [invoiceResult,  setInvoiceResult]  = useState('');
 
   // Delivery date override state (inside modal)
   const [editingDelivery, setEditingDelivery] = useState(false);
@@ -118,6 +123,7 @@ export default function Kanban() {
     getOrders()
       .then(r => { setOrders(r.data); setLoading(false); })
       .catch(() => setLoading(false));
+    getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
   }, []);
 
   async function moveStatus(orderIds, status) {
@@ -125,6 +131,35 @@ export default function Kanban() {
     setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status } : o));
     try { await Promise.all(ids.map(id => updateOrderStatus(id, status))); }
     catch { getOrders().then(r => setOrders(r.data)); }
+  }
+
+  async function handleDownloadInvoice() {
+    if (!shopInfo || !modalOrder) return;
+    const blob = await pdf(<InvoiceDocument order={modalOrder} shop={shopInfo} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `invoice-${modalOrder.booking_ref || modalOrder.id}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleSendInvoice() {
+    const email = modalOrder?.customer_email;
+    if (!email) { alert('No email on file for this customer.'); return; }
+    if (!shopInfo) return;
+    setInvoiceSending(true); setInvoiceResult('');
+    try {
+      const blob = await pdf(<InvoiceDocument order={modalOrder} shop={shopInfo} />).toBlob();
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
+        try {
+          await sendInvoice(modalOrder.orderIds[0], base64, email);
+          setInvoiceResult('ok');
+        } catch (e) { setInvoiceResult('err:' + (e.response?.data?.error || e.message)); }
+        setInvoiceSending(false);
+      };
+      reader.readAsDataURL(blob);
+    } catch (e) { setInvoiceResult('err:' + e.message); setInvoiceSending(false); }
   }
 
   function move(g, dir, e) {
@@ -159,6 +194,7 @@ export default function Kanban() {
     setEditingDelivery(false);
     setDeliveryInput(g.delivery_date ? g.delivery_date.slice(0, 10) : '');
     setCancelResult(null);
+    setInvoiceResult('');
   }
 
   async function saveDeliveryDate() {
@@ -597,6 +633,21 @@ export default function Kanban() {
 
             <div style={{ marginTop: 8, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               Created {modalOrder.created_at ? new Date(modalOrder.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
+            </div>
+
+            {/* ── Invoice ── */}
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
+              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600 }}>
+                  📄 Download PDF
+                </button>
+                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600 }}>
+                  {invoiceSending ? '⏳ Sending…' : '📧 Send to Email'}
+                </button>
+              </div>
+              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534' }}>✅ Invoice sent to {modalOrder.customer_email}</div>}
+              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>⚠️ {invoiceResult.slice(4)}</div>}
             </div>
 
             {/* ── Cancel Order ── */}
