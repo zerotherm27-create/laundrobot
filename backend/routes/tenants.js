@@ -27,14 +27,14 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address } = req.body;
   try {
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants
        SET notification_email=$1, contact_number=$2,
            store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6, ai_enabled=$7, ai_instructions=$8,
-           ig_user_id=$9, ai_pause_hours=$10
-       WHERE id=$11
+           ig_user_id=$9, ai_pause_hours=$10, shop_address=$11
+       WHERE id=$12
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
                  ig_user_id, ai_pause_hours, shop_address,
                  to_char(store_open, 'HH24:MI') AS store_open,
@@ -51,6 +51,7 @@ router.put('/settings', auth, async (req, res) => {
         ai_instructions?.trim() || null,
         ig_user_id?.trim() || null,
         ai_pause_hours != null && ai_pause_hours !== '' ? Number(ai_pause_hours) : 2,
+        shop_address?.trim() || null,
         req.user.tenant_id,
       ]
     );

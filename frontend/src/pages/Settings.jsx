@@ -37,6 +37,7 @@ function formatDateDisplay(dateStr) {
 export default function Settings() {
   const [notifEmail,     setNotifEmail]     = useState('');
   const [contactNumber,  setContactNumber]  = useState('');
+  const [shopAddress,    setShopAddress]    = useState('');
   const [minimumOrder,   setMinimumOrder]   = useState('');
   const [aiEnabled,      setAiEnabled]      = useState(false);
   const [aiInstructions, setAiInstructions] = useState('');
@@ -77,6 +78,7 @@ export default function Settings() {
     ]).then(([s, b, p]) => {
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
+      setShopAddress(s.data.shop_address || '');
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
       setAiEnabled(!!s.data.ai_enabled);
       setAiInstructions(s.data.ai_instructions || '');
@@ -98,6 +100,7 @@ export default function Settings() {
       await updateMyTenantSettings({
         notification_email: notifEmail,
         contact_number: contactNumber,
+        shop_address: shopAddress,
         minimum_order: minimumOrder !== '' ? Number(minimumOrder) : null,
         store_open: storeOpen || null,
         store_close: storeClose || null,
@@ -239,6 +242,14 @@ export default function Settings() {
               <input type="tel" value={contactNumber} onChange={e => setContactNumber(e.target.value)}
                 placeholder="e.g. 09XX XXX XXXX or +63 9XX XXX XXXX" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
               <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>Customers will see this on their order confirmation screen</div>
+            </SectionCard>
+
+            {/* Shop Address */}
+            <SectionCard icon="📍" iconBg="#FEF3C7" title="Shop Address"
+              subtitle="Shown on invoices sent to customers">
+              <label style={LABEL}>Full Address</label>
+              <input type="text" value={shopAddress} onChange={e => setShopAddress(e.target.value)}
+                placeholder="e.g. 123 Main St, Barangay, City, Province" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
             </SectionCard>
 
             {/* Minimum Order */}
