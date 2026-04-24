@@ -67,23 +67,9 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
     console.warn(`[messenger-profile] Facebook persistent menu failed for ${name}:`, fbError);
   }
 
-  // ── 4. Instagram persistent menu (postback only — web_url not supported) ───
-  let igError = null;
-  if (igUserId) {
-    try {
-      await axios.post(`${GRAPH}/${igUserId}/messenger_profile?access_token=${pageToken}`, {
-        persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: [
-          { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
-          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-        ]}],
-      });
-      console.log(`[messenger-profile] Instagram persistent menu set for ${name}`);
-    } catch (e) {
-      igError = e.response?.data?.error?.message || e.message;
-      console.warn(`[messenger-profile] Instagram persistent menu failed for ${name}:`, igError);
-    }
-  }
+  // Instagram persistent menu API requires elevated permissions not available via standard page token.
+  // Instead, new Instagram users are greeted with a welcome menu on their first message (in the webhook).
+  const igError = null;
 
   console.log(`[messenger-profile] setup complete for ${name}`);
   return { fbError, igError };

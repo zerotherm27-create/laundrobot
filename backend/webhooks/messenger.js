@@ -346,6 +346,23 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
+  // ── Instagram: auto-show welcome menu on first message ───────────────
+  if (channel === 'instagram' && step === 'START' && !event.postback) {
+    const greeting = customer.name
+      ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome to ${tenant.name}!`
+      : `👋 Hi! Welcome to ${tenant.name}!`;
+    await sendButtons(token, senderId,
+      `${greeting}\n\nWhat would you like to do?`,
+      [
+        { type: 'postback', title: '🛒 Book Now',  payload: 'BOOK'      },
+        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+      ]
+    );
+    await setState('MENU', {}, {});
+    return;
+  }
+
   // ── Global commands ──────────────────────────────────────────────────
   if (lc === 'hi' || lc === 'hello' || lc === 'start' || text === 'GET_STARTED') {
     const appUrl = process.env.APP_URL;
