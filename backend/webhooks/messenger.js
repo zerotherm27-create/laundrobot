@@ -251,6 +251,19 @@ async function handleOptin(tenant, senderId, ref) {
   if (!token) return;
   const sends = makeSends('messenger', token, null);
 
+  // CTA link: m.me/<page>?ref=BOOK — drop straight into booking menu
+  if (ref === 'BOOK') {
+    await sends.sendButtons(token, senderId,
+      `👋 Hi there! Welcome to ${tenant.name}. Ready to book your laundry? Tap below to get started!`,
+      [
+        bookBtn(tenant.id),
+        { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
+        { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
+      ]
+    );
+    return;
+  }
+
   // Link this PSID to customer via booking_ref in data-ref
   let customerName = null;
   if (ref) {
