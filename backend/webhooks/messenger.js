@@ -756,6 +756,17 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
+  // ── Cart "Get Updates" — resets 24h window for reminders 4-5 ────────
+  if (text.startsWith('CART_SUBSCRIBE_')) {
+    const cartId = text.replace('CART_SUBSCRIBE_', '');
+    await db.query(
+      `UPDATE carts SET window_reset_at = NOW() WHERE id = $1 AND converted = FALSE AND tenant_id = $2`,
+      [cartId, tenant.id]
+    );
+    await sendMessage(token, senderId, `Got it! 🔔 We'll send you one more reminder so you don't miss out.`);
+    return;
+  }
+
   // ── Promo subscription ───────────────────────────────────────────────
   if (text === 'SUBSCRIBE_PROMO') {
     await db.query(
