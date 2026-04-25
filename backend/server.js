@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const path = require('path');
-const runFollowUp = require('./jobs/followup');
+const runFollowUp    = require('./jobs/followup');
+const runCartReminder = require('./jobs/cartReminder');
 const app = express();
 
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
@@ -25,6 +26,7 @@ const routes = [
   ['/delivery-brackets', './routes/deliveryBrackets'],
   ['/blocked-dates',   './routes/blockedDates'],
   ['/promo-codes',     './routes/promoCodes'],
+  ['/referrals',       './routes/referrals'],
   ['/public',          './routes/public'],
   ['/conversations',   './routes/conversations'],
 ];
@@ -83,6 +85,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     runFollowUp().catch(err => console.error('[follow-up] unhandled error:', err.message));
   });
   console.log('✓ follow-up cron scheduled (every 30 min)');
+
+  // Cart abandonment reminder — runs every hour
+  cron.schedule('0 * * * *', () => {
+    runCartReminder().catch(err => console.error('[cart-reminder] unhandled error:', err.message));
+  });
+  console.log('✓ cart reminder cron scheduled (every hour)');
 
   // Archive completed orders monthly — runs at midnight on the 1st of each month
   cron.schedule('0 0 1 * *', async () => {
