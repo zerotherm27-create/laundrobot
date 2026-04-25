@@ -253,8 +253,8 @@ async function handleOptin(tenant, senderId, ref) {
   if (!token) return;
   const sends = makeSends('messenger', token, null);
 
-  // CTA link: m.me/<page>?ref=BOOK — drop straight into booking menu
-  if (ref === 'BOOK') {
+  // CTA link: m.me/<page>?ref=LAUNDRY_NOW — drop straight into booking menu
+  if (ref === 'LAUNDRY_NOW') {
     await sends.sendButtons(token, senderId,
       `👋 Hi there! Welcome to ${tenant.name}. Ready to book your laundry? Tap below to get started!`,
       [
