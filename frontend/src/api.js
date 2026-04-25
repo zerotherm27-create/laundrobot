@@ -120,5 +120,13 @@ export const getPublicBlockedDates   = id                  => pub(`/public/${id}
 export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLIC_BASE}/public/${id}/promo`, { params: { code, total } });
 export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });
 export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
+export const savePublicCart          = (id, data)          => pubPost(`/public/${id}/cart`, data);
+export const updatePublicCart        = (id, cartId, data)  => axios.patch(`${PUBLIC_BASE}/public/${id}/cart/${cartId}`, data);
+
+// Referral links (authenticated)
+export const getReferralLinks   = ()         => api.get('/referrals');
+export const createReferralLink = data       => api.post('/referrals', data);
+export const updateReferralLink = (id, data) => api.patch(`/referrals/${id}`, data);
+export const deleteReferralLink = id         => api.delete(`/referrals/${id}`);
 
 export default api;

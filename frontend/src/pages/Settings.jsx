@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink } from '../api.js';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -46,6 +46,7 @@ export default function Settings() {
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
+  const [fbPageId,       setFbPageId]       = useState('');
   const [loading,        setLoading]        = useState(true);
   const [saving,         setSaving]         = useState(false);
   const [saved,          setSaved]          = useState(false);
@@ -66,6 +67,13 @@ export default function Settings() {
   const [savingPromo,    setSavingPromo]    = useState(false);
   const [promoErr,       setPromoErr]       = useState('');
 
+  // Referral links
+  const [referrals,      setReferrals]      = useState([]);
+  const [addingRef,      setAddingRef]      = useState(false);
+  const [refForm,        setRefForm]        = useState({ name: '', ref: '' });
+  const [savingRef,      setSavingRef]      = useState(false);
+  const [refErr,         setRefErr]         = useState('');
+
   // Messenger menu reset
   const [resettingMenu,  setResettingMenu]  = useState(false);
   const [menuResetMsg,   setMenuResetMsg]   = useState('');
@@ -75,7 +83,8 @@ export default function Settings() {
       getMyTenantSettings(),
       getBlockedDates(),
       getPromoCodes(),
-    ]).then(([s, b, p]) => {
+      getReferralLinks(),
+    ]).then(([s, b, p, r]) => {
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
       setShopAddress(s.data.shop_address || '');
@@ -87,8 +96,10 @@ export default function Settings() {
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
+      setFbPageId(s.data.fb_page_id || '');
       setBlockedDates(b.data);
       setPromos(p.data);
+      setReferrals(r.data);
     }).catch(() => setError('Failed to load settings.'))
       .finally(() => setLoading(false));
   }, []);
@@ -561,6 +572,108 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      {/* ── Referral Links ── */}
+      <div style={{ marginTop: 32, background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,.06)', padding: '24px 28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>🔗 Referral Links</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>Track which marketing channels drive clicks and bookings.</div>
+          </div>
+          {!addingRef && (
+            <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
+              style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1.5px solid #38a9c2', background: '#fff', color: '#38a9c2', fontWeight: 600, cursor: 'pointer' }}>
+              + Add Link
+            </button>
+          )}
+        </div>
+
+        {addingRef && (
+          <form onSubmit={async e => {
+            e.preventDefault(); setSavingRef(true); setRefErr('');
+            try {
+              const { data } = await createReferralLink(refForm);
+              setReferrals(prev => [data, ...prev]);
+              setAddingRef(false);
+            } catch (err) { setRefErr(err.response?.data?.error || 'Failed to create link'); }
+            finally { setSavingRef(false); }
+          }} style={{ background: '#F9FAFB', borderRadius: 10, padding: '16px 18px', marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: 2, minWidth: 160 }}>
+              <label style={LABEL}>Link Name</label>
+              <input style={INPUT} placeholder="e.g. Facebook Ads March" value={refForm.name}
+                onChange={e => setRefForm(p => ({ ...p, name: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <label style={LABEL}>Ref Code</label>
+              <input style={INPUT} placeholder="e.g. FB_ADS_MARCH" value={refForm.ref}
+                onChange={e => setRefForm(p => ({ ...p, ref: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" disabled={savingRef}
+                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#38a9c2', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                {savingRef ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setAddingRef(false)}
+                style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+            {refErr && <div style={{ width: '100%', fontSize: 12, color: '#ef4444' }}>{refErr}</div>}
+          </form>
+        )}
+
+        {referrals.length === 0 && !addingRef ? (
+          <div style={{ textAlign: 'center', padding: '28px 0', color: '#9CA3AF', fontSize: 14 }}>
+            No referral links yet. Add one to start tracking.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1.5px solid #F3F4F6' }}>
+                  {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Conv %', ''].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {referrals.map(r => {
+                  const conv = r.click_count > 0 ? ((Number(r.order_count) / r.click_count) * 100).toFixed(1) : '—';
+                  const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
+                  return (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                      <td style={{ padding: '10px 10px', fontWeight: 600, color: '#111827' }}>{r.name}</td>
+                      <td style={{ padding: '10px 10px' }}>
+                        <span style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4, fontSize: 12 }}>{r.ref}</span>
+                      </td>
+                      <td style={{ padding: '10px 10px' }}>
+                        <button type="button" onClick={() => { navigator.clipboard.writeText(link); }}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid #E2E8F0', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
+                          Copy Link
+                        </button>
+                      </td>
+                      <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
+                      <td style={{ padding: '10px 10px', color: '#374151', fontWeight: 600 }}>{r.order_count}</td>
+                      <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
+                      <td style={{ padding: '10px 10px' }}>
+                        <button type="button"
+                          onClick={async () => {
+                            if (!confirm(`Delete referral link "${r.name}"?`)) return;
+                            try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
+                            catch { alert('Failed to delete.'); }
+                          }}
+                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

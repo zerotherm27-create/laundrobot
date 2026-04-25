@@ -3,6 +3,7 @@ import {
   getPublicBootstrap, getPublicGeocode,
   getPublicAddressSuggest,
   lookupPublicCustomer, createPublicOrder, validatePublicPromo,
+  savePublicCart, updatePublicCart,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -172,6 +173,21 @@ export default function BookingForm({ tenantId }) {
 
   // Messenger PSID (captured from Extensions SDK when inside Messenger webview)
   const [messengerPsid, setMessengerPsid] = useState(null);
+
+  // Server-side cart ID for abandonment tracking
+  const [serverCartId, setServerCartId] = useState(null);
+
+  async function persistCart(updatedCart, currentStep) {
+    try {
+      const items = updatedCart.map(i => ({ service_id: i.service_id, service_name: i.service_name }));
+      if (!serverCartId) {
+        const { data } = await savePublicCart(tenantId, { fb_user_id: messengerPsid || null, items, step: currentStep || 1 });
+        setServerCartId(data.cart_id);
+      } else {
+        await updatePublicCart(tenantId, serverCartId, { items, step: currentStep });
+      }
+    } catch (_) {}
+  }
 
   // Result
   const [submitting, setSubmitting] = useState(false);
@@ -360,14 +376,19 @@ export default function BookingForm({ tenantId }) {
         displayLines.push({ label: `${f.label}: Customer provides own`, price: 0 });
       }
     }
-    setCart(prev => [...prev, {
+    const newItem = {
       _id: Date.now(),
       service_id: selectedSvc.id,
       service_name: selectedSvc.name,
       custom_fields: customFields,
       displayLines,
       itemTotal: subtotal + addonTotal,
-    }]);
+    };
+    setCart(prev => {
+      const updated = [...prev, newItem];
+      persistCart(updated, 1);
+      return updated;
+    });
     setSelectedSvc(null); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({});
   }
 
@@ -443,6 +464,7 @@ export default function BookingForm({ tenantId }) {
       });
       setResult(data);
       setStep('success');
+      if (serverCartId) updatePublicCart(tenantId, serverCartId, { converted: true }).catch(() => {});
     } catch (e) {
       setSubmitErr(e.response?.data?.error || 'Something went wrong. Please try again.');
     } finally { setSubmitting(false); }
@@ -1392,7 +1414,7 @@ export default function BookingForm({ tenantId }) {
                 style={{ flex: 1, padding: 13, borderRadius: 10, border: '1.5px solid #E2E8F0', background: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
                 ← Back
               </button>
-              <button onClick={() => setStep(3)} disabled={!step2Valid()}
+              <button onClick={() => { setStep(3); if (serverCartId) updatePublicCart(tenantId, serverCartId, { step: 3 }).catch(() => {}); }} disabled={!step2Valid()}
                 style={{ flex: 2, padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: step2Valid() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
                   background: step2Valid() ? '#38a9c2' : '#E2E8F0', color: step2Valid() ? '#fff' : '#374151', transition: 'all .15s' }}>
                 Review Order →
