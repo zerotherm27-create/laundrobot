@@ -156,7 +156,17 @@ async function runFollowUp() {
           );
           console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name}`);
         } catch (err) {
-          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, err.response?.data || err.message);
+          const apiErr = err.response?.data;
+          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, apiErr || err.message);
+          // Advance reminder_count even on failure so we don't retry the same slot endlessly.
+          // On a permanent error (e.g. blocked user, invalid PSID), skip all remaining reminders.
+          const errCode = apiErr?.error?.code;
+          const isPermanent = errCode === 100 || errCode === 200 || errCode === 551;
+          const nextCount = isPermanent ? SCHEDULE.length : reminder;
+          await db.query(
+            `UPDATE orders SET reminder_count = $1 WHERE id = $2`,
+            [nextCount, order.id]
+          ).catch(dbErr => console.error(`[follow-up] failed to advance reminder_count for ${order.id}:`, dbErr.message));
         }
       }
     }

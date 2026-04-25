@@ -40,6 +40,26 @@ function fmt(n) {
   return `Php ${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Returns a human-readable "Qty / Unit" string for a service row.
+// Priority: weight field → qty-multiplier custom_selection → raw service_unit → '1'
+// Addon fields (field_type=addon) also store numeric values but include unit_price — exclude them.
+function qtyDisplay(weight, serviceUnit, customSelections) {
+  if (weight) return `${weight} ${serviceUnit || 'kg'}`;
+  const selections = customSelections
+    ? (typeof customSelections === 'string' ? JSON.parse(customSelections) : customSelections)
+    : [];
+  // The qty multiplier field has a numeric value and no unit_price (addon fields carry unit_price)
+  const numField = selections.find(f =>
+    f.unit_price == null &&
+    f.value !== '' &&
+    f.value != null &&
+    !isNaN(parseFloat(f.value)) &&
+    parseFloat(f.value) > 0
+  );
+  if (numField) return `${numField.value}${serviceUnit ? ' ' + serviceUnit : ''}`;
+  return serviceUnit || '1';
+}
+
 export default function InvoiceDocument({ order, shop }) {
   const deliveryFee    = Number(order.delivery_fee || 0);
   const promoDiscount  = Number(order.promo_discount || 0);
@@ -50,12 +70,12 @@ export default function InvoiceDocument({ order, shop }) {
   const serviceRows = isMulti
     ? order.services.map((sv, i) => ({
         name:  sv.service_name || '—',
-        unit:  sv.weight ? `${sv.weight} ${sv.service_unit || 'kg'}` : (sv.service_unit || '—'),
+        unit:  qtyDisplay(sv.weight, sv.service_unit, sv.custom_selections),
         price: i === 0 ? Number(sv.price) - deliveryFee : Number(sv.price),
       }))
     : [{
         name:  order.service_name || '—',
-        unit:  order.weight ? `${order.weight} ${order.service_unit || 'kg'}` : (order.service_unit || '—'),
+        unit:  qtyDisplay(order.weight, order.service_unit, order.custom_selections),
         price: servicesSubtotal,
       }];
 

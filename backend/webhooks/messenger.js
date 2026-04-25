@@ -300,7 +300,7 @@ async function pauseAiForCustomer(tenant, customerId) {
   const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
   await db.query(
     `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
-     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3), NOW())
+     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3::text), NOW())
      ON CONFLICT (tenant_id, fb_user_id)
      DO UPDATE SET data = conversations.data || jsonb_build_object('ai_paused_until', $3::text), updated_at=NOW()`,
     [tenant.id, customerId, pauseUntil]

@@ -329,10 +329,24 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, initial_status, paid: initialPaid, source, custom_delivery_fee } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id } = req.body;
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
+  }
+
+  // Validate Philippine mobile number — must be 09XXXXXXXXX or +639XXXXXXXXX
+  const normalizedPhone = phone.trim().replace(/\s+/g, '');
+  const phMobileRe = /^(09\d{9}|\+639\d{9})$/;
+  if (!phMobileRe.test(normalizedPhone)) {
+    return res.status(400).json({ error: 'Please enter a valid Philippine mobile number (e.g. 09171234567).' });
+  }
+
+  // Validate pickup_date is today or in the future
+  const pickupMs = new Date(pickup_date.trim()).setHours(0, 0, 0, 0);
+  const todayMs  = new Date().setHours(0, 0, 0, 0);
+  if (isNaN(pickupMs) || pickupMs < todayMs) {
+    return res.status(400).json({ error: 'Pickup date must be today or a future date.' });
   }
 
   const client = await db.pool.connect();
@@ -344,12 +358,8 @@ router.post('/:tenantId/orders', async (req, res) => {
       cart.map(item => calcItemPrice(req.params.tenantId, item.service_id, item.custom_fields))
     );
 
-    // Delivery fee — custom override takes priority, then bracket-based or legacy zone
+    // Delivery fee — bracket-based or legacy zone (custom_delivery_fee not accepted from public form)
     let deliveryFee = 0, zoneName = null;
-    if (custom_delivery_fee != null && custom_delivery_fee !== '') {
-      deliveryFee = Math.max(0, Number(custom_delivery_fee) || 0);
-      zoneName = 'Custom';
-    } else
     if (customer_lat && customer_lng) {
       const { rows: [shopTenant] } = await db.query(
         'SELECT shop_lat, shop_lng, delivery_radius FROM tenants WHERE id=$1', [req.params.tenantId]
@@ -383,7 +393,7 @@ router.post('/:tenantId/orders', async (req, res) => {
     // Get or create customer
     const { rows: [existing] } = await client.query(
       'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
-      [req.params.tenantId, phone.trim()]
+      [req.params.tenantId, normalizedPhone]
     );
     let customerId;
     if (existing) {
@@ -393,7 +403,7 @@ router.post('/:tenantId/orders', async (req, res) => {
     } else {
       const { rows: [newC] } = await client.query(
         'INSERT INTO customers (tenant_id, name, phone, email, address, fb_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id || null]
+        [req.params.tenantId, name.trim(), normalizedPhone, email?.trim() || null, address.trim(), fb_id || null]
       );
       customerId = newC.id;
     }
@@ -443,8 +453,8 @@ router.post('/:tenantId/orders', async (req, res) => {
       orderCount++;
       const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
 
-      const orderStatus = initial_status || 'NEW ORDER';
-      const orderPaid   = initialPaid === true || initialPaid === 'true' ? true : false;
+      const orderStatus = 'NEW ORDER'; // always NEW for public bookings — not caller-controlled
+      const orderPaid   = false;       // always unpaid — payment confirmed via Xendit webhook
 
       // Auto-calculate delivery_date = pickup_date + max resolvedTurnaround across all cart items
       // resolvedTurnaround already accounts for per-option overrides (e.g. Express = 1 day)
@@ -458,7 +468,7 @@ router.post('/:tenantId/orders', async (req, res) => {
         }
       } catch (_) {}
 
-      const orderSource = source || 'web';
+      const orderSource = 'web'; // source is always web for public bookings
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
                              address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,
