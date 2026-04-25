@@ -77,6 +77,7 @@ router.post('/', async (req, res) => {
         try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
         catch (err) { console.error('[webhook] optin error:', err.message); }
       } else if (event.referral) {
+        console.log('[webhook] referral event — ref:', event.referral.ref, '| full:', JSON.stringify(event.referral));
         try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
         catch (err) { console.error('[webhook] referral error:', err.message); }
       } else if (event.message?.is_echo) {
@@ -87,6 +88,7 @@ router.post('/', async (req, res) => {
         console.log('[webhook] msg from:', event.sender.id);
         // Handle GET_STARTED postback that carries an m.me ref param
         if (event.postback?.payload === 'GET_STARTED' && event.postback?.referral?.ref) {
+          console.log('[webhook] GET_STARTED referral — ref:', event.postback.referral.ref);
           try { await handleOptin(tenant, event.sender.id, event.postback.referral.ref); }
           catch (err) { console.error('[webhook] referral optin error:', err.message); }
         } else {
