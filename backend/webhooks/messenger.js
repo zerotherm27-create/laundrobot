@@ -251,17 +251,32 @@ async function handleOptin(tenant, senderId, ref) {
   if (!token) return;
   const sends = makeSends('messenger', token, null);
 
-  // m.me CTA link — drop straight into the main booking menu
-  if (ref === 'LAUNDRY_NOW') {
-    await sends.sendButtons(token, senderId,
-      `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
-      [
-        bookBtn(tenant.id),
-        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-      ]
+  // Track referral click + store ref on conversation for order attribution
+  if (ref) {
+    const { rows: [link] } = await db.query(
+      `SELECT id FROM referral_links WHERE tenant_id=$1 AND ref=$2`,
+      [tenant.id, ref]
     );
-    return;
+    if (link) {
+      await db.query(`UPDATE referral_links SET click_count = click_count + 1 WHERE id=$1`, [link.id]);
+      await db.query(
+        `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
+         VALUES ($1, $2, 'MENU', jsonb_build_object('referral_ref', $3::text), NOW())
+         ON CONFLICT (tenant_id, fb_user_id)
+         DO UPDATE SET data = conversations.data || jsonb_build_object('referral_ref', $3::text), updated_at = NOW()`,
+        [tenant.id, senderId, ref]
+      );
+      // Referral link — drop into booking menu
+      await sends.sendButtons(token, senderId,
+        `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
+        [
+          bookBtn(tenant.id),
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+        ]
+      );
+      return;
+    }
   }
 
   // Link this PSID to customer via booking_ref in data-ref

@@ -404,6 +404,16 @@ router.post('/:tenantId/orders', async (req, res) => {
       customerId = newC.id;
     }
 
+    // Referral attribution — pull ref stored on conversation when customer arrived via m.me link
+    let referralRef = null;
+    if (fb_id) {
+      const { rows: [conv] } = await db.query(
+        `SELECT data->>'referral_ref' AS referral_ref FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+        [req.params.tenantId, fb_id]
+      );
+      referralRef = conv?.referral_ref || null;
+    }
+
     // Generate booking ref
     const { rows: [{ count: bkgCount }] } = await client.query(
       `SELECT COUNT(DISTINCT booking_ref) FROM orders WHERE tenant_id=$1 AND booking_ref IS NOT NULL`,
@@ -468,13 +478,14 @@ router.post('/:tenantId/orders', async (req, res) => {
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
                              address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,
-                             promo_code, promo_discount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+                             promo_code, promo_discount, referral_ref)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
         [orderId, req.params.tenantId, customerId, service.id,
          weight, itemTotal, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
          cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource,
-         i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0]
+         i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0,
+         i === 0 ? (referralRef || null) : null]
       );
       createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
     }
@@ -584,6 +595,40 @@ router.post('/:tenantId/orders', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// POST save/update an in-progress cart (called by BookingForm on first item add)
+router.post('/:tenantId/cart', async (req, res) => {
+  const { fb_user_id, items, step } = req.body;
+  if (!items?.length) return res.status(400).json({ error: 'items required' });
+  try {
+    const { rows: [cart] } = await db.query(
+      `INSERT INTO carts (tenant_id, fb_user_id, items, step)
+       VALUES ($1, $2, $3::jsonb, $4)
+       RETURNING id`,
+      [req.params.tenantId, fb_user_id || null, JSON.stringify(items), step || 1]
+    );
+    res.json({ cart_id: cart.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH update cart step or mark converted
+router.patch('/:tenantId/cart/:cartId', async (req, res) => {
+  const { step, items, converted } = req.body;
+  try {
+    const fields = ['updated_at = NOW()'];
+    const params = [];
+    if (step      !== undefined) { fields.push(`step = $${params.length + 1}`);      params.push(step); }
+    if (items     !== undefined) { fields.push(`items = $${params.length + 1}::jsonb`); params.push(JSON.stringify(items)); }
+    if (converted !== undefined) { fields.push(`converted = $${params.length + 1}`); params.push(converted);
+      if (converted) fields.push('converted_at = NOW()'); }
+    params.push(req.params.cartId, req.params.tenantId);
+    await db.query(
+      `UPDATE carts SET ${fields.join(', ')} WHERE id=$${params.length - 1} AND tenant_id=$${params.length}`,
+      params
+    );
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;
