@@ -46,16 +46,27 @@ export default function InvoiceDocument({ order, shop }) {
   const grandTotal     = Number(order.price || 0);
   const servicesSubtotal = grandTotal - deliveryFee + promoDiscount;
 
+  function qtyDisplay(sv) {
+    if (sv.weight) return `${sv.weight} ${sv.service_unit || 'kg'}`;
+    const selections = sv.custom_selections
+      ? (typeof sv.custom_selections === 'string' ? JSON.parse(sv.custom_selections) : sv.custom_selections)
+      : [];
+    const qtyField = selections.find(f => f.field_type === 'number')
+      || selections.find(f => f.field_type !== 'addon' && !isNaN(parseFloat(f.value)) && parseFloat(f.value) > 0);
+    if (qtyField) return `${qtyField.value}${sv.service_unit ? ` ${sv.service_unit}` : ''}`.trim();
+    return sv.service_unit || '—';
+  }
+
   const isMulti = order.services && order.services.length > 1;
   const serviceRows = isMulti
     ? order.services.map((sv, i) => ({
         name:  sv.service_name || '—',
-        unit:  sv.weight ? `${sv.weight} ${sv.service_unit || 'kg'}` : (sv.service_unit || '—'),
+        unit:  qtyDisplay(sv),
         price: i === 0 ? Number(sv.price) - deliveryFee : Number(sv.price),
       }))
     : [{
         name:  order.service_name || '—',
-        unit:  order.weight ? `${order.weight} ${order.service_unit || 'kg'}` : (order.service_unit || '—'),
+        unit:  qtyDisplay(order),
         price: servicesSubtotal,
       }];
 

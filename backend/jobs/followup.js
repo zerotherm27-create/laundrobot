@@ -156,7 +156,12 @@ async function runFollowUp() {
           );
           console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name}`);
         } catch (err) {
-          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, err.response?.data || err.message);
+          const errData = err.response?.data || {};
+          const errCode = errData.error?.code;
+          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, errData || err.message);
+          // Advance so this reminder isn't retried on the next run
+          const nextCount = [100, 200, 551].includes(errCode) ? 99 : reminder;
+          await db.query(`UPDATE orders SET reminder_count = $1 WHERE id = $2`, [nextCount, order.id]).catch(() => {});
         }
       }
     }

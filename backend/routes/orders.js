@@ -12,7 +12,7 @@ router.get('/', auth, async (req, res) => {
     const offset = (page - 1) * limit;
     const isArchived = archived === 'true';
     let query = `
-      SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
+      SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email, c.address as customer_address,
              s.name as service_name, s.price as service_unit_price, s.unit as service_unit
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
@@ -158,7 +158,7 @@ router.put('/booking/:ref', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.fb_id, c.address as customer_address,
+      `SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email, c.fb_id, c.address as customer_address,
               s.name as service_name
        FROM orders o
        LEFT JOIN customers c ON c.id = o.customer_id

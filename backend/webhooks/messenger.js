@@ -251,6 +251,19 @@ async function handleOptin(tenant, senderId, ref) {
   if (!token) return;
   const sends = makeSends('messenger', token, null);
 
+  // m.me CTA link — drop straight into the main booking menu
+  if (ref === 'LAUNDRY_NOW') {
+    await sends.sendButtons(token, senderId,
+      `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
+      [
+        bookBtn(tenant.id),
+        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+      ]
+    );
+    return;
+  }
+
   // Link this PSID to customer via booking_ref in data-ref
   let customerName = null;
   if (ref) {
@@ -300,7 +313,7 @@ async function pauseAiForCustomer(tenant, customerId) {
   const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
   await db.query(
     `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
-     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3), NOW())
+     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3::text), NOW())
      ON CONFLICT (tenant_id, fb_user_id)
      DO UPDATE SET data = conversations.data || jsonb_build_object('ai_paused_until', $3::text), updated_at=NOW()`,
     [tenant.id, customerId, pauseUntil]
