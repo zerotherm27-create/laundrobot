@@ -329,24 +329,21 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff } = req.body;
+  const isDropoff = is_dropoff === true || is_dropoff === 'true';
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
   }
 
-  // Validate Philippine mobile number — must be 09XXXXXXXXX or +639XXXXXXXXX
-  const normalizedPhone = phone.trim().replace(/\s+/g, '');
-  const phMobileRe = /^(09\d{9}|\+639\d{9})$/;
-  if (!phMobileRe.test(normalizedPhone)) {
-    return res.status(400).json({ error: 'Please enter a valid Philippine mobile number (e.g. 09171234567).' });
+  if (!/^(09|\+639)\d{9}$/.test(phone.trim())) {
+    return res.status(400).json({ error: 'Please enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).' });
   }
 
-  // Validate pickup_date is today or in the future
-  const pickupMs = new Date(pickup_date.trim()).setHours(0, 0, 0, 0);
-  const todayMs  = new Date().setHours(0, 0, 0, 0);
-  if (isNaN(pickupMs) || pickupMs < todayMs) {
-    return res.status(400).json({ error: 'Pickup date must be today or a future date.' });
+  const pickupDay = new Date(pickup_date.trim());
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (isNaN(pickupDay.getTime()) || pickupDay < today) {
+    return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
   const client = await db.pool.connect();
@@ -358,7 +355,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       cart.map(item => calcItemPrice(req.params.tenantId, item.service_id, item.custom_fields))
     );
 
-    // Delivery fee — bracket-based or legacy zone (custom_delivery_fee not accepted from public form)
+    // Delivery fee — bracket-based or legacy zone
     let deliveryFee = 0, zoneName = null;
     if (customer_lat && customer_lng) {
       const { rows: [shopTenant] } = await db.query(
@@ -393,7 +390,7 @@ router.post('/:tenantId/orders', async (req, res) => {
     // Get or create customer
     const { rows: [existing] } = await client.query(
       'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
-      [req.params.tenantId, normalizedPhone]
+      [req.params.tenantId, phone.trim()]
     );
     let customerId;
     if (existing) {
@@ -403,9 +400,19 @@ router.post('/:tenantId/orders', async (req, res) => {
     } else {
       const { rows: [newC] } = await client.query(
         'INSERT INTO customers (tenant_id, name, phone, email, address, fb_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-        [req.params.tenantId, name.trim(), normalizedPhone, email?.trim() || null, address.trim(), fb_id || null]
+        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id || null]
       );
       customerId = newC.id;
+    }
+
+    // Referral attribution — pull ref stored on conversation when customer arrived via m.me link
+    let referralRef = null;
+    if (fb_id) {
+      const { rows: [conv] } = await db.query(
+        `SELECT data->>'referral_ref' AS referral_ref FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+        [req.params.tenantId, fb_id]
+      );
+      referralRef = conv?.referral_ref || null;
     }
 
     // Generate booking ref
@@ -453,8 +460,8 @@ router.post('/:tenantId/orders', async (req, res) => {
       orderCount++;
       const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
 
-      const orderStatus = 'NEW ORDER'; // always NEW for public bookings — not caller-controlled
-      const orderPaid   = false;       // always unpaid — payment confirmed via Xendit webhook
+      const orderStatus = isDropoff ? 'AWAITING PAYMENT' : 'NEW ORDER';
+      const orderPaid   = false;
 
       // Auto-calculate delivery_date = pickup_date + max resolvedTurnaround across all cart items
       // resolvedTurnaround already accounts for per-option overrides (e.g. Express = 1 day)
@@ -468,17 +475,18 @@ router.post('/:tenantId/orders', async (req, res) => {
         }
       } catch (_) {}
 
-      const orderSource = 'web'; // source is always web for public bookings
+      const orderSource = 'web';
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
                              address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,
-                             promo_code, promo_discount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+                             promo_code, promo_discount, referral_ref, is_dropoff)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
         [orderId, req.params.tenantId, customerId, service.id,
          weight, itemTotal, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
          cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource,
-         i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0]
+         i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0,
+         i === 0 ? (referralRef || null) : null, isDropoff]
       );
       createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
     }
@@ -523,14 +531,21 @@ router.post('/:tenantId/orders', async (req, res) => {
             } catch { return pickup_date; }
           })();
           const servicesList = createdOrders.map(o => `• ${o.service_name} — ₱${Number(o.price).toLocaleString('en-PH')}`).join('\n');
-          const confirmText =
-            `✅ Booking Confirmed!\n\n` +
-            `Ref: ${bookingRef}\n` +
-            `Hi ${name.trim()}! We've received your order.\n\n` +
-            `${servicesList}\n\n` +
-            `📅 Pickup: ${pickupFormatted}\n` +
-            `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
-            `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`;
+          const confirmText = isDropoff
+            ? `📋 Drop-off Booking Received!\n\n` +
+              `Ref: ${bookingRef}\n` +
+              `Hi ${name.trim()}! Your drop-off booking is received.\n\n` +
+              `${servicesList}\n\n` +
+              `📅 Drop-off: ${pickupFormatted}\n` +
+              `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
+              `⚠️ Please complete your payment BEFORE dropping off your laundry. Your slot is not confirmed until payment is received.`
+            : `✅ Booking Confirmed!\n\n` +
+              `Ref: ${bookingRef}\n` +
+              `Hi ${name.trim()}! We've received your order.\n\n` +
+              `${servicesList}\n\n` +
+              `📅 Pickup: ${pickupFormatted}\n` +
+              `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
+              `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`;
 
           if (paymentUrl) {
             await sendButtons(tenant.fb_page_access_token, effectiveFbId, confirmText, [{
@@ -580,6 +595,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       total: grandTotal,
       promo_discount: promoDiscount,
       promo_code: promoCodeApplied,
+      is_dropoff: isDropoff,
     });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -588,6 +604,40 @@ router.post('/:tenantId/orders', async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// POST save/update an in-progress cart (called by BookingForm on first item add)
+router.post('/:tenantId/cart', async (req, res) => {
+  const { fb_user_id, items, step } = req.body;
+  if (!items?.length) return res.status(400).json({ error: 'items required' });
+  try {
+    const { rows: [cart] } = await db.query(
+      `INSERT INTO carts (tenant_id, fb_user_id, items, step)
+       VALUES ($1, $2, $3::jsonb, $4)
+       RETURNING id`,
+      [req.params.tenantId, fb_user_id || null, JSON.stringify(items), step || 1]
+    );
+    res.json({ cart_id: cart.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH update cart step or mark converted
+router.patch('/:tenantId/cart/:cartId', async (req, res) => {
+  const { step, items, converted } = req.body;
+  try {
+    const fields = ['updated_at = NOW()'];
+    const params = [];
+    if (step      !== undefined) { fields.push(`step = $${params.length + 1}`);      params.push(step); }
+    if (items     !== undefined) { fields.push(`items = $${params.length + 1}::jsonb`); params.push(JSON.stringify(items)); }
+    if (converted !== undefined) { fields.push(`converted = $${params.length + 1}`); params.push(converted);
+      if (converted) fields.push('converted_at = NOW()'); }
+    params.push(req.params.cartId, req.params.tenantId);
+    await db.query(
+      `UPDATE carts SET ${fields.join(', ')} WHERE id=$${params.length - 1} AND tenant_id=$${params.length}`,
+      params
+    );
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

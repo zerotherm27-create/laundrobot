@@ -55,6 +55,43 @@ function buildMessage(reminderNum, order, paymentUrl) {
   const orderId = order.id;
   const payLine = paymentUrl ? `\n\n💳 Pay now: ${paymentUrl}` : '';
   const cancelLine = `\n\nReply CANCEL if you want to cancel your order.`;
+  const isDropoff = order.is_dropoff;
+
+  if (isDropoff) {
+    switch (reminderNum) {
+      case 1:
+        return (
+          `Hi ${name}! 👋 Just a reminder about your drop-off booking.\n\n` +
+          `📋 Order: ${orderId}\n` +
+          `🧺 Service: ${order.service_name || 'Laundry'}\n` +
+          `💰 Amount due: ${amount}\n` +
+          `📅 Drop-off: ${order.pickup_date || 'As scheduled'}\n\n` +
+          `⚠️ Please complete your payment BEFORE dropping off. Your slot is not confirmed until payment is received.` +
+          payLine + cancelLine
+        );
+      case 2:
+        return (
+          `Hi ${name}! ⏰ Your drop-off booking ${orderId} is still awaiting payment of ${amount}.\n\n` +
+          `Please pay first before coming to the shop — we can only accept your laundry once payment is confirmed.` +
+          payLine + cancelLine
+        );
+      case 3:
+        return (
+          `Hi ${name}, your drop-off booking ${orderId} (${amount}) is still unpaid.\n\n` +
+          `Don't forget — payment is required before drop-off. Complete your payment to secure your slot!` +
+          payLine + cancelLine
+        );
+      case 4:
+        return (
+          `Hi ${name}, LAST REMINDER for your drop-off booking ${orderId}.\n\n` +
+          `💰 Amount: ${amount}\n\n` +
+          `Your booking will be automatically cancelled in 1 hour if payment is not received.` +
+          payLine + cancelLine
+        );
+      default:
+        return '';
+    }
+  }
 
   switch (reminderNum) {
     case 1:
@@ -129,7 +166,7 @@ async function runFollowUp() {
     for (const { reminder, afterMinutes } of SCHEDULE) {
       const { rows: orders } = await db.query(`
         SELECT
-          o.*,
+          o.*, o.is_dropoff,
           c.fb_id, c.name as customer_name,
           t.fb_page_access_token, t.xendit_api_key,
           s.name as service_name
@@ -156,17 +193,12 @@ async function runFollowUp() {
           );
           console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name}`);
         } catch (err) {
-          const apiErr = err.response?.data;
-          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, apiErr || err.message);
-          // Advance reminder_count even on failure so we don't retry the same slot endlessly.
-          // On a permanent error (e.g. blocked user, invalid PSID), skip all remaining reminders.
-          const errCode = apiErr?.error?.code;
-          const isPermanent = errCode === 100 || errCode === 200 || errCode === 551;
-          const nextCount = isPermanent ? SCHEDULE.length : reminder;
-          await db.query(
-            `UPDATE orders SET reminder_count = $1 WHERE id = $2`,
-            [nextCount, order.id]
-          ).catch(dbErr => console.error(`[follow-up] failed to advance reminder_count for ${order.id}:`, dbErr.message));
+          const errData = err.response?.data || {};
+          const errCode = errData.error?.code;
+          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, errData || err.message);
+          // Advance so this reminder isn't retried on the next run
+          const nextCount = [100, 200, 551].includes(errCode) ? 99 : reminder;
+          await db.query(`UPDATE orders SET reminder_count = $1 WHERE id = $2`, [nextCount, order.id]).catch(() => {});
         }
       }
     }

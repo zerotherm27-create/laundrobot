@@ -454,6 +454,7 @@ export default function BookingForm({ tenantId }) {
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         address: selfPickup ? 'Self drop-off & pick-up' : fullAddress,
+        is_dropoff: selfPickup || undefined,
         pickup_date: pickupDatetime,
         delivery_zone_id: (!selfPickup && !bracketInfo && form.delivery_zone_id) ? Number(form.delivery_zone_id) : undefined,
         customer_lat: (!selfPickup && bracketInfo && customerCoords) ? customerCoords.lat : undefined,
@@ -615,19 +616,29 @@ export default function BookingForm({ tenantId }) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div style={{ textAlign: 'center', maxWidth: 380, width: '100%' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-          <div style={{ fontWeight: 700, fontSize: 22, color: '#111827', marginBottom: 10 }}>Booking Confirmed!</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>{result.is_dropoff ? '🏪' : '🎉'}</div>
+          <div style={{ fontWeight: 700, fontSize: 22, color: '#111827', marginBottom: 10 }}>
+            {result.is_dropoff ? 'Drop-off Booking Received!' : 'Booking Confirmed!'}
+          </div>
           <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 8 }}>
             Ref: {result.booking_ref}
           </div>
+          {result.is_dropoff && result.payment_url && (
+            <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1.5px solid #F59E0B', textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2 }}>⚠️ Payment required before drop-off</div>
+              <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>Your slot is not confirmed until payment is received. Please pay below before coming to the shop.</div>
+            </div>
+          )}
           <div style={{ fontSize: 14, color: '#374151', marginBottom: 20, lineHeight: 1.6 }}>
             {messengerPsid
               ? 'Check your Messenger — we sent you the full booking details.'
-              : 'We\'ve received your order and will be in touch shortly.'}
+              : result.is_dropoff
+                ? 'We\'ve received your booking. Pay below to confirm your drop-off slot.'
+                : 'We\'ve received your order and will be in touch shortly.'}
           </div>
           {result.payment_url && (
-            <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: '1.5px solid #9ED3DC', boxShadow: '0 2px 12px rgba(56,169,194,.1)' }}>
-              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>Total due</div>
+            <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: `1.5px solid ${result.is_dropoff ? '#F59E0B' : '#9ED3DC'}`, boxShadow: '0 2px 12px rgba(56,169,194,.1)' }}>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>{result.is_dropoff ? 'Pay now to confirm your slot' : 'Total due'}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
                 ₱{Number(result.total).toLocaleString('en-PH')}
                 {result.promo_discount > 0 && (
@@ -637,7 +648,7 @@ export default function BookingForm({ tenantId }) {
                 )}
               </div>
               <a href={result.payment_url} target="_blank" rel="noreferrer"
-                style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
+                style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: result.is_dropoff ? '#D97706' : '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
                 💳 Pay Now
               </a>
             </div>

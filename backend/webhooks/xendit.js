@@ -21,12 +21,18 @@ router.post('/', async (req, res) => {
 
     if (isBkgRef) {
       await db.query(
-        `UPDATE orders SET paid=TRUE, status='PAID', xendit_invoice_id=$1 WHERE booking_ref=$2`,
+        `UPDATE orders SET paid=TRUE,
+          status = CASE WHEN is_dropoff = TRUE THEN 'NEW ORDER' ELSE 'PAID' END,
+          xendit_invoice_id=$1
+         WHERE booking_ref=$2`,
         [xenditInvoiceId, refId]
       );
     } else {
       await db.query(
-        `UPDATE orders SET paid=TRUE, status='PAID', xendit_invoice_id=$1 WHERE id=$2`,
+        `UPDATE orders SET paid=TRUE,
+          status = CASE WHEN is_dropoff = TRUE THEN 'NEW ORDER' ELSE 'PAID' END,
+          xendit_invoice_id=$1
+         WHERE id=$2`,
         [xenditInvoiceId, refId]
       );
     }
@@ -35,7 +41,7 @@ router.post('/', async (req, res) => {
     try {
       console.log('[xendit] looking up refId:', refId, '| isBkgRef:', isBkgRef);
       const { rows: orders } = await db.query(
-        `SELECT o.id, o.tenant_id, o.price, o.address, o.booking_ref,
+        `SELECT o.id, o.tenant_id, o.price, o.address, o.booking_ref, o.pickup_date, o.is_dropoff,
                 s.name AS service_name,
                 c.name AS customer_name, c.phone AS customer_phone, c.fb_id, c.email AS customer_email
          FROM orders o
@@ -76,14 +82,20 @@ router.post('/', async (req, res) => {
           );
           if (tenant?.fb_page_access_token) {
             const totalPaid = orders.reduce((s, o) => s + Number(o.price), 0);
-            let msg =
-              `✅ Payment Received!\n\n` +
-              `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
-              `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
-              `We'll check your order for confirmation.\n\n` +
-              `For concerns, reach out to us using the following contact details:\n` +
-              `📧 Email: washup@thelaundryproject.ph\n` +
-              (tenant.contact_number ? `📱 Contact: ${tenant.contact_number} (WhatsApp & Viber)` : '');
+            const isDropoff = orders.some(o => o.is_dropoff);
+            let msg = isDropoff
+              ? `✅ Payment Confirmed! You're all set.\n\n` +
+                `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
+                `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
+                `You can now drop off your laundry at our shop on your scheduled date. See you soon! 🧺\n\n` +
+                (tenant.contact_number ? `📱 Questions? Contact us: ${tenant.contact_number}` : '')
+              : `✅ Payment Received!\n\n` +
+                `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
+                `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
+                `We'll check your order for confirmation.\n\n` +
+                `For concerns, reach out to us using the following contact details:\n` +
+                `📧 Email: washup@thelaundryproject.ph\n` +
+                (tenant.contact_number ? `📱 Contact: ${tenant.contact_number} (WhatsApp & Viber)` : '');
             sendMessage(tenant.fb_page_access_token, first.fb_id, msg).catch(e => {
               console.warn('[xendit webhook] messenger notify failed:', e.response?.data?.error?.message || e.message);
             });
