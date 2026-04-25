@@ -40,15 +40,14 @@ function fmt(n) {
   return `Php ${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Returns a human-readable "Qty / Unit" string for a service row.
-// Priority: weight field → qty-multiplier custom_selection → raw service_unit → '1'
-// Addon fields (field_type=addon) also store numeric values but include unit_price — exclude them.
-function qtyDisplay(weight, serviceUnit, customSelections) {
-  if (weight) return `${weight} ${serviceUnit || 'kg'}`;
+// Returns just the quantity number for a service row.
+// Weight-based → weight value. Qty-multiplier field → its value. Otherwise → 1.
+// Addon fields carry unit_price so they are excluded.
+function qtyDisplay(weight, customSelections) {
+  if (weight) return String(weight);
   const selections = customSelections
     ? (typeof customSelections === 'string' ? JSON.parse(customSelections) : customSelections)
     : [];
-  // The qty multiplier field has a numeric value and no unit_price (addon fields carry unit_price)
   const numField = selections.find(f =>
     f.unit_price == null &&
     f.value !== '' &&
@@ -56,8 +55,7 @@ function qtyDisplay(weight, serviceUnit, customSelections) {
     !isNaN(parseFloat(f.value)) &&
     parseFloat(f.value) > 0
   );
-  if (numField) return `${numField.value}${serviceUnit ? ' ' + serviceUnit : ''}`;
-  return serviceUnit || '1';
+  return numField ? String(numField.value) : '1';
 }
 
 export default function InvoiceDocument({ order, shop }) {
@@ -70,12 +68,12 @@ export default function InvoiceDocument({ order, shop }) {
   const serviceRows = isMulti
     ? order.services.map((sv, i) => ({
         name:  sv.service_name || '—',
-        unit:  qtyDisplay(sv.weight, sv.service_unit, sv.custom_selections),
+        unit:  qtyDisplay(sv.weight, sv.custom_selections),
         price: i === 0 ? Number(sv.price) - deliveryFee : Number(sv.price),
       }))
     : [{
         name:  order.service_name || '—',
-        unit:  qtyDisplay(order.weight, order.service_unit, order.custom_selections),
+        unit:  qtyDisplay(order.weight, order.custom_selections),
         price: servicesSubtotal,
       }];
 
