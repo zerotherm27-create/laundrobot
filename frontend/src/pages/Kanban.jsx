@@ -124,6 +124,10 @@ export default function Kanban() {
       .then(r => { setOrders(r.data); setLoading(false); })
       .catch(() => setLoading(false));
     getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
+    const t = setInterval(() => {
+      getOrders().then(r => setOrders(r.data)).catch(() => {});
+    }, 30000);
+    return () => clearInterval(t);
   }, []);
 
   async function moveStatus(orderIds, status) {

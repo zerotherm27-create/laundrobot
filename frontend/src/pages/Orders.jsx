@@ -111,6 +111,13 @@ export default function Orders() {
 
   useEffect(() => { loadActive(); }, [loadActive]);
 
+  useEffect(() => {
+    const t = setInterval(() => {
+      getOrders().then(r => setOrders(r.data)).catch(() => {});
+    }, 30000);
+    return () => clearInterval(t);
+  }, []);
+
   function switchToArchives() {
     setView('archives');
     setSelected(null);
