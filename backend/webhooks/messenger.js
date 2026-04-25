@@ -193,21 +193,21 @@ function nextInfoStep(customer) {
 }
 
 // ── Catalog helpers ─────────────────────────────────────────────────────────
-async function showCategoryMenu(sends, token, senderId, tenantId) {
+async function showCategoryMenu(sends, token, senderId, tenantId, channel) {
   const { rows: cats } = await db.query(
     `SELECT * FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`,
     [tenantId]
   );
 
-  if (cats.length === 0) return showServiceCatalog(sends, token, senderId, tenantId, null);
-  if (cats.length === 1) return showServiceCatalog(sends, token, senderId, tenantId, cats[0].id);
+  if (cats.length === 0) return showServiceCatalog(sends, token, senderId, tenantId, null, channel);
+  if (cats.length === 1) return showServiceCatalog(sends, token, senderId, tenantId, cats[0].id, channel);
 
   const replies = cats.map(c => ({ title: c.name, payload: `CAT:${c.id}:${c.name}` }));
   replies.push({ title: '🛍 All Services', payload: 'CAT:ALL:All Services' });
   await sends.sendQuickReplies(token, senderId, '🧺 What type of laundry service are you looking for?', replies);
 }
 
-async function showServiceCatalog(sends, token, senderId, tenantId, categoryId) {
+async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, channel) {
   let query, params;
   if (!categoryId || categoryId === 'ALL') {
     query = `SELECT s.*, c.name AS category_name FROM services s
@@ -229,17 +229,24 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId) 
     return;
   }
 
+  // Messenger: "Book Now" opens webform. Instagram: "Book This" starts bot flow.
+  const appUrl = process.env.APP_URL;
+  const useWebform = channel === 'messenger' && appUrl;
+  const bookUrl = appUrl ? `${appUrl}/book/${tenantId}` : null;
+
   const elements = services.map(s => ({
     title: s.name,
     subtitle: `₱${Number(s.price).toLocaleString()} ${s.unit}` + (s.description ? `\n${s.description}` : ''),
     imageUrl: (s.image_url && !s.image_url.startsWith('data:')) ? s.image_url : null,
-    buttons: [{ title: '🛒 Book This', payload: `SVC:${s.id}:${s.name}:${s.price}:${s.unit}` }],
+    buttons: useWebform
+      ? [{ type: 'web_url', title: '🛒 Book Now', url: bookUrl, webview_height_ratio: 'full', messenger_extensions: true }]
+      : [{ title: '🛒 Book This', payload: `SVC:${s.id}:${s.name}:${s.price}:${s.unit}` }],
   }));
 
   const catName = services[0]?.category_name;
   const intro = catName && categoryId !== 'ALL'
-    ? `Here are our ${catName} services 👇 Tap "Book This" to order:`
-    : `Here are all our services 👇 Tap "Book This" to order:`;
+    ? `Here are our ${catName} services 👇 Tap "Book Now" to order:`
+    : `Here are all our services 👇 Tap "Book Now" to order:`;
 
   await sends.sendMessage(token, senderId, intro);
   await sends.sendCatalog(token, senderId, elements);
@@ -413,17 +420,19 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
-  if (lc === 'book' || text === 'BOOK' || lc === 'menu') {
-    if (!process.env.APP_URL) {
+  if (lc === 'book' || text === 'BOOK') {
+    if (channel === 'messenger' && process.env.APP_URL) {
+      await sendButtons(token, senderId, `Ready to book? Tap below to get started! 👇`, [bookBtn(tenant.id)]);
+    } else {
       await setState('SELECT_CATEGORY', {}, {});
-      await showCategoryMenu(sends, token, senderId, tenant.id);
+      await showCategoryMenu(sends, token, senderId, tenant.id, channel);
     }
     return;
   }
 
   if (lc === 'services' || text === 'SERVICES') {
     await setState('SELECT_CATEGORY', {}, {});
-    await showCategoryMenu(sends, token, senderId, tenant.id);
+    await showCategoryMenu(sends, token, senderId, tenant.id, channel);
     return;
   }
 
@@ -495,12 +504,16 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     const parts = text.split(':');
     const catId = parts[1];
     await setState('SELECT_SERVICE', {}, {});
-    await showServiceCatalog(sends, token, senderId, tenant.id, catId === 'ALL' ? null : catId);
+    await showServiceCatalog(sends, token, senderId, tenant.id, catId === 'ALL' ? null : catId, channel);
     return;
   }
 
-  // ── Service selected ─────────────────────────────────────────────────
+  // ── Service selected (Instagram only — Messenger uses webform "Book Now" button) ──
   if (text.startsWith('SVC:')) {
+    if (channel === 'messenger' && process.env.APP_URL) {
+      await sendButtons(token, senderId, `Tap below to complete your booking! 👇`, [bookBtn(tenant.id)]);
+      return;
+    }
     const parts   = text.split(':');
     const svcId   = parts[1];
     const svcName = parts[2];
@@ -518,7 +531,13 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
-  // ── Booking flow ─────────────────────────────────────────────────────
+  // ── Booking flow (Instagram only — Messenger redirects to webform above) ─────
+  // Guard: if a Messenger user has a stale in-flight booking step, redirect them
+  if (channel === 'messenger' && ['ASK_WEIGHT','ASK_PHONE','ASK_ADDRESS','ASK_EMAIL','ASK_DATETIME','ASK_NAME','CONFIRM'].includes(step)) {
+    await sendButtons(token, senderId, `Let's complete your booking using our form! 👇`, [bookBtn(tenant.id)]);
+    await setState('MENU', {}, {});
+    return;
+  }
 
   // Step: quantity / weight
   if (step === 'ASK_WEIGHT') {
