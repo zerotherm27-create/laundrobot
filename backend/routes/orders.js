@@ -5,6 +5,70 @@ const { sendTaggedMessage } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
 const { sendInvoiceEmail } = require('../utils/email');
 
+// POST walk-in order (staff POS — paid in cash/QR, no Xendit)
+router.post('/walk-in', auth, async (req, res) => {
+  const { cart, name, phone, email, address, notes } = req.body;
+  if (!cart?.length || !name?.trim() || !phone?.trim()) {
+    return res.status(400).json({ error: 'Cart, name, and phone are required.' });
+  }
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Find or create customer
+    const { rows: [existing] } = await client.query(
+      'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
+      [req.user.tenant_id, phone.trim()]
+    );
+    let customerId;
+    if (existing) {
+      await client.query(
+        'UPDATE customers SET name=$1, email=COALESCE($2, email), address=COALESCE($3, address) WHERE id=$4',
+        [name.trim(), email?.trim() || null, address?.trim() || null, existing.id]
+      );
+      customerId = existing.id;
+    } else {
+      const { rows: [newC] } = await client.query(
+        'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+        [req.user.tenant_id, name.trim(), phone.trim(), email?.trim() || null, address?.trim() || null]
+      );
+      customerId = newC.id;
+    }
+
+    // Booking ref
+    const { rows: [{ count: bkgCount }] } = await client.query(
+      `SELECT COUNT(DISTINCT booking_ref) FROM orders WHERE tenant_id=$1 AND booking_ref IS NOT NULL`,
+      [req.user.tenant_id]
+    );
+    const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
+    const { rows: [{ count: baseCount }] } = await client.query(
+      'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.user.tenant_id]
+    );
+    let orderCount = Number(baseCount);
+
+    for (const item of cart) {
+      orderCount++;
+      const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
+      await client.query(
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, address, notes, status, paid, booking_ref, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NEW ORDER',TRUE,$9,'walk_in')`,
+        [orderId, req.user.tenant_id, customerId, item.service_id || null,
+         item.weight || null, Number(item.price), address?.trim() || null,
+         notes?.trim() || null, bookingRef]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ ok: true, booking_ref: bookingRef });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[walk-in order]', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // GET all orders for tenant (archived=true to fetch archives)
 router.get('/', auth, async (req, res) => {
   try {

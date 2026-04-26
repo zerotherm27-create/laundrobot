@@ -10,6 +10,7 @@ const NAV = [
   { key: 'Services',  icon: '✦',  label: 'Services' },
   { key: 'Messaging', icon: '✉',  label: 'Messaging' },
   { key: 'FAQs',      icon: '❓', label: 'FAQs' },
+  { key: 'WalkIn',        icon: '🛒', label: 'Walk-in POS' },
   { key: 'DeliveryZones', icon: '📍', label: 'Delivery Zones' },
   { key: 'Reports',   icon: '📊', label: 'Reports' },
   { key: 'Users',     icon: '👥', label: 'Users', adminOnly: true },

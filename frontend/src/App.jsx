@@ -16,10 +16,11 @@ import FAQs from './pages/FAQs.jsx';
 import Users from './pages/Users.jsx';
 import DeliveryZones from './pages/DeliveryZones.jsx';
 import Settings from './pages/Settings.jsx';
+import WalkIn from './pages/WalkIn.jsx';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
-  Messaging, FAQs, Users, Reports, SuperAdmin, DeliveryZones, Settings,
+  Messaging, FAQs, Users, Reports, SuperAdmin, DeliveryZones, Settings, WalkIn,
 };
 
 const PAGE_TITLES = {
@@ -35,6 +36,7 @@ const PAGE_TITLES = {
   SuperAdmin:     'Super Admin',
   DeliveryZones:  'Delivery Zones',
   Settings:       'Settings',
+  WalkIn:         'Walk-in POS',
 };
 
 function Dashboard() {
