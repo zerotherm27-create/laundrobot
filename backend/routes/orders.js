@@ -7,7 +7,7 @@ const { sendInvoiceEmail } = require('../utils/email');
 
 // POST walk-in order (staff POS — paid in cash/QR, no Xendit)
 router.post('/walk-in', auth, async (req, res) => {
-  const { cart, name, phone, email, address, notes } = req.body;
+  const { cart, name, phone, email, address, notes, pickup_date } = req.body;
   if (!cart?.length || !name?.trim() || !phone?.trim()) {
     return res.status(400).json({ error: 'Cart, name, and phone are required.' });
   }
@@ -50,11 +50,13 @@ router.post('/walk-in', auth, async (req, res) => {
       orderCount++;
       const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
       await client.query(
-        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, address, notes, status, paid, booking_ref, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'NEW ORDER',TRUE,$9,'walk_in')`,
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date, address, notes, status, paid, booking_ref, source, custom_selections)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'NEW ORDER',TRUE,$10,'walk_in',$11)`,
         [orderId, req.user.tenant_id, customerId, item.service_id || null,
-         item.weight || null, Number(item.price), address?.trim() || null,
-         notes?.trim() || null, bookingRef]
+         item.weight || null, Number(item.price),
+         pickup_date ? new Date(pickup_date).toISOString() : null,
+         address?.trim() || null, notes?.trim() || null, bookingRef,
+         item.custom_fields ? JSON.stringify(item.custom_fields) : null]
       );
     }
 
