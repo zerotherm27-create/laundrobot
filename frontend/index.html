@@ -389,6 +389,13 @@
       /* ── Modal close button (mobile only) ── */
       @media (max-width: 767px) {
         .modal-close-mobile { display: block !important; }
+
+        /* Push modal below the sticky topbar so × is never hidden */
+        .modal-overlay {
+          align-items: flex-start !important;
+          padding-top: calc(52px + env(safe-area-inset-top) + 8px) !important;
+          padding-bottom: 16px !important;
+        }
       }
 
       /* ── Urgency card animations ── */
