@@ -386,6 +386,11 @@
         .delivery-loc-grid { grid-template-columns: 1fr !important; }
       }
 
+      /* ── Modal close button (mobile only) ── */
+      @media (max-width: 767px) {
+        .modal-close-mobile { display: block !important; }
+      }
+
       /* ── Urgency card animations ── */
       @keyframes urgency-pulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }

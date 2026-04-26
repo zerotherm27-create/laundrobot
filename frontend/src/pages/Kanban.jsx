@@ -472,7 +472,7 @@ export default function Kanban() {
                 );
               })()}
               <button onClick={() => setModalOrder(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', lineHeight: 1, padding: 0 }}>×</button>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', lineHeight: 1, padding: '8px', margin: '-8px' }}>×</button>
             </div>
 
             {/* Customer */}
@@ -653,6 +653,13 @@ export default function Kanban() {
               {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534' }}>✅ Invoice sent to {modalOrder.customer_email}</div>}
               {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>⚠️ {invoiceResult.slice(4)}</div>}
             </div>
+
+            {/* ── Close (mobile) ── */}
+            <button onClick={() => setModalOrder(null)}
+              style={{ display: 'none', width: '100%', marginTop: 16, padding: '12px', fontSize: 14, fontWeight: 600, borderRadius: 10, border: '0.5px solid #E8E8E0', background: '#F7F7F5', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}
+              className="modal-close-mobile">
+              Close
+            </button>
 
             {/* ── Cancel Order ── */}
             {modalOrder.status !== 'CANCELLED' && (
