@@ -41,6 +41,22 @@ export default function Reports() {
     return acc;
   }, {});
 
+  // Group by source (booking channel)
+  const sourceMap = { walk_in: 0, web: 0, messenger: 0, other: 0 };
+  for (const o of filtered) {
+    const src = o.source || 'messenger';
+    if (src === 'walk_in') sourceMap.walk_in++;
+    else if (src === 'web') sourceMap.web++;
+    else if (src === 'messenger') sourceMap.messenger++;
+    else sourceMap.other++;
+  }
+  const sourceRevenue = { walk_in: 0, web: 0, messenger: 0, other: 0 };
+  for (const o of filtered.filter(o => o.paid)) {
+    const src = o.source || 'messenger';
+    const key = src === 'walk_in' ? 'walk_in' : src === 'web' ? 'web' : src === 'messenger' ? 'messenger' : 'other';
+    sourceRevenue[key] += Number(o.price);
+  }
+
   // Group by status
   const byStatus = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'].map(s => ({
     status: s,
@@ -144,6 +160,25 @@ export default function Reports() {
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 500, minWidth: 20 }}>{count}</span>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Booking channel breakdown */}
+          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Booking channel</div>
+            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[
+                { key: 'walk_in',   label: 'Walk-in',          icon: '🛒', color: '#166534', bg: '#EAF3DE' },
+                { key: 'web',       label: 'Web Booking',       icon: '🌐', color: '#1D4ED8', bg: '#EFF6FF' },
+                { key: 'messenger', label: 'Messenger',         icon: '💬', color: '#7F77DD', bg: '#F0EFFC' },
+              ].map(({ key, label, icon, color, bg }) => (
+                <div key={key} style={{ background: bg, borderRadius: 10, padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ fontSize: 11, color, fontWeight: 600, marginBottom: 6 }}>{label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1 }}>{sourceMap[key]}</div>
+                  <div style={{ fontSize: 11, color, marginTop: 4, opacity: 0.8 }}>₱{sourceRevenue[key].toLocaleString()}</div>
                 </div>
               ))}
             </div>

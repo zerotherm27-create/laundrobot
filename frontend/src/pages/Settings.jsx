@@ -35,6 +35,7 @@ function formatDateDisplay(dateStr) {
 }
 
 export default function Settings() {
+  const [qrImageUrl,     setQrImageUrl]     = useState('');
   const [notifEmail,     setNotifEmail]     = useState('');
   const [contactNumber,  setContactNumber]  = useState('');
   const [shopAddress,    setShopAddress]    = useState('');
@@ -85,6 +86,7 @@ export default function Settings() {
       getPromoCodes(),
       getReferralLinks(),
     ]).then(([s, b, p, r]) => {
+      setQrImageUrl(s.data.qr_image_url || '');
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
       setShopAddress(s.data.shop_address || '');
@@ -120,6 +122,7 @@ export default function Settings() {
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
         ig_user_id: igUserId,
+        qr_image_url: qrImageUrl || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -261,6 +264,22 @@ export default function Settings() {
               <label style={LABEL}>Full Address</label>
               <input type="text" value={shopAddress} onChange={e => setShopAddress(e.target.value)}
                 placeholder="e.g. 123 Main St, Barangay, City, Province" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+            </SectionCard>
+
+            {/* Walk-in QR */}
+            <SectionCard icon="📱" iconBg="#EAF3DE" title="Walk-in QR Payment"
+              subtitle="QR code shown to walk-in customers at the POS payment step">
+              <label style={LABEL}>QR Image URL</label>
+              <input type="url" value={qrImageUrl} onChange={e => setQrImageUrl(e.target.value)}
+                placeholder="https://... (link to your GCash/Maya QR image)" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+              {qrImageUrl && (
+                <div style={{ marginTop: 12, textAlign: 'center' }}>
+                  <img src={qrImageUrl} alt="QR preview"
+                    style={{ maxWidth: 160, borderRadius: 10, border: '1px solid #E8E8E0', boxShadow: 'var(--shadow-sm)' }}
+                    onError={e => { e.target.style.display = 'none'; }} />
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your QR image to any image host (e.g. Google Drive, Imgur) and paste the direct link here.</div>
             </SectionCard>
 
             {/* Minimum Order */}

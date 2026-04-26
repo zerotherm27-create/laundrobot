@@ -388,6 +388,14 @@ export default function Kanban() {
                       </div>
                     )}
 
+                    {/* Walk-in badge */}
+                    {g.source === 'walk_in' && (
+                      <div style={{ marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 20, background: '#EAF3DE', border: '0.5px solid #86EFAC' }}>
+                        <span style={{ fontSize: 10 }}>🛒</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#166534' }}>Walk-in</span>
+                      </div>
+                    )}
+
                     {/* Price + paid */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_COLORS[status] }}>
