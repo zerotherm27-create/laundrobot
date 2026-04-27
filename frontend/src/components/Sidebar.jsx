@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { changeMyPassword } from '../api.js';
+import { Icon } from './Icons.jsx';
 
 const NAV = [
-  { key: 'Overview',  icon: '▦',  label: 'Overview' },
-  { key: 'Kanban',    icon: '⊞',  label: 'Kanban Board' },
-  { key: 'Orders',    icon: '📋', label: 'Orders' },
-  { key: 'Customers', icon: '👤', label: 'Customers' },
-  { key: 'Services',  icon: '✦',  label: 'Services' },
-  { key: 'Messaging', icon: '✉',  label: 'Messaging' },
-  { key: 'FAQs',      icon: '❓', label: 'FAQs' },
-  { key: 'WalkIn',        icon: '🛒', label: 'Walk-in POS' },
-  { key: 'DeliveryZones', icon: '📍', label: 'Delivery Zones' },
-  { key: 'Reports',   icon: '📊', label: 'Reports' },
-  { key: 'Users',     icon: '👥', label: 'Users', adminOnly: true },
-  { key: 'Settings',  icon: '⚙️', label: 'Settings' },
+  { key: 'Overview',      iconName: 'overview',   label: 'Overview' },
+  { key: 'Kanban',        iconName: 'kanban',     label: 'Kanban Board' },
+  { key: 'Orders',        iconName: 'orders',     label: 'Orders' },
+  { key: 'Customers',     iconName: 'customers',  label: 'Customers' },
+  { key: 'Services',      iconName: 'services',   label: 'Services' },
+  { key: 'Messaging',     iconName: 'messaging',  label: 'Messaging' },
+  { key: 'FAQs',          iconName: 'faqs',       label: 'FAQs' },
+  { key: 'WalkIn',        iconName: 'walkin',     label: 'Walk-in POS' },
+  { key: 'DeliveryZones', iconName: 'delivery',   label: 'Delivery Zones' },
+  { key: 'Reports',       iconName: 'reports',    label: 'Reports' },
+  { key: 'Users',         iconName: 'users',      label: 'Users', adminOnly: true },
+  { key: 'Settings',      iconName: 'settings',   label: 'Settings' },
 ];
 
 export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
@@ -92,7 +93,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
               onClick={() => onNav(n.key)}
               className={`nav-item${current === n.key ? ' active' : ''}`}
             >
-              <span style={{ fontSize: 14, width: 18, textAlign: 'center', flexShrink: 0 }}>{n.icon}</span>
+              <Icon name={n.iconName} size={15} color={current === n.key ? '#38a9c2' : '#6B7280'} style={{ width: 18, flexShrink: 0 }} />
               {n.label}
             </button>
           ))}
@@ -107,7 +108,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                 onClick={() => onNav('SuperAdmin')}
                 className={`nav-item nav-item-super${current === 'SuperAdmin' ? ' active' : ''}`}
               >
-                <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>★</span>
+                <Icon name="superadmin" size={15} color={current === 'SuperAdmin' ? '#38a9c2' : '#6B7280'} style={{ width: 18, flexShrink: 0 }} />
                 Super Admin
               </button>
             </>
@@ -147,7 +148,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
             }}
             onMouseEnter={e => { e.target.style.background = '#EEEDE9'; e.target.style.color = '#374151'; }}
             onMouseLeave={e => { e.target.style.background = '#F7F7F5'; e.target.style.color = '#6B7280'; }}>
-            🔑 Change my password
+            <Icon name="key" size={13} color="#6B7280" style={{ marginRight: 5 }} /> Change my password
           </button>
         </div>
       </aside>
@@ -156,7 +157,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
       {pwOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setPwOpen(false)}>
           <div className="modal-card" style={{ width: 380, padding: '1.75rem' }}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>🔑 Change My Password</div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="key" size={16} color="#374151" /> Change My Password</div>
             <p style={{ fontSize: 12, color: '#374151', marginBottom: 22 }}>{user?.email}</p>
 
             <form onSubmit={handleChangePw}>
@@ -170,7 +171,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                     {f === 'confirm' && (
                       <span onClick={() => setShow(s => !s)}
                         style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
-                        {show ? '🙈' : '👁'}
+                        <Icon name={show ? 'eye-off' : 'eye'} size={14} color="#6B7280" />
                       </span>
                     )}
                   </div>
@@ -178,8 +179,9 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
               ))}
 
               {msg && (
-                <div style={{ fontSize: 12, marginBottom: 14, padding: '8px 12px', borderRadius: 7, background: msg.startsWith('✅') ? '#EAF3DE' : '#FCEBEB', color: msg.startsWith('✅') ? '#3B6D11' : '#A32D2D' }}>
-                  {msg}
+                <div style={{ fontSize: 12, marginBottom: 14, padding: '8px 12px', borderRadius: 7, display: 'flex', alignItems: 'center', gap: 6, background: msg.includes('updated') ? '#EAF3DE' : '#FCEBEB', color: msg.includes('updated') ? '#3B6D11' : '#A32D2D' }}>
+                  <Icon name={msg.includes('updated') ? 'check-circle' : 'x-circle'} size={13} color={msg.includes('updated') ? '#3B6D11' : '#A32D2D'} />
+                  {msg.replace('✅ ', '').replace('❌ ', '')}
                 </div>
               )}
 

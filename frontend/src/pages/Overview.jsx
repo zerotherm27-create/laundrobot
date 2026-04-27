@@ -3,14 +3,15 @@ import { getOrders, getHumanConversations, releaseConversation } from '../api.js
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
 const STAT_META = [
-  { label: 'Total Revenue',  symbol: '₱',  color: '#d4a800', bg: '#FFF8E1', border: '#d4a800' },
-  { label: 'Total Orders',   symbol: '🗂',  color: '#7F77DD', bg: '#F0EFFC', border: '#7F77DD' },
-  { label: 'Active Orders',  symbol: '↻',  color: '#BA7517', bg: '#FDF3E3', border: '#BA7517' },
-  { label: 'Orders Today',   symbol: '↑',  color: '#1D9E75', bg: '#EAF3DE', border: '#1D9E75' },
+  { label: 'Total Revenue',  iconName: 'reports',   color: '#d4a800', bg: '#FFF8E1', border: '#d4a800' },
+  { label: 'Total Orders',   iconName: 'orders',    color: '#7F77DD', bg: '#F0EFFC', border: '#7F77DD' },
+  { label: 'Active Orders',  iconName: 'kanban',    color: '#BA7517', bg: '#FDF3E3', border: '#BA7517' },
+  { label: 'Orders Today',   iconName: 'calendar',  color: '#1D9E75', bg: '#EAF3DE', border: '#1D9E75' },
 ];
 
 function timeAgo(dateStr) {
@@ -174,8 +175,8 @@ export default function Overview() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em' }}>{s.label}</span>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: meta.color, flexShrink: 0 }}>
-                  {meta.symbol}
+                <div style={{ width: 30, height: 30, borderRadius: 8, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={meta.iconName} size={14} color={meta.color} />
                 </div>
               </div>
               {loading ? (
@@ -240,7 +241,7 @@ export default function Overview() {
             </div>
           ) : orders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9CA3AF' }}>
-              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.5 }}>🧺</div>
+              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Icon name="inbox" size={32} color="#D1D5DB" strokeWidth={1} /></div>
               <div style={{ fontSize: 13, fontWeight: 500 }}>No orders yet</div>
               <div style={{ fontSize: 11, marginTop: 4 }}>Orders will appear here</div>
             </div>

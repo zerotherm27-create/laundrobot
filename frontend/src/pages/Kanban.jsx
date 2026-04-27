@@ -4,9 +4,10 @@ import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
-const STATUS_ICONS  = { 'NEW ORDER':'⭐','FOR PICK UP':'⬆️','PROCESSING':'⚙️','FOR DELIVERY':'🚚','COMPLETED':'✅' };
+const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
 const STATUS_LABELS = { 'NEW ORDER':'New','FOR PICK UP':'For Pick Up','PROCESSING':'Processing','FOR DELIVERY':'For Delivery','COMPLETED':'Completed' };
 
 // Which statuses use pickup_date for urgency vs delivery_date
@@ -43,11 +44,11 @@ function getUrgency(g) {
 }
 
 const URGENCY_META = {
-  'overdue':      { label: 'Overdue',    border: '#DC2626', bg: '#FCEBEB', color: '#A32D2D', dot: '🔴' },
-  'due-today':    { label: 'Due Today',  border: '#D97706', bg: '#FEF3C7', color: '#92400E', dot: '🟡' },
-  'due-tomorrow': { label: 'Tomorrow',   border: '#F59E0B', bg: '#FFF7ED', color: '#C2410C', dot: '🟠' },
-  'upcoming':     { label: 'Soon',       border: '#60A5FA', bg: '#EFF6FF', color: '#1D4ED8', dot: '🔵' },
-  'normal':       { label: '',           border: null,      bg: null,      color: null,      dot: '' },
+  'overdue':      { label: 'Overdue',    border: '#DC2626', bg: '#FCEBEB', color: '#A32D2D', iconName: 'alert-circle' },
+  'due-today':    { label: 'Due Today',  border: '#D97706', bg: '#FEF3C7', color: '#92400E', iconName: 'clock' },
+  'due-tomorrow': { label: 'Tomorrow',   border: '#F59E0B', bg: '#FFF7ED', color: '#C2410C', iconName: 'clock' },
+  'upcoming':     { label: 'Soon',       border: '#60A5FA', bg: '#EFF6FF', color: '#1D4ED8', iconName: 'calendar' },
+  'normal':       { label: '',           border: null,      bg: null,      color: null,      iconName: '' },
 };
 
 const URGENCY_SORT = { 'overdue': 0, 'due-today': 1, 'due-tomorrow': 2, 'upcoming': 3, 'normal': 4 };
@@ -255,26 +256,30 @@ export default function Kanban() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, padding: '10px 14px', borderRadius: 10,
           background: urgencyCounts['overdue'] ? '#FCEBEB' : '#FEF3C7',
           border: `1px solid ${urgencyCounts['overdue'] ? '#FECACA' : '#FCD34D'}` }}>
-          <span style={{ fontSize: 16 }}>{urgencyCounts['overdue'] ? '🚨' : '⚠️'}</span>
-          <div style={{ flex: 1, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <Icon name={urgencyCounts['overdue'] ? 'alert-circle' : 'alert-triangle'} size={16} color={urgencyCounts['overdue'] ? '#A32D2D' : '#92400E'} />
+          <div style={{ flex: 1, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             {urgencyCounts['overdue'] && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#A32D2D' }}>
-                🔴 {urgencyCounts['overdue']} overdue
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#A32D2D', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#DC2626', display: 'inline-block' }} />
+                {urgencyCounts['overdue']} overdue
               </span>
             )}
             {urgencyCounts['due-today'] && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E' }}>
-                🟡 {urgencyCounts['due-today']} due today
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#D97706', display: 'inline-block' }} />
+                {urgencyCounts['due-today']} due today
               </span>
             )}
             {urgencyCounts['due-tomorrow'] && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#C2410C' }}>
-                🟠 {urgencyCounts['due-tomorrow']} due tomorrow
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#C2410C', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+                {urgencyCounts['due-tomorrow']} due tomorrow
               </span>
             )}
             {urgencyCounts['upcoming'] && (
-              <span style={{ fontSize: 13, fontWeight: 500, color: '#1D4ED8' }}>
-                🔵 {urgencyCounts['upcoming']} upcoming
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#60A5FA', display: 'inline-block' }} />
+                {urgencyCounts['upcoming']} upcoming
               </span>
             )}
           </div>
@@ -305,8 +310,8 @@ export default function Kanban() {
 
               {/* Column header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, paddingBottom: 8, borderBottom: '0.5px solid #E8E8E0' }}>
-                <div style={{ width: 26, height: 26, borderRadius: 7, background: STATUS_BG[status], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
-                  {STATUS_ICONS[status]}
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: STATUS_BG[status], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={STATUS_ICON_NAMES[status]} size={13} color={STATUS_COLORS[status]} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#374151', flex: 1, lineHeight: 1.2 }}>
                   {STATUS_LABELS[status]}
@@ -379,7 +384,7 @@ export default function Kanban() {
                     {/* Urgency badge — always visible when urgent */}
                     {urgency !== 'normal' && (
                       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, padding: '3px 7px', borderRadius: 6, background: umeta.bg }}>
-                        <span style={{ fontSize: 10 }}>{umeta.dot}</span>
+                        {umeta.iconName && <Icon name={umeta.iconName} size={9} color={umeta.color} />}
                         <span style={{ fontSize: 10, fontWeight: 700, color: umeta.color }}>{dateTypeLabel ? `${dateTypeLabel} · ${umeta.label}` : umeta.label}</span>
                         {showDate && (
                           <span style={{ fontSize: 10, color: umeta.color, marginLeft: 'auto', opacity: 0.85 }}>
@@ -392,7 +397,7 @@ export default function Kanban() {
                     {/* Walk-in badge */}
                     {g.source === 'walk_in' && (
                       <div style={{ marginTop: 5, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 20, background: '#EAF3DE', border: '0.5px solid #86EFAC' }}>
-                        <span style={{ fontSize: 10 }}>🛒</span>
+                        <Icon name="walkin" size={10} color="#166534" />
                         <span style={{ fontSize: 10, fontWeight: 700, color: '#166534' }}>Walk-in</span>
                       </div>
                     )}
@@ -449,7 +454,7 @@ export default function Kanban() {
 
               {col.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#374151', fontSize: 12 }}>
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>📭</div>
+                  <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'center' }}><Icon name="inbox" size={22} color="#9CA3AF" /></div>
                   No orders
                 </div>
               )}
@@ -659,8 +664,8 @@ export default function Kanban() {
                   {invoiceSending ? '⏳ Sending…' : '📧 Send to Email'}
                 </button>
               </div>
-              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534' }}>✅ Invoice sent to {modalOrder.customer_email}</div>}
-              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>⚠️ {invoiceResult.slice(4)}</div>}
+              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
+              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
             </div>
 
             {/* ── Close (mobile) ── */}
@@ -680,7 +685,7 @@ export default function Kanban() {
                     border: `1px solid ${cancelResult.refund_status === 'success' ? '#86EFAC' : '#FCD34D'}`,
                     color: cancelResult.refund_status === 'success' ? '#166534' : '#92400E',
                   }}>
-                    {cancelResult.refund_status === 'success' ? '✅ ' : '⚠️ '}{cancelResult.message}
+                    <Icon name={cancelResult.refund_status === 'success' ? 'check-circle' : 'alert-triangle'} size={13} color={cancelResult.refund_status === 'success' ? '#166534' : '#92400E'} style={{ marginRight: 4 }} />{cancelResult.message}
                   </div>
                 ) : (
                   <button

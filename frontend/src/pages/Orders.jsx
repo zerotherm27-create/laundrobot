@@ -3,6 +3,7 @@ import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, upd
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
+import { Icon } from '../components/Icons.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
 
@@ -309,7 +310,7 @@ export default function Orders() {
           <button onClick={switchToArchives}
             style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               background: view === 'archives' ? '#374151' : '#F0F0EC', color: view === 'archives' ? '#fff' : '#374151', fontWeight: 600 }}>
-            📦 Archives
+            <Icon name="archive" size={13} color={view === 'archives' ? '#fff' : '#374151'} style={{ marginRight: 5 }} />Archives
           </button>
         </div>
       </div>
@@ -348,7 +349,7 @@ export default function Orders() {
                   <button key={`${m.year}-${m.month}`}
                     onClick={() => handleManualArchiveMonth(m.year, m.month)}
                     style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #E2E8F0', background: '#F7F7F5', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    📦 {m.label}
+                    <Icon name="archive" size={11} color="#374151" style={{ marginRight: 4 }} />{m.label}
                   </button>
                 ))}
               </div>
@@ -446,7 +447,7 @@ export default function Orders() {
                     {[
                       ['Address', selected.address || selected.customer_address || '—'],
                       ['Pickup', selected.pickup_date ? new Date(selected.pickup_date).toLocaleString() : '—'],
-                      ['Source', selected.fb_id ? '💬 Messenger' : '🌐 Web booking'],
+                      ['Source', selected.fb_id ? 'Messenger' : 'Web booking'],
                       ...(selected.notes ? [['Notes', selected.notes]] : []),
                     ].map(([k, v]) => (
                       <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
@@ -550,7 +551,7 @@ export default function Orders() {
                           background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5',
                           border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
                           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                            {savedDiff.diff > 0 ? '⚠️ Additional payment needed' : savedDiff.diff < 0 ? '✅ Price reduced' : '✓ Booking updated'}
+                            {savedDiff.diff > 0 ? <><Icon name="alert-triangle" size={13} color="#92400E" style={{ marginRight: 4 }} />Additional payment needed</> : savedDiff.diff < 0 ? <><Icon name="check-circle" size={13} color="#166534" style={{ marginRight: 4 }} />Price reduced</> : <><Icon name="check" size={13} color="#374151" style={{ marginRight: 4 }} />Booking updated</>}
                           </div>
                           <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
                             ₱{Number(savedDiff.old_total).toLocaleString()} → ₱{Number(savedDiff.new_total).toLocaleString()}
@@ -565,7 +566,7 @@ export default function Orders() {
                           <button onClick={() => { navigator.clipboard.writeText(savedDiff.summary_text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2500); }}
                             style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
                               background: copySuccess ? '#166534' : '#374151', color: '#fff', transition: 'background .2s' }}>
-                            {copySuccess ? '✓ Copied!' : '📋 Copy Message'}
+                            <Icon name={copySuccess ? 'check' : 'copy'} size={13} color="#fff" style={{ marginRight: 5 }} />{copySuccess ? 'Copied!' : 'Copy Message'}
                           </button>
                           {savedDiff.payment_url && (
                             <a href={savedDiff.payment_url} target="_blank" rel="noreferrer"
@@ -581,7 +582,7 @@ export default function Orders() {
                         /* Legacy single-order diff panel */
                         <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5', border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
                           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                            {savedDiff.diff > 0 ? '⚠️ Price increased' : savedDiff.diff < 0 ? '✅ Price decreased' : '✓ Price unchanged'}
+                            {savedDiff.diff > 0 ? <><Icon name="alert-triangle" size={13} color="#92400E" style={{ marginRight: 4 }} />Price increased</> : savedDiff.diff < 0 ? <><Icon name="check-circle" size={13} color="#166534" style={{ marginRight: 4 }} />Price decreased</> : <><Icon name="check" size={13} color="#374151" style={{ marginRight: 4 }} />Price unchanged</>}
                           </div>
                           <div style={{ fontSize: 12, color: '#374151' }}>
                             ₱{savedDiff.old_price.toLocaleString()} → ₱{savedDiff.new_price.toLocaleString()}
@@ -604,7 +605,7 @@ export default function Orders() {
                                 )}
                                 <button onClick={handleNotify} disabled={notifySending}
                                   style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#9CA3AF' : '#1877F2', color: '#fff', border: 'none' }}>
-                                  {notifySending ? 'Sending…' : '💬 Send Update via Messenger'}
+                                  <Icon name="messenger" size={13} color="#fff" style={{ marginRight: 5 }} />{notifySending ? 'Sending…' : 'Send Update via Messenger'}
                                 </button>
                               </div>
                             )
@@ -642,7 +643,7 @@ export default function Orders() {
                             }}
                             style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
                               background: payLinkCopied ? '#1D9E75' : '#38a9c2', color: '#fff', transition: 'background .2s' }}>
-                            {payLinkCopied ? '✓ Copied!' : '📋 Copy'}
+                            <Icon name={payLinkCopied ? 'check' : 'copy'} size={12} color="#fff" style={{ marginRight: 4 }} />{payLinkCopied ? 'Copied!' : 'Copy'}
                           </button>
                         </div>
                         <button
@@ -693,7 +694,7 @@ export default function Orders() {
                         border: `1px solid ${cancelResult.refund_status === 'success' ? '#86EFAC' : '#FCD34D'}`,
                         color: cancelResult.refund_status === 'success' ? '#166534' : '#92400E',
                       }}>
-                        {cancelResult.refund_status === 'success' ? '✅ ' : '⚠️ '}{cancelResult.message}
+                        <Icon name={cancelResult.refund_status === 'success' ? 'check-circle' : 'alert-triangle'} size={13} color={cancelResult.refund_status === 'success' ? '#166534' : '#92400E'} style={{ marginRight: 4 }} />{cancelResult.message}
                       </div>
                     ) : (
                       <button
@@ -772,7 +773,7 @@ export default function Orders() {
                           </span>
                         </div>
                         <div style={{ fontSize: 11, color: '#374151', marginBottom: 12, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
-                          ⚠️ Same order & booking numbers are kept. Each order will be stamped as edited.
+                          <Icon name="alert-triangle" size={11} color="#92400E" style={{ marginRight: 4 }} />Same order & booking numbers are kept. Each order will be stamped as edited.
                         </div>
 
                         {/* Custom note */}
@@ -890,7 +891,7 @@ export default function Orders() {
                         handleManualArchiveMonth(d.getFullYear(), d.getMonth()+1);
                       }}
                         style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#F7F7F5', border: '0.5px solid #E2E8F0', color: '#374151' }}>
-                        📦 Archive this month's completed orders
+                        <Icon name="archive" size={13} color="#374151" style={{ marginRight: 5 }} />Archive this month's completed orders
                       </button>
                     )}
 
@@ -902,11 +903,11 @@ export default function Orders() {
                           📄 Download PDF
                         </button>
                         <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600 }}>
-                          {invoiceSending ? '⏳ Sending…' : '📧 Send to Email'}
+                          <Icon name="messaging" size={13} color="#374151" style={{ marginRight: 5 }} />{invoiceSending ? 'Sending…' : 'Send to Email'}
                         </button>
                       </div>
-                      {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534' }}>✅ Invoice sent to {selected.customer_email}</div>}
-                      {invoiceResult.startsWith('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>⚠️ {invoiceResult.slice(4)}</div>}
+                      {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {selected.customer_email}</div>}
+                      {invoiceResult.startsWith('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
                     </div>
 
                     <button onClick={() => handleDelete(selected.orderIds)}
@@ -947,7 +948,7 @@ export default function Orders() {
             <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading archives…</div>
           ) : archived.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '3rem', textAlign: 'center', color: '#374151', fontSize: 14 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="archive" size={40} color="#9CA3AF" strokeWidth={1} /></div>
               No archived orders yet. Completed orders are automatically archived monthly.
             </div>
           ) : (
@@ -971,7 +972,7 @@ export default function Orders() {
                     <div onClick={() => setExpandedMonths(p => ({ ...p, [group.label]: !isExpanded }))}
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F7F7F5', cursor: 'pointer', borderBottom: isExpanded ? '0.5px solid #e8e8e0' : 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 16 }}>📦</span>
+                        <Icon name="archive" size={16} color="#6B7280" />
                         <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{group.label}</span>
                         <span style={{ fontSize: 12, color: '#374151' }}>{groupFiltered.length} orders</span>
                       </div>
