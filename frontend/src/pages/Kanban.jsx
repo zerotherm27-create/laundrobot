@@ -338,6 +338,7 @@ export default function Kanban() {
                   : DELIVERY_STATUSES.has(g.status)
                     ? g.delivery_date
                     : null;
+                const dateTypeLabel = PICKUP_STATUSES.has(g.status) ? 'Pickup' : DELIVERY_STATUSES.has(g.status) ? 'Delivery' : '';
 
                 return (
                   <div key={gKey}
@@ -379,7 +380,7 @@ export default function Kanban() {
                     {urgency !== 'normal' && (
                       <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, padding: '3px 7px', borderRadius: 6, background: umeta.bg }}>
                         <span style={{ fontSize: 10 }}>{umeta.dot}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: umeta.color }}>{umeta.label}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: umeta.color }}>{dateTypeLabel ? `${dateTypeLabel} · ${umeta.label}` : umeta.label}</span>
                         {showDate && (
                           <span style={{ fontSize: 10, color: umeta.color, marginLeft: 'auto', opacity: 0.85 }}>
                             {fmtDate(showDate)}
