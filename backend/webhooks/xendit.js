@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { sendPaidOrderEmail, sendCustomerPaymentEmail } = require('../utils/email');
-const { sendMessage } = require('../utils/messenger');
+const { sendMessage, sendButtons } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
@@ -21,18 +21,12 @@ router.post('/', async (req, res) => {
 
     if (isBkgRef) {
       await db.query(
-        `UPDATE orders SET paid=TRUE,
-          status = CASE WHEN is_dropoff = TRUE THEN 'NEW ORDER' ELSE 'PAID' END,
-          xendit_invoice_id=$1
-         WHERE booking_ref=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1 WHERE booking_ref=$2`,
         [xenditInvoiceId, refId]
       );
     } else {
       await db.query(
-        `UPDATE orders SET paid=TRUE,
-          status = CASE WHEN is_dropoff = TRUE THEN 'NEW ORDER' ELSE 'PAID' END,
-          xendit_invoice_id=$1
-         WHERE id=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1 WHERE id=$2`,
         [xenditInvoiceId, refId]
       );
     }
@@ -96,7 +90,14 @@ router.post('/', async (req, res) => {
                 `For concerns, reach out to us using the following contact details:\n` +
                 `📧 Email: washup@thelaundryproject.ph\n` +
                 (tenant.contact_number ? `📱 Contact: ${tenant.contact_number} (WhatsApp & Viber)` : '');
-            sendMessage(tenant.fb_page_access_token, first.fb_id, msg).catch(e => {
+            const appUrl = process.env.APP_URL;
+            const bookBtn = appUrl
+              ? { type: 'web_url', title: '🛒 Book Again', url: `${appUrl}/book/${first.tenant_id}`, webview_height_ratio: 'full', messenger_extensions: true }
+              : { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' };
+            sendButtons(tenant.fb_page_access_token, first.fb_id, msg, [
+              bookBtn,
+              { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+            ]).catch(e => {
               console.warn('[xendit webhook] messenger notify failed:', e.response?.data?.error?.message || e.message);
             });
           }

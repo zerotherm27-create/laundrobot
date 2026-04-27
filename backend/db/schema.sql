@@ -30,6 +30,10 @@ CREATE TABLE users (
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
 -- ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT DEFAULT '[]';
 
+-- Fix archived NULLs so kanban query (archived = FALSE) matches new orders:
+-- ALTER TABLE orders ALTER COLUMN archived SET DEFAULT FALSE;
+-- UPDATE orders SET archived = FALSE WHERE archived IS NULL;
+
 -- Customers (per tenant)
 CREATE TABLE customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

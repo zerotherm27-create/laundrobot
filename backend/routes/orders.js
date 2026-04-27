@@ -84,9 +84,9 @@ router.get('/', auth, async (req, res) => {
       FROM orders o
       LEFT JOIN customers c ON c.id = o.customer_id
       LEFT JOIN services s ON s.id = o.service_id
-      WHERE o.tenant_id = $1 AND o.archived = $2
+      WHERE o.tenant_id = $1 AND ${isArchived ? 'o.archived = TRUE' : '(o.archived = FALSE OR o.archived IS NULL)'}
     `;
-    const params = [req.user.tenant_id, isArchived];
+    const params = [req.user.tenant_id];
     if (status) { query += ` AND o.status = $${params.length + 1}`; params.push(status); }
     query += ` ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
