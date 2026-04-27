@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCustomers } from '../api.js';
+import { getCustomers, deleteCustomer } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 
 export default function Customers() {
@@ -117,7 +117,19 @@ export default function Customers() {
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ fontWeight: 500, fontSize: 15 }}>Customer details</div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button onClick={async () => {
+                  if (!confirm(`Delete ${selected.name || 'this customer'}? This cannot be undone.`)) return;
+                  try {
+                    await deleteCustomer(selected.id);
+                    setCustomers(prev => prev.filter(c => c.id !== selected.id));
+                    setSelected(null);
+                  } catch { alert('Failed to delete customer.'); }
+                }} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                  Delete
+                </button>
+                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <Avatar name={selected.name || '?'} size={48} bg="#EEEDFE" color="#534AB7" />

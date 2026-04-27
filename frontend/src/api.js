@@ -51,6 +51,7 @@ export const updateCategory = (id, data) => api.put(`/categories/${id}`, data);
 export const deleteCategory = id => api.delete(`/categories/${id}`);
 
 export const getCustomers = () => api.get('/customers');
+export const deleteCustomer = id => api.delete(`/customers/${id}`);
 
 export const getTenants = () => api.get('/tenants');
 export const createTenant = data => api.post('/tenants', data);
