@@ -7,17 +7,26 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [hideUnknown, setHideUnknown] = useState(true);
+  const [sortBy, setSortBy] = useState('default');
 
   useEffect(() => {
     getCustomers().then(r => { setCustomers(r.data); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
-  const filtered = customers.filter(c =>
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone?.includes(search) ||
-    c.email?.toLowerCase().includes(search.toLowerCase()) ||
-    c.fb_id?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = customers
+    .filter(c => !hideUnknown || (c.name && c.phone))
+    .filter(c =>
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone?.includes(search) ||
+      c.email?.toLowerCase().includes(search.toLowerCase()) ||
+      c.fb_id?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === 'spent')    return Number(b.total_spent || 0) - Number(a.total_spent || 0);
+      if (sortBy === 'quantity') return Number(b.total_orders || 0) - Number(a.total_orders || 0);
+      return 0;
+    });
 
   function downloadCSV() {
     const headers = ['Name', 'Phone', 'Email', 'Address', 'FB Messenger', 'Total Orders', 'Total Spent', 'Customer Since'];
@@ -51,9 +60,21 @@ export default function Customers() {
         </div>
       </div>
 
-      <input value={search} onChange={e => setSearch(e.target.value)}
-        placeholder="Search by name, phone, email, or Messenger ID..."
-        style={{ padding: '6px 12px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', width: 320, marginBottom: 14 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, phone, email, or Messenger ID..."
+          style={{ padding: '6px 12px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', width: 300 }} />
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          style={{ padding: '6px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+          <option value="default">Sort: Default</option>
+          <option value="spent">Most Spent</option>
+          <option value="quantity">Most Orders</option>
+        </select>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+          <input type="checkbox" checked={hideUnknown} onChange={e => setHideUnknown(e.target.checked)} />
+          Hide unknown customers
+        </label>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 320px' : '1fr', gap: 16 }}>
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
