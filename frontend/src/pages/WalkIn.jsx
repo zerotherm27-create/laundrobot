@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder } from '../api.js';
+import { Icon } from '../components/Icons.jsx';
 
-// ── helpers (mirrored from BookingForm) ──────────────────────────────────────
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 function normalizeOpts(options) {
   if (!Array.isArray(options)) return [];
@@ -31,12 +32,15 @@ function makeTimeSlots(open, close) {
   return slots;
 }
 
+// ── Shared styles (matching BookingForm exactly) ──────────────────────────────
+
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', fontSize: 14,
-  borderRadius: 8, border: '1.5px solid #D1D5DB', background: '#fff',
+  borderRadius: 8, border: '1.5px solid #B8C4CE', background: '#F8FAFC',
   fontFamily: 'inherit', color: '#0D1117', outline: 'none',
+  transition: 'border-color .15s, box-shadow .15s',
 };
-const LABEL = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 };
+const LABEL = { fontSize: 12, fontWeight: 600, color: '#1F2937', display: 'block', marginBottom: 6 };
 
 function Field({ label, required, children }) {
   return (
@@ -45,6 +49,15 @@ function Field({ label, required, children }) {
       {children}
     </div>
   );
+}
+
+function focusInput(e) {
+  e.target.style.borderColor = '#38a9c2';
+  e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)';
+}
+function blurInput(e) {
+  e.target.style.borderColor = '#B8C4CE';
+  e.target.style.boxShadow = 'none';
 }
 
 // ── QR Payment modal ─────────────────────────────────────────────────────────
@@ -73,19 +86,21 @@ function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCance
               Show this QR to the customer to scan
             </div>
             <img src={qrUrl} alt="Payment QR"
-              style={{ maxWidth: 200, width: '100%', borderRadius: 12, border: '1px solid #E8E8E0', boxShadow: 'var(--shadow-sm)' }} />
+              style={{ maxWidth: 200, width: '100%', borderRadius: 12, border: '1px solid #E8E8E0', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }} />
           </div>
         ) : (
           <div style={{ textAlign: 'center', marginBottom: 20, padding: '24px', background: '#F7F7F5', borderRadius: 12, border: '1px dashed #D1D5DB' }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>📱</div>
+            <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+              <Icon name="walkin" size={28} color="#9CA3AF" />
+            </div>
             <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>No QR image set</div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Add your GCash/Maya QR in Settings → Walk-in QR</div>
           </div>
         )}
 
         {error && (
-          <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D', fontSize: 13 }}>
-            ⚠️ {error}
+          <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="alert-triangle" size={13} color="#A32D2D" /> {error}
           </div>
         )}
 
@@ -98,7 +113,7 @@ function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCance
           }}>
           {submitting
             ? <><span className="spinner" style={{ borderTopColor: '#374151', borderColor: 'rgba(0,0,0,.15)', width: 16, height: 16 }} /> Processing…</>
-            : '✓ I Received Payment'}
+            : <><Icon name="check" size={16} color="#1F2937" /> I Received Payment</>}
         </button>
 
         <button onClick={onCancel} disabled={submitting}
@@ -156,7 +171,7 @@ export default function WalkIn() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Price calculation (same logic as BookingForm) ─────────────────────────
+  // ── Price calculation ──────────────────────────────────────────────────────
 
   const selectFields = (selectedSvc?.custom_fields || []).filter(f => f.field_type === 'select');
   const firstNumField = (selectedSvc?.custom_fields || []).find(f => f.field_type === 'number');
@@ -326,7 +341,6 @@ export default function WalkIn() {
     if (!promoInput.trim()) return;
     setPromoLoading(true); setPromoError('');
     try {
-      // Use public promo validation since we have the tenant_id in shopInfo
       const { data } = await import('../api.js').then(m => m.validatePublicPromo(shopInfo.id, promoInput.trim(), cartTotal));
       setAppliedPromo(data);
     } catch (e) {
@@ -378,24 +392,28 @@ export default function WalkIn() {
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ maxWidth: 620, margin: '0 auto' }}>
       <div className="skeleton" style={{ height: 28, width: 180, marginBottom: 24 }} />
-      <div className="skeleton" style={{ height: 400, borderRadius: 14 }} />
+      <div className="skeleton" style={{ height: 400, borderRadius: 16 }} />
     </div>
   );
 
   // ── Success ───────────────────────────────────────────────────────────────
 
   if (step === 'success') return (
-    <div style={{ maxWidth: 480, margin: '0 auto' }} className="animate-fade-up">
-      <div style={{ background: '#fff', borderRadius: 16, border: '0.5px solid #E8E8E0', padding: '2.5rem', textAlign: 'center' }}>
-        <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
+    <div style={{ maxWidth: 620, margin: '0 auto' }} className="animate-fade-up">
+      <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '2.5rem', textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #d6eff4 0%, #E2F5F8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="check-circle" size={32} color="#38a9c2" />
+          </div>
+        </div>
         <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 6 }}>Payment Received!</div>
         <div style={{ fontSize: 13, color: '#374151', marginBottom: 24 }}>Order created and marked as paid.</div>
 
-        <div style={{ background: '#F7F9FC', borderRadius: 10, padding: '16px', marginBottom: 8, display: 'inline-block', minWidth: 220 }}>
-          <div style={{ fontSize: 11, color: '#374151', marginBottom: 4 }}>Booking Reference</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#38a9c2', letterSpacing: '.5px', fontFamily: 'monospace' }}>{bookingRef}</div>
+        <div style={{ background: '#F7F9FC', borderRadius: 12, padding: '18px 20px', marginBottom: 8, display: 'inline-block', minWidth: 240, border: '1.5px solid #E2F5F8' }}>
+          <div style={{ fontSize: 11, color: '#374151', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' }}>Booking Reference</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#38a9c2', letterSpacing: '.5px', fontFamily: 'monospace' }}>{bookingRef}</div>
         </div>
 
         <div style={{ fontSize: 13, color: '#374151', marginBottom: 28, marginTop: 16 }}>
@@ -403,53 +421,63 @@ export default function WalkIn() {
         </div>
 
         <button onClick={reset} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: 14, borderRadius: 10 }}>
-          + New Walk-in Order
+          <Icon name="walkin" size={16} color="#fff" style={{ marginRight: 6 }} />
+          New Walk-in Order
         </button>
       </div>
     </div>
   );
 
-  // ── Main layout ───────────────────────────────────────────────────────────
+  // ── card style (matching BookingForm) ────────────────────────────────────
+  const cardStyle = { background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '1.75rem', maxWidth: 620, margin: '0 auto' };
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }} className="animate-fade-up">
+    <div style={{ maxWidth: 660, margin: '0 auto' }} className="animate-fade-up">
       {/* Header */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px' }}>🛒 Walk-in POS</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="walkin" size={20} color="#38a9c2" />
+          Walk-in POS
+        </h1>
         <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>In-store order — no delivery, payment via QR.</p>
       </div>
 
-      {/* Step tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: '1.5rem', background: '#F7F7F5', borderRadius: 10, padding: 4 }}>
-        {[
-          { id: 1, label: '1. Services' },
-          { id: 2, label: '2. Details' },
-          { id: 3, label: '3. Confirm & Pay' },
-        ].map(t => (
-          <button key={t.id} onClick={() => { if (t.id < step || (t.id === 2 && cart.length)) setStep(t.id); }}
-            style={{
-              flex: 1, padding: '8px 4px', fontSize: 12, fontWeight: 600, borderRadius: 7,
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
-              background: step === t.id ? '#fff' : 'transparent',
-              color: step === t.id ? '#111827' : '#9CA3AF',
-              boxShadow: step === t.id ? 'var(--shadow-xs)' : 'none',
-            }}>
-            {t.label}
-          </button>
+      {/* ── Progress steps (matching BookingForm) ── */}
+      <div style={{ maxWidth: 620, margin: '0 auto 20px', display: 'flex', alignItems: 'center' }}>
+        {[{ n: 1, label: 'Service' }, { n: 2, label: 'Details' }, { n: 3, label: 'Review' }].map(({ n, label }, i) => (
+          <div key={n} style={{ display: 'flex', alignItems: 'center', flex: i < 2 ? 1 : 'none' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: step > n ? 'pointer' : 'default' }}
+              onClick={() => { if (step > n || (n === 2 && cart.length)) setStep(n); }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: 13,
+                background: step > n ? '#38a9c2' : step === n ? '#38a9c2' : '#E2E8F0',
+                color: step >= n ? '#fff' : '#374151',
+                transition: 'all .2s',
+              }}>
+                {step > n ? <Icon name="check" size={14} color="#fff" /> : n}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, marginTop: 4, color: step >= n ? '#38a9c2' : '#374151', textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
+            </div>
+            {i < 2 && <div style={{ flex: 1, height: 2, background: step > n ? '#38a9c2' : '#E2E8F0', margin: '0 6px 16px', transition: 'all .2s' }} />}
+          </div>
         ))}
       </div>
 
       {/* ── STEP 1: Services ── */}
       {step === 1 && (
-        <div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Choose a Service</div>
+          <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Select the laundry service you need.</div>
+
           {/* Category tabs */}
           {categories.length > 1 && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
               {categories.map(cat => (
                 <button key={cat.id} onClick={() => setActiveCat(cat.id)}
                   style={{
-                    padding: '6px 14px', fontSize: 13, borderRadius: 20, cursor: 'pointer',
-                    fontFamily: 'inherit', fontWeight: 500, border: 'none',
+                    padding: '6px 14px', fontSize: 12, borderRadius: 20, cursor: 'pointer',
+                    fontFamily: 'inherit', fontWeight: 600, border: 'none',
                     background: activeCat === cat.id ? '#38a9c2' : '#F0F0EC',
                     color: activeCat === cat.id ? '#fff' : '#374151',
                   }}>
@@ -459,106 +487,181 @@ export default function WalkIn() {
             </div>
           )}
 
-          {/* Service list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {visibleServices.map(svc => (
-              <div key={svc.id}
-                onClick={() => { setSelectedSvc(svc); setFieldValues({}); setAddonQty({}); setAddonOwn({}); }}
-                style={{
-                  padding: '12px 14px', borderRadius: 10, cursor: 'pointer',
-                  border: `1.5px solid ${selectedSvc?.id === svc.id ? '#38a9c2' : '#E8E8E0'}`,
-                  background: selectedSvc?.id === svc.id ? '#EBF8FA' : '#fff',
-                  transition: 'all .15s',
-                }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{svc.name}</div>
-                    {svc.description && <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{svc.description}</div>}
+          {/* Service cards */}
+          {visibleServices.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No services in this category.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+              {visibleServices.map(svc => {
+                const selected = selectedSvc?.id === svc.id;
+                return (
+                  <div key={svc.id}
+                    onClick={() => { setSelectedSvc(svc); setFieldValues({}); setAddonQty({}); setAddonOwn({}); }}
+                    style={{
+                      padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
+                      border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
+                      background: selected ? '#EBF8FA' : '#fff',
+                      transition: 'all .15s',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
+                    }}>
+                    {svc.image_url && (
+                      <img src={svc.image_url} alt={svc.name}
+                        style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid #E2E8F0' }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3, color: '#111827' }}>{svc.name}</div>
+                      {svc.description && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>{svc.description}</div>}
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>
+                        {Number(svc.price) > 0 ? `₱${Number(svc.price).toLocaleString()}` : 'See options'}
+                      </div>
+                      {svc.unit && <div style={{ fontSize: 11, color: '#374151' }}>{svc.unit}</div>}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#38a9c2', flexShrink: 0, marginLeft: 12 }}>
-                    {Number(svc.price) > 0 ? `₱${Number(svc.price).toLocaleString()} ${svc.unit || ''}` : 'See options'}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {visibleServices.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#9CA3AF', fontSize: 13 }}>
-                No services in this category.
-              </div>
-            )}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Custom fields for selected service */}
           {selectedSvc && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '1.5px solid #38a9c2', padding: '1.25rem', marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', marginBottom: 14 }}>
-                {selectedSvc.name}
+            <div style={{ marginTop: 8, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="orders" size={13} color="#1a7d94" />
+                Service Details — {selectedSvc.name}
               </div>
 
               {(selectedSvc.custom_fields || []).map(f => {
+                // Addon stepper
                 if (f.field_type === 'addon') {
                   if (!isAddonVisible(f)) return null;
+                  const aqty = addonQty[f.id] || 0;
+                  const isOwn = !!(f.allow_own && addonOwn[f.id]);
+                  const lineTotal = Number(f.unit_price || 0) * aqty;
+                  const unsatisfied = f.required && aqty === 0 && !isOwn;
                   return (
-                    <div key={f.id} style={{ marginBottom: 14 }}>
-                      <label style={LABEL}>{f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <button onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
-                          style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #D1D5DB', background: '#F7F7F5', cursor: 'pointer', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>−</button>
-                        <span style={{ width: 32, textAlign: 'center', fontSize: 15, fontWeight: 600 }}>{addonQty[f.id] || 0}</span>
-                        <button onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
-                          style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #D1D5DB', background: '#F7F7F5', cursor: 'pointer', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>+</button>
-                        <span style={{ fontSize: 13, color: '#374151' }}>₱{Number(f.unit_price || 0)} each</span>
-                        {f.allow_own && (
-                          <label style={{ fontSize: 12, color: '#374151', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', marginLeft: 8 }}>
-                            <input type="checkbox" checked={!!addonOwn[f.id]} onChange={e => setAddonOwn(p => ({ ...p, [f.id]: e.target.checked }))} />
-                            Provides own
+                    <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: `1.5px solid ${unsatisfied ? '#F09595' : '#E2E8F0'}`, borderRadius: 10, padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>
+                            {f.label}
+                            {f.required && <span style={{ color: '#E53E3E', marginLeft: 4, fontSize: 11 }}>*</span>}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 1 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</div>
+                          {f.placeholder && <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{f.placeholder}</div>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 0, opacity: isOwn ? 0.4 : 1 }}>
+                          <button type="button" disabled={isOwn}
+                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
+                            style={{ width: 32, height: 32, borderRadius: '8px 0 0 8px', border: '1.5px solid #E2E8F0', background: '#F7F9FD', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
+                          <div style={{ width: 40, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 14, fontWeight: 700, background: aqty > 0 ? '#E2F5F8' : '#fff', color: aqty > 0 ? '#1a7d94' : '#374151' }}>{aqty}</div>
+                          <button type="button" disabled={isOwn}
+                            onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
+                            style={{ width: 32, height: 32, borderRadius: '0 8px 8px 0', border: '1.5px solid #38a9c2', background: '#38a9c2', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>+</button>
+                        </div>
+                        {lineTotal > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: '#1a7d94', minWidth: 60, textAlign: 'right' }}>₱{lineTotal.toLocaleString()}</div>}
+                      </div>
+                      {f.allow_own && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #E2E8F0' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: isOwn ? '#1a7d94' : '#374151', fontWeight: isOwn ? 600 : 400 }}>
+                            <div onClick={() => {
+                              const next = !isOwn;
+                              setAddonOwn(p => ({ ...p, [f.id]: next }));
+                              if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
+                            }} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? '#38a9c2' : '#CBD5E0'}`, background: isOwn ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
+                              {isOwn && <Icon name="check" size={11} color="#fff" />}
+                            </div>
+                            I'll provide my own {f.label.toLowerCase()}
                           </label>
-                        )}
+                        </div>
+                      )}
+                      {unsatisfied && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#A32D2D', fontWeight: 600 }}>
+                          Please select a quantity or choose to provide your own.
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Select field: button group (matching BookingForm)
+                if (f.field_type === 'select') {
+                  const opts = normalizeOpts(f.options);
+                  const selectedVal = fieldValues[f.id];
+                  return (
+                    <div key={f.id} style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#1F2937', display: 'block', marginBottom: 8 }}>
+                        {f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {opts.map(opt => {
+                          const isSel = selectedVal === opt.label;
+                          return (
+                            <button key={opt.label} type="button"
+                              onClick={() => setFieldValues(p => ({ ...p, [f.id]: opt.label }))}
+                              style={{
+                                padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                                border: isSel ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
+                                background: isSel ? '#E2F5F8' : '#fff',
+                                color: isSel ? '#1a7d94' : '#374151',
+                                fontSize: 13, fontWeight: isSel ? 700 : 500,
+                                transition: 'all .15s', textAlign: 'center', minWidth: 80,
+                              }}>
+                              <div>{opt.label}</div>
+                              {(opt.price_type === 'copy_base' || opt.price > 0) && (
+                                <div style={{ fontSize: 11, color: isSel ? '#38a9c2' : '#7C3AED', marginTop: 2, fontWeight: 600 }}>
+                                  {opt.price_type === 'copy_base'
+                                    ? (baseVariationPrice > 0 ? `+₱${Number(baseVariationPrice).toLocaleString()}` : '= base')
+                                    : `+₱${Number(opt.price).toLocaleString()}`}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );
                 }
 
-                if (f.field_type === 'select') {
-                  return (
-                    <Field key={f.id} label={f.label} required={f.required}>
-                      <select value={fieldValues[f.id] || ''} onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                        style={INPUT}>
-                        <option value="">Select…</option>
-                        {normalizeOpts(f.options).map(o => (
-                          <option key={o.label} value={o.label}>{o.label}{Number(o.price) > 0 ? ` (+₱${Number(o.price).toLocaleString()})` : ''}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  );
-                }
-
+                // Number / text / textarea fields
                 if (f.field_type === 'number') {
                   return (
-                    <Field key={f.id} label={f.label} required={f.required}>
+                    <Field key={f.id} label={`${f.label} (× price)`} required={f.required}>
                       <input type="number" min={f.min_value ?? 0} max={f.max_value ?? undefined}
                         value={fieldValues[f.id] || ''}
                         onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={f.placeholder || ''} style={INPUT} />
+                        placeholder={f.placeholder || ''} style={INPUT}
+                        onFocus={focusInput} onBlur={blurInput} />
                     </Field>
                   );
                 }
 
-                if (f.field_type === 'text' || f.field_type === 'textarea') {
+                if (f.field_type === 'textarea') {
                   return (
                     <Field key={f.id} label={f.label} required={f.required}>
-                      <input type="text" value={fieldValues[f.id] || ''}
+                      <textarea value={fieldValues[f.id] || ''}
                         onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                        placeholder={f.placeholder || ''} style={INPUT} />
+                        placeholder={f.placeholder || ''} rows={3}
+                        style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
+                        onFocus={focusInput} onBlur={blurInput} />
                     </Field>
                   );
                 }
-                return null;
+
+                return (
+                  <Field key={f.id} label={f.label} required={f.required}>
+                    <input type="text" value={fieldValues[f.id] || ''}
+                      onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
+                      placeholder={f.placeholder || ''} style={INPUT}
+                      onFocus={focusInput} onBlur={blurInput} />
+                  </Field>
+                );
               })}
 
               {/* Live price preview */}
               {(subtotal + addonTotal) > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '0.5px solid #E8E8E0', marginTop: 8, fontSize: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderTop: '0.5px solid #E2E8F0', marginTop: 8, fontSize: 14 }}>
                   <span style={{ color: '#374151' }}>Item total</span>
                   <span style={{ fontWeight: 800, color: '#38a9c2' }}>₱{(subtotal + addonTotal).toLocaleString()}</span>
                 </div>
@@ -574,10 +677,10 @@ export default function WalkIn() {
 
           {/* Cart summary */}
           {cart.length > 0 && (
-            <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8E8E0', padding: '1.25rem', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#374151', marginBottom: 10 }}>Order so far</div>
+            <div style={{ background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8', padding: '1.25rem', marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: '#1a7d94', marginBottom: 10 }}>Order so far</div>
               {cart.map((item, idx) => (
-                <div key={item._id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: idx < cart.length - 1 ? '0.5px solid #F0F0EC' : 'none' }}>
+                <div key={item._id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: idx < cart.length - 1 ? '0.5px solid #E2E8F0' : 'none' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{item.service_name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -593,7 +696,7 @@ export default function WalkIn() {
                   ))}
                 </div>
               ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 15 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '0.5px solid #E2E8F0', fontSize: 15 }}>
                 <span style={{ fontWeight: 700 }}>Total</span>
                 <span style={{ fontWeight: 800, color: '#38a9c2' }}>₱{cartTotal.toLocaleString()}</span>
               </div>
@@ -609,38 +712,45 @@ export default function WalkIn() {
 
       {/* ── STEP 2: Customer details ── */}
       {step === 2 && (
-        <div style={{ background: '#fff', borderRadius: 14, border: '0.5px solid #E8E8E0', padding: '1.5rem' }}>
-          <div style={{ fontWeight: 600, fontSize: 14, color: '#374151', marginBottom: 16 }}>Customer details</div>
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Customer Details</div>
+          <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Enter the customer's information below.</div>
 
           <Field label="Full Name" required>
             <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              placeholder="e.g. Juan dela Cruz" style={INPUT} />
+              placeholder="e.g. Juan dela Cruz" style={INPUT}
+              onFocus={focusInput} onBlur={blurInput} />
           </Field>
 
           <Field label="Mobile Number" required>
             <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-              placeholder="09XXXXXXXXX" style={INPUT} />
+              placeholder="09XXXXXXXXX" style={INPUT}
+              onFocus={focusInput} onBlur={blurInput} />
           </Field>
 
           <Field label="Email (optional)">
             <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              placeholder="customer@email.com" style={INPUT} />
+              placeholder="customer@email.com" style={INPUT}
+              onFocus={focusInput} onBlur={blurInput} />
           </Field>
 
           <Field label="Address (optional)">
             <input type="text" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))}
-              placeholder="Street, Barangay, City" style={INPUT} />
+              placeholder="Street, Barangay, City" style={INPUT}
+              onFocus={focusInput} onBlur={blurInput} />
           </Field>
 
           {/* Pickup date/time */}
-          <div style={{ display: 'grid', gridTemplateColumns: timeSlots.length ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: timeSlots.length ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 0 }}>
             <Field label="Pickup Date" required>
               <input type="date" value={form.pickup_date} min={minDate}
-                onChange={e => setForm(p => ({ ...p, pickup_date: e.target.value }))} style={INPUT} />
+                onChange={e => setForm(p => ({ ...p, pickup_date: e.target.value }))} style={INPUT}
+                onFocus={focusInput} onBlur={blurInput} />
             </Field>
             {timeSlots.length > 0 && (
               <Field label="Pickup Time" required>
-                <select value={form.pickup_time} onChange={e => setForm(p => ({ ...p, pickup_time: e.target.value }))} style={INPUT}>
+                <select value={form.pickup_time} onChange={e => setForm(p => ({ ...p, pickup_time: e.target.value }))}
+                  style={INPUT} onFocus={focusInput} onBlur={blurInput}>
                   <option value="">Select time…</option>
                   {timeSlots.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
@@ -651,7 +761,8 @@ export default function WalkIn() {
           <Field label="Notes (optional)">
             <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Special instructions..." rows={2}
-              style={{ ...INPUT, resize: 'vertical' }} />
+              style={{ ...INPUT, resize: 'vertical' }}
+              onFocus={focusInput} onBlur={blurInput} />
           </Field>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -668,21 +779,25 @@ export default function WalkIn() {
       {step === 3 && (
         <div>
           {/* Order summary card */}
-          <div style={{ background: '#fff', borderRadius: 14, border: '0.5px solid #E8E8E0', padding: '1.5rem', marginBottom: 14 }}>
-            <div style={{ fontWeight: 600, fontSize: 14, color: '#374151', marginBottom: 14 }}>Order summary</div>
+          <div style={cardStyle}>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Review & Pay</div>
+            <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Confirm the order details before collecting payment.</div>
 
-            {/* Customer */}
-            <div style={{ background: '#F7F9FC', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+            {/* Customer info */}
+            <div style={{ background: '#F7F9FC', borderRadius: 10, padding: '12px 14px', marginBottom: 16, border: '1px solid #E2F5F8' }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{form.name}</div>
               <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{form.phone}{form.email ? ` · ${form.email}` : ''}</div>
               {form.address && <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{form.address}</div>}
-              <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>📅 Pickup: {form.pickup_date}{form.pickup_time ? ` at ${form.pickup_time}` : ''}</div>
+              <div style={{ fontSize: 12, color: '#374151', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Icon name="calendar" size={11} color="#374151" />
+                Pickup: {form.pickup_date}{form.pickup_time ? ` at ${form.pickup_time}` : ''}
+              </div>
               {form.notes && <div style={{ fontSize: 12, color: '#374151', marginTop: 4, fontStyle: 'italic' }}>"{form.notes}"</div>}
             </div>
 
             {/* Cart items */}
             {cart.map((item, idx) => (
-              <div key={item._id} style={{ paddingBottom: 10, marginBottom: 10, borderBottom: idx < cart.length - 1 ? '0.5px solid #F0F0EC' : 'none' }}>
+              <div key={item._id} style={{ paddingBottom: 10, marginBottom: 10, borderBottom: idx < cart.length - 1 ? '0.5px solid #E2E8F0' : 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
                   <span>{item.service_name}</span>
                   <span>₱{item.itemTotal.toLocaleString()}</span>
@@ -699,7 +814,8 @@ export default function WalkIn() {
             {!appliedPromo ? (
               <div style={{ display: 'flex', gap: 8, marginBottom: 12, marginTop: 4 }}>
                 <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())}
-                  placeholder="Promo code" style={{ ...INPUT, flex: 1, padding: '8px 12px', fontSize: 13 }} />
+                  placeholder="Promo code" style={{ ...INPUT, flex: 1, padding: '8px 12px', fontSize: 13 }}
+                  onFocus={focusInput} onBlur={blurInput} />
                 <button onClick={applyPromo} disabled={promoLoading || !promoInput.trim()}
                   className="btn-ghost" style={{ flexShrink: 0, padding: '8px 14px', fontSize: 13 }}>
                   {promoLoading ? '…' : 'Apply'}
@@ -726,34 +842,35 @@ export default function WalkIn() {
                 <span>Promo discount</span><span>−₱{promoDiscount.toLocaleString()}</span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '0.5px solid #E8E8E0', marginTop: 6, fontSize: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '0.5px solid #E2E8F0', marginTop: 6, fontSize: 16 }}>
               <span style={{ fontWeight: 700 }}>Total</span>
               <span style={{ fontWeight: 800, color: '#38a9c2' }}>₱{grandTotal.toLocaleString()}</span>
             </div>
-          </div>
 
-          {/* Privacy consent */}
-          <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? '#38a9c2' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}
-            onClick={() => setPrivacyConsent(p => !p)}>
-            <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? '#38a9c2' : '#CBD5E0'}`, background: privacyConsent ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
-              {privacyConsent && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+            {/* Privacy consent */}
+            <div style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? '#38a9c2' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', transition: 'all .15s' }}
+              onClick={() => setPrivacyConsent(p => !p)}>
+              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? '#38a9c2' : '#CBD5E0'}`, background: privacyConsent ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
+                {privacyConsent && <Icon name="check" size={11} color="#fff" />}
+              </div>
+              <p style={{ fontSize: 12, color: '#374151', margin: 0, lineHeight: 1.5 }}>
+                I voluntarily give my consent to <strong>{shopInfo?.name || 'this shop'}</strong> to keep and process the information, and to use it only to provide the service and to collect payment. I acknowledge and agree that in doing so, any such data may be processed through third-party data processors such as, but not limited to, service providers. I give my consent thereto pursuant to the requirements of Republic Act No. 10173, or the "Data Privacy Act of 2012."
+              </p>
             </div>
-            <p style={{ fontSize: 12, color: '#374151', margin: 0, lineHeight: 1.5 }}>
-              I voluntarily give my consent to <strong>{shopInfo?.name || 'this shop'}</strong> to keep and process the information, and to use it only to provide the service and to collect payment. I acknowledge and agree that in doing so, any such data may be processed through third-party data processors such as, but not limited to, service providers. I give my consent thereto pursuant to the requirements of Republic Act No. 10173, or the "Data Privacy Act of 2012."
-            </p>
-          </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setStep(2)} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '12px', borderRadius: 10 }}>← Back</button>
-            <button onClick={() => setShowQR(true)} disabled={!privacyConsent}
-              style={{
-                flex: 2, padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
-                border: 'none', cursor: privacyConsent ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                background: privacyConsent ? '#fdca00' : '#E2E8F0', color: privacyConsent ? '#1F2937' : '#9CA3AF',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .15s',
-              }}>
-              💳 Show QR &amp; Collect Payment
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setStep(2)} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '12px', borderRadius: 10 }}>← Back</button>
+              <button onClick={() => setShowQR(true)} disabled={!privacyConsent}
+                style={{
+                  flex: 2, padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
+                  border: 'none', cursor: privacyConsent ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  background: privacyConsent ? '#fdca00' : '#E2E8F0', color: privacyConsent ? '#1F2937' : '#9CA3AF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .15s',
+                }}>
+                <Icon name="walkin" size={16} color={privacyConsent ? '#1F2937' : '#9CA3AF'} />
+                Show QR &amp; Collect Payment
+              </button>
+            </div>
           </div>
         </div>
       )}
