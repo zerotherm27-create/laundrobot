@@ -48,7 +48,7 @@ export default function Overview() {
     finally { setReleasing(null); }
   }
 
-  const revenue     = orders.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
+  const revenue     = orders.filter(o => o.paid && o.status !== 'CANCELLED').reduce((s, o) => s + Number(o.price), 0);
   const active      = orders.filter(o => o.status !== 'COMPLETED').length;
   const today       = new Date().toISOString().slice(0, 10);
   const todayOrders = orders.filter(o => o.created_at?.slice(0, 10) === today).length;
