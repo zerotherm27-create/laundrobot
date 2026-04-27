@@ -7,7 +7,9 @@ router.get('/', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT rl.id, rl.name, rl.ref, rl.click_count, rl.created_at,
-              COUNT(DISTINCT o.id) FILTER (WHERE o.paid = TRUE AND o.status != 'CANCELLED') AS order_count
+              COUNT(DISTINCT o.id)                                                                      AS order_count,
+              COUNT(DISTINCT o.id) FILTER (WHERE o.paid = TRUE AND o.status != 'CANCELLED')            AS paid_order_count,
+              COALESCE(SUM(o.price) FILTER (WHERE o.paid = TRUE AND o.status != 'CANCELLED'), 0)       AS revenue
        FROM referral_links rl
        LEFT JOIN orders o ON o.referral_ref = rl.ref AND o.tenant_id = rl.tenant_id
        WHERE rl.tenant_id = $1
