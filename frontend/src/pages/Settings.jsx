@@ -650,14 +650,14 @@ export default function Settings() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid #F3F4F6' }}>
-                  {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Conv %', ''].map(h => (
+                  {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Paid', 'Revenue', 'Conv %', ''].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {referrals.map(r => {
-                  const conv = r.click_count > 0 ? ((Number(r.order_count) / r.click_count) * 100).toFixed(1) : '—';
+                  const conv = r.click_count > 0 ? ((Number(r.paid_order_count) / r.click_count) * 100).toFixed(1) : '—';
                   const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
                   return (
                     <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
@@ -672,7 +672,9 @@ export default function Settings() {
                         </button>
                       </td>
                       <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
-                      <td style={{ padding: '10px 10px', color: '#374151', fontWeight: 600 }}>{r.order_count}</td>
+                      <td style={{ padding: '10px 10px', color: '#374151' }}>{r.order_count}</td>
+                      <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.paid_order_count}</td>
+                      <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
                       <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
                       <td style={{ padding: '10px 10px' }}>
                         <button type="button"
