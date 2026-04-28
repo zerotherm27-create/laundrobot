@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { randomUUID } = require('crypto');
 const axios = require('axios');
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
@@ -422,11 +423,6 @@ router.post('/:tenantId/orders', async (req, res) => {
     );
     const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
 
-    // Base order count — must be global (no tenant filter) since id is a global TEXT PRIMARY KEY
-    const { rows: [{ count: baseCount }] } = await client.query(
-      'SELECT COUNT(*) FROM orders'
-    );
-    let orderCount = Number(baseCount);
 
     const servicesTotal = pricedItems.reduce((s, i) => s + i.effectiveSubtotal + i.addonTotal, 0);
 
@@ -457,8 +453,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       const itemDeliveryFee = i === 0 ? deliveryFee : 0;
       const itemTotal = effectiveSubtotal + addonTotal + itemDeliveryFee;
 
-      orderCount++;
-      const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
+      const orderId = randomUUID();
 
       const orderStatus = isDropoff ? 'AWAITING PAYMENT' : 'NEW ORDER';
       const orderPaid   = false;
