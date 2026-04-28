@@ -9,7 +9,12 @@ const RESPONSIVE_CSS = `
   .l-features   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
   .l-steps      { display: flex; gap: 0; position: relative; }
   .l-connector  { display: block; }
-  .l-showcase   { display: flex; align-items: flex-start; gap: 3rem; flex-wrap: wrap; justify-content: center; }
+  .l-showcase      { display: flex; align-items: flex-start; gap: 3rem; flex-wrap: wrap; justify-content: center; }
+  .l-pricing-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start; }
+
+  @media (max-width: 860px) {
+    .l-pricing-grid { grid-template-columns: 1fr; max-width: 440px; margin-left: auto; margin-right: auto; }
+  }
 
   @media (max-width: 900px) {
     .l-features { grid-template-columns: repeat(2, 1fr); }
@@ -314,6 +319,9 @@ function Nav() {
           <a href="#features" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
             onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
             onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Features</a>
+          <a href="#pricing" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
+            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Pricing</a>
           <a href="#how" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
             onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
             onMouseLeave={e => e.currentTarget.style.color = '#374151'}>How it works</a>
@@ -578,6 +586,229 @@ function FAQ() {
   );
 }
 
+// ── Pricing ───────────────────────────────────────────────────────────────────
+const PLANS = [
+  {
+    name: 'Starter',
+    tagline: 'For shops tired of managing orders by hand',
+    monthly: 599,
+    annual: 499,
+    annualTotal: '₱5,990',
+    color: '#38a9c2',
+    textColor: '#1a7d94',
+    bg: '#e6f5f8',
+    popular: false,
+    cta: 'Start free trial',
+    features: [
+      '1 branch · 2 staff accounts',
+      'Messenger bot + AI chatbot (Tagalog & English)',
+      'Booking webform with Xendit payments',
+      'Kanban order board + Walk-in POS',
+      'Email notifications to owner & customer',
+      'Up to 200 orders/month',
+    ],
+  },
+  {
+    name: 'Growth',
+    tagline: 'Works harder than a part-time staff — for less',
+    monthly: 1999,
+    annual: 1666,
+    annualTotal: '₱19,990',
+    color: '#38a9c2',
+    textColor: '#fff',
+    bg: '#38a9c2',
+    popular: true,
+    cta: 'Start free trial',
+    features: [
+      'Everything in Starter',
+      'Up to 3 branches · 5 staff accounts',
+      'Blast messaging to all your customers',
+      'Promo codes & referral links',
+      'Auto payment reminders (4-stage follow-up)',
+      'Auto-cancel unpaid orders after 24 hours',
+      'Revenue reports & analytics',
+      'Up to 1,000 orders/month',
+    ],
+  },
+  {
+    name: 'Pro',
+    tagline: 'One dashboard for all your branches',
+    monthly: 5499,
+    annual: 4583,
+    annualTotal: '₱54,990',
+    color: '#7F77DD',
+    textColor: '#4740a8',
+    bg: '#F0EFFC',
+    popular: false,
+    cta: 'Contact us',
+    features: [
+      'Everything in Growth',
+      'Unlimited branches & staff accounts',
+      'Custom AI instructions per branch',
+      'White-label booking form (your domain)',
+      'Unlimited orders',
+      'Priority support + dedicated onboarding',
+    ],
+  },
+];
+
+const COMPARE = [
+  { before: 'Manual Messenger replies, 8am–5pm only',   after: 'AI chatbot answers 24/7 in Tagalog'         },
+  { before: 'Missed orders when the shop is closed',     after: 'Booking form captures orders anytime'       },
+  { before: 'Chase unpaid customers yourself',           after: '4-stage auto reminders + auto-cancel'       },
+  { before: 'Part-time staff costs ₱7,000/month',       after: 'Growth plan is ₱1,999/month'                },
+];
+
+function PricingCard({ plan, annual }) {
+  const price = annual ? plan.annual : plan.monthly;
+  const isPopular = plan.popular;
+  return (
+    <div style={{
+      border: isPopular ? `2px solid ${plan.color}` : '1px solid #EBEBEB',
+      borderRadius: 20,
+      overflow: 'hidden',
+      background: '#fff',
+      boxShadow: isPopular ? '0 16px 48px rgba(56,169,194,.18)' : '0 2px 12px rgba(0,0,0,.05)',
+      position: 'relative',
+    }}>
+      {isPopular && (
+        <div style={{ background: plan.color, textAlign: 'center', padding: '7px', fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          ⭐ Most Popular
+        </div>
+      )}
+      <div style={{ padding: '1.75rem 1.5rem' }}>
+        {/* Plan name + tagline */}
+        <div style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: plan.textColor, background: plan.bg, padding: '3px 10px', borderRadius: 50, marginBottom: '1rem' }}>{plan.name}</div>
+        <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, marginBottom: '1.25rem', fontWeight: 500, minHeight: 40 }}>{plan.tagline}</p>
+
+        {/* Price */}
+        <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #F0F0EC' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#9CA3AF', alignSelf: 'flex-start', marginTop: 8 }}>₱</span>
+            <span style={{ fontSize: 'clamp(2.2rem,4vw,2.8rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', lineHeight: 1 }}>
+              {price.toLocaleString()}
+            </span>
+            <span style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 4 }}>/month</span>
+          </div>
+          {annual && (
+            <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 4 }}>
+              Billed {plan.annualTotal}/year · 2 months free
+            </div>
+          )}
+          {!annual && (
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>or save 2 months with annual billing</div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <a href="/login" style={{
+          display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
+          background: isPopular ? plan.color : 'transparent',
+          border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
+          color: isPopular ? '#fff' : '#374151',
+          fontWeight: 800, fontSize: 14, textDecoration: 'none',
+          marginBottom: '1.5rem', transition: 'all .15s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = isPopular ? '#1d8ba0' : '#F8F8F6'; e.currentTarget.style.borderColor = isPopular ? '#1d8ba0' : '#bbb'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = isPopular ? plan.color : 'transparent'; e.currentTarget.style.borderColor = isPopular ? plan.color : '#DADADA'; }}
+        >
+          {plan.cta}
+        </a>
+
+        {/* Features */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {plan.features.map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: isPopular ? '#e6f5f8' : '#F0F0EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                <Icon name="check" size={10} color={plan.color} />
+              </div>
+              <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{f}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Pricing() {
+  const [annual, setAnnual] = useState(false);
+  const ref = useFadeUp();
+
+  return (
+    <section id="pricing" style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+        {/* Header */}
+        <div ref={ref} style={{ textAlign: 'center', marginBottom: '3rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FDF3E3', color: '#BA7517', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>Pricing</div>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>
+            Costs less than a part-time staff.<br />Works 24 hours a day.
+          </h2>
+          <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 480, margin: '0 auto', lineHeight: 1.7, fontWeight: 400 }}>
+            A part-time Messenger encoder costs ₱7,000/month and only works 8 hours. LaundroBot works around the clock — in Tagalog.
+          </p>
+        </div>
+
+        {/* Before / After comparison */}
+        <div style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 16, overflow: 'hidden', marginBottom: '2.5rem', maxWidth: 760, margin: '0 auto 2.5rem' }}>
+          <div className="l-compare-grid">
+            <div style={{ background: '#FFF5F5', padding: '1rem 1.25rem', borderRight: '1px solid #EBEBEB' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: '#EF4444', marginBottom: '.75rem' }}>❌ Without LaundroBot</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {COMPARE.map((c, i) => (
+                  <div key={i} style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <span style={{ color: '#FCA5A5', flexShrink: 0, marginTop: 1 }}>✕</span>{c.before}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background: '#F0FAFE', padding: '1rem 1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: '.75rem' }}>✅ With LaundroBot</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {COMPARE.map((c, i) => (
+                  <div key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8, fontWeight: 500 }}>
+                    <span style={{ color: '#38a9c2', flexShrink: 0, marginTop: 1 }}>✓</span>{c.after}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly / Annual toggle */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+          <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
+            {[{ label: 'Monthly', val: false }, { label: 'Annual · 2 months free', val: true }].map(opt => (
+              <button key={opt.label} onClick={() => setAnnual(opt.val)}
+                style={{ padding: '8px 20px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? '#38a9c2' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280' }}>
+                {opt.label}
+                {opt.val && <span style={{ marginLeft: 6, background: '#fdca00', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50 }}>SAVE 17%</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div className="l-pricing-grid" style={{ marginBottom: '2rem' }}>
+          {PLANS.map(p => <PricingCard key={p.name} plan={p} annual={annual} />)}
+        </div>
+
+        {/* Footer note */}
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 .5rem' }}>
+            14-day free trial on all plans · No credit card required · Cancel anytime
+          </p>
+          <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+            Need help getting set up? <a href="/login" style={{ color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}>One-time onboarding for ₱1,500 →</a>
+          </p>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
 // ── CTA band ──────────────────────────────────────────────────────────────────
 function CtaBand() {
   const ref = useFadeUp();
@@ -645,6 +876,7 @@ export default function Landing() {
         <BookingLinkSection />
         <Features />
         <HowItWorks />
+        <Pricing />
         <FAQ />
         <CtaBand />
       </main>
