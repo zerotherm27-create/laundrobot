@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /book/
+
+Sitemap: https://www.thelaundryproject.app/sitemap.xml

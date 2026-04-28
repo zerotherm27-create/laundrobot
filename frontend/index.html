@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PH">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -9,34 +9,83 @@
     <link rel="apple-touch-icon" href="/icon-512.png" />
 
     <!-- ── Primary SEO ── -->
-    <title>LaundroBot — Laundry Business Management Dashboard</title>
-    <meta name="description" content="LaundroBot is a modern laundry business management platform with Facebook Messenger order booking, real-time order tracking, Kanban board, and multi-branch support for laundry businesses in the Philippines." />
-    <meta name="keywords" content="laundry management, laundry business software, laundry POS, Facebook Messenger booking, laundry order tracking, Philippines" />
+    <title>LaundroBot — Laundry Shop Management Software · Philippines</title>
+    <meta name="description" content="LaundroBot is laundry shop management software built for the Philippines. Accept orders via Facebook Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7." />
+    <meta name="keywords" content="laundry management software Philippines, laundry shop system, laundry POS Philippines, Facebook Messenger laundry booking, laundry order tracking, laundry business app Philippines" />
     <meta name="author" content="LaundroBot" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://www.thelaundryproject.app" />
+    <link rel="canonical" href="https://www.thelaundryproject.app/" />
 
     <!-- ── Open Graph / Facebook ── -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.thelaundryproject.app" />
-    <meta property="og:title" content="LaundroBot — Laundry Business Management" />
-    <meta property="og:description" content="Manage your laundry business smarter. Accept Messenger orders, track pickups, and grow with LaundroBot." />
+    <meta property="og:url" content="https://www.thelaundryproject.app/" />
+    <meta property="og:title" content="LaundroBot — Laundry Shop Management Software · Philippines" />
+    <meta property="og:description" content="Accept orders via Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7. Built for laundry shops in the Philippines." />
     <meta property="og:image" content="https://www.thelaundryproject.app/og-image.png" />
     <meta property="og:site_name" content="LaundroBot" />
     <meta property="og:locale" content="en_PH" />
 
     <!-- ── Twitter Card ── -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LaundroBot — Laundry Business Management" />
-    <meta name="twitter:description" content="Accept Messenger orders, track pickups & deliveries, manage multiple branches." />
+    <meta name="twitter:title" content="LaundroBot — Laundry Shop Management Software · Philippines" />
+    <meta name="twitter:description" content="Accept orders via Messenger, manage pickups & deliveries, AI chatbot in Tagalog & English. Built for laundry shops in the Philippines." />
     <meta name="twitter:image" content="https://www.thelaundryproject.app/og-image.png" />
 
     <!-- ── Favicon ── -->
     <link rel="icon" type="image/png" href="/logo.png" />
 
-    <!-- ── Leaflet (map) ── -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- ── Leaflet (map) — loaded only inside dashboard, not on landing page ── -->
+    <script>
+      (function() {
+        var p = window.location.pathname;
+        var isDashboard = p !== '/' && p !== '/login' && !p.startsWith('/book/');
+        if (isDashboard) {
+          var css = document.createElement('link');
+          css.rel = 'stylesheet';
+          css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(css);
+          var js = document.createElement('script');
+          js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          document.head.appendChild(js);
+        }
+      })();
+    </script>
+
+    <!-- ── Structured data ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.thelaundryproject.app/#organization",
+          "name": "LaundroBot",
+          "url": "https://www.thelaundryproject.app/",
+          "logo": "https://www.thelaundryproject.app/logo.png",
+          "description": "Laundry shop management software built for the Philippines.",
+          "areaServed": "PH"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.thelaundryproject.app/#software",
+          "name": "LaundroBot",
+          "url": "https://www.thelaundryproject.app/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PHP" },
+          "description": "All-in-one laundry shop management software for the Philippines. Accept orders via Facebook Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7.",
+          "featureList": [
+            "Facebook Messenger order booking",
+            "AI chatbot in Tagalog and English",
+            "Kanban order board",
+            "Walk-in POS",
+            "Delivery zone management",
+            "Blast messaging"
+          ]
+        }
+      ]
+    }
+    </script>
 
     <!-- ── Fonts ── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

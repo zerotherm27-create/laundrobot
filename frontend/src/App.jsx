@@ -17,6 +17,7 @@ import Users from './pages/Users.jsx';
 import DeliveryZones from './pages/DeliveryZones.jsx';
 import Settings from './pages/Settings.jsx';
 import WalkIn from './pages/WalkIn.jsx';
+import Landing from './pages/Landing.jsx';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
@@ -103,9 +104,14 @@ function Inner() {
     );
   }
 
+  const path = window.location.pathname;
+
   if (!user) {
-    document.title = 'Sign In — LaundroBot';
-    return <Login />;
+    if (path === '/login') {
+      document.title = 'Sign In — LaundroBot';
+      return <Login />;
+    }
+    return <Landing />;
   }
 
   return <Dashboard />;
