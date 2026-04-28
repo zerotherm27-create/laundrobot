@@ -235,8 +235,13 @@ export default function BookingForm({ tenantId }) {
   const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
 
   useEffect(() => {
-    // Fall back to Extensions SDK only when psid wasn't in the URL (e.g. old-style links)
-    if (!new URLSearchParams(window.location.search).get('psid')) {
+    // Read psid from URL param first (set by bot when opening the booking link)
+    // Works even when the form opens in an external browser outside Messenger webview
+    const urlPsid = new URLSearchParams(window.location.search).get('psid');
+    if (urlPsid) setMessengerPsid(urlPsid);
+
+    // Also try MessengerExtensions SDK (only works inside Messenger webview, may override URL psid)
+    if (!urlPsid) {
       const tryGetPsid = () => {
         try {
           if (window.MessengerExtensions) {

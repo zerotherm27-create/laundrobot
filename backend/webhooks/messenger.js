@@ -234,6 +234,8 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
   // Messenger: "Book Now" opens webform. Instagram: "Book This" starts bot flow.
   const appUrl = process.env.APP_URL;
   const useWebform = channel === 'messenger' && appUrl;
+  // Include psid in URL so BookingForm can link the order to this Messenger user
+  // even when the webview opens in an external browser (where MessengerExtensions SDK is unavailable)
   const bookUrl = appUrl ? `${appUrl}/book/${tenantId}?psid=${senderId}` : null;
 
   const elements = services.map(s => ({
