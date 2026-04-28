@@ -416,12 +416,13 @@ router.post('/:tenantId/orders', async (req, res) => {
       referralRef = conv?.referral_ref || null;
     }
 
-    // Generate booking ref
-    const { rows: [{ count: bkgCount }] } = await client.query(
-      `SELECT COUNT(DISTINCT booking_ref) FROM orders WHERE tenant_id=$1 AND booking_ref IS NOT NULL`,
+    // Generate booking ref — use MAX to avoid collisions when sequence has gaps
+    const { rows: [{ maxref }] } = await client.query(
+      `SELECT MAX(CAST(REPLACE(booking_ref, 'BKG-', '') AS INTEGER)) as maxref
+       FROM orders WHERE tenant_id=$1 AND booking_ref ~ '^BKG-[0-9]+$'`,
       [req.params.tenantId]
     );
-    const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
+    const bookingRef = 'BKG-' + String((Number(maxref) || 0) + 1).padStart(6, '0');
 
 
     const servicesTotal = pricedItems.reduce((s, i) => s + i.effectiveSubtotal + i.addonTotal, 0);
