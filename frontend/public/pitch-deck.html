@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LaundroBot — Investor Pitch Deck 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --teal: #38a9c2; --teal-dark: #1d8ba0; --teal-light: #e6f5f8;
+    --dark: #0D1117; --gray: #374151; --gray-2: #6B7280; --gray-3: #9CA3AF;
+    --yellow: #fdca00; --purple: #7F77DD; --green: #1D9E75;
+    --border: #E8E8E0; --bg: #F8F8F6;
+  }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #1a1a2e; color: var(--dark); }
+
+  /* ── Slide shell ── */
+  .deck { display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem 5rem; gap: 2rem; }
+  .slide {
+    width: 100%; max-width: 960px;
+    aspect-ratio: 16/9;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.5);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Slide number ── */
+  .slide-num {
+    position: absolute; bottom: 18px; right: 24px;
+    font-size: 11px; font-weight: 700; color: rgba(255,255,255,.3);
+    letter-spacing: .05em;
+  }
+  .slide-num-dark { color: rgba(0,0,0,.2); }
+
+  /* ── Typography helpers ── */
+  .label { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .hero-title { font-size: clamp(2rem, 4.5vw, 3.8rem); font-weight: 900; line-height: 1.05; letter-spacing: -.04em; }
+  .section-title { font-size: clamp(1.4rem, 3vw, 2.2rem); font-weight: 900; line-height: 1.1; letter-spacing: -.03em; }
+  .body-text { font-size: clamp(0.85rem, 1.4vw, 1rem); line-height: 1.6; font-weight: 500; }
+  .small { font-size: clamp(0.7rem, 1.1vw, 0.85rem); }
+
+  /* ── Slide 1: Cover ── */
+  .s-cover {
+    background: linear-gradient(135deg, #0D1117 0%, #0a1628 50%, #0d2137 100%);
+    justify-content: center; align-items: center; text-align: center; padding: 3rem;
+  }
+  .s-cover .logo-wrap { display: flex; align-items: center; gap: 14px; justify-content: center; margin-bottom: 2rem; }
+  .s-cover .logo-wrap img { width: 52px; height: 52px; border-radius: 14px; }
+  .s-cover .logo-wrap span { font-size: 1.6rem; font-weight: 900; color: #fff; }
+  .s-cover h1 { color: #fff; margin-bottom: 1rem; }
+  .s-cover h1 span { color: var(--teal); }
+  .s-cover p { color: rgba(255,255,255,.6); max-width: 540px; margin: 0 auto 2rem; }
+  .s-cover .pill { display: inline-block; background: rgba(56,169,194,.15); border: 1px solid rgba(56,169,194,.3); color: var(--teal); padding: 6px 18px; border-radius: 50px; font-size: 12px; font-weight: 700; margin: 0 4px; }
+  .teal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); display: inline-block; margin-right: 6px; }
+
+  /* ── Slide 2: Problem ── */
+  .s-problem { background: #fff; padding: 3rem 3.5rem; }
+  .s-problem .header { margin-bottom: 2.2rem; }
+  .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; flex: 1; }
+  .pain-card { background: #FFF5F5; border: 1px solid #FDD; border-radius: 14px; padding: 1.25rem; }
+  .pain-card .icon { font-size: 1.6rem; margin-bottom: .75rem; }
+  .pain-card h3 { font-size: .9rem; font-weight: 800; color: #7f1d1d; margin-bottom: .5rem; }
+  .pain-card p { font-size: .78rem; color: #991b1b; line-height: 1.5; font-weight: 500; }
+
+  /* ── Slide 3: Market ── */
+  .s-market { background: var(--dark); padding: 3rem 3.5rem; }
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+  .stat-box { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.5rem 1.25rem; text-align: center; }
+  .stat-box .big { font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 900; color: var(--teal); letter-spacing: -.04em; line-height: 1; margin-bottom: .4rem; }
+  .stat-box .desc { font-size: .75rem; color: rgba(255,255,255,.5); font-weight: 500; line-height: 1.4; }
+  .stat-box .sub { font-size: .7rem; color: rgba(255,255,255,.3); margin-top: .3rem; }
+  .tam-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+  .tam-box { border-radius: 12px; padding: 1rem; text-align: center; }
+  .tam-box .tam-label { font-size: .65rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .4rem; }
+  .tam-box .tam-val { font-size: 1.3rem; font-weight: 900; letter-spacing: -.03em; }
+  .tam-box .tam-desc { font-size: .68rem; margin-top: .3rem; line-height: 1.4; }
+
+  /* ── Slide 4: Solution ── */
+  .s-solution { background: var(--teal-light); padding: 3rem 3.5rem; }
+  .solution-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.8rem; }
+  .sol-card { background: #fff; border-radius: 14px; padding: 1.25rem 1.5rem; border: 1px solid #D9EFF4; }
+  .sol-card .sol-icon { font-size: 1.4rem; margin-bottom: .6rem; }
+  .sol-card h3 { font-size: .9rem; font-weight: 800; color: var(--dark); margin-bottom: .4rem; }
+  .sol-card p { font-size: .78rem; color: var(--gray-2); line-height: 1.5; }
+
+  /* ── Slide 5: How it works ── */
+  .s-how { background: #fff; padding: 3rem 3.5rem; }
+  .steps-row { display: flex; gap: 0; margin-top: 2rem; align-items: flex-start; }
+  .step { flex: 1; text-align: center; padding: 0 1rem; }
+  .step-num { width: 44px; height: 44px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 900; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; margin: 0 auto .75rem; }
+  .step h3 { font-size: .9rem; font-weight: 800; margin-bottom: .4rem; color: var(--dark); }
+  .step p { font-size: .78rem; color: var(--gray-2); line-height: 1.5; }
+  .step-arrow { align-self: flex-start; margin-top: 22px; color: var(--gray-3); font-size: 1.2rem; }
+
+  /* ── Slide 6: Why Messenger ── */
+  .s-messenger { background: linear-gradient(135deg, #0866FF 0%, #0052CC 100%); padding: 3rem 3.5rem; }
+  .msg-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2rem; }
+  .msg-stat { background: rgba(255,255,255,.1); border-radius: 14px; padding: 1.25rem; text-align: center; border: 1px solid rgba(255,255,255,.15); }
+  .msg-stat .big { font-size: 2rem; font-weight: 900; color: #fff; letter-spacing: -.04em; line-height: 1; }
+  .msg-stat .desc { font-size: .75rem; color: rgba(255,255,255,.7); margin-top: .4rem; }
+  .msg-insight { background: rgba(255,255,255,.08); border-radius: 12px; padding: 1rem 1.5rem; margin-top: 1.25rem; border-left: 4px solid rgba(255,255,255,.4); }
+  .msg-insight p { font-size: .85rem; color: rgba(255,255,255,.9); font-weight: 600; font-style: italic; line-height: 1.5; }
+
+  /* ── Slide 7: Competitive ── */
+  .s-compete { background: #fff; padding: 2.5rem 3.5rem; }
+  .compete-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; }
+  .compete-table th { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-2); padding: .6rem .75rem; border-bottom: 2px solid var(--border); text-align: center; }
+  .compete-table th:first-child { text-align: left; }
+  .compete-table td { padding: .65rem .75rem; font-size: .8rem; border-bottom: 1px solid var(--border); text-align: center; color: var(--gray); font-weight: 500; }
+  .compete-table td:first-child { text-align: left; font-weight: 700; color: var(--dark); }
+  .compete-table tr.highlight td { background: var(--teal-light); }
+  .compete-table tr.highlight td:first-child { color: var(--teal-dark); border-radius: 8px 0 0 8px; }
+  .check { color: var(--green); font-weight: 800; }
+  .cross { color: #ef4444; }
+  .partial { color: var(--yellow); }
+
+  /* ── Slide 8: Pricing ── */
+  .s-pricing { background: var(--bg); padding: 2.5rem 3.5rem; }
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem; }
+  .p-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 1.25rem; }
+  .p-card.pop { border: 2px solid var(--teal); box-shadow: 0 8px 24px rgba(56,169,194,.2); }
+  .p-card .p-name { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); margin-bottom: .5rem; }
+  .p-card.pop .p-name { color: #fff; background: var(--teal); display: inline-block; padding: 2px 10px; border-radius: 50px; }
+  .p-card .p-price { font-size: 1.8rem; font-weight: 900; color: var(--dark); letter-spacing: -.04em; line-height: 1; }
+  .p-card .p-price span { font-size: .8rem; color: var(--gray-3); font-weight: 500; }
+  .p-card .p-tag { font-size: .72rem; color: var(--gray-2); margin: .4rem 0 .8rem; font-weight: 500; }
+  .p-feat { font-size: .72rem; color: var(--gray); padding: .25rem 0; border-bottom: 1px solid var(--border); }
+  .p-feat:last-child { border-bottom: none; }
+  .p-feat::before { content: '✓ '; color: var(--teal); font-weight: 800; }
+
+  /* ── Slide 9: Unit Economics ── */
+  .s-unit { background: var(--dark); padding: 3rem 3.5rem; }
+  .unit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+  .unit-box { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.5rem; }
+  .unit-box h3 { font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gray-3); margin-bottom: 1rem; }
+  .unit-row { display: flex; justify-content: space-between; padding: .4rem 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .unit-row:last-child { border-bottom: none; font-weight: 800; }
+  .unit-row .k { font-size: .8rem; color: rgba(255,255,255,.6); }
+  .unit-row .v { font-size: .85rem; color: #fff; font-weight: 700; }
+  .unit-row.total .k { color: #fff; font-weight: 800; }
+  .unit-row.total .v { color: var(--teal); font-size: 1rem; }
+  .margin-badge { margin-top: 1rem; background: rgba(29,158,117,.15); border: 1px solid rgba(29,158,117,.3); border-radius: 10px; padding: .75rem 1rem; text-align: center; }
+  .margin-badge .pct { font-size: 2rem; font-weight: 900; color: var(--green); letter-spacing: -.04em; }
+  .margin-badge .lbl { font-size: .72rem; color: rgba(255,255,255,.5); }
+
+  /* ── Slide 10: Projections ── */
+  .s-proj { background: #fff; padding: 2.5rem 3.5rem; }
+  .proj-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; }
+  .proj-table th { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-2); padding: .6rem .75rem; border-bottom: 2px solid var(--border); text-align: right; }
+  .proj-table th:first-child { text-align: left; }
+  .proj-table td { padding: .7rem .75rem; font-size: .85rem; border-bottom: 1px solid var(--border); text-align: right; color: var(--gray); }
+  .proj-table td:first-child { text-align: left; font-weight: 700; color: var(--dark); }
+  .proj-table tr.profit td { color: var(--green); font-weight: 800; font-size: .9rem; }
+  .proj-table tr.margin td { color: var(--gray-2); font-size: .78rem; }
+  .proj-bar-wrap { margin-top: 1.5rem; }
+  .proj-bar-label { font-size: .72rem; font-weight: 700; color: var(--gray-2); margin-bottom: .5rem; }
+  .proj-bars { display: flex; gap: 1rem; align-items: flex-end; height: 80px; }
+  .proj-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+  .proj-bar { width: 100%; border-radius: 6px 6px 0 0; }
+  .proj-bar-val { font-size: .7rem; font-weight: 800; color: var(--dark); }
+  .proj-bar-yr { font-size: .68rem; color: var(--gray-2); }
+
+  /* ── Slide 11: GTM ── */
+  .s-gtm { background: var(--teal-light); padding: 2.5rem 3.5rem; }
+  .gtm-phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.8rem; }
+  .gtm-phase { background: #fff; border-radius: 14px; padding: 1.25rem; border-top: 4px solid var(--teal); }
+  .gtm-phase .phase-label { font-size: .65rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); margin-bottom: .5rem; }
+  .gtm-phase h3 { font-size: .9rem; font-weight: 800; color: var(--dark); margin-bottom: .6rem; }
+  .gtm-phase ul { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
+  .gtm-phase ul li { font-size: .75rem; color: var(--gray); padding-left: 1rem; position: relative; }
+  .gtm-phase ul li::before { content: '→'; position: absolute; left: 0; color: var(--teal); font-weight: 800; }
+
+  /* ── Slide 12: Roadmap ── */
+  .s-roadmap { background: var(--dark); padding: 3rem 3.5rem; }
+  .roadmap-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2rem; }
+  .rm-box { border-radius: 12px; padding: 1.25rem; }
+  .rm-box .rm-q { font-size: .65rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; margin-bottom: .5rem; }
+  .rm-box h3 { font-size: .85rem; font-weight: 800; margin-bottom: .6rem; }
+  .rm-box ul { list-style: none; display: flex; flex-direction: column; gap: .3rem; }
+  .rm-box ul li { font-size: .72rem; padding-left: .9rem; position: relative; line-height: 1.4; }
+  .rm-box ul li::before { content: '·'; position: absolute; left: 0; font-weight: 900; }
+  .rm-now { background: rgba(56,169,194,.15); border: 1px solid rgba(56,169,194,.3); }
+  .rm-now .rm-q { color: var(--teal); }
+  .rm-now h3, .rm-now li { color: rgba(255,255,255,.9); }
+  .rm-now li::before { color: var(--teal); }
+  .rm-next { background: rgba(253,202,0,.08); border: 1px solid rgba(253,202,0,.2); }
+  .rm-next .rm-q { color: var(--yellow); }
+  .rm-next h3, .rm-next li { color: rgba(255,255,255,.8); }
+  .rm-next li::before { color: var(--yellow); }
+  .rm-later { background: rgba(127,119,221,.1); border: 1px solid rgba(127,119,221,.2); }
+  .rm-later .rm-q { color: var(--purple); }
+  .rm-later h3, .rm-later li { color: rgba(255,255,255,.7); }
+  .rm-later li::before { color: var(--purple); }
+  .rm-vision { background: rgba(29,158,117,.1); border: 1px solid rgba(29,158,117,.2); }
+  .rm-vision .rm-q { color: var(--green); }
+  .rm-vision h3, .rm-vision li { color: rgba(255,255,255,.7); }
+  .rm-vision li::before { color: var(--green); }
+
+  /* ── Slide 13: Closing ── */
+  .s-close { background: linear-gradient(135deg, #0D1117, #0d2137); padding: 3rem; justify-content: center; align-items: center; text-align: center; }
+  .s-close h1 { color: #fff; margin-bottom: 1rem; }
+  .s-close h1 span { color: var(--teal); }
+  .s-close p { color: rgba(255,255,255,.6); max-width: 520px; margin: 0 auto 2rem; }
+  .ask-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 700px; margin: 0 auto; }
+  .ask-box { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.25rem; }
+  .ask-box .ask-val { font-size: 1.3rem; font-weight: 900; color: var(--teal); letter-spacing: -.03em; }
+  .ask-box .ask-label { font-size: .72rem; color: rgba(255,255,255,.5); margin-top: .3rem; }
+
+  /* ── Nav bar ── */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,20,.9); backdrop-filter: blur(12px);
+    padding: .75rem 1.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem;
+    border-top: 1px solid rgba(255,255,255,.1);
+  }
+  .nav-bar button {
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff;
+    padding: 6px 18px; border-radius: 50px; cursor: pointer; font-size: 13px; font-weight: 700;
+    transition: all .15s; font-family: inherit;
+  }
+  .nav-bar button:hover { background: var(--teal); border-color: var(--teal); }
+  .nav-bar .slide-counter { font-size: 13px; color: rgba(255,255,255,.5); min-width: 70px; text-align: center; }
+  .slide { display: none; }
+  .slide.active { display: flex; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- ── Slide 1: Cover ── -->
+  <div class="slide s-cover active" id="slide-1">
+    <div class="logo-wrap">
+      <img src="../frontend/public/icon-192.png" alt="LaundroBot" />
+      <span>LaundroBot</span>
+    </div>
+    <h1 class="hero-title">The Operating System for<br><span>Philippine Laundry Shops</span></h1>
+    <p class="body-text" style="margin-top:.75rem">Facebook Messenger bookings · AI chatbot in Tagalog · Kanban order board · Online payments · Walk-in POS</p>
+    <div style="margin-top:1.5rem">
+      <span class="pill">SaaS</span>
+      <span class="pill">Philippines</span>
+      <span class="pill">2026</span>
+    </div>
+    <div class="slide-num">01 / 13</div>
+  </div>
+
+  <!-- ── Slide 2: Problem ── -->
+  <div class="slide s-problem" id="slide-2">
+    <div class="header">
+      <div class="label" style="color:var(--teal);margin-bottom:.5rem">The Problem</div>
+      <h2 class="section-title">Philippine laundry shops are running<br>on paper, WhatsApp, and guesswork.</h2>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">📋</div>
+        <h3>Manual everything</h3>
+        <p>Orders logged in paper notebooks or WhatsApp threads. Lost orders, wrong pricing, and item disputes with zero paper trail are routine.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">💸</div>
+        <h3>Revenue leakage</h3>
+        <p>Cash-only pickup payment means customers walk away before paying. No automated reminders — owners chase customers themselves.</p>
+      </div>
+      <div class="pain-card">
+        <div class="icon">😴</div>
+        <h3>Closed after 5pm</h3>
+        <p>A Messenger encoder only works 8am–5pm. Bookings after hours are missed. A part-time encoder costs ₱7,000/month and still can't reply at 11pm.</p>
+      </div>
+    </div>
+    <div class="slide-num slide-num-dark">02 / 13</div>
+  </div>
+
+  <!-- ── Slide 3: Market ── -->
+  <div class="slide s-market" id="slide-3">
+    <div class="label" style="color:var(--teal);margin-bottom:.75rem">Market Opportunity</div>
+    <h2 class="section-title" style="color:#fff">A massive, untouched market with<br>no real software solution.</h2>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="big">10,000+</div>
+        <div class="desc">Laundry shops in the Philippines (formal + informal)</div>
+        <div class="sub">PSA counted 1,893 formal establishments (2020); real total materially higher with informal operators</div>
+      </div>
+      <div class="stat-box">
+        <div class="big">₱5B+</div>
+        <div class="desc">Philippine laundry services market size (2024)</div>
+        <div class="sub">USD 88.2M commercial services revenue · growing at 5%+ CAGR driven by urbanization</div>
+      </div>
+      <div class="stat-box">
+        <div class="big">61.8M</div>
+        <div class="desc">Facebook Messenger users in PH</div>
+        <div class="sub">53% of total population · 78–90% of internet users — highest Messenger penetration in Southeast Asia</div>
+      </div>
+    </div>
+    <div class="tam-row">
+      <div class="tam-box" style="background:rgba(56,169,194,.1);border:1px solid rgba(56,169,194,.2)">
+        <div class="tam-label" style="color:var(--teal)">TAM</div>
+        <div class="tam-val" style="color:#fff">₱180M/yr</div>
+        <div class="tam-desc" style="color:rgba(255,255,255,.5)">All 10,000+ laundry shops at avg ₱1,500/mo</div>
+      </div>
+      <div class="tam-box" style="background:rgba(253,202,0,.08);border:1px solid rgba(253,202,0,.15)">
+        <div class="tam-label" style="color:var(--yellow)">SAM</div>
+        <div class="tam-val" style="color:#fff">₱54M/yr</div>
+        <div class="tam-desc" style="color:rgba(255,255,255,.5)">3,000 shops with Messenger + smartphone access</div>
+      </div>
+      <div class="tam-box" style="background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.15)">
+        <div class="tam-label" style="color:var(--green)">SOM (Yr 3)</div>
+        <div class="tam-val" style="color:#fff">₱5.4M/yr</div>
+        <div class="tam-desc" style="color:rgba(255,255,255,.5)">300 tenants at avg ₱1,509/mo ARPU</div>
+      </div>
+    </div>
+    <div class="slide-num">03 / 13</div>
+  </div>
+
+  <!-- ── Slide 4: Solution ── -->
+  <div class="slide s-solution" id="slide-4">
+    <div class="label" style="color:var(--teal-dark);margin-bottom:.5rem">The Solution</div>
+    <h2 class="section-title">LaundroBot replaces the encoder,<br>the notebook, and the missed payments.</h2>
+    <div class="solution-grid">
+      <div class="sol-card">
+        <div class="sol-icon">🤖</div>
+        <h3>AI Chatbot (Tagalog & English)</h3>
+        <p>Powered by Gemini 2.5 Flash. Answers FAQs, explains pricing, and directs customers to book — 24 hours a day, 7 days a week.</p>
+      </div>
+      <div class="sol-card">
+        <div class="sol-icon">📱</div>
+        <h3>Messenger-native Booking</h3>
+        <p>Customers tap "Book Now" inside Messenger. A webform slides up inside the chat. No app download, no new account, no friction.</p>
+      </div>
+      <div class="sol-card">
+        <div class="sol-icon">📋</div>
+        <h3>Kanban Order Board</h3>
+        <p>All orders — Messenger, walk-in, Instagram — land in one drag-and-drop board. Staff see status at a glance. Nothing is lost.</p>
+      </div>
+      <div class="sol-card">
+        <div class="sol-icon">💳</div>
+        <h3>Online Payments + Auto-Reminders</h3>
+        <p>Xendit payment links sent automatically. 4-stage reminders at 1hr, 3hr, 6hr, 23hr. Auto-cancel unpaid orders after 24 hours.</p>
+      </div>
+    </div>
+    <div class="slide-num slide-num-dark">04 / 13</div>
+  </div>
+
+  <!-- ── Slide 5: How it works ── -->
+  <div class="slide s-how" id="slide-5">
+    <div class="label" style="color:var(--teal);margin-bottom:.5rem">How It Works</div>
+    <h2 class="section-title">Set up in minutes.<br>Works while you sleep.</h2>
+    <div class="steps-row">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Connect your Facebook Page</h3>
+        <p>Link your laundry shop's Facebook Page. LaundroBot activates the Messenger bot and persistent menu automatically.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Configure services & pricing</h3>
+        <p>Add your services, delivery zones, blocked dates, and promo codes. The booking form and chatbot sync instantly.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Customer books via Messenger</h3>
+        <p>Customer taps Book Now. Webform appears. Order lands in your Kanban board. Payment link sent automatically.</p>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>You get paid. Order fulfilled.</h3>
+        <p>Xendit processes payment directly to your account. LaundroBot notifies you and the customer at every status change.</p>
+      </div>
+    </div>
+    <div class="slide-num slide-num-dark">05 / 13</div>
+  </div>
+
+  <!-- ── Slide 6: Why Messenger ── -->
+  <div class="slide s-messenger" id="slide-6">
+    <div class="label" style="color:rgba(255,255,255,.7);margin-bottom:.75rem">Why Messenger — Not an App</div>
+    <h2 class="section-title" style="color:#fff">The Philippines is the world's<br>most Messenger-native market.</h2>
+    <div class="msg-stats">
+      <div class="msg-stat">
+        <div class="big">61.8M</div>
+        <div class="desc">Messenger users in the Philippines</div>
+      </div>
+      <div class="msg-stat">
+        <div class="big">90%</div>
+        <div class="desc">Of Filipino internet users are on Messenger</div>
+      </div>
+      <div class="msg-stat">
+        <div class="big">83.8%</div>
+        <div class="desc">Internet penetration — 97.5M users</div>
+      </div>
+    </div>
+    <div class="msg-insight">
+      <p>"Filipino customers already use Messenger to ask laundry shops about rates and availability. LaundroBot meets them exactly where they already are — zero behavior change required."</p>
+    </div>
+    <div class="slide-num">06 / 13</div>
+  </div>
+
+  <!-- ── Slide 7: Competitive ── -->
+  <div class="slide s-compete" id="slide-7">
+    <div class="label" style="color:var(--teal);margin-bottom:.5rem">Competitive Landscape</div>
+    <h2 class="section-title">No PH-built shop management SaaS exists.<br>We are the only one.</h2>
+    <table class="compete-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>PH-built</th>
+          <th>Shop back-office</th>
+          <th>Messenger native</th>
+          <th>AI chatbot (Tagalog)</th>
+          <th>GCash / Xendit</th>
+          <th>Price (monthly)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight">
+          <td>⭐ LaundroBot</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+          <td>₱599–5,499</td>
+        </tr>
+        <tr>
+          <td>SWOSH / Lalaba</td>
+          <td class="check">✓</td>
+          <td class="cross">✗ (marketplace)</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="partial">Partial</td>
+          <td>Commission cut</td>
+        </tr>
+        <tr>
+          <td>CleanCloud</td>
+          <td class="cross">✗ (US)</td>
+          <td class="check">✓</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td>₱5,000+ (USD 89)</td>
+        </tr>
+        <tr>
+          <td>Generic POS / Spreadsheet</td>
+          <td class="partial">—</td>
+          <td class="partial">Partial</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td class="cross">✗</td>
+          <td>Free – ₱2,000</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="slide-num slide-num-dark">07 / 13</div>
+  </div>
+
+  <!-- ── Slide 8: Pricing ── -->
+  <div class="slide s-pricing" id="slide-8">
+    <div class="label" style="color:var(--teal);margin-bottom:.5rem">Business Model · Subscription SaaS</div>
+    <h2 class="section-title">Simple, transparent pricing.<br>Cheaper than one part-time staff.</h2>
+    <div class="pricing-grid">
+      <div class="p-card">
+        <div class="p-name">Starter</div>
+        <div class="p-price">₱599 <span>/mo</span></div>
+        <div class="p-tag">or ₱549/mo billed annually (1 month free)</div>
+        <div class="p-feat">1 branch · 2 staff accounts</div>
+        <div class="p-feat">AI chatbot (Tagalog & English)</div>
+        <div class="p-feat">Messenger + Instagram booking</div>
+        <div class="p-feat">Kanban board + Walk-in POS</div>
+        <div class="p-feat">Up to 200 orders/month</div>
+      </div>
+      <div class="p-card pop">
+        <div class="p-name">Growth</div>
+        <div class="p-price">₱1,999 <span>/mo</span></div>
+        <div class="p-tag">or ₱1,666/mo annually (2 months free)</div>
+        <div class="p-feat">Up to 3 branches · 5 staff</div>
+        <div class="p-feat">Blast messaging to all customers</div>
+        <div class="p-feat">Promo codes & referral links</div>
+        <div class="p-feat">Revenue reports & analytics</div>
+        <div class="p-feat">Up to 1,000 orders/month</div>
+      </div>
+      <div class="p-card">
+        <div class="p-name" style="color:var(--purple)">Pro</div>
+        <div class="p-price">₱5,499 <span>/mo</span></div>
+        <div class="p-tag">or ₱4,583/mo annually (2 months free)</div>
+        <div class="p-feat">Up to 10 branches</div>
+        <div class="p-feat">Custom AI per branch</div>
+        <div class="p-feat">White-label booking form</div>
+        <div class="p-feat">Unlimited orders</div>
+        <div class="p-feat">Priority support + onboarding</div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;font-size:.75rem;color:var(--gray-2);text-align:center">
+      Blended ARPU (60% Starter / 30% Growth / 10% Pro) = <strong style="color:var(--dark)">₱1,509/tenant/month</strong>
+    </div>
+    <div class="slide-num slide-num-dark">08 / 13</div>
+  </div>
+
+  <!-- ── Slide 9: Unit Economics ── -->
+  <div class="slide s-unit" id="slide-9">
+    <div class="label" style="color:var(--teal);margin-bottom:.75rem">Unit Economics</div>
+    <h2 class="section-title" style="color:#fff">High-margin SaaS.<br>Break-even at just 2 tenants.</h2>
+    <div class="unit-grid">
+      <div>
+        <div class="unit-box">
+          <h3>Monthly Cost Per Tenant</h3>
+          <div class="unit-row"><span class="k">AI (Gemini 2.5 Flash)</span><span class="v">~₱10–30</span></div>
+          <div class="unit-row"><span class="k">Email (Resend, shared plan)</span><span class="v">~₱5</span></div>
+          <div class="unit-row"><span class="k">DB storage + compute (shared)</span><span class="v">~₱15</span></div>
+          <div class="unit-row"><span class="k">Support time (est. 30 min)</span><span class="v">~₱25</span></div>
+          <div class="unit-row total"><span class="k">Total variable cost</span><span class="v">~₱55/tenant</span></div>
+        </div>
+        <div class="unit-box" style="margin-top:1rem">
+          <h3>Fixed Infrastructure (Monthly)</h3>
+          <div class="unit-row"><span class="k">Railway (backend + PostgreSQL)</span><span class="v">₱1,120</span></div>
+          <div class="unit-row"><span class="k">Resend (email plan)</span><span class="v">₱1,120</span></div>
+          <div class="unit-row"><span class="k">Domain + misc</span><span class="v">₱200</span></div>
+          <div class="unit-row total"><span class="k">Total fixed</span><span class="v">~₱2,440/mo</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="margin-badge">
+          <div class="pct">95%+</div>
+          <div class="lbl">Gross margin at 100+ tenants</div>
+        </div>
+        <div class="unit-box">
+          <h3>Revenue vs Cost at Scale</h3>
+          <div class="unit-row"><span class="k">Break-even (tenants)</span><span class="v" style="color:var(--yellow)">2 tenants</span></div>
+          <div class="unit-row"><span class="k">10 tenants → profit</span><span class="v">₱12,700/mo</span></div>
+          <div class="unit-row"><span class="k">50 tenants → profit</span><span class="v">₱70,210/mo</span></div>
+          <div class="unit-row"><span class="k">100 tenants → profit</span><span class="v">₱143,060/mo</span></div>
+          <div class="unit-row total"><span class="k">300 tenants → profit</span><span class="v">₱428,000/mo</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num">09 / 13</div>
+  </div>
+
+  <!-- ── Slide 10: Projections ── -->
+  <div class="slide s-proj" id="slide-10">
+    <div class="label" style="color:var(--teal);margin-bottom:.5rem">Financial Projections · Conservative Case</div>
+    <h2 class="section-title">Profitable from month 1.<br>₱5.4M ARR by Year 3.</h2>
+    <table class="proj-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Year 1</th>
+          <th>Year 2</th>
+          <th>Year 3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tenants (end of year)</td>
+          <td>50</td>
+          <td>150</td>
+          <td>300</td>
+        </tr>
+        <tr>
+          <td>Blended ARPU</td>
+          <td>₱1,509/mo</td>
+          <td>₱1,509/mo</td>
+          <td>₱1,509/mo</td>
+        </tr>
+        <tr>
+          <td>Annual Revenue</td>
+          <td>₱905,400</td>
+          <td>₱2,716,200</td>
+          <td>₱5,432,400</td>
+        </tr>
+        <tr>
+          <td>Annual Infrastructure Cost</td>
+          <td>₱39,600</td>
+          <td>₱66,000</td>
+          <td>₱99,000</td>
+        </tr>
+        <tr class="profit">
+          <td>Annual Profit (pre-tax)</td>
+          <td>₱865,800</td>
+          <td>₱2,650,200</td>
+          <td>₱5,333,400</td>
+        </tr>
+        <tr class="margin">
+          <td>Gross Margin</td>
+          <td>95.6%</td>
+          <td>97.6%</td>
+          <td>98.2%</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="proj-bar-wrap">
+      <div class="proj-bar-label">Annual Revenue (₱)</div>
+      <div class="proj-bars">
+        <div class="proj-bar-col">
+          <div class="proj-bar-val">₱905K</div>
+          <div class="proj-bar" style="height:25px;background:var(--teal);opacity:.6"></div>
+          <div class="proj-bar-yr">Year 1</div>
+        </div>
+        <div class="proj-bar-col">
+          <div class="proj-bar-val">₱2.7M</div>
+          <div class="proj-bar" style="height:50px;background:var(--teal);opacity:.8"></div>
+          <div class="proj-bar-yr">Year 2</div>
+        </div>
+        <div class="proj-bar-col">
+          <div class="proj-bar-val">₱5.4M</div>
+          <div class="proj-bar" style="height:75px;background:var(--teal)"></div>
+          <div class="proj-bar-yr">Year 3</div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-num slide-num-dark">10 / 13</div>
+  </div>
+
+  <!-- ── Slide 11: GTM ── -->
+  <div class="slide s-gtm" id="slide-11">
+    <div class="label" style="color:var(--teal-dark);margin-bottom:.5rem">Go-to-Market Strategy</div>
+    <h2 class="section-title">Direct outreach first.<br>Then community and referrals.</h2>
+    <div class="gtm-phases">
+      <div class="gtm-phase">
+        <div class="phase-label">Phase 1 · Months 1–3</div>
+        <h3>Direct Outreach</h3>
+        <ul>
+          <li>DM laundry shops on Facebook/Instagram directly</li>
+          <li>Offer free 30-day trial, assisted setup</li>
+          <li>Target Metro Manila, Cebu, Davao first</li>
+          <li>Goal: 10–20 paying tenants</li>
+        </ul>
+      </div>
+      <div class="gtm-phase">
+        <div class="phase-label">Phase 2 · Months 4–9</div>
+        <h3>Community & Referrals</h3>
+        <ul>
+          <li>Laundry business Facebook groups (100k+ members)</li>
+          <li>Referral program: 1 month free per successful referral</li>
+          <li>Case study content: "How [Shop] saved ₱7k/month"</li>
+          <li>Goal: 50 paying tenants</li>
+        </ul>
+      </div>
+      <div class="gtm-phase">
+        <div class="phase-label">Phase 3 · Month 10+</div>
+        <h3>Partnerships & Content</h3>
+        <ul>
+          <li>Partner with laundry franchise groups</li>
+          <li>Google Ads targeting "laundry management Philippines"</li>
+          <li>YouTube / TikTok tutorials for shop owners</li>
+          <li>Goal: 150+ tenants, organic inbound</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-num slide-num-dark">11 / 13</div>
+  </div>
+
+  <!-- ── Slide 12: Roadmap ── -->
+  <div class="slide s-roadmap" id="slide-12">
+    <div class="label" style="color:var(--teal);margin-bottom:.75rem">Product Roadmap</div>
+    <h2 class="section-title" style="color:#fff">Built and shipping.<br>Clear path to grow.</h2>
+    <div class="roadmap-row">
+      <div class="rm-box rm-now">
+        <div class="rm-q">Now · Live</div>
+        <h3>Core Platform</h3>
+        <ul>
+          <li>Messenger + Instagram bot</li>
+          <li>AI chatbot (Gemini 2.5 Flash)</li>
+          <li>Booking webform</li>
+          <li>Kanban order board</li>
+          <li>Walk-in POS</li>
+          <li>Xendit payments</li>
+          <li>Auto-reminders + auto-cancel</li>
+        </ul>
+      </div>
+      <div class="rm-box rm-next">
+        <div class="rm-q">Q3 2026</div>
+        <h3>Growth Features</h3>
+        <ul>
+          <li>GCash direct integration</li>
+          <li>SMS notifications fallback</li>
+          <li>Customer loyalty points</li>
+          <li>Subscription laundry plans</li>
+          <li>Multi-branch reporting</li>
+        </ul>
+      </div>
+      <div class="rm-box rm-later">
+        <div class="rm-q">Q4 2026</div>
+        <h3>Scale Features</h3>
+        <ul>
+          <li>Native mobile app (PWA)</li>
+          <li>Driver dispatch + route optimization</li>
+          <li>Inventory management</li>
+          <li>Franchise-level analytics</li>
+        </ul>
+      </div>
+      <div class="rm-box rm-vision">
+        <div class="rm-q">2027 Vision</div>
+        <h3>Platform Expansion</h3>
+        <ul>
+          <li>Expand to other service SMEs</li>
+          <li>BNPL payment options</li>
+          <li>Embedded lending for shop owners</li>
+          <li>Southeast Asia expansion</li>
+        </ul>
+      </div>
+    </div>
+    <div class="slide-num">12 / 13</div>
+  </div>
+
+  <!-- ── Slide 13: Close ── -->
+  <div class="slide s-close" id="slide-13">
+    <h1 class="hero-title">Ready to automate<br><span>every laundry shop</span><br>in the Philippines.</h1>
+    <p class="body-text">LaundroBot is live, generating revenue, and built for scale. We're looking for partners, investors, and early adopters who want to grow with us.</p>
+    <div class="ask-grid">
+      <div class="ask-box">
+        <div class="ask-val">₱5.4M</div>
+        <div class="ask-label">Projected ARR · Year 3</div>
+      </div>
+      <div class="ask-box">
+        <div class="ask-val">95%+</div>
+        <div class="ask-label">Gross margin at scale</div>
+      </div>
+      <div class="ask-box">
+        <div class="ask-val">0</div>
+        <div class="ask-label">Direct competitors (PH-built)</div>
+      </div>
+    </div>
+    <div style="margin-top:2rem">
+      <span class="pill">thelaundryproject.app</span>
+    </div>
+    <div class="slide-num">13 / 13</div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- ── Navigation ── -->
+<div class="nav-bar">
+  <button onclick="go(-1)">← Prev</button>
+  <span class="slide-counter" id="counter">1 / 13</span>
+  <button onclick="go(1)">Next →</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+  function go(dir) {
+    slides[cur].classList.remove('active');
+    cur = Math.max(0, Math.min(slides.length - 1, cur + dir));
+    slides[cur].classList.add('active');
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   go(-1);
+  });
+</script>
+</body>
+</html>
