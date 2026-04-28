@@ -141,6 +141,7 @@ async function runFollowUp() {
       WHERE o.paid = FALSE
         AND o.status != 'CANCELLED'
         AND (o.source IS NULL OR o.source != 'admin')
+        AND c.fb_id IS NOT NULL
         AND o.created_at < NOW() - INTERVAL '${CANCEL_AFTER_MINUTES} minutes'
     `);
 
@@ -177,6 +178,7 @@ async function runFollowUp() {
         WHERE o.paid = FALSE
           AND o.status != 'CANCELLED'
           AND o.reminder_count = $1
+          AND c.fb_id IS NOT NULL
           AND o.created_at < NOW() - INTERVAL '${afterMinutes} minutes'
       `, [reminder - 1]);
 
