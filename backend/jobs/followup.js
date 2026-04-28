@@ -17,6 +17,7 @@
 
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
+const { sendPaymentReminderEmail } = require('../utils/email');
 const { createInvoice } = require('../utils/xendit');
 
 // Minutes from order creation when each reminder fires
@@ -141,7 +142,6 @@ async function runFollowUp() {
       WHERE o.paid = FALSE
         AND o.status != 'CANCELLED'
         AND (o.source IS NULL OR o.source != 'admin')
-        AND c.fb_id IS NOT NULL
         AND o.created_at < NOW() - INTERVAL '${CANCEL_AFTER_MINUTES} minutes'
     `);
 
@@ -151,12 +151,14 @@ async function runFollowUp() {
           `UPDATE orders SET status = 'CANCELLED' WHERE id = $1`,
           [order.id]
         );
-        await sendTaggedMessage(
-          order.fb_page_access_token,
-          order.fb_id,
-          `Hi ${order.customer_name || 'there'}, your order ${order.id} has been automatically cancelled due to non-payment.\n\n` +
-          `If this was a mistake, type "hi" to place a new order. Sorry for the inconvenience! 🙏`
-        );
+        if (order.fb_id) {
+          await sendTaggedMessage(
+            order.fb_page_access_token,
+            order.fb_id,
+            `Hi ${order.customer_name || 'there'}, your order ${order.id} has been automatically cancelled due to non-payment.\n\n` +
+            `If this was a mistake, type "hi" to place a new order. Sorry for the inconvenience! 🙏`
+          );
+        }
         console.log(`[follow-up] auto-cancelled order ${order.id}`);
       } catch (err) {
         console.error(`[follow-up] cancel failed for ${order.id}:`, err.message);
@@ -168,8 +170,8 @@ async function runFollowUp() {
       const { rows: orders } = await db.query(`
         SELECT
           o.*, o.is_dropoff,
-          c.fb_id, c.name as customer_name,
-          t.fb_page_access_token, t.xendit_api_key,
+          c.fb_id, c.name as customer_name, c.email as customer_email,
+          t.id as tenant_id, t.fb_page_access_token, t.xendit_api_key,
           s.name as service_name
         FROM orders o
         JOIN customers c ON c.id = o.customer_id
@@ -178,27 +180,40 @@ async function runFollowUp() {
         WHERE o.paid = FALSE
           AND o.status != 'CANCELLED'
           AND o.reminder_count = $1
-          AND c.fb_id IS NOT NULL
+          AND (c.fb_id IS NOT NULL OR c.email IS NOT NULL)
           AND o.created_at < NOW() - INTERVAL '${afterMinutes} minutes'
       `, [reminder - 1]);
 
       for (const order of orders) {
         try {
           const paymentUrl = await getOrCreatePaymentUrl(order);
-          const message = buildMessage(reminder, order, paymentUrl);
-          if (!message) continue;
 
-          await sendTaggedMessage(order.fb_page_access_token, order.fb_id, message);
+          if (order.fb_id) {
+            const message = buildMessage(reminder, order, paymentUrl);
+            if (!message) continue;
+            await sendTaggedMessage(order.fb_page_access_token, order.fb_id, message);
+          } else {
+            await sendPaymentReminderEmail(order.tenant_id, {
+              orderId: order.id,
+              customerName: order.customer_name,
+              customerEmail: order.customer_email,
+              serviceName: order.service_name,
+              pickupDate: order.pickup_date,
+              total: order.price,
+              paymentUrl,
+              reminderNum: reminder,
+            });
+          }
+
           await db.query(
             `UPDATE orders SET reminder_count = $1, last_reminded_at = NOW() WHERE id = $2`,
             [reminder, order.id]
           );
-          console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name}`);
+          console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name} via ${order.fb_id ? 'messenger' : 'email'}`);
         } catch (err) {
           const errData = err.response?.data || {};
           const errCode = errData.error?.code;
           console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, errData || err.message);
-          // Advance so this reminder isn't retried on the next run
           const nextCount = [100, 200, 551].includes(errCode) ? 99 : reminder;
           await db.query(`UPDATE orders SET reminder_count = $1 WHERE id = $2`, [nextCount, order.id]).catch(() => {});
         }
