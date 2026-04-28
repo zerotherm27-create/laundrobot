@@ -196,7 +196,7 @@ function MessengerMockup() {
             <div style={{ background: '#fff', borderBottom: '1px solid #f0f0ec', padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <span style={{ fontSize: 13, color: '#0084ff', fontWeight: 700 }}>‹</span>
               <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-                <img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'contain' }} />
+                <img src="/logo-dark.png" alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'contain' }} />
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', border: '1.5px solid #fff', position: 'absolute', bottom: 0, right: 0 }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -816,7 +816,7 @@ function CtaBand() {
     <section style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6rem) 1.25rem' }}>
       <div ref={ref} style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
         <div style={{ width: 72, height: 72, borderRadius: '50%', margin: '0 auto 1.75rem', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(56,169,194,.35)' }}>
-          <img src="/logo.png" alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }} />
+          <img src="/logo-dark.png" alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }} />
         </div>
         <h2 style={{ fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', marginBottom: '1rem', lineHeight: 1.1 }}>
           Ready to grow your laundry business?
