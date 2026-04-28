@@ -171,8 +171,10 @@ export default function BookingForm({ tenantId }) {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError,   setPromoError]   = useState('');
 
-  // Messenger PSID (captured from Extensions SDK when inside Messenger webview)
-  const [messengerPsid, setMessengerPsid] = useState(null);
+  // Messenger PSID — prefer URL param (embedded by bot in Book Now link), fall back to Extensions SDK
+  const [messengerPsid, setMessengerPsid] = useState(
+    () => new URLSearchParams(window.location.search).get('psid') || null
+  );
 
   // Server-side cart ID for abandonment tracking
   const [serverCartId, setServerCartId] = useState(null);
@@ -195,19 +197,20 @@ export default function BookingForm({ tenantId }) {
   const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
 
   useEffect(() => {
-    // Try to capture Messenger PSID from Extensions SDK (only works inside Messenger webview)
-    const tryGetPsid = () => {
-      try {
-        if (window.MessengerExtensions) {
-          window.MessengerExtensions.getUserID((err, ctx) => {
-            if (!err && ctx?.psid) setMessengerPsid(ctx.psid);
-          });
-        }
-      } catch (_) {}
-    };
-    tryGetPsid();
-    // Retry after SDK loads
-    setTimeout(tryGetPsid, 1500);
+    // Fall back to Extensions SDK only when psid wasn't in the URL (e.g. old-style links)
+    if (!new URLSearchParams(window.location.search).get('psid')) {
+      const tryGetPsid = () => {
+        try {
+          if (window.MessengerExtensions) {
+            window.MessengerExtensions.getUserID((err, ctx) => {
+              if (!err && ctx?.psid) setMessengerPsid(ctx.psid);
+            });
+          }
+        } catch (_) {}
+      };
+      tryGetPsid();
+      setTimeout(tryGetPsid, 1500);
+    }
 
     getPublicBootstrap(tenantId).then(({ data }) => {
       setTenant(data.tenant);

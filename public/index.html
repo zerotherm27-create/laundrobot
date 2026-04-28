@@ -1,34 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-PH">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Laundrobot" />
+    <link rel="apple-touch-icon" href="/icon-512.png" />
 
     <!-- ── Primary SEO ── -->
-    <title>LaundroBot — Laundry Business Management Dashboard</title>
-    <meta name="description" content="LaundroBot is a modern laundry business management platform with Facebook Messenger order booking, real-time order tracking, Kanban board, and multi-branch support for laundry businesses in the Philippines." />
-    <meta name="keywords" content="laundry management, laundry business software, laundry POS, Facebook Messenger booking, laundry order tracking, Philippines" />
+    <title>LaundroBot — Laundry Shop Management Software · Philippines</title>
+    <meta name="description" content="LaundroBot is laundry shop management software built for the Philippines. Accept orders via Facebook Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7." />
+    <meta name="keywords" content="laundry management software Philippines, laundry shop system, laundry POS Philippines, Facebook Messenger laundry booking, laundry order tracking, laundry business app Philippines" />
     <meta name="author" content="LaundroBot" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://www.thelaundryproject.app" />
+    <link rel="canonical" href="https://www.thelaundryproject.app/" />
 
     <!-- ── Open Graph / Facebook ── -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.thelaundryproject.app" />
-    <meta property="og:title" content="LaundroBot — Laundry Business Management" />
-    <meta property="og:description" content="Manage your laundry business smarter. Accept Messenger orders, track pickups, and grow with LaundroBot." />
+    <meta property="og:url" content="https://www.thelaundryproject.app/" />
+    <meta property="og:title" content="LaundroBot — Laundry Shop Management Software · Philippines" />
+    <meta property="og:description" content="Accept orders via Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7. Built for laundry shops in the Philippines." />
     <meta property="og:image" content="https://www.thelaundryproject.app/og-image.png" />
     <meta property="og:site_name" content="LaundroBot" />
     <meta property="og:locale" content="en_PH" />
 
     <!-- ── Twitter Card ── -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LaundroBot — Laundry Business Management" />
-    <meta name="twitter:description" content="Accept Messenger orders, track pickups & deliveries, manage multiple branches." />
+    <meta name="twitter:title" content="LaundroBot — Laundry Shop Management Software · Philippines" />
+    <meta name="twitter:description" content="Accept orders via Messenger, manage pickups & deliveries, AI chatbot in Tagalog & English. Built for laundry shops in the Philippines." />
     <meta name="twitter:image" content="https://www.thelaundryproject.app/og-image.png" />
 
     <!-- ── Favicon ── -->
     <link rel="icon" type="image/png" href="/logo.png" />
+
+    <!-- ── Leaflet (map) — skipped only on the marketing landing page ── -->
+    <script>
+      (function() {
+        var p = window.location.pathname;
+        if (p !== '/') {
+          var css = document.createElement('link');
+          css.rel = 'stylesheet';
+          css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+          document.head.appendChild(css);
+          var js = document.createElement('script');
+          js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+          document.head.appendChild(js);
+        }
+      })();
+    </script>
+
+    <!-- ── Structured data ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.thelaundryproject.app/#organization",
+          "name": "LaundroBot",
+          "url": "https://www.thelaundryproject.app/",
+          "logo": "https://www.thelaundryproject.app/logo.png",
+          "description": "Laundry shop management software built for the Philippines.",
+          "areaServed": "PH"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.thelaundryproject.app/#software",
+          "name": "LaundroBot",
+          "url": "https://www.thelaundryproject.app/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PHP" },
+          "description": "All-in-one laundry shop management software for the Philippines. Accept orders via Facebook Messenger, manage pickups and deliveries, and let an AI chatbot handle customers 24/7.",
+          "featureList": [
+            "Facebook Messenger order booking",
+            "AI chatbot in Tagalog and English",
+            "Kanban order board",
+            "Walk-in POS",
+            "Delivery zone management",
+            "Blast messaging"
+          ]
+        }
+      ]
+    }
+    </script>
 
     <!-- ── Fonts ── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,9 +93,11 @@
 
     <style>
       :root {
-        --primary:        #378ADD;
-        --primary-dark:   #2568BC;
-        --primary-light:  #E6F1FB;
+        --primary:        #38a9c2;
+        --primary-dark:   #1d8ba0;
+        --primary-light:  #e6f5f8;
+        --accent:         #fdca00;
+        --accent-dark:    #d4a800;
         --success:        #1D9E75;
         --success-bg:     #EAF3DE;
         --warning:        #BA7517;
@@ -96,7 +154,7 @@
       input:focus, select:focus, textarea:focus {
         outline: none;
         border-color: var(--primary) !important;
-        box-shadow: 0 0 0 3px rgba(55,138,221,.15) !important;
+        box-shadow: 0 0 0 3px rgba(56,169,194,.15) !important;
       }
       button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
@@ -121,8 +179,8 @@
       }
       .nav-item:hover { background: #F5F5F3; color: var(--text); }
       .nav-item.active {
-        background: var(--primary-light); color: #185FA5;
-        border-left-color: var(--primary); font-weight: 500;
+        background: var(--primary-light); color: #1a7d94;
+        border-left-color: var(--accent); font-weight: 500;
       }
       .nav-item-super { color: var(--text-2); }
       .nav-item-super:hover { background: var(--warning-bg); color: var(--warning); }
@@ -164,7 +222,7 @@
         display: inline-block;
       }
       .spinner-blue {
-        border-color: rgba(55,138,221,.2);
+        border-color: rgba(56,169,194,.2);
         border-top-color: var(--primary);
       }
 
@@ -189,7 +247,7 @@
         background: var(--primary); color: #fff;
         display: inline-flex; align-items: center; gap: 6px;
       }
-      .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(55,138,221,.3); }
+      .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(56,169,194,.3); }
       .btn-primary:active { transform: scale(.98); }
       .btn-primary:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
 
@@ -229,10 +287,178 @@
       }
 
       #root { min-height: 100vh; }
+
+      /* ════════════════════════════════════════════
+         RESPONSIVE — tablet & mobile
+         Desktop (≥1024px): unchanged.
+         Tablet (768–1023px): narrower padding, 2-col grids.
+         Mobile (<768px): sidebar drawer, stacked layout.
+      ════════════════════════════════════════════ */
+
+      /* ── Safe area (PWA / notched iPhones) ── */
+      .mobile-topbar {
+        padding-top: env(safe-area-inset-top);
+        height: calc(52px + env(safe-area-inset-top));
+      }
+      .dashboard-main-bottom-pad {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .sidebar-drawer {
+        padding-top: env(safe-area-inset-top);
+      }
+
+      /* ── Hamburger button (hidden on desktop) ── */
+      .hamburger-btn {
+        display: none;
+        background: none; border: none; cursor: pointer;
+        padding: 6px; border-radius: var(--radius-sm);
+        color: var(--text); font-size: 22px; line-height: 1;
+        flex-shrink: 0;
+      }
+
+      /* ── Mobile top bar (hidden on desktop) ── */
+      .mobile-topbar {
+        display: none;
+        position: sticky; top: 0; z-index: 100;
+        background: var(--card);
+        border-bottom: 0.5px solid var(--border);
+        align-items: center; gap: 10px;
+        padding: 0 1rem; height: 52px;
+        flex-shrink: 0;
+      }
+      .mobile-topbar-title {
+        flex: 1; font-size: 15px; font-weight: 700; color: var(--text);
+      }
+
+      /* ── Sidebar overlay (mobile backdrop) ── */
+      .sidebar-mobile-overlay {
+        display: none;
+        position: fixed; inset: 0; z-index: 149;
+        background: rgba(0,0,0,.45);
+        animation: fadeIn 0.2s ease;
+      }
+      .sidebar-mobile-overlay.open { display: block; }
+
+      /* ── Grid helpers (just carry the class; inline styles set desktop values) ── */
+      /* Override via !important inside media queries below */
+
+      /* ── Kanban wrapper: lets board scroll horizontally on small screens ── */
+      .kanban-wrapper { width: 100%; }
+
+      /* ── Table scroll wrapper ── */
+      .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      /* ════ TABLET  768 – 1023 px ════ */
+      @media (min-width: 768px) and (max-width: 1023px) {
+        .dashboard-main { padding: 1.25rem 1.5rem !important; }
+
+        /* 4-col stat grid → 2 cols */
+        .stat-grid-4  { grid-template-columns: repeat(2,1fr) !important; }
+        /* 2-col chart/report grid → 1 col */
+        .chart-grid-2 { grid-template-columns: 1fr !important; }
+        /* Kanban 5 cols → 3 cols (still fits most tablets) */
+        .kanban-board { grid-template-columns: repeat(3,minmax(200px,1fr)) !important; }
+        .kanban-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+      }
+
+      /* ════ MOBILE  < 768 px ════ */
+      @media (max-width: 767px) {
+        /* Show hamburger & topbar */
+        .hamburger-btn { display: flex; align-items: center; justify-content: center; }
+        .mobile-topbar  { display: flex; }
+
+        /* Layout: vertical stack */
+        .dashboard-layout { flex-direction: column !important; }
+
+        /* Sidebar: fixed off-screen drawer */
+        .sidebar-drawer {
+          position: fixed !important;
+          left: -250px; top: 0; bottom: 0;
+          width: 230px !important;
+          z-index: 150;
+          transition: left 0.25s ease;
+          box-shadow: var(--shadow-lg);
+          overflow-y: auto;
+          height: 100% !important;
+        }
+        .sidebar-drawer.open { left: 0 !important; }
+
+        /* Main: full-width, less padding */
+        .dashboard-main {
+          max-width: 100vw !important;
+          padding: 1rem !important;
+          overflow-y: visible !important;
+        }
+
+        /* Stat grid: 2 cols on mobile */
+        .stat-grid-4  { grid-template-columns: 1fr 1fr !important; }
+        /* Charts / reports stack */
+        .chart-grid-2 { grid-template-columns: 1fr !important; }
+
+        /* Kanban: columns scroll horizontally */
+        .kanban-wrapper {
+          overflow-x: auto; -webkit-overflow-scrolling: touch;
+          margin: 0 -1rem; padding: 0 1rem 12px;
+        }
+        .kanban-board {
+          grid-template-columns: repeat(5, minmax(230px,1fr)) !important;
+          min-width: max-content;
+        }
+        /* Kanban status filter bar: wrap to 3+2 */
+        .kanban-filters {
+          grid-template-columns: repeat(3,1fr) !important;
+          flex-wrap: wrap;
+        }
+
+        /* Modal: nearly full-screen */
+        .modal-card {
+          width: calc(100vw - 1.5rem) !important;
+          max-width: 100% !important;
+          max-height: 90vh;
+          overflow-y: auto;
+          border-radius: var(--radius-lg) !important;
+        }
+
+        /* Page header flex rows: wrap on mobile */
+        .page-header-row { flex-wrap: wrap; gap: 10px !important; }
+        .filter-row { flex-wrap: wrap !important; gap: 8px !important; }
+        .filter-row > * { flex: 1 1 140px; min-width: 120px; }
+
+        /* Orders: detail panel stacks below table on mobile */
+        .orders-grid { grid-template-columns: 1fr !important; }
+
+        /* CreateOrderModal: 2-col grids stack to 1 col */
+        .modal-2col { grid-template-columns: 1fr !important; }
+
+        /* Delivery settings: shop location 2-col grid stacks */
+        .delivery-loc-grid { grid-template-columns: 1fr !important; }
+      }
+
+      /* ── Modal close button (mobile only) ── */
+      @media (max-width: 767px) {
+        .modal-close-mobile { display: block !important; }
+
+        /* Push modal below the sticky topbar so × is never hidden */
+        .modal-overlay {
+          align-items: flex-start !important;
+          padding-top: calc(52px + env(safe-area-inset-top) + 8px) !important;
+          padding-bottom: 16px !important;
+        }
+      }
+
+      /* ── Urgency card animations ── */
+      @keyframes urgency-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.35); }
+        50%       { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+      }
+      .card-overdue {
+        animation: urgency-pulse 2s ease-in-out infinite;
+      }
     </style>
-    <script type="module" crossorigin src="/assets/index-DYrZLIx5.js"></script>
-  </head>
+    <script type="module" crossorigin src="/assets/index-0ALmfAhG.js"></script>
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
+    <div id="fb-root"></div>
     <div id="root"></div>
   </body>
 </html>

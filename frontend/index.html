@@ -34,12 +34,11 @@
     <!-- ── Favicon ── -->
     <link rel="icon" type="image/png" href="/logo.png" />
 
-    <!-- ── Leaflet (map) — loaded only inside dashboard, not on landing page ── -->
+    <!-- ── Leaflet (map) — skipped only on the marketing landing page ── -->
     <script>
       (function() {
         var p = window.location.pathname;
-        var isDashboard = p !== '/' && p !== '/login' && !p.startsWith('/book/');
-        if (isDashboard) {
+        if (p !== '/') {
           var css = document.createElement('link');
           css.rel = 'stylesheet';
           css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';

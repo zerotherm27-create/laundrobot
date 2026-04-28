@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LaundroBot — Business Plan 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --teal: #38a9c2; --teal-dark: #1d8ba0; --teal-light: #e6f5f8;
+    --dark: #0D1117; --gray: #374151; --gray-2: #6B7280;
+    --yellow: #fdca00; --green: #1D9E75; --purple: #7F77DD;
+    --border: #E8E8E0; --bg: #F8F8F6;
+  }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--dark); font-size: 15px; line-height: 1.7; }
+
+  .page { max-width: 860px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+  /* Cover */
+  .cover { background: linear-gradient(135deg, #0D1117, #0d2137); border-radius: 20px; padding: 4rem 3rem; margin-bottom: 3rem; text-align: center; }
+  .cover .logo-row { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 2rem; }
+  .cover .logo-row img { width: 52px; height: 52px; border-radius: 14px; }
+  .cover .logo-row span { font-size: 1.5rem; font-weight: 900; color: #fff; }
+  .cover h1 { font-size: 2.4rem; font-weight: 900; color: #fff; letter-spacing: -.04em; line-height: 1.1; margin-bottom: 1rem; }
+  .cover h1 span { color: var(--teal); }
+  .cover .sub { color: rgba(255,255,255,.5); font-size: .95rem; }
+  .cover .pills { margin-top: 1.5rem; display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; }
+  .cover .pill { background: rgba(56,169,194,.15); border: 1px solid rgba(56,169,194,.25); color: var(--teal); padding: 4px 16px; border-radius: 50px; font-size: 12px; font-weight: 700; }
+
+  /* TOC */
+  .toc { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin-bottom: 3rem; }
+  .toc h2 { font-size: 1rem; font-weight: 800; color: var(--dark); margin-bottom: 1.25rem; }
+  .toc ol { padding-left: 1.25rem; display: flex; flex-direction: column; gap: .4rem; }
+  .toc ol li a { color: var(--teal); text-decoration: none; font-size: .9rem; font-weight: 600; }
+  .toc ol li a:hover { text-decoration: underline; }
+  .toc ol li span { color: var(--gray-2); font-size: .8rem; margin-left: .5rem; }
+
+  /* Sections */
+  .section { margin-bottom: 3.5rem; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
+  .section-num { width: 36px; height: 36px; border-radius: 10px; background: var(--teal); color: #fff; font-weight: 900; font-size: .9rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section h2 { font-size: 1.4rem; font-weight: 900; letter-spacing: -.02em; }
+
+  /* Content helpers */
+  p { margin-bottom: 1rem; color: var(--gray); }
+  h3 { font-size: 1.05rem; font-weight: 800; color: var(--dark); margin: 1.5rem 0 .6rem; }
+  h4 { font-size: .9rem; font-weight: 800; color: var(--gray); margin: 1rem 0 .4rem; text-transform: uppercase; letter-spacing: .05em; }
+  ul, ol { padding-left: 1.4rem; margin-bottom: 1rem; }
+  ul li, ol li { color: var(--gray); margin-bottom: .35rem; }
+  strong { color: var(--dark); font-weight: 700; }
+
+  /* Callout boxes */
+  .callout { border-radius: 12px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+  .callout-teal { background: var(--teal-light); border-left: 4px solid var(--teal); }
+  .callout-yellow { background: #FFFBEB; border-left: 4px solid var(--yellow); }
+  .callout-red { background: #FFF5F5; border-left: 4px solid #ef4444; }
+  .callout-green { background: #ECFDF5; border-left: 4px solid var(--green); }
+  .callout p { margin-bottom: 0; }
+  .callout strong { color: var(--dark); }
+
+  /* Data tables */
+  table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: .88rem; }
+  th { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-2); padding: .6rem .75rem; border-bottom: 2px solid var(--border); text-align: left; }
+  td { padding: .65rem .75rem; border-bottom: 1px solid var(--border); color: var(--gray); vertical-align: top; }
+  td strong { color: var(--dark); }
+  tr:last-child td { border-bottom: none; }
+  tr.total td { font-weight: 800; color: var(--dark); background: var(--bg); }
+  tr.highlight td { background: var(--teal-light); }
+
+  /* Stat cards */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+  .stat-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; text-align: center; }
+  .stat-card .val { font-size: 1.8rem; font-weight: 900; color: var(--teal); letter-spacing: -.04em; line-height: 1; }
+  .stat-card .lbl { font-size: .75rem; color: var(--gray-2); margin-top: .4rem; line-height: 1.4; }
+  .stat-card .src { font-size: .65rem; color: var(--gray-2); margin-top: .3rem; font-style: italic; opacity: .7; }
+
+  /* Two-col grid */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1.5rem 0; }
+  .col-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .col-card h4 { margin-top: 0; }
+
+  /* Pricing cards */
+  .pricing-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.5rem 0; }
+  .p-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .p-card.pop { border: 2px solid var(--teal); }
+  .p-card .pname { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); margin-bottom: .5rem; }
+  .p-card .pprice { font-size: 1.6rem; font-weight: 900; color: var(--dark); letter-spacing: -.04em; }
+  .p-card .pprice span { font-size: .8rem; font-weight: 500; color: var(--gray-2); }
+  .p-card .ptag { font-size: .72rem; color: var(--gray-2); margin: .3rem 0 .75rem; }
+  .p-card ul { font-size: .78rem; padding-left: 1rem; }
+  .p-card ul li { margin-bottom: .25rem; }
+
+  /* Projection table */
+  .proj-highlight td:nth-child(4) { color: var(--green); font-weight: 800; }
+
+  @media print {
+    body { background: #fff; }
+    .page { padding: 1rem; }
+    .cover { break-after: page; }
+    .section { break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .stat-row, .two-col, .pricing-row { grid-template-columns: 1fr; }
+    .cover h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="logo-row">
+      <img src="../frontend/public/icon-192.png" alt="LaundroBot" />
+      <span>LaundroBot</span>
+    </div>
+    <h1>Business Plan<br><span>2026 – 2028</span></h1>
+    <p class="sub">Confidential · Prepared April 2026</p>
+    <div class="pills">
+      <span class="pill">SaaS</span>
+      <span class="pill">Philippines</span>
+      <span class="pill">Laundry Tech</span>
+      <span class="pill">Messenger-native</span>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#s1">Executive Summary</a></li>
+      <li><a href="#s2">Company Overview</a></li>
+      <li><a href="#s3">Problem Statement</a></li>
+      <li><a href="#s4">The Solution</a></li>
+      <li><a href="#s5">Market Analysis</a></li>
+      <li><a href="#s6">Product Description</a></li>
+      <li><a href="#s7">Revenue Model &amp; Pricing</a></li>
+      <li><a href="#s8">Cost Structure</a></li>
+      <li><a href="#s9">Financial Projections</a></li>
+      <li><a href="#s10">Go-to-Market Strategy</a></li>
+      <li><a href="#s11">Competitive Analysis</a></li>
+      <li><a href="#s12">Risk Analysis</a></li>
+      <li><a href="#s13">Roadmap</a></li>
+    </ol>
+  </div>
+
+  <!-- Section 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2>Executive Summary</h2>
+    </div>
+    <p>LaundroBot is a Software-as-a-Service (SaaS) platform built specifically for laundry businesses in the Philippines. It replaces the manual, error-prone workflows that most Philippine laundry shops rely on today — paper logbooks, WhatsApp order tracking, and a part-time Messenger encoder — with an automated, AI-powered system that works 24 hours a day.</p>
+    <p>The product is live. It accepts bookings natively through Facebook Messenger using a webform that appears inside the chat (no app download required), manages orders through a Kanban board, processes payments through Xendit, and runs an AI chatbot powered by Google Gemini 2.5 Flash that responds to customer inquiries in Tagalog and English at any hour.</p>
+
+    <div class="callout callout-teal">
+      <p><strong>The core insight:</strong> The Philippines has 61.8 million Facebook Messenger users — 90% of all internet users. Filipino customers already message laundry shops on Messenger to ask about rates. LaundroBot turns that conversation into a booking, a payment, and an order — automatically.</p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card"><div class="val">₱905K</div><div class="lbl">Projected Year 1 revenue (50 tenants)</div></div>
+      <div class="stat-card"><div class="val">95%+</div><div class="lbl">Gross margin at scale (100+ tenants)</div></div>
+      <div class="stat-card"><div class="val">₱5.4M</div><div class="lbl">Projected Year 3 ARR (300 tenants)</div></div>
+    </div>
+  </div>
+
+  <!-- Section 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <h2>Company Overview</h2>
+    </div>
+    <table>
+      <tr><td><strong>Company Name</strong></td><td>LaundroBot</td></tr>
+      <tr><td><strong>Website</strong></td><td>thelaundryproject.app</td></tr>
+      <tr><td><strong>Business Type</strong></td><td>Software-as-a-Service (SaaS), B2B</td></tr>
+      <tr><td><strong>Target Market</strong></td><td>Laundry shop owners in the Philippines (micro to SME)</td></tr>
+      <tr><td><strong>Stage</strong></td><td>Live product, early revenue stage</td></tr>
+      <tr><td><strong>Tech Stack</strong></td><td>React · Node.js · PostgreSQL · Railway · Vercel · Gemini 2.5 Flash · Xendit · Facebook Graph API</td></tr>
+      <tr><td><strong>Country of Operation</strong></td><td>Philippines</td></tr>
+    </table>
+  </div>
+
+  <!-- Section 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <h2>Problem Statement</h2>
+    </div>
+    <p>Philippine laundry shops are overwhelmingly micro-enterprises. The PSA counted 1,893 formal establishments in 2020, but the real total including informal operators is estimated at 10,000+. The vast majority operate without any dedicated business software.</p>
+
+    <h3>How most shops operate today</h3>
+    <div class="two-col">
+      <div class="col-card">
+        <h4>❌ Manual order tracking</h4>
+        <p style="font-size:.85rem">Orders are written in paper logbooks or tracked in WhatsApp threads. Weight, service type, and special instructions are logged by hand. Disputes over lost or damaged items are common because there is no digital record.</p>
+      </div>
+      <div class="col-card">
+        <h4>❌ Human Messenger encoder</h4>
+        <p style="font-size:.85rem">Many shops hire a part-time staff member whose sole job is to reply to Messenger inquiries. At ₱7,000/month, this person works 8am–5pm — leaving evening and overnight inquiries unanswered and orders lost.</p>
+      </div>
+      <div class="col-card">
+        <h4>❌ Cash-only payment leakage</h4>
+        <p style="font-size:.85rem">Payment is collected at pickup. Customers who do not return on time cause cash flow gaps. There is no system to send reminders or automatically cancel unclaimed orders, so shops absorb the loss.</p>
+      </div>
+      <div class="col-card">
+        <h4>❌ No customer notifications</h4>
+        <p style="font-size:.85rem">Customers must call or text to check if their laundry is ready. This creates unnecessary back-and-forth and ties up the shop owner's personal phone number for business communication.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-yellow">
+      <p><strong>The cost of the status quo:</strong> A shop hiring a part-time Messenger encoder (₱7,000/month), plus losing 2–3 orders per week to missed evening inquiries (₱200–400/order), is effectively spending ₱10,000–15,000/month on a problem LaundroBot solves for ₱599–1,999/month.</p>
+    </div>
+  </div>
+
+  <!-- Section 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <h2>The Solution</h2>
+    </div>
+    <p>LaundroBot is a complete operating system for a Philippine laundry shop. It is designed around one core insight: Filipino customers already use Facebook Messenger to interact with businesses. Instead of forcing them to download an app or visit a website, LaundroBot brings the entire booking and payment flow inside Messenger.</p>
+
+    <h3>How it works for the customer</h3>
+    <ol>
+      <li>Customer sends a message to the laundry shop's Facebook Page</li>
+      <li>The LaundroBot AI chatbot responds instantly — in Tagalog, English, or Taglish — answering questions about rates, schedules, and services</li>
+      <li>Customer taps "Book Now" in the persistent menu</li>
+      <li>A full booking webform slides up inside Messenger (no app download, no new account)</li>
+      <li>Customer selects service, weight, pickup address, and schedule — and pays via Xendit</li>
+      <li>Order lands in the shop's Kanban board. Shop owner and customer are both notified at every status change.</li>
+    </ol>
+
+    <h3>How it works for the shop owner</h3>
+    <ul>
+      <li><strong>Kanban board</strong> — drag orders through: New → Confirmed → In Progress → Ready → Completed</li>
+      <li><strong>Walk-in POS</strong> — create orders manually for walk-in customers with the same pricing engine</li>
+      <li><strong>Blast messaging</strong> — send promotions or updates to all customers in one click (Growth plan)</li>
+      <li><strong>Auto-reminders</strong> — 4-stage payment reminders at 1hr, 3hr, 6hr, and 23hr post-order; auto-cancel at 24hr</li>
+      <li><strong>Revenue reports</strong> — daily/weekly/monthly revenue summaries by service type</li>
+    </ul>
+  </div>
+
+  <!-- Section 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <h2>Market Analysis</h2>
+    </div>
+
+    <h3>The Philippine laundry market</h3>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="val">10,000+</div>
+        <div class="lbl">Estimated laundry shops (formal + informal)</div>
+        <div class="src">PSA ASPBI 2020 (1,893 formal); informal sector ~34% of GDP</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">USD 88M</div>
+        <div class="lbl">Philippine laundry services revenue (2024)</div>
+        <div class="src">Statista Industry Revenue Forecast, 2024</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">5%+</div>
+        <div class="lbl">Annual market CAGR driven by urbanization</div>
+        <div class="src">WiseGuy Reports; 6WResearch Philippines Laundry, 2024</div>
+      </div>
+    </div>
+
+    <h3>The digital infrastructure advantage</h3>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="val">61.8M</div>
+        <div class="lbl">Facebook Messenger users in PH (Jan 2025)</div>
+        <div class="src">DataReportal Digital 2025 Philippines</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">90%</div>
+        <div class="lbl">Of Filipino internet users are on Messenger</div>
+        <div class="src">Meltwater / Spiralytics Social Media Statistics PH 2026</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">83.8%</div>
+        <div class="lbl">Internet penetration (97.5M users)</div>
+        <div class="src">DataReportal Digital 2025 Philippines</div>
+      </div>
+    </div>
+
+    <h3>SME digital adoption tailwinds</h3>
+    <ul>
+      <li><strong>69% of Filipino SMEs</strong> that invested in technology in 2024 reported improved profitability — above the Asia-Pacific average of 56% <em>(Management Association of the Philippines, 2025)</em></li>
+      <li><strong>89% of Filipino SMEs expect to expand in 2025</strong>, creating appetite for tools that reduce manual labor costs <em>(MAP SME Survey)</em></li>
+      <li><strong>65% of SMEs lack awareness</strong> of cloud technologies — a sales education opportunity, not a barrier <em>(The Accountant Online, 2024)</em></li>
+    </ul>
+
+    <h3>Market sizing (TAM → SAM → SOM)</h3>
+    <table>
+      <thead><tr><th>Market</th><th>Assumption</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><strong>TAM</strong> — Total Addressable Market</td><td>10,000 shops × ₱1,500/mo ARPU × 12</td><td><strong>₱180M/year</strong></td></tr>
+        <tr><td><strong>SAM</strong> — Serviceable Addressable Market</td><td>3,000 shops with Messenger access + smartphone × ₱1,500/mo</td><td><strong>₱54M/year</strong></td></tr>
+        <tr><td><strong>SOM</strong> — Serviceable Obtainable (Year 3)</td><td>300 tenants × ₱1,509/mo ARPU × 12</td><td><strong>₱5.4M/year</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <h2>Product Description</h2>
+    </div>
+
+    <h3>Core features (all plans)</h3>
+    <table>
+      <thead><tr><th>Feature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>AI Chatbot</strong></td><td>Google Gemini 2.5 Flash. Responds in Tagalog, English, or Taglish. Answers FAQs, explains services and pricing, handles objections. Maintains 10-message conversation history per customer.</td></tr>
+        <tr><td><strong>Messenger Booking</strong></td><td>Persistent menu with "Book Now" → opens full booking webform inside Messenger webview. No app download required.</td></tr>
+        <tr><td><strong>Instagram DM</strong></td><td>Same AI chatbot available via Instagram DM (pending Meta App Review for instagram_manage_messages).</td></tr>
+        <tr><td><strong>Booking Webform</strong></td><td>Public URL (/book/:tenantId) — selects service, weight, address (with geocoding), schedule (blocked dates respected), promo code, delivery fee (distance-based brackets).</td></tr>
+        <tr><td><strong>Kanban Order Board</strong></td><td>Drag-and-drop order management: New → Confirmed → In Progress → Ready for Pickup / Out for Delivery → Completed.</td></tr>
+        <tr><td><strong>Walk-in POS</strong></td><td>Manual order creation for walk-in customers. Same pricing engine as the booking form.</td></tr>
+        <tr><td><strong>Xendit Payments</strong></td><td>Payment links generated per order. Tenant uses their own Xendit API key — LaundroBot takes no transaction cut. Supports GCash, Maya, credit cards, OTC.</td></tr>
+        <tr><td><strong>Auto-reminders</strong></td><td>4-stage payment follow-up via Messenger at 1hr, 3hr, 6hr, 23hr. Auto-cancel at 24hr if unpaid.</td></tr>
+        <tr><td><strong>Email Notifications</strong></td><td>Order confirmation, payment receipt, and status updates to customer and shop owner via Resend.</td></tr>
+        <tr><td><strong>Delivery Brackets</strong></td><td>Distance-based delivery fee calculation using Google Maps geocoding and configurable km brackets.</td></tr>
+        <tr><td><strong>Promo Codes</strong></td><td>Fixed or percentage discounts. Configurable per-code usage limits and expiry dates.</td></tr>
+        <tr><td><strong>Blocked Dates</strong></td><td>Shop owners block specific dates (holidays, closures) so customers cannot book those days.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Technology stack</h3>
+    <div class="two-col">
+      <div class="col-card">
+        <h4>Frontend</h4>
+        <ul style="font-size:.85rem">
+          <li>React 18 + Vite (SPA)</li>
+          <li>Hosted on Vercel (free tier)</li>
+          <li>PWA-enabled (installable)</li>
+          <li>Responsive — mobile-first</li>
+        </ul>
+      </div>
+      <div class="col-card">
+        <h4>Backend</h4>
+        <ul style="font-size:.85rem">
+          <li>Node.js + Express</li>
+          <li>PostgreSQL (Railway)</li>
+          <li>Railway hosting (~$20/month)</li>
+          <li>Multi-tenant architecture</li>
+        </ul>
+      </div>
+      <div class="col-card">
+        <h4>AI & Messaging</h4>
+        <ul style="font-size:.85rem">
+          <li>Google Gemini 2.5 Flash</li>
+          <li>Facebook Graph API v19</li>
+          <li>Meta Webhooks (Messenger + Instagram)</li>
+        </ul>
+      </div>
+      <div class="col-card">
+        <h4>Payments & Email</h4>
+        <ul style="font-size:.85rem">
+          <li>Xendit (tenant's own API key)</li>
+          <li>Resend (transactional email)</li>
+          <li>node-cron (follow-up scheduler)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <h2>Revenue Model &amp; Pricing</h2>
+    </div>
+    <p>LaundroBot operates on a pure subscription model. There are no transaction fees, no setup fees, and no revenue sharing. Tenants pay a flat monthly or annual fee based on their plan. Payment processing revenue flows directly from customers to tenants via their own Xendit accounts.</p>
+
+    <div class="pricing-row">
+      <div class="p-card">
+        <div class="pname">Starter</div>
+        <div class="pprice">₱599 <span>/mo</span></div>
+        <div class="ptag">₱549/mo billed annually · 1 month free</div>
+        <ul>
+          <li>1 branch · 2 staff accounts</li>
+          <li>AI chatbot (Tagalog & English)</li>
+          <li>Messenger + Instagram booking</li>
+          <li>Kanban board + Walk-in POS</li>
+          <li>Email notifications</li>
+          <li>Up to 200 orders/month</li>
+        </ul>
+      </div>
+      <div class="p-card pop">
+        <div class="pname">Growth ⭐ Most Popular</div>
+        <div class="pprice">₱1,999 <span>/mo</span></div>
+        <div class="ptag">₱1,666/mo billed annually · 2 months free</div>
+        <ul>
+          <li>Everything in Starter</li>
+          <li>Up to 3 branches · 5 staff accounts</li>
+          <li>Blast messaging</li>
+          <li>Promo codes & referral links</li>
+          <li>4-stage auto payment reminders</li>
+          <li>Revenue reports & analytics</li>
+          <li>Up to 1,000 orders/month</li>
+        </ul>
+      </div>
+      <div class="p-card">
+        <div class="pname" style="color:var(--purple)">Pro</div>
+        <div class="pprice">₱5,499 <span>/mo</span></div>
+        <div class="ptag">₱4,583/mo billed annually · 2 months free</div>
+        <ul>
+          <li>Everything in Growth</li>
+          <li>Up to 10 branches</li>
+          <li>Unlimited staff accounts</li>
+          <li>Custom AI instructions per branch</li>
+          <li>White-label booking form</li>
+          <li>Unlimited orders</li>
+          <li>Priority support + onboarding</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Blended ARPU calculation</h3>
+    <p>Assuming a conservative customer mix of 60% Starter / 30% Growth / 10% Pro:</p>
+    <table>
+      <thead><tr><th>Plan</th><th>Weight</th><th>Monthly Price</th><th>Weighted ARPU</th></tr></thead>
+      <tbody>
+        <tr><td>Starter</td><td>60%</td><td>₱599</td><td>₱359</td></tr>
+        <tr><td>Growth</td><td>30%</td><td>₱1,999</td><td>₱600</td></tr>
+        <tr><td>Pro</td><td>10%</td><td>₱5,499</td><td>₱550</td></tr>
+        <tr class="total"><td colspan="3"><strong>Blended ARPU</strong></td><td><strong>₱1,509/tenant/month</strong></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-green">
+      <p><strong>Zero payment transaction revenue.</strong> Tenants use their own Xendit API key. LaundroBot earns nothing from payments. This is a deliberate choice — it eliminates regulatory complexity, builds trust with shop owners, and means our revenue is 100% predictable subscription income.</p>
+    </div>
+  </div>
+
+  <!-- Section 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <h2>Cost Structure</h2>
+    </div>
+
+    <h3>Fixed monthly infrastructure costs</h3>
+    <table>
+      <thead><tr><th>Cost Item</th><th>Provider</th><th>Monthly Cost (₱)</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Backend hosting + PostgreSQL</td><td>Railway</td><td>₱1,120</td><td>~$20/month; scales with usage</td></tr>
+        <tr><td>Transactional email</td><td>Resend</td><td>₱1,120</td><td>$20/month for 50,000 emails; free tier usable early-stage</td></tr>
+        <tr><td>Frontend hosting</td><td>Vercel</td><td>₱0</td><td>Free tier sufficient indefinitely</td></tr>
+        <tr><td>Domain renewal</td><td>Registrar</td><td>₱190</td><td>~$3.50/month averaged</td></tr>
+        <tr class="total"><td colspan="2"><strong>Total fixed</strong></td><td><strong>~₱2,430/mo</strong></td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Variable cost per tenant per month</h3>
+    <table>
+      <thead><tr><th>Cost Item</th><th>Estimate</th><th>Basis</th></tr></thead>
+      <tbody>
+        <tr><td>AI (Gemini 2.5 Flash)</td><td>₱10–30</td><td>~500 msgs/mo × 700 avg tokens = ~$0.10–0.50; priced at $0.15/1M input, $0.60/1M output</td></tr>
+        <tr><td>Email (allocated share)</td><td>~₱5</td><td>~30 emails/month per tenant; allocated from shared Resend plan</td></tr>
+        <tr><td>Compute + DB storage (allocated)</td><td>~₱15</td><td>Shared Railway infra allocated per tenant</td></tr>
+        <tr><td>Support time (estimated)</td><td>~₱25</td><td>~30 min/month at ₱50/hour opportunity cost</td></tr>
+        <tr class="total"><td><strong>Total variable</strong></td><td><strong>~₱55/tenant</strong></td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Break-even analysis</h3>
+    <table>
+      <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Blended ARPU</td><td>₱1,509/month</td></tr>
+        <tr><td>Variable cost per tenant</td><td>₱55/month</td></tr>
+        <tr><td>Contribution margin per tenant</td><td>₱1,454/month</td></tr>
+        <tr><td>Fixed cost</td><td>₱2,430/month</td></tr>
+        <tr class="total"><td><strong>Break-even (tenants needed)</strong></td><td><strong>2 tenants</strong></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-teal">
+      <p><strong>Key insight:</strong> With a break-even of just 2 tenants, LaundroBot is profitable from the very first week of real sales. The infrastructure cost is negligible relative to revenue at any meaningful scale.</p>
+    </div>
+  </div>
+
+  <!-- Section 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <h2>Financial Projections</h2>
+    </div>
+    <p>The following projections use conservative tenant growth assumptions. No external funding is assumed — growth is bootstrapped through subscription revenue.</p>
+
+    <h3>3-Year Projection (Conservative Case)</h3>
+    <table class="proj-highlight">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Year 1</th>
+          <th>Year 2</th>
+          <th>Year 3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Tenants (end of year)</td><td>50</td><td>150</td><td>300</td></tr>
+        <tr><td>Avg tenants (full year)</td><td>25</td><td>100</td><td>225</td></tr>
+        <tr><td>Blended ARPU</td><td>₱1,509/mo</td><td>₱1,509/mo</td><td>₱1,509/mo</td></tr>
+        <tr><td>Annual Revenue</td><td>₱452,700</td><td>₱1,810,800</td><td>₱4,074,300</td></tr>
+        <tr><td>Annual Infrastructure Cost</td><td>₱38,880</td><td>₱55,080</td><td>₱79,560</td></tr>
+        <tr><td>Variable Cost (all tenants)</td><td>₱16,500</td><td>₱66,000</td><td>₱148,500</td></tr>
+        <tr class="total"><td><strong>Annual Profit (pre-tax)</strong></td><td><strong>₱397,320</strong></td><td><strong>₱1,689,720</strong></td><td><strong>₱3,846,240</strong></td></tr>
+        <tr><td style="color:var(--green)">Gross Margin</td><td style="color:var(--green)">87.7%</td><td style="color:var(--green)">93.3%</td><td style="color:var(--green)">94.4%</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-yellow">
+      <p><strong>Note:</strong> Year 1 revenue uses average tenants (25) rather than end-of-year (50) to account for the ramp-up period. Year 3 uses 225 average tenants (ramps from 150 to 300 across the year).</p>
+    </div>
+
+    <h3>Monthly ramp model — Year 1</h3>
+    <table>
+      <thead><tr><th>Period</th><th>Tenants</th><th>Monthly Revenue</th><th>Monthly Profit</th></tr></thead>
+      <tbody>
+        <tr><td>Months 1–3 (Beta)</td><td>2–5</td><td>₱3,000–7,500</td><td>₱0–5,000</td></tr>
+        <tr><td>Months 4–6 (Launch)</td><td>5–20</td><td>₱7,500–30,000</td><td>₱5,000–27,000</td></tr>
+        <tr><td>Months 7–9 (Growth)</td><td>20–40</td><td>₱30,000–60,000</td><td>₱27,000–57,000</td></tr>
+        <tr><td>Months 10–12 (Scale)</td><td>40–50</td><td>₱60,000–75,450</td><td>₱57,000–72,000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <h2>Go-to-Market Strategy</h2>
+    </div>
+
+    <h3>Phase 1: Direct outreach (Months 1–3)</h3>
+    <ul>
+      <li>Identify laundry shops in Metro Manila, Cebu, and Davao with active Facebook Pages</li>
+      <li>Send personalised DMs demonstrating the product (short Loom video showing the Messenger booking flow)</li>
+      <li>Offer a <strong>30-day free trial</strong> with assisted setup included</li>
+      <li>Target: 10–20 paying tenants by end of Month 3</li>
+    </ul>
+
+    <h3>Phase 2: Community &amp; referrals (Months 4–9)</h3>
+    <ul>
+      <li><strong>Facebook Groups:</strong> Philippine laundry business Facebook groups have 50,000–150,000 members. Post case studies, tutorials, and offer-limited spots</li>
+      <li><strong>Referral program:</strong> Existing tenants get 1 free month per successful referral</li>
+      <li><strong>Content marketing:</strong> "How [Shop Name] saves ₱7,000/month with LaundroBot" — real testimonials from beta users</li>
+      <li>Target: 50 paying tenants by Month 9</li>
+    </ul>
+
+    <h3>Phase 3: Inbound &amp; partnerships (Month 10+)</h3>
+    <ul>
+      <li><strong>SEO:</strong> Target "laundry management software Philippines," "laundry booking system Philippines" — zero competition currently</li>
+      <li><strong>Google Ads:</strong> Low CPC in this niche; target shop owners actively searching for solutions</li>
+      <li><strong>Franchise partnerships:</strong> Reach out to laundry franchise groups (Labamax, etc.) for bulk licensing</li>
+      <li><strong>YouTube / TikTok:</strong> Tutorial content for laundry shop owners in Tagalog</li>
+      <li>Target: 150+ tenants by end of Year 1, 300 by end of Year 2</li>
+    </ul>
+
+    <h3>Onboarding &amp; retention</h3>
+    <ul>
+      <li>Assisted setup call included for all plans (30–60 minutes via video call)</li>
+      <li>In-app guided setup checklist (services → delivery zones → Messenger connection)</li>
+      <li>Monthly check-in email with usage summary and tips</li>
+      <li>Target churn rate: &lt;5%/month (industry average for B2B SaaS is 3–7%)</li>
+    </ul>
+  </div>
+
+  <!-- Section 11 -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <div class="section-num">11</div>
+      <h2>Competitive Analysis</h2>
+    </div>
+
+    <h3>Competitive landscape</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Competitor</th>
+          <th>Type</th>
+          <th>PH-Built</th>
+          <th>Shop Back-Office</th>
+          <th>Messenger Native</th>
+          <th>AI Chatbot (Tagalog)</th>
+          <th>PH Payment Rails</th>
+          <th>Monthly Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight">
+          <td><strong>LaundroBot ⭐</strong></td>
+          <td>SaaS</td>
+          <td>✅</td>
+          <td>✅</td>
+          <td>✅</td>
+          <td>✅</td>
+          <td>✅ Xendit/GCash</td>
+          <td>₱599–5,499</td>
+        </tr>
+        <tr>
+          <td>SWOSH</td>
+          <td>Marketplace</td>
+          <td>✅</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>Partial</td>
+          <td>Commission cut</td>
+        </tr>
+        <tr>
+          <td>Lalaba</td>
+          <td>Marketplace</td>
+          <td>✅</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>Partial</td>
+          <td>Commission cut</td>
+        </tr>
+        <tr>
+          <td>CleanCloud</td>
+          <td>SaaS</td>
+          <td>❌ (US)</td>
+          <td>✅</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>~₱5,000 (USD 89)</td>
+        </tr>
+        <tr>
+          <td>Generic POS / Spreadsheet</td>
+          <td>Tool</td>
+          <td>—</td>
+          <td>Partial</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>❌</td>
+          <td>₱0–2,000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>LaundroBot's sustainable competitive advantages</h3>
+    <ul>
+      <li><strong>Messenger-native booking</strong> — the only laundry software that lets customers book inside Messenger without leaving the app</li>
+      <li><strong>Tagalog AI chatbot</strong> — tuned specifically for Philippine laundry conversations; not a generic chatbot</li>
+      <li><strong>Zero transaction fee</strong> — unlike marketplaces (SWOSH, Lalaba) that take a cut, LaundroBot takes nothing from payments, making it clearly aligned with shop owners' interests</li>
+      <li><strong>Philippine-first pricing</strong> — CleanCloud charges USD 89/month; LaundroBot starts at ₱599 (about USD 10.50) — 8× cheaper for a more relevant product</li>
+      <li><strong>Data moat</strong> — as tenant count grows, conversation data improves AI quality; switching costs increase as order history accumulates</li>
+    </ul>
+  </div>
+
+  <!-- Section 12 -->
+  <div class="section" id="s12">
+    <div class="section-header">
+      <div class="section-num">12</div>
+      <h2>Risk Analysis</h2>
+    </div>
+
+    <table>
+      <thead><tr><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Meta changes API or platform policies</strong></td>
+          <td>Medium</td>
+          <td>High</td>
+          <td>Build SMS fallback; develop standalone booking form as primary channel; maintain direct customer relationships outside Messenger</td>
+        </tr>
+        <tr>
+          <td><strong>Instagram App Review rejected</strong></td>
+          <td>Medium</td>
+          <td>Medium</td>
+          <td>Instagram DM is a feature enhancement, not core. Messenger-only is fully functional. Re-apply with stronger business verification.</td>
+        </tr>
+        <tr>
+          <td><strong>Gemini API cost spike</strong></td>
+          <td>Low</td>
+          <td>Medium</td>
+          <td>Gemini 2.5 Flash is already the lowest-cost frontier model. Can add response caching for FAQs, rate-limit per tenant, or switch to smaller model for simple queries.</td>
+        </tr>
+        <tr>
+          <td><strong>Large competitor enters PH market</strong></td>
+          <td>Low</td>
+          <td>High</td>
+          <td>Build customer lock-in through data (order history, customer profiles). Price aggressively during growth phase to maximize tenant count before competition arrives.</td>
+        </tr>
+        <tr>
+          <td><strong>High churn from price-sensitive SMEs</strong></td>
+          <td>Medium</td>
+          <td>Medium</td>
+          <td>Starter plan at ₱599 is designed to be a no-brainer vs. ₱7,000/month encoder. Strong onboarding and monthly value-review emails to demonstrate ROI.</td>
+        </tr>
+        <tr>
+          <td><strong>Data Privacy Act (NPC) compliance</strong></td>
+          <td>Low</td>
+          <td>Medium</td>
+          <td>Privacy Policy published. Terms of Service published. NPC registration initiated when 1,000+ data subjects processed. Data processing agreements with tenants in place.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 13 -->
+  <div class="section" id="s13">
+    <div class="section-header">
+      <div class="section-num">13</div>
+      <h2>Product Roadmap</h2>
+    </div>
+
+    <h3>Now (Live)</h3>
+    <ul>
+      <li>Messenger bot + AI chatbot (Gemini 2.5 Flash, Tagalog & English)</li>
+      <li>Instagram DM bot (pending Meta App Review)</li>
+      <li>Booking webform with Xendit payments, delivery brackets, promo codes</li>
+      <li>Kanban order board + Walk-in POS</li>
+      <li>4-stage auto-reminders + auto-cancel at 24hr</li>
+      <li>Blast messaging (Growth+)</li>
+      <li>Revenue reports & analytics</li>
+      <li>Multi-branch support (Growth: 3, Pro: 10)</li>
+      <li>Referral links</li>
+    </ul>
+
+    <h3>Q3 2026</h3>
+    <ul>
+      <li>GCash direct integration (without Xendit intermediary)</li>
+      <li>SMS notification fallback (via semaphore.co)</li>
+      <li>Customer loyalty points system</li>
+      <li>Subscription laundry plans (recurring weekly/monthly customer subscriptions)</li>
+      <li>Multi-branch consolidated reporting dashboard</li>
+    </ul>
+
+    <h3>Q4 2026</h3>
+    <ul>
+      <li>Native mobile app (PWA upgrade with push notifications)</li>
+      <li>Delivery driver dispatch + route optimization</li>
+      <li>Inventory management (detergent, supplies tracking)</li>
+      <li>Franchise-level analytics and controls</li>
+    </ul>
+
+    <h3>2027 Vision</h3>
+    <ul>
+      <li>Embedded lending product for shop owners (revenue-based advance against subscription data)</li>
+      <li>Expand to other Messenger-native service SMEs (salons, repair shops)</li>
+      <li>Southeast Asia expansion (Indonesia, Vietnam) — same Messenger-first strategy</li>
+      <li>BNPL payment options at checkout (BillEase, Atome PH)</li>
+    </ul>
+
+    <div class="callout callout-teal" style="margin-top:2rem">
+      <p><strong>LaundroBot is already built and running.</strong> This is not a concept — it is a live product with real tenants. The plan above is an acceleration plan, not a starting point.</p>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:2rem 0;border-top:1px solid var(--border);color:var(--gray-2);font-size:.8rem">
+    LaundroBot · thelaundryproject.app · Confidential Business Plan · April 2026
+  </div>
+
+</div>
+</body>
+</html>
