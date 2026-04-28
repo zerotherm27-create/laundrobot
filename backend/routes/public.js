@@ -416,7 +416,8 @@ router.post('/:tenantId/orders', async (req, res) => {
       referralRef = conv?.referral_ref || null;
     }
 
-    // Generate booking ref — use MAX to avoid collisions when sequence has gaps
+    // Generate booking ref — advisory lock prevents race conditions between concurrent bookings
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [req.params.tenantId]);
     const { rows: [{ maxref }] } = await client.query(
       `SELECT MAX(CAST(REPLACE(booking_ref, 'BKG-', '') AS INTEGER)) as maxref
        FROM orders WHERE tenant_id=$1 AND booking_ref ~ '^BKG-[0-9]+$'`,

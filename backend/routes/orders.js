@@ -36,12 +36,14 @@ router.post('/walk-in', auth, async (req, res) => {
       customerId = newC.id;
     }
 
-    // Booking ref
-    const { rows: [{ count: bkgCount }] } = await client.query(
-      `SELECT COUNT(DISTINCT booking_ref) FROM orders WHERE tenant_id=$1 AND booking_ref IS NOT NULL`,
+    // Booking ref — advisory lock prevents race conditions between concurrent bookings
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [req.user.tenant_id]);
+    const { rows: [{ maxref }] } = await client.query(
+      `SELECT MAX(CAST(REPLACE(booking_ref, 'BKG-', '') AS INTEGER)) as maxref
+       FROM orders WHERE tenant_id=$1 AND booking_ref ~ '^BKG-[0-9]+$'`,
       [req.user.tenant_id]
     );
-    const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
+    const bookingRef = 'BKG-' + String((Number(maxref) || 0) + 1).padStart(6, '0');
 
     for (const item of cart) {
       const orderId = randomUUID();
