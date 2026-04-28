@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { login as apiLogin } from '../api.js';
 
 const AuthContext = createContext();
@@ -42,6 +42,11 @@ export function AuthProvider({ children }) {
     ['token','role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
     setUser(null);
   }
+
+  useEffect(() => {
+    window.addEventListener('auth:logout', logout);
+    return () => window.removeEventListener('auth:logout', logout);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
