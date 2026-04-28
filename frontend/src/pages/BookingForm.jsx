@@ -82,13 +82,50 @@ const INPUT = {
   fontFamily: 'inherit', color: '#0D1117', outline: 'none',
   transition: 'border-color .15s, box-shadow .15s',
 };
+const INPUT_ERR = {
+  ...INPUT, borderColor: '#F87171', background: '#FFF5F5',
+  boxShadow: '0 0 0 3px rgba(248,113,113,.12)',
+};
 const LABEL = { fontSize: 12, fontWeight: 600, color: '#1F2937', display: 'block', marginBottom: 6 };
 
-function Field({ label, required, children }) {
+// ── Inline SVG icons (Lucide-style stroke, no external dependency) ───────────
+function Icon({ name, size = 16, color = 'currentColor', style: s = {} }) {
+  const paths = {
+    search:      <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></>,
+    warning:     <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>,
+    info:        <><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>,
+    pin:         <><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>,
+    truck:       <><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="21" r="1"/><circle cx="20" cy="21" r="1"/></>,
+    store:       <><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></>,
+    cart:        <><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></>,
+    tag:         <><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.43 0l6.58-6.58a2.426 2.426 0 0 0 0-3.43z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none"/></>,
+    card:        <><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></>,
+    check:       <path d="M20 6 9 17l-5-5"/>,
+    checkCircle: <><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>,
+    clock:       <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    slash:       <><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></>,
+    clipboard:   <><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></>,
+    hand:        <><path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0, ...s }}>
+      {paths[name]}
+    </svg>
+  );
+}
+
+function Field({ label, required, error, children }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={LABEL}>{label}{required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}</label>
       {children}
+      {error && (
+        <div style={{ marginTop: 5, fontSize: 11, color: '#A32D2D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="warning" size={11} color="#A32D2D" /> {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -164,6 +201,7 @@ export default function BookingForm({ tenantId }) {
 
   // Cart
   const [cart, setCart] = useState([]);
+  const [tried1, setTried1] = useState(false); // show field errors only after "Add to Cart" attempt
 
   // Promo
   const [promoInput,   setPromoInput]   = useState('');
@@ -557,8 +595,8 @@ export default function BookingForm({ tenantId }) {
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
       }).addTo(map);
-      window.L.marker([shopLat, shopLng], { icon: pinIcon }).addTo(map).bindPopup('📍 Shop');
-      const custMarker = window.L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map).bindPopup('📦 Your location').openPopup();
+      window.L.marker([shopLat, shopLng], { icon: pinIcon }).addTo(map).bindPopup('Shop');
+      const custMarker = window.L.marker([lat, lng], { icon: pinIcon, draggable: true }).addTo(map).bindPopup('Your location').openPopup();
       custMarker.on('dragend', () => {
         const { lat: la, lng: lo } = custMarker.getLatLng();
         setCustomerCoords({ lat: la, lng: lo });
@@ -608,7 +646,7 @@ export default function BookingForm({ tenantId }) {
   if (notFound) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="search" size={48} color="#9CA3AF" /></div>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Shop not found</div>
         <div style={{ color: '#374151', fontSize: 14 }}>This booking link is invalid or the shop is no longer active.</div>
       </div>
@@ -622,7 +660,7 @@ export default function BookingForm({ tenantId }) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div style={{ textAlign: 'center', maxWidth: 380, width: '100%' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>{result.is_dropoff ? '🏪' : '🎉'}</div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>{result.is_dropoff ? <Icon name="store" size={64} color="#38a9c2" /> : <Icon name="checkCircle" size={64} color="#38a9c2" />}</div>
           <div style={{ fontWeight: 700, fontSize: 22, color: '#111827', marginBottom: 10 }}>
             {result.is_dropoff ? 'Drop-off Booking Received!' : 'Booking Confirmed!'}
           </div>
@@ -631,7 +669,7 @@ export default function BookingForm({ tenantId }) {
           </div>
           {result.is_dropoff && result.payment_url && (
             <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1.5px solid #F59E0B', textAlign: 'left' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2 }}>⚠️ Payment required before drop-off</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} color="#92400E" /> Payment required before drop-off</div>
               <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>Your slot is not confirmed until payment is received. Please pay below before coming to the shop.</div>
             </div>
           )}
@@ -655,7 +693,7 @@ export default function BookingForm({ tenantId }) {
               </div>
               <a href={result.payment_url} target="_blank" rel="noreferrer"
                 style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: result.is_dropoff ? '#D97706' : '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
-                💳 Pay Now
+                <Icon name="card" size={15} color="#fff" style={{ marginRight: 6 }} /> Pay Now
               </a>
             </div>
           )}
@@ -731,7 +769,7 @@ export default function BookingForm({ tenantId }) {
                 {visibleServices.map(svc => {
                   const selected = selectedSvc?.id === svc.id;
                   return (
-                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); }}
+                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setTried1(false); }}
                       style={{
                         padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
                         border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
@@ -772,8 +810,8 @@ export default function BookingForm({ tenantId }) {
             {/* Custom fields / weight for selected service */}
             {selectedSvc && (
               <div style={{ marginTop: 20, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8' }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94' }}>
-                  📝 Service Details — {selectedSvc.name}
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Icon name="clipboard" size={13} color="#1a7d94" /> Service Details — {selectedSvc.name}
                 </div>
 
                 {/* Custom fields */}
@@ -784,7 +822,7 @@ export default function BookingForm({ tenantId }) {
                     const aqty = addonQty[f.id] || 0;
                     const isOwn = !!(f.allow_own && addonOwn[f.id]);
                     const lineTotal = Number(f.unit_price || 0) * aqty;
-                    const unsatisfied = f.required && aqty === 0 && !isOwn;
+                    const unsatisfied = tried1 && f.required && aqty === 0 && !isOwn;
                     return (
                       <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: `1.5px solid ${unsatisfied ? '#F09595' : '#E2E8F0'}`, borderRadius: 10, padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -833,12 +871,13 @@ export default function BookingForm({ tenantId }) {
                   if (f.field_type === 'select') {
                     const opts = normalizeOpts(f.options);
                     const selectedVal = fieldValues[f.id];
+                    const selectErr = tried1 && f.required && !selectedVal;
                     return (
                       <div key={f.id} style={{ marginBottom: 16 }}>
                         <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
                           {f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}
                         </label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, ...(selectErr ? { padding: 8, borderRadius: 8, border: '1.5px solid #F87171', background: '#FFF5F5' } : {}) }}>
                           {opts.map(opt => {
                             const isSel = selectedVal === opt.label;
                             return (
@@ -864,23 +903,29 @@ export default function BookingForm({ tenantId }) {
                             );
                           })}
                         </div>
+                        {selectErr && (
+                          <div style={{ marginTop: 5, fontSize: 11, color: '#A32D2D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Icon name="warning" size={11} color="#A32D2D" /> Please select an option.
+                          </div>
+                        )}
                       </div>
                     );
                   }
                   // Regular fields (text, number, textarea)
+                  const fieldErr = tried1 && f.required && !fieldValues[f.id];
                   return (
-                    <Field key={f.id} label={f.label + (f.field_type === 'number' ? ' (× price)' : '')} required={f.required}>
+                    <Field key={f.id} label={f.label + (f.field_type === 'number' ? ' (× price)' : '')} required={f.required} error={fieldErr ? 'This field is required.' : ''}>
                       {f.field_type === 'textarea' ? (
                         <textarea
-                          style={{ ...INPUT, resize: 'vertical', minHeight: 80 }}
+                          style={{ ...INPUT, ...(fieldErr ? { borderColor: '#F87171', background: '#FFF5F5', boxShadow: '0 0 0 3px rgba(248,113,113,.12)' } : {}), resize: 'vertical', minHeight: 80 }}
                           value={fieldValues[f.id] || ''}
                           onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
                           placeholder={f.placeholder || 'Enter your notes here…'}
                           onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                          onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
+                          onBlur={e => { e.target.style.borderColor = fieldErr ? '#F87171' : '#B8C4CE'; e.target.style.boxShadow = fieldErr ? '0 0 0 3px rgba(248,113,113,.12)' : 'none'; }}
                         />
                       ) : (
-                        <input style={INPUT}
+                        <input style={fieldErr ? INPUT_ERR : INPUT}
                           type={f.field_type === 'number' ? 'number' : 'text'}
                           min={f.field_type === 'number' && f.min_value != null ? f.min_value : undefined}
                           max={f.field_type === 'number' && f.max_value != null ? f.max_value : undefined}
@@ -936,7 +981,7 @@ export default function BookingForm({ tenantId }) {
             {cart.length > 0 && (
               <div style={{ marginTop: 20, border: '1.5px solid #9ED3DC', borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '10px 14px', background: '#E6F5F8', fontWeight: 700, fontSize: 12, color: '#1a7d94', textTransform: 'uppercase', letterSpacing: '.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>🛒 Cart ({cart.length} {cart.length === 1 ? 'item' : 'items'})</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="cart" size={12} color="#1a7d94" /> Cart ({cart.length} {cart.length === 1 ? 'item' : 'items'})</span>
                   <span>₱{cartTotal.toLocaleString()}</span>
                 </div>
                 {cart.map((item, i) => (
@@ -961,9 +1006,11 @@ export default function BookingForm({ tenantId }) {
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button onClick={addToCart} disabled={!step1Valid()}
-                style={{ flex: 1, padding: 13, borderRadius: 10, border: step1Valid() ? '2px solid #38a9c2' : '1.5px solid #E2E8F0', fontSize: 14, fontWeight: 700, cursor: step1Valid() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                  background: step1Valid() ? '#fff' : '#E2E8F0', color: step1Valid() ? '#38a9c2' : '#374151', transition: 'all .15s' }}>
+              <button
+                onClick={() => { if (!selectedSvc) return; if (!step1Valid()) { setTried1(true); return; } addToCart(); }}
+                disabled={!selectedSvc}
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: selectedSvc ? '2px solid #38a9c2' : '1.5px solid #E2E8F0', fontSize: 14, fontWeight: 700, cursor: selectedSvc ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  background: selectedSvc ? '#fff' : '#E2E8F0', color: selectedSvc ? '#38a9c2' : '#374151', transition: 'all .15s' }}>
                 + Add to Cart
               </button>
               {cart.length > 0 && (
@@ -1028,7 +1075,7 @@ export default function BookingForm({ tenantId }) {
                   onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
                   onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
                 />
-                {lookingUp && <div style={{ fontSize: 11, color: '#38a9c2', marginTop: 4 }}>🔍 Checking for saved address…</div>}
+                {lookingUp && <div style={{ fontSize: 11, color: '#38a9c2', marginTop: 4, display: 'flex', alignItems: 'center', gap: 3 }}><Icon name="search" size={11} color="#38a9c2" /> Checking for saved address…</div>}
                 {(() => {
                   const ph = form.phone.trim();
                   if (!ph) return null;
@@ -1064,13 +1111,13 @@ export default function BookingForm({ tenantId }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <button type="button" onClick={() => setSelfPickup(false)}
                   style={{ padding: '12px 10px', borderRadius: 10, border: `2px solid ${!selfPickup ? '#38a9c2' : '#E2E8F0'}`, background: !selfPickup ? '#E6F5F8' : '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all .15s' }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>🚚</div>
+                  <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'center' }}><Icon name="truck" size={20} color={!selfPickup ? '#1a7d94' : '#374151'} /></div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: !selfPickup ? '#1a7d94' : '#374151' }}>Pick-up & Delivery</div>
                   <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>We'll come to you</div>
                 </button>
                 <button type="button" onClick={() => { setSelfPickup(true); setBracketFee(null); setBracketError(''); }}
                   style={{ padding: '12px 10px', borderRadius: 10, border: `2px solid ${selfPickup ? '#38a9c2' : '#E2E8F0'}`, background: selfPickup ? '#E6F5F8' : '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all .15s' }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>🏪</div>
+                  <div style={{ marginBottom: 4, display: 'flex', justifyContent: 'center' }}><Icon name="store" size={20} color={selfPickup ? '#1a7d94' : '#374151'} /></div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: selfPickup ? '#1a7d94' : '#374151' }}>I'll Drop Off & Pick Up</div>
                   <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Bring it to our shop</div>
                 </button>
@@ -1085,12 +1132,12 @@ export default function BookingForm({ tenantId }) {
               {savedCustomer && (
                 <div style={{ marginBottom: 10, borderRadius: 10, border: '1.5px solid #9ED3DC', background: '#E6F5F8', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ fontSize: 20, marginTop: 1 }}>👋</div>
+                    <div style={{ marginTop: 1 }}><Icon name="hand" size={20} color="#1a7d94" /></div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: '#1a7d94' }}>Welcome back, {savedCustomer.name}!</div>
                       <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>We found your saved address:</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginTop: 4, padding: '6px 10px', background: '#fff', borderRadius: 7, border: '1px solid #9ED3DC' }}>
-                        📍 {savedCustomer.address}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginTop: 4, padding: '6px 10px', background: '#fff', borderRadius: 7, border: '1px solid #9ED3DC', display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                        <Icon name="pin" size={13} color="#38a9c2" style={{ marginTop: 1, flexShrink: 0 }} /> {savedCustomer.address}
                       </div>
                     </div>
                   </div>
@@ -1121,7 +1168,7 @@ export default function BookingForm({ tenantId }) {
                     /* Confirmed selection */
                     <div>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 12px', background: '#E6F5F8', borderRadius: 8, border: '1.5px solid #38a9c2' }}>
-                        <span style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>📍</span>
+                        <Icon name="pin" size={18} color="#38a9c2" style={{ marginTop: 1, flexShrink: 0 }} />
                         <span style={{ flex: 1, fontSize: 13, color: '#111827', lineHeight: 1.5 }}>{form.addr_text}</span>
                         <button type="button" onClick={clearAddrSelection}
                           style={{ flexShrink: 0, fontSize: 11, padding: '3px 9px', borderRadius: 5, border: '1px solid #38a9c2', background: '#fff', color: '#1a7d94', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
@@ -1141,8 +1188,8 @@ export default function BookingForm({ tenantId }) {
                           autoComplete="off"
                         />
                         {!addrUnit.trim() && (
-                          <div style={{ fontSize: 11, color: '#D97706', marginTop: 5 }}>
-                            ⚠️ Required — helps our rider find you exactly.
+                          <div style={{ fontSize: 11, color: '#D97706', marginTop: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Icon name="warning" size={11} color="#D97706" /> Required — helps our rider find you exactly.
                           </div>
                         )}
                       </div>
@@ -1170,8 +1217,10 @@ export default function BookingForm({ tenantId }) {
                         autoComplete="off"
                         onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
                       />
-                      <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none' }}>
-                        {addrSuggestLoading ? '⏳' : '🔍'}
+                      <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                        {addrSuggestLoading
+                          ? <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #E2E8F0', borderTopColor: '#38a9c2', animation: 'spin .7s linear infinite' }} />
+                          : <Icon name="search" size={14} color="#9CA3AF" />}
                       </div>
                     </div>
                   )}
@@ -1201,13 +1250,13 @@ export default function BookingForm({ tenantId }) {
 
                   {/* Must-select hint — typed but not locked */}
                   {!addrLocked && form.addr_text.trim().length >= 3 && addrSuggestions.length === 0 && !addrSuggestLoading && (
-                    <div style={{ fontSize: 11, color: '#374151', marginTop: 6, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D' }}>
-                      💡 No results yet — try adding barangay or city name (e.g. "123 Rizal St, Makati")
+                    <div style={{ fontSize: 11, color: '#374151', marginTop: 6, padding: '6px 10px', background: '#FFF8E1', borderRadius: 6, border: '0.5px solid #FCD34D', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="info" size={11} color="#D97706" /> No results yet — try adding barangay or city name (e.g. "123 Rizal St, Makati")
                     </div>
                   )}
                   {!addrLocked && form.addr_text.trim().length >= 3 && addrSuggestions.length > 0 && (
-                    <div style={{ fontSize: 11, color: '#D97706', marginTop: 6 }}>
-                      👆 Please select your address from the list above to continue.
+                    <div style={{ fontSize: 11, color: '#D97706', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="info" size={11} color="#D97706" /> Please select your address from the list above to continue.
                     </div>
                   )}
                 </div>
@@ -1218,7 +1267,7 @@ export default function BookingForm({ tenantId }) {
             {/* ── Delivery Fee / Self-pickup badge ── */}
             {selfPickup ? (
               <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, border: '1.5px solid #34D399', background: '#F0FDF4', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 22 }}>🏪</span>
+                <Icon name="store" size={22} color="#065F46" />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13, color: '#065F46' }}>No delivery fee!</div>
                   <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>You'll drop off and pick up at our shop. Date & time below is when we expect you.</div>
@@ -1228,11 +1277,11 @@ export default function BookingForm({ tenantId }) {
               <div style={{ marginBottom: 16 }}>
                 <label style={LABEL}>Delivery Fee</label>
                 {geocoding && (
-                  <div style={{ fontSize: 12, color: '#374151', padding: '8px 0' }}>📍 Locating your address…</div>
+                  <div style={{ fontSize: 12, color: '#374151', padding: '8px 0', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="pin" size={12} color="#374151" /> Locating your address…</div>
                 )}
                 {bracketError && !geocoding && (
-                  <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', borderRadius: 7, padding: '8px 12px', marginBottom: 6 }}>
-                    ⚠️ {bracketError}
+                  <div style={{ fontSize: 12, color: '#A32D2D', background: '#FCEBEB', borderRadius: 7, padding: '8px 12px', marginBottom: 6, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                    <Icon name="warning" size={12} color="#A32D2D" style={{ marginTop: 1, flexShrink: 0 }} /> {bracketError}
                   </div>
                 )}
                 {!bracketError && bracketFee !== null && !geocoding && (
@@ -1263,8 +1312,8 @@ export default function BookingForm({ tenantId }) {
                   </div>
                 )}
                 {bracketInfo.delivery_note && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
-                    ℹ️ {bracketInfo.delivery_note}
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                    <Icon name="info" size={12} color="#374151" style={{ marginTop: 1, flexShrink: 0 }} /> {bracketInfo.delivery_note}
                   </div>
                 )}
               </div>
@@ -1283,8 +1332,8 @@ export default function BookingForm({ tenantId }) {
                       +₱{Number(selectedZone.fee).toLocaleString()} delivery fee will be added
                     </div>
                     {selectedZone.custom_note && (
-                      <div style={{ marginTop: 5, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
-                        ℹ️ {selectedZone.custom_note}
+                      <div style={{ marginTop: 5, fontSize: 12, color: '#374151', background: '#F7F9FD', border: '1px solid #9ED3DC', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                        <Icon name="info" size={12} color="#374151" style={{ marginTop: 1, flexShrink: 0 }} /> {selectedZone.custom_note}
                       </div>
                     )}
                   </div>
@@ -1326,16 +1375,16 @@ export default function BookingForm({ tenantId }) {
                       </select>
                     )}
                     {tenant?.booking_cutoff && (
-                      <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5 }}>
-                        ⏰ Same-day bookings close at {(() => {
+                      <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Icon name="clock" size={11} color="#374151" /> Same-day bookings close at {(() => {
                           const [h, m] = tenant.booking_cutoff.split(':').map(Number);
                           return `${h > 12 ? h-12 : h}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
                         })()}. Earliest available: {minDate}
                       </div>
                     )}
                     {blockedDates.length > 0 && (
-                      <div style={{ fontSize: 11, color: '#A32D2D' }}>
-                        🚫 Some dates are unavailable — blocked dates are not selectable.
+                      <div style={{ fontSize: 11, color: '#A32D2D', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Icon name="slash" size={11} color="#A32D2D" /> Some dates are unavailable — blocked dates are not selectable.
                       </div>
                     )}
                   </div>
@@ -1383,7 +1432,7 @@ export default function BookingForm({ tenantId }) {
               )}
               {promoDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4, color: '#7C3AED' }}>
-                  <span style={{ fontWeight: 600 }}>🎟️ Promo ({appliedPromo.code})</span>
+                  <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="tag" size={13} color="#7C3AED" /> Promo ({appliedPromo.code})</span>
                   <span style={{ fontWeight: 700 }}>−₱{promoDiscount.toLocaleString()}</span>
                 </div>
               )}
@@ -1399,7 +1448,7 @@ export default function BookingForm({ tenantId }) {
               {appliedPromo ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: '#F5F3FF', border: '1.5px solid #C4B5FD' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#5B21B6' }}>🎟️ {appliedPromo.code} applied!</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#5B21B6', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="tag" size={13} color="#5B21B6" /> {appliedPromo.code} applied!</div>
                     <div style={{ fontSize: 12, color: '#7C3AED', marginTop: 1 }}>
                       {appliedPromo.discount_type === 'percent' ? `${appliedPromo.discount_value}% off` : `₱${Number(appliedPromo.discount_value).toLocaleString()} off`} · saving ₱{promoDiscount.toLocaleString()}
                     </div>
@@ -1455,7 +1504,7 @@ export default function BookingForm({ tenantId }) {
                   const dt = form.pickup_time ? new Date(`${form.pickup_date}T${form.pickup_time}`) : new Date(form.pickup_date);
                   return dt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
                 })() : '—'],
-                ['Address', selfPickup ? '🏪 Self drop-off & pick-up at shop' : fullAddress],
+                ['Address', selfPickup ? 'Self drop-off & pick-up at shop' : fullAddress],
                 (!selfPickup && selectedZone) ? ['Delivery Zone', selectedZone.name] : null,
               ].filter(Boolean).map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13, borderBottom: '1px solid #E8E8E0' }}>
@@ -1500,7 +1549,7 @@ export default function BookingForm({ tenantId }) {
               )}
               {promoDiscount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 13 }}>
-                  <span style={{ color: '#7C3AED', fontWeight: 600 }}>🎟️ Promo ({appliedPromo.code})</span>
+                  <span style={{ color: '#7C3AED', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="tag" size={13} color="#7C3AED" /> Promo ({appliedPromo.code})</span>
                   <span style={{ fontWeight: 700, color: '#7C3AED' }}>−₱{promoDiscount.toLocaleString()}</span>
                 </div>
               )}
@@ -1537,7 +1586,7 @@ export default function BookingForm({ tenantId }) {
                   background: submitting ? '#5a9ead' : !privacyConsent ? '#E2E8F0' : '#fdca00', color: (!privacyConsent || submitting) ? '#374151' : '#1F2937', transition: 'all .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {submitting
                   ? <><span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,.3)', borderTopColor: '#fff', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Placing Order…</>
-                  : '✅ Confirm & Place Order'}
+                  : <><Icon name="checkCircle" size={15} color="#1F2937" style={{ marginRight: 6 }} /> Confirm & Place Order</>}
               </button>
             </div>
           </div>
