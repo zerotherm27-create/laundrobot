@@ -422,6 +422,9 @@ export default function BookingForm({ tenantId }) {
       ? (form.pickup_date && form.pickup_time)
       : !!form.pickup_date;
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim() || !hasDateTime) return false;
+    const ph = form.phone.trim().replace(/\s/g, '');
+    const isValidPH = /^(09|\+639|639)\d{9}$/.test(ph);
+    if (!isValidPH && !isWhatsApp) return false;
     if (!selfPickup) {
       const hasAddress = addressMode === 'saved'
         ? !!savedCustomer?.address
