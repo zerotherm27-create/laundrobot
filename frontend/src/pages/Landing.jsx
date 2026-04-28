@@ -592,8 +592,9 @@ const PLANS = [
     name: 'Starter',
     tagline: 'For shops tired of managing orders by hand',
     monthly: 599,
-    annual: 499,
-    annualTotal: '₱5,990',
+    annual: 549,
+    annualTotal: '₱6,589',
+    monthsFree: 1,
     color: '#38a9c2',
     textColor: '#1a7d94',
     bg: '#e6f5f8',
@@ -614,6 +615,7 @@ const PLANS = [
     monthly: 1999,
     annual: 1666,
     annualTotal: '₱19,990',
+    monthsFree: 2,
     color: '#38a9c2',
     textColor: '#fff',
     bg: '#38a9c2',
@@ -636,6 +638,7 @@ const PLANS = [
     monthly: 5499,
     annual: 4583,
     annualTotal: '₱54,990',
+    monthsFree: 2,
     color: '#7F77DD',
     textColor: '#4740a8',
     bg: '#F0EFFC',
@@ -643,7 +646,7 @@ const PLANS = [
     cta: 'Contact us',
     features: [
       'Everything in Growth',
-      'Unlimited branches & staff accounts',
+      'Up to 10 branches · unlimited staff accounts',
       'Custom AI instructions per branch',
       'White-label booking form (your domain)',
       'Unlimited orders',
@@ -692,11 +695,11 @@ function PricingCard({ plan, annual }) {
           </div>
           {annual && (
             <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 4 }}>
-              Billed {plan.annualTotal}/year · 2 months free
+              Billed {plan.annualTotal}/year · {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} free
             </div>
           )}
           {!annual && (
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>or save 2 months with annual billing</div>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>or save {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} with annual billing</div>
           )}
         </div>
 
