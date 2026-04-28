@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { randomUUID } = require('crypto');
 const axios = require('axios');
 const db = require('../db');
 const messengerUtils = require('../utils/messenger');
@@ -842,7 +843,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
 
 // ── Show order summary with confirm buttons ──────────────────────────────────
 async function showSummary(token, senderId, tenantId, customer, data) {
-  const orderId  = 'ORD-' + Date.now().toString().slice(-6);
+  const orderId  = randomUUID();
   const unit     = data.unit || 'per kg';
   const qtyUnit  = data.qty_unit || (unit.includes('kg') ? 'kg' : unit.includes('piece') ? 'pcs' : 'units');
   const address  = data.address || customer.address;

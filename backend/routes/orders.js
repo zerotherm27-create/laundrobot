@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { randomUUID } = require('crypto');
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
@@ -41,14 +42,9 @@ router.post('/walk-in', auth, async (req, res) => {
       [req.user.tenant_id]
     );
     const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
-    const { rows: [{ count: baseCount }] } = await client.query(
-      'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.user.tenant_id]
-    );
-    let orderCount = Number(baseCount);
 
     for (const item of cart) {
-      orderCount++;
-      const orderId = 'ORD-' + String(orderCount).padStart(6, '0');
+      const orderId = randomUUID();
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date, address, notes, status, paid, booking_ref, source, custom_selections)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'NEW ORDER',TRUE,$10,'walk_in',$11)`,
