@@ -422,9 +422,9 @@ router.post('/:tenantId/orders', async (req, res) => {
     );
     const bookingRef = 'BKG-' + String(Number(bkgCount) + 1).padStart(6, '0');
 
-    // Base order count (increment manually for each item in the loop)
+    // Base order count — must be global (no tenant filter) since id is a global TEXT PRIMARY KEY
     const { rows: [{ count: baseCount }] } = await client.query(
-      'SELECT COUNT(*) FROM orders WHERE tenant_id=$1', [req.params.tenantId]
+      'SELECT COUNT(*) FROM orders'
     );
     let orderCount = Number(baseCount);
 
