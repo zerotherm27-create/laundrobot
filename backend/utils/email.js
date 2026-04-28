@@ -194,6 +194,59 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
   }
 }
 
+async function sendPaymentReminderEmail(tenantId, { orderId, customerName, customerEmail, serviceName, pickupDate, total, paymentUrl, reminderNum }) {
+  if (!customerEmail) return;
+  try {
+    const { rows: [tenant] } = await db.query('SELECT name, contact_number FROM tenants WHERE id=$1', [tenantId]);
+    const shopName = tenant?.name || 'Your Shop';
+    const amount = `₱${Number(total).toLocaleString()}`;
+    const formattedDate = pickupDate
+      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+      : '—';
+
+    const urgency = reminderNum >= 4 ? '⚠️ Last Reminder' : reminderNum === 1 ? 'Friendly Reminder' : 'Payment Reminder';
+    const subjectEmoji = reminderNum >= 4 ? '⚠️' : '⏰';
+
+    const payBtn = paymentUrl
+      ? `<a href="${paymentUrl}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#38a9c2;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Pay Now — ${amount}</a>`
+      : '';
+
+    const contactLine = tenant?.contact_number
+      ? `<p style="font-size:13px;color:#374151;margin-top:16px;">Questions? Contact us at <strong>${tenant.contact_number}</strong></p>`
+      : '';
+
+    const cancelNote = reminderNum >= 4
+      ? `<p style="font-size:13px;color:#DC2626;margin-top:12px;font-weight:600;">Your order will be automatically cancelled in 1 hour if payment is not received.</p>`
+      : '';
+
+    const body = `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">${urgency}</div>
+        <div style="font-size:14px;color:#6B7280;">Hi ${customerName}, your order is still awaiting payment.</div>
+      </div>
+      <div style="background:#F9FAFB;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+        ${orderTable([
+          ['Order ID',    orderId],
+          ['Service',     serviceName],
+          ['Pickup Date', formattedDate],
+          ['Amount Due',  amount],
+        ])}
+      </div>
+      ${payBtn}
+      ${cancelNote}
+      ${contactLine}`;
+
+    await sendEmail({
+      to: [customerEmail],
+      subject: `${subjectEmoji} Payment Reminder — Order ${orderId} | ${shopName}`,
+      html: emailWrapper(shopName, body),
+    });
+    console.log(`[email] payment reminder #${reminderNum} for ${orderId} sent to ${customerEmail}`);
+  } catch (err) {
+    console.warn('[email] sendPaymentReminderEmail failed:', err.response?.data || err.message);
+  }
+}
+
 async function sendInvoiceEmail({ to, shopName, invoiceId, customerName, pdfBase64 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) { console.warn('[email] RESEND_API_KEY not set — skipping invoice email'); return; }
@@ -258,4 +311,4 @@ async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, custo
   }
 }
 
-module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail, sendInvoiceEmail };
+module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail, sendInvoiceEmail, sendPaymentReminderEmail };
