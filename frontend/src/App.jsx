@@ -18,6 +18,8 @@ import DeliveryZones from './pages/DeliveryZones.jsx';
 import Settings from './pages/Settings.jsx';
 import WalkIn from './pages/WalkIn.jsx';
 import Landing from './pages/Landing.jsx';
+import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
+import TermsOfService from './pages/TermsOfService.jsx';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
@@ -105,6 +107,9 @@ function Inner() {
   }
 
   const path = window.location.pathname;
+
+  if (path === '/privacy') return <PrivacyPolicy />;
+  if (path === '/terms')   return <TermsOfService />;
 
   if (!user) {
     if (path === '/login') {

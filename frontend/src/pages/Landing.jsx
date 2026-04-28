@@ -854,9 +854,17 @@ function Footer() {
         <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
           © {new Date().getFullYear()} LaundroBot · Built for laundry businesses in the Philippines
         </p>
-        <a href="/login" style={{ fontSize: 13, color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#1d8ba0'}
-          onMouseLeave={e => e.currentTarget.style.color = '#38a9c2'}>Sign in →</a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <a href="/privacy" style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#374151'}
+            onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}>Privacy Policy</a>
+          <a href="/terms" style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#374151'}
+            onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}>Terms of Service</a>
+          <a href="/login" style={{ fontSize: 13, color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#1d8ba0'}
+            onMouseLeave={e => e.currentTarget.style.color = '#38a9c2'}>Sign in →</a>
+        </div>
       </div>
     </footer>
   );
