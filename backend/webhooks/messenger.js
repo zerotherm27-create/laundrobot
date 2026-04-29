@@ -43,60 +43,64 @@ router.post('/', async (req, res) => {
   const { object, entry } = req.body;
   console.log('[webhook] received object:', object, 'entries:', entry?.length);
 
-  // ── Instagram ──
-  if (object === 'instagram') {
-    for (const e of entry) {
-      const igId = e.id;
-      const { rows: [tenant] } = await db.query(
-        'SELECT * FROM tenants WHERE ig_user_id = $1 AND active = TRUE', [igId]
-      );
-      if (!tenant) { console.log('[ig-webhook] no tenant for ig_user_id:', igId); continue; }
-      for (const event of (e.messaging || [])) {
-        // Admin replied from Instagram — sender is the IG business account
-        if (event.message && event.sender.id === String(tenant.ig_user_id)) {
-          try { await pauseAiForCustomer(tenant, event.recipient.id); }
-          catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
-        } else if (event.message || event.postback) {
-          console.log('[ig-webhook] msg from:', event.sender.id);
-          try { await handleMessage(tenant, event.sender.id, event, 'instagram'); }
-          catch (err) { console.error('[ig-webhook] error:', err.response?.data || err.message); }
+  try {
+    // ── Instagram ──
+    if (object === 'instagram') {
+      for (const e of entry) {
+        const igId = e.id;
+        const { rows: [tenant] } = await db.query(
+          'SELECT * FROM tenants WHERE ig_user_id = $1 AND active = TRUE', [igId]
+        );
+        if (!tenant) { console.log('[ig-webhook] no tenant for ig_user_id:', igId); continue; }
+        for (const event of (e.messaging || [])) {
+          // Admin replied from Instagram — sender is the IG business account
+          if (event.message && event.sender.id === String(tenant.ig_user_id)) {
+            try { await pauseAiForCustomer(tenant, event.recipient.id); }
+            catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+          } else if (event.message || event.postback) {
+            console.log('[ig-webhook] msg from:', event.sender.id);
+            try { await handleMessage(tenant, event.sender.id, event, 'instagram'); }
+            catch (err) { console.error('[ig-webhook] error:', err.response?.data || err.message); }
+          }
         }
       }
+      return;
     }
-    return;
-  }
 
-  // ── Messenger ──
-  if (object !== 'page') return;
-  for (const e of entry) {
-    const pageId = e.id;
-    const { rows: [tenant] } = await db.query(
-      'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
-    );
-    if (!tenant) { console.log('[webhook] no tenant for page:', pageId); continue; }
-    for (const event of (e.messaging || [])) {
-      if (event.optin) {
-        try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
-        catch (err) { console.error('[webhook] optin error:', err.message); }
-      } else if (event.referral) {
-        try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
-        catch (err) { console.error('[webhook] referral error:', err.message); }
-      } else if (event.message?.is_echo) {
-        // Admin replied from Facebook Page Inbox — pause AI for this customer
-        try { await pauseAiForCustomer(tenant, event.recipient.id); }
-        catch (err) { console.error('[webhook] echo-pause error:', err.message); }
-      } else if (event.message || event.postback) {
-        console.log('[webhook] msg from:', event.sender.id);
-        // Handle GET_STARTED postback that carries an m.me ref param
-        if (event.postback?.payload === 'GET_STARTED' && event.postback?.referral?.ref) {
-          try { await handleOptin(tenant, event.sender.id, event.postback.referral.ref); }
-          catch (err) { console.error('[webhook] referral optin error:', err.message); }
-        } else {
-          try { await handleMessage(tenant, event.sender.id, event, 'messenger'); }
-          catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
+    // ── Messenger ──
+    if (object !== 'page') return;
+    for (const e of entry) {
+      const pageId = e.id;
+      const { rows: [tenant] } = await db.query(
+        'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
+      );
+      if (!tenant) { console.log('[webhook] no tenant for page:', pageId); continue; }
+      for (const event of (e.messaging || [])) {
+        if (event.optin) {
+          try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
+          catch (err) { console.error('[webhook] optin error:', err.message); }
+        } else if (event.referral) {
+          try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
+          catch (err) { console.error('[webhook] referral error:', err.message); }
+        } else if (event.message?.is_echo) {
+          // Admin replied from Facebook Page Inbox — pause AI for this customer
+          try { await pauseAiForCustomer(tenant, event.recipient.id); }
+          catch (err) { console.error('[webhook] echo-pause error:', err.message); }
+        } else if (event.message || event.postback) {
+          console.log('[webhook] msg from:', event.sender.id);
+          // Handle GET_STARTED postback that carries an m.me ref param
+          if (event.postback?.payload === 'GET_STARTED' && event.postback?.referral?.ref) {
+            try { await handleOptin(tenant, event.sender.id, event.postback.referral.ref); }
+            catch (err) { console.error('[webhook] referral optin error:', err.message); }
+          } else {
+            try { await handleMessage(tenant, event.sender.id, event, 'messenger'); }
+            catch (err) { console.error('[webhook] error:', err.response?.data || err.message); }
+          }
         }
       }
     }
+  } catch (err) {
+    console.error('[webhook] unhandled error in post handler:', err.message);
   }
 });
 

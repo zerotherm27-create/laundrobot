@@ -347,8 +347,9 @@ router.post('/:tenantId/orders', async (req, res) => {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
-  const client = await db.pool.connect();
+  let client;
   try {
+    client = await db.pool.connect();
     await client.query('BEGIN');
 
     // Price all cart items (parallel reads from pool)
@@ -613,11 +614,11 @@ router.post('/:tenantId/orders', async (req, res) => {
       is_dropoff: isDropoff,
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[public order]', err.message);
     res.status(500).json({ error: err.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

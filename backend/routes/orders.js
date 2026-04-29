@@ -12,8 +12,9 @@ router.post('/walk-in', auth, async (req, res) => {
   if (!cart?.length || !name?.trim() || !phone?.trim()) {
     return res.status(400).json({ error: 'Cart, name, and phone are required.' });
   }
-  const client = await db.pool.connect();
+  let client;
   try {
+    client = await db.pool.connect();
     await client.query('BEGIN');
 
     // Find or create customer
@@ -61,11 +62,11 @@ router.post('/walk-in', auth, async (req, res) => {
     await client.query('COMMIT');
     res.json({ ok: true, booking_ref: bookingRef });
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[walk-in order]', err.message);
     res.status(500).json({ error: err.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
@@ -116,8 +117,9 @@ router.put('/booking/:ref', auth, async (req, res) => {
   }
   const extraAmount = Number(custom_price) || 0;
 
-  const client = await db.pool.connect();
+  let client;
   try {
+    client = await db.pool.connect();
     await client.query('BEGIN');
 
     const { rows: existing } = await client.query(
@@ -211,11 +213,11 @@ router.put('/booking/:ref', auth, async (req, res) => {
       orders: updated,
     });
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[booking update]', err.message);
     res.status(500).json({ error: err.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

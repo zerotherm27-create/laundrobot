@@ -173,8 +173,9 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Select at least one item to clone.' });
   }
 
-  const client = await db.pool.connect();
+  let client;
   try {
+    client = await db.pool.connect();
     await client.query('BEGIN');
 
     const { rows: tenantCheck } = await client.query(
@@ -326,11 +327,11 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
       stats,
     });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[clone-services]', err.message);
     res.status(500).json({ error: err.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
