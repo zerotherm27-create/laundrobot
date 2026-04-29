@@ -388,11 +388,22 @@ router.post('/:tenantId/orders', async (req, res) => {
       if (zone) { deliveryFee = Number(zone.fee); zoneName = zone.name; }
     }
 
-    // Get or create customer
-    const { rows: [existing] } = await client.query(
-      'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
-      [req.params.tenantId, phone.trim()]
-    );
+    // Get or create customer — check fb_id first to avoid unique constraint violation
+    let existing = null;
+    if (fb_id) {
+      const { rows: [byFb] } = await client.query(
+        'SELECT * FROM customers WHERE tenant_id=$1 AND fb_id=$2',
+        [req.params.tenantId, fb_id]
+      );
+      existing = byFb || null;
+    }
+    if (!existing) {
+      const { rows: [byPhone] } = await client.query(
+        'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
+        [req.params.tenantId, phone.trim()]
+      );
+      existing = byPhone || null;
+    }
     let customerId;
     if (existing) {
       await client.query('UPDATE customers SET name=$1, email=$2, address=$3, fb_id=COALESCE($4, fb_id) WHERE id=$5',
