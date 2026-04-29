@@ -388,33 +388,40 @@ router.post('/:tenantId/orders', async (req, res) => {
       if (zone) { deliveryFee = Number(zone.fee); zoneName = zone.name; }
     }
 
-    // Get or create customer — check fb_id first to avoid unique constraint violation
-    let existing = null;
+    // Get or create customer
+    // If fb_id present: atomic upsert on the (tenant_id, fb_id) unique constraint — no race condition possible.
+    // If no fb_id: fall back to phone lookup then insert.
+    let customerId;
     if (fb_id) {
-      const { rows: [byFb] } = await client.query(
-        'SELECT * FROM customers WHERE tenant_id=$1 AND fb_id=$2',
-        [req.params.tenantId, fb_id]
+      const { rows: [c] } = await client.query(
+        `INSERT INTO customers (tenant_id, name, phone, email, address, fb_id)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (tenant_id, fb_id) DO UPDATE
+           SET name=$2, phone=$3,
+               email=COALESCE($4, customers.email),
+               address=$5
+         RETURNING id`,
+        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id]
       );
-      existing = byFb || null;
-    }
-    if (!existing) {
-      const { rows: [byPhone] } = await client.query(
-        'SELECT * FROM customers WHERE tenant_id=$1 AND phone=$2',
+      customerId = c.id;
+    } else {
+      const { rows: [existing] } = await client.query(
+        'SELECT id FROM customers WHERE tenant_id=$1 AND phone=$2',
         [req.params.tenantId, phone.trim()]
       );
-      existing = byPhone || null;
-    }
-    let customerId;
-    if (existing) {
-      await client.query('UPDATE customers SET name=$1, email=$2, address=$3, fb_id=COALESCE($4, fb_id) WHERE id=$5',
-        [name.trim(), email?.trim() || existing.email, address.trim(), fb_id || null, existing.id]);
-      customerId = existing.id;
-    } else {
-      const { rows: [newC] } = await client.query(
-        'INSERT INTO customers (tenant_id, name, phone, email, address, fb_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id || null]
-      );
-      customerId = newC.id;
+      if (existing) {
+        await client.query(
+          'UPDATE customers SET name=$1, email=COALESCE($2, email), address=$3 WHERE id=$4',
+          [name.trim(), email?.trim() || null, address.trim(), existing.id]
+        );
+        customerId = existing.id;
+      } else {
+        const { rows: [newC] } = await client.query(
+          'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+          [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim()]
+        );
+        customerId = newC.id;
+      }
     }
 
     // Referral attribution — pull ref stored on conversation when customer arrived via m.me link

@@ -112,23 +112,16 @@ async function getFBFirstName(token, senderId) {
 }
 
 async function getOrCreateCustomer(tenantId, senderId, token) {
-  let { rows: [customer] } = await db.query(
-    'SELECT * FROM customers WHERE tenant_id=$1 AND fb_id=$2', [tenantId, senderId]
+  // Fetch name upfront so we can use it in the upsert.
+  // COALESCE(customers.name, EXCLUDED.name) keeps an existing name and only fills it in if blank.
+  const firstName = token ? await getFBFirstName(token, senderId) : null;
+  const { rows: [customer] } = await db.query(
+    `INSERT INTO customers (tenant_id, fb_id, name) VALUES ($1,$2,$3)
+     ON CONFLICT (tenant_id, fb_id) DO UPDATE
+       SET name = COALESCE(customers.name, EXCLUDED.name)
+     RETURNING *`,
+    [tenantId, senderId, firstName]
   );
-  if (!customer) {
-    const firstName = token ? await getFBFirstName(token, senderId) : null;
-    const { rows: [c] } = await db.query(
-      'INSERT INTO customers (tenant_id, fb_id, name) VALUES ($1,$2,$3) RETURNING *',
-      [tenantId, senderId, firstName]
-    );
-    customer = c;
-  } else if (!customer.name && token) {
-    const firstName = await getFBFirstName(token, senderId);
-    if (firstName) {
-      await db.query('UPDATE customers SET name=$1 WHERE id=$2', [firstName, customer.id]);
-      customer.name = firstName;
-    }
-  }
   return customer;
 }
 
