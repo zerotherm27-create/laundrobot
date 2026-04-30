@@ -55,17 +55,21 @@ async function sendQuickReplies(token, recipientId, text, replies) {
 }
 
 // Generic template — horizontal scrollable product cards (max 10 elements)
-// Each element: { title, subtitle, imageUrl, buttons: [{title, payload}] }
+// Each element: { title, subtitle, imageUrl, buttons: [{type, title, payload} | {type:'web_url', title, url, ...}] }
 async function sendCatalog(token, recipientId, elements) {
   const mapped = elements.slice(0, 10).map(el => {
     const card = {
       title: el.title.substring(0, 80),
       subtitle: (el.subtitle || '').substring(0, 80),
-      buttons: (el.buttons || []).slice(0, 3).map(b => ({
-        type: 'postback',
-        title: b.title.substring(0, 20),
-        payload: b.payload,
-      })),
+      buttons: (el.buttons || []).slice(0, 3).map(b => {
+        if (b.type === 'web_url') {
+          const btn = { type: 'web_url', title: b.title.substring(0, 20), url: b.url };
+          if (b.webview_height_ratio) btn.webview_height_ratio = b.webview_height_ratio;
+          if (b.messenger_extensions) btn.messenger_extensions = b.messenger_extensions;
+          return btn;
+        }
+        return { type: 'postback', title: b.title.substring(0, 20), payload: b.payload };
+      }),
     };
     if (el.imageUrl) card.image_url = el.imageUrl;
     return card;

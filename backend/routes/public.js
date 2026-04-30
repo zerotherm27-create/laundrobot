@@ -7,6 +7,22 @@ const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 const { haversine } = require('./deliveryBrackets');
 
+// Serve service image — allows Messenger carousel to display base64-stored images via a public URL
+router.get('/image/:serviceId', async (req, res) => {
+  try {
+    const { rows: [svc] } = await db.query('SELECT image_url FROM services WHERE id=$1', [req.params.serviceId]);
+    if (!svc?.image_url) return res.status(404).end();
+    const dataMatch = svc.image_url.match(/^data:([^;]+);base64,(.+)$/);
+    if (dataMatch) {
+      const [, mimeType, b64] = dataMatch;
+      res.set('Content-Type', mimeType);
+      res.set('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(b64, 'base64'));
+    }
+    res.redirect(svc.image_url);
+  } catch (err) { res.status(500).end(); }
+});
+
 // Public geocode proxy — single result (kept for saved-address geocoding)
 router.get('/geocode', async (req, res) => {
   const { q } = req.query;

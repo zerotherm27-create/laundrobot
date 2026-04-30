@@ -228,21 +228,56 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
     return;
   }
 
+  // Fetch minimum variation price for services priced at ₱0 (pricing done via select field options)
+  const serviceIds = services.map(s => s.id);
+  const { rows: minPriceRows } = await db.query(
+    `SELECT scf.service_id, MIN((opt->>'price')::numeric) AS min_price
+     FROM service_custom_fields scf, jsonb_array_elements(scf.options) AS opt
+     WHERE scf.service_id = ANY($1)
+       AND scf.field_type = 'select'
+       AND COALESCE(opt->>'price_type', 'fixed') != 'copy_base'
+       AND (opt->>'price')::numeric > 0
+     GROUP BY scf.service_id`,
+    [serviceIds]
+  );
+  const minPriceMap = Object.fromEntries(minPriceRows.map(r => [r.service_id, Number(r.min_price)]));
+
   // Messenger: "Book Now" opens webform. Instagram: "Book This" starts bot flow.
   const appUrl = process.env.APP_URL;
+  const backendUrl = process.env.BACKEND_URL;
   const useWebform = channel === 'messenger' && appUrl;
   // Include psid in URL so BookingForm can link the order to this Messenger user
   // even when the webview opens in an external browser (where MessengerExtensions SDK is unavailable)
   const bookUrl = appUrl ? `${appUrl}/book/${tenantId}?psid=${senderId}` : null;
 
-  const elements = services.map(s => ({
-    title: s.name,
-    subtitle: `₱${Number(s.price).toLocaleString()} ${s.unit}` + (s.description ? `\n${s.description}` : ''),
-    imageUrl: (s.image_url && !s.image_url.startsWith('data:')) ? s.image_url : null,
-    buttons: useWebform
-      ? [{ type: 'web_url', title: '🛒 Book Now', url: bookUrl, webview_height_ratio: 'full', messenger_extensions: true }]
-      : [{ title: '🛒 Book This', payload: `SVC:${s.id}:${s.name}:${s.price}:${s.unit}` }],
-  }));
+  const elements = services.map(s => {
+    const basePrice = Number(s.price);
+    const minOpt = minPriceMap[s.id];
+    let priceStr;
+    if (basePrice > 0) {
+      priceStr = `₱${basePrice.toLocaleString()} ${s.unit}`;
+    } else if (minOpt) {
+      priceStr = `Starts at ₱${minOpt.toLocaleString()} ${s.unit}`;
+    } else {
+      priceStr = `₱0 ${s.unit}`;
+    }
+    let imageUrl = null;
+    if (s.image_url) {
+      if (s.image_url.startsWith('data:') && backendUrl) {
+        imageUrl = `${backendUrl}/public/image/${s.id}`;
+      } else if (!s.image_url.startsWith('data:')) {
+        imageUrl = s.image_url;
+      }
+    }
+    return {
+      title: s.name,
+      subtitle: priceStr + (s.description ? `\n${s.description}` : ''),
+      imageUrl,
+      buttons: useWebform
+        ? [{ type: 'web_url', title: '🛒 Book Now', url: bookUrl, webview_height_ratio: 'full', messenger_extensions: true }]
+        : [{ title: '🛒 Book This', payload: `SVC:${s.id}:${s.name}:${s.price}:${s.unit}` }],
+    };
+  });
 
   const catName = services[0]?.category_name;
   const intro = catName && categoryId !== 'ALL'
