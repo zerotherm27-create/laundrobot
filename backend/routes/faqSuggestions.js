@@ -105,17 +105,14 @@ ${transcript}`;
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!raw) return res.json({ added: 0, message: 'No suggestions generated.' });
 
-    // Parse "Q: ...\nA: ..." blocks — no JSON involved
+    // Parse Q:/A: blocks — capture full multi-line answers
     const suggestions = [];
-    const blocks = raw.split(/\n{2,}/);
-    for (const block of blocks) {
-      const qMatch = block.match(/^Q:\s*(.+)/m);
-      const aMatch = block.match(/^A:\s*(.+)/m);
-      if (qMatch && aMatch) {
-        const question = qMatch[1].trim();
-        const answer = aMatch[1].trim();
-        if (question && answer) suggestions.push({ question, answer });
-      }
+    const qPattern = /Q:\s*(.+?)\nA:\s*([\s\S]+?)(?=\nQ:|\n*$)/g;
+    let match;
+    while ((match = qPattern.exec(raw)) !== null) {
+      const question = match[1].trim();
+      const answer = match[2].trim();
+      if (question && answer) suggestions.push({ question, answer });
     }
 
     if (!suggestions.length) {
