@@ -4,7 +4,7 @@ const db = require('../db');
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const HISTORY_LIMIT = 10; // messages to keep per conversation
 
-async function buildShopContext(tenantId) {
+async function buildShopContext(tenantId, customerContext) {
   const [
     { rows: [tenant] },
     { rows: services },
@@ -69,6 +69,19 @@ async function buildShopContext(tenantId) {
     ? `${tenant.store_open} – ${tenant.store_close}`
     : 'Contact us for hours.';
 
+  let customerSection = '';
+  if (customerContext) {
+    const parts = [];
+    if (customerContext.name) parts.push(`Name: ${customerContext.name}`);
+    if (customerContext.preferred_service) parts.push(`Preferred service: ${customerContext.preferred_service}`);
+    if (customerContext.address) parts.push(`Known address: ${customerContext.address}`);
+    if (customerContext.notes) parts.push(`Notes: ${customerContext.notes}`);
+    if (customerContext.last_order) parts.push(`Last order: ${customerContext.last_order}`);
+    if (parts.length) {
+      customerSection = `\nRETURNING CUSTOMER INFO (use this to personalize your replies):\n${parts.join('\n')}\n`;
+    }
+  }
+
   return `You are a customer service assistant for ${tenant.name}, a laundry service in the Philippines.
 
 CORE RULES:
@@ -76,7 +89,7 @@ CORE RULES:
 - Keep replies short and direct — 1 to 3 sentences. Only go longer if the question clearly requires it.
 - Never invent, guess, or assume any information not explicitly listed in this prompt.
 - You cannot process, book, cancel, or modify orders. For booking, tell them to tap "Book Now" or type "book". For changes or cancellations, direct them to contact the shop.
-${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${tenant.ai_instructions}\n` : ''}
+${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${tenant.ai_instructions}\n` : ''}${customerSection}
 SHOP: ${tenant.name}
 HOURS: ${hours}
 ${tenant.contact_number ? `CONTACT: ${tenant.contact_number}` : ''}
@@ -112,17 +125,103 @@ async function saveHistory(tenantId, senderId, history) {
   } catch { /* non-critical */ }
 }
 
+// Returns saved customer facts + last order summary for context injection
+async function getCustomerContext(tenantId, senderId) {
+  try {
+    const { rows: [customer] } = await db.query(
+      `SELECT c.name, c.address, c.ai_notes,
+              s.name AS last_service, o.created_at AS last_order_at
+       FROM customers c
+       LEFT JOIN orders o ON o.customer_id = c.id AND o.tenant_id = c.tenant_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE c.tenant_id = $1 AND c.fb_id = $2
+       ORDER BY o.created_at DESC NULLS LAST
+       LIMIT 1`,
+      [tenantId, senderId]
+    );
+    if (!customer) return null;
+
+    const notes = customer.ai_notes || {};
+    const ctx = {
+      name: customer.name || notes.name || null,
+      address: customer.address || notes.address || null,
+      preferred_service: notes.preferred_service || null,
+      notes: notes.notes || null,
+      last_order: null,
+    };
+
+    if (customer.last_service && customer.last_order_at) {
+      const daysAgo = Math.round((Date.now() - new Date(customer.last_order_at)) / 86400000);
+      ctx.last_order = `${customer.last_service} (${daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`})`;
+    }
+
+    const hasAnyContext = Object.values(ctx).some(v => v !== null);
+    return hasAnyContext ? ctx : null;
+  } catch { return null; }
+}
+
+// Fire-and-forget: extract facts from the latest exchange and merge into ai_notes
+async function extractAndSaveCustomerFacts(tenantId, senderId, userMessage, aiReply) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return;
+
+  try {
+    const { rows: [customer] } = await db.query(
+      `SELECT id, ai_notes FROM customers WHERE tenant_id=$1 AND fb_id=$2`,
+      [tenantId, senderId]
+    );
+    if (!customer) return;
+
+    const existing = customer.ai_notes || {};
+    const existingSummary = Object.keys(existing).length
+      ? `Existing notes: ${JSON.stringify(existing)}`
+      : 'No existing notes.';
+
+    const extractionPrompt = `You are extracting facts from a customer support chat for a laundry service.
+
+${existingSummary}
+
+Latest exchange:
+Customer: ${userMessage}
+Assistant: ${aiReply}
+
+Extract any NEW or UPDATED facts worth remembering about this customer. Only extract facts explicitly stated by the customer. Return a JSON object with any of these keys that apply: preferred_service, address, notes (for special requests like detergent preference, fragile items, etc.). Return an empty object {} if nothing new. Return only valid JSON, no explanation.`;
+
+    const { data } = await axios.post(
+      `${GEMINI_URL}?key=${apiKey}`,
+      {
+        contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
+        generationConfig: { maxOutputTokens: 200, temperature: 0 },
+      },
+      { timeout: 8000 }
+    );
+
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!raw) return;
+
+    const extracted = JSON.parse(raw.replace(/^```json\n?|\n?```$/g, ''));
+    if (!extracted || typeof extracted !== 'object' || !Object.keys(extracted).length) return;
+
+    const merged = { ...existing, ...extracted };
+    await db.query(
+      `UPDATE customers SET ai_notes=$1 WHERE id=$2`,
+      [JSON.stringify(merged), customer.id]
+    );
+  } catch { /* non-critical */ }
+}
+
 async function askGemini(tenantId, userMessage, senderId) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   try {
-    const [systemContext, history] = await Promise.all([
-      buildShopContext(tenantId),
+    const [history, customerContext] = await Promise.all([
       senderId ? getHistory(tenantId, senderId) : Promise.resolve([]),
+      senderId ? getCustomerContext(tenantId, senderId) : Promise.resolve(null),
     ]);
 
-    // Build contents: prior history + current message
+    const systemContextWithCustomer = await buildShopContext(tenantId, customerContext);
+
     const contents = [
       ...history,
       { role: 'user', parts: [{ text: userMessage }] },
@@ -131,7 +230,7 @@ async function askGemini(tenantId, userMessage, senderId) {
     const { data } = await axios.post(
       `${GEMINI_URL}?key=${apiKey}`,
       {
-        system_instruction: { parts: [{ text: systemContext }] },
+        system_instruction: { parts: [{ text: systemContextWithCustomer }] },
         contents,
         generationConfig: { maxOutputTokens: 500, temperature: 0.65 },
       },
@@ -140,7 +239,6 @@ async function askGemini(tenantId, userMessage, senderId) {
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
 
-    // Persist updated history (keep last HISTORY_LIMIT pairs)
     if (reply && senderId) {
       const updated = [
         ...history,
@@ -148,6 +246,9 @@ async function askGemini(tenantId, userMessage, senderId) {
         { role: 'model', parts: [{ text: reply }] },
       ].slice(-HISTORY_LIMIT);
       saveHistory(tenantId, senderId, updated);
+
+      // Extract and persist any new customer facts asynchronously
+      extractAndSaveCustomerFacts(tenantId, senderId, userMessage, reply);
     }
 
     return reply;

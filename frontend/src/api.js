@@ -76,6 +76,11 @@ export const createFaq = data => api.post('/faqs', data);
 export const updateFaq = (id, data) => api.put(`/faqs/${id}`, data);
 export const deleteFaq = (id, tenantId) => api.delete(`/faqs/${id}`, { params: tenantId ? { tenant_id: tenantId } : {} });
 
+export const getFaqSuggestions = (tenantId) => api.get('/faq-suggestions', { params: tenantId ? { tenant_id: tenantId } : {} });
+export const generateFaqSuggestions = (tenantId) => api.post('/faq-suggestions/generate', tenantId ? { tenant_id: tenantId } : {});
+export const approveFaqSuggestion = (id, tenantId) => api.post(`/faq-suggestions/${id}/approve`, tenantId ? { tenant_id: tenantId } : {});
+export const dismissFaqSuggestion = (id, tenantId) => api.delete(`/faq-suggestions/${id}`, { params: tenantId ? { tenant_id: tenantId } : {} });
+
 export const getUsers = (tenantId) => api.get('/users', { params: tenantId ? { tenant_id: tenantId } : {} });
 export const createUser = data => api.post('/users', data);
 export const updateUser = (id, data) => api.put(`/users/${id}`, data);

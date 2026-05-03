@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getFaqs, createFaq, updateFaq, deleteFaq, getTenants } from '../api';
+import { getFaqs, createFaq, updateFaq, deleteFaq, getTenants,
+         getFaqSuggestions, generateFaqSuggestions, approveFaqSuggestion, dismissFaqSuggestion } from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const btn = (bg, color, extra = {}) => ({
@@ -21,6 +22,10 @@ export default function FAQs() {
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
 
+  const [suggestions, setSuggestions] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [generateMsg, setGenerateMsg] = useState('');
+
   // Superadmin tenant picker
   const [tenants, setTenants] = useState([]);
   const [selectedTenant, setSelectedTenant] = useState('');
@@ -40,8 +45,12 @@ export default function FAQs() {
     if (!activeTenantId) { setFaqs([]); setLoading(false); return; }
     setLoading(true);
     try {
-      const { data } = await getFaqs(activeTenantId);
-      setFaqs(data);
+      const [{ data: faqData }, { data: suggData }] = await Promise.all([
+        getFaqs(activeTenantId),
+        getFaqSuggestions(activeTenantId),
+      ]);
+      setFaqs(faqData);
+      setSuggestions(suggData);
     } catch { /* handled */ }
     setLoading(false);
   };
@@ -81,6 +90,33 @@ export default function FAQs() {
       await updateFaq(faq.id, payload);
       await load();
     } catch { }
+  };
+
+  const generate = async () => {
+    setGenerating(true);
+    setGenerateMsg('');
+    try {
+      const { data } = await generateFaqSuggestions(isSuperAdmin ? activeTenantId : null);
+      setGenerateMsg(data.message);
+      await load();
+    } catch (e) {
+      setGenerateMsg(e.response?.data?.error || 'Failed to generate suggestions.');
+    }
+    setGenerating(false);
+  };
+
+  const approve = async (id) => {
+    try {
+      await approveFaqSuggestion(id, isSuperAdmin ? activeTenantId : null);
+      await load();
+    } catch (e) { alert(e.response?.data?.error || e.message); }
+  };
+
+  const dismiss = async (id) => {
+    try {
+      await dismissFaqSuggestion(id, isSuperAdmin ? activeTenantId : null);
+      setSuggestions(s => s.filter(x => x.id !== id));
+    } catch (e) { alert(e.response?.data?.error || e.message); }
   };
 
   const activeTenantName = isSuperAdmin
@@ -127,6 +163,48 @@ export default function FAQs() {
           Up to <strong>11 FAQs</strong> can be shown at once.
         </span>
       </div>
+
+      {/* Suggested FAQs */}
+      {activeTenantId && (
+        <div style={{ border: '1px solid #e0e7ef', borderRadius: 10, padding: '16px 18px', marginBottom: 24, background: '#f9fbfd' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: suggestions.length ? 14 : 0 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a3a5c' }}>AI-Suggested FAQs</div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>
+                Scans recent chats to find questions worth adding to your FAQ list
+              </div>
+            </div>
+            <button
+              onClick={generate}
+              disabled={generating}
+              style={btn('#1a3a5c', '#fff', { opacity: generating ? 0.6 : 1, fontSize: 11, padding: '6px 12px' })}
+            >
+              {generating ? 'Analyzing chats…' : '✦ Generate Suggestions'}
+            </button>
+          </div>
+
+          {generateMsg && (
+            <div style={{ fontSize: 12, color: '#374151', marginBottom: suggestions.length ? 12 : 0, marginTop: 4 }}>
+              {generateMsg}
+            </div>
+          )}
+
+          {suggestions.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {suggestions.map(s => (
+                <div key={s.id} style={{ background: '#fff', border: '1px solid #d4e3f5', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{s.question}</div>
+                  <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 10 }}>{s.answer}</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => approve(s.id)} style={btn('#E6F5E9', '#2E7D32', { fontSize: 11 })}>✓ Add to FAQs</button>
+                    <button onClick={() => dismiss(s.id)} style={btn('#f5f5f5', '#666', { fontSize: 11 })}>✕ Dismiss</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {loading && <p style={{ color: '#374151', fontSize: 13 }}>Loading…</p>}
 
