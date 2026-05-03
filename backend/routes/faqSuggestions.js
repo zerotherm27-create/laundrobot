@@ -80,12 +80,7 @@ Below are recent exchanges between customers and the bot. Identify questions tha
 3. Are genuinely useful to have as a saved FAQ for future customers
 
 ${existingQuestions ? `Do NOT suggest questions already covered:\n${existingQuestions}\n` : ''}
-
-Return a JSON array of up to 8 suggestions. Each must have "question" and "answer" based only on what the bot said or what can be confidently inferred. If you can't determine a good answer, skip it.
-
-Format: [{"question": "...", "answer": "..."}, ...]
-
-Return only valid JSON, no explanation.
+Return up to 8 suggestions. Each must have "question" and "answer" based only on what the bot said or what can be confidently inferred. If you cannot determine a good answer, skip it.
 
 CONVERSATIONS:
 ${transcript}`;
@@ -94,7 +89,22 @@ ${transcript}`;
       `${GEMINI_URL}?key=${apiKey}`,
       {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 2000, temperature: 0.2 },
+        generationConfig: {
+          maxOutputTokens: 2000,
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                question: { type: 'string' },
+                answer:   { type: 'string' },
+              },
+              required: ['question', 'answer'],
+            },
+          },
+        },
       },
       { timeout: 25000 }
     );
@@ -102,12 +112,7 @@ ${transcript}`;
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!raw) return res.json({ added: 0, message: 'No suggestions generated.' });
 
-    // Extract the JSON array robustly — strip fences and find the outermost [ ... ]
-    const stripped = raw.replace(/^```json\n?|\n?```$/g, '').trim();
-    const start = stripped.indexOf('[');
-    const end = stripped.lastIndexOf(']');
-    if (start === -1 || end === -1) return res.json({ added: 0, message: 'No suggestions found in response.' });
-    const suggestions = JSON.parse(stripped.slice(start, end + 1));
+    const suggestions = JSON.parse(raw);
     if (!Array.isArray(suggestions) || !suggestions.length) {
       return res.json({ added: 0, message: 'No new suggestions found.' });
     }
