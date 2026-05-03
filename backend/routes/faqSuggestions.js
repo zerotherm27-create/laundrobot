@@ -80,7 +80,15 @@ Below are recent exchanges between customers and the bot. Identify questions tha
 3. Are genuinely useful to have as a saved FAQ for future customers
 
 ${existingQuestions ? `Do NOT suggest questions already covered:\n${existingQuestions}\n` : ''}
-Return up to 8 suggestions. Each must have "question" and "answer" based only on what the bot said or what can be confidently inferred. If you cannot determine a good answer, skip it.
+Return up to 8 suggestions using EXACTLY this format — no extra text, no numbering, no markdown:
+
+Q: <question on one line>
+A: <answer on one line>
+
+Q: <question on one line>
+A: <answer on one line>
+
+If you cannot determine a good answer for a question, skip it entirely.
 
 CONVERSATIONS:
 ${transcript}`;
@@ -89,22 +97,7 @@ ${transcript}`;
       `${GEMINI_URL}?key=${apiKey}`,
       {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 2000,
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                question: { type: 'string' },
-                answer:   { type: 'string' },
-              },
-              required: ['question', 'answer'],
-            },
-          },
-        },
+        generationConfig: { maxOutputTokens: 2000, temperature: 0.2 },
       },
       { timeout: 25000 }
     );
@@ -112,18 +105,29 @@ ${transcript}`;
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!raw) return res.json({ added: 0, message: 'No suggestions generated.' });
 
-    const suggestions = JSON.parse(raw);
-    if (!Array.isArray(suggestions) || !suggestions.length) {
+    // Parse "Q: ...\nA: ..." blocks — no JSON involved
+    const suggestions = [];
+    const blocks = raw.split(/\n{2,}/);
+    for (const block of blocks) {
+      const qMatch = block.match(/^Q:\s*(.+)/m);
+      const aMatch = block.match(/^A:\s*(.+)/m);
+      if (qMatch && aMatch) {
+        const question = qMatch[1].trim();
+        const answer = aMatch[1].trim();
+        if (question && answer) suggestions.push({ question, answer });
+      }
+    }
+
+    if (!suggestions.length) {
       return res.json({ added: 0, message: 'No new suggestions found.' });
     }
 
     let added = 0;
     for (const s of suggestions) {
-      if (!s.question?.trim() || !s.answer?.trim()) continue;
       await db.query(
         `INSERT INTO faq_suggestions (tenant_id, question, answer)
          VALUES ($1, $2, $3)`,
-        [tenantId, s.question.trim(), s.answer.trim()]
+        [tenantId, s.question, s.answer]
       );
       added++;
     }
