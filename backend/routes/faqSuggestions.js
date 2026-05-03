@@ -94,15 +94,20 @@ ${transcript}`;
       `${GEMINI_URL}?key=${apiKey}`,
       {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 1000, temperature: 0.2 },
+        generationConfig: { maxOutputTokens: 2000, temperature: 0.2 },
       },
-      { timeout: 20000 }
+      { timeout: 25000 }
     );
 
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!raw) return res.json({ added: 0, message: 'No suggestions generated.' });
 
-    const suggestions = JSON.parse(raw.replace(/^```json\n?|\n?```$/g, ''));
+    // Extract the JSON array robustly — strip fences and find the outermost [ ... ]
+    const stripped = raw.replace(/^```json\n?|\n?```$/g, '').trim();
+    const start = stripped.indexOf('[');
+    const end = stripped.lastIndexOf(']');
+    if (start === -1 || end === -1) return res.json({ added: 0, message: 'No suggestions found in response.' });
+    const suggestions = JSON.parse(stripped.slice(start, end + 1));
     if (!Array.isArray(suggestions) || !suggestions.length) {
       return res.json({ added: 0, message: 'No new suggestions found.' });
     }
