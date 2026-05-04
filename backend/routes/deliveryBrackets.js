@@ -20,7 +20,7 @@ router.get('/geocode', auth, async (req, res) => {
   try {
     const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
       params: { q: address.trim() + ', Philippines', format: 'json', limit: 1 },
-      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
+      headers: { 'User-Agent': 'LaundroBot/1.0 (hello@laundrobot.app)' },
       timeout: 8000,
     });
     if (!data.length) return res.json(null);

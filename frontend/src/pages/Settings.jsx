@@ -79,6 +79,11 @@ export default function Settings() {
   const [resettingMenu,  setResettingMenu]  = useState(false);
   const [menuResetMsg,   setMenuResetMsg]   = useState('');
 
+  // White-label / custom domain (Pro only)
+  const [tenantPlan,     setTenantPlan]     = useState('starter');
+  const [customDomain,   setCustomDomain]   = useState('');
+  const [whiteLabel,     setWhiteLabel]     = useState(false);
+
   useEffect(() => {
     Promise.all([
       getMyTenantSettings(),
@@ -99,6 +104,9 @@ export default function Settings() {
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
       setFbPageId(s.data.fb_page_id || '');
+      setTenantPlan(s.data.plan || 'starter');
+      setCustomDomain(s.data.custom_domain || '');
+      setWhiteLabel(!!s.data.white_label);
       setBlockedDates(b.data);
       setPromos(p.data);
       setReferrals(r.data);
@@ -123,6 +131,8 @@ export default function Settings() {
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
         ig_user_id: igUserId,
         qr_image_url: qrImageUrl || null,
+        custom_domain: customDomain || null,
+        white_label: whiteLabel,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -321,6 +331,46 @@ export default function Settings() {
                   )}
                 </div>
               </div>
+            </SectionCard>
+
+            {/* Custom Domain (Pro plan) */}
+            <SectionCard icon="🌐" iconBg="#EDE9FE" title="Custom Domain & White-Label"
+              subtitle={tenantPlan === 'pro' ? 'Point your own domain to your booking form' : 'Available on the Pro plan'}>
+              {tenantPlan !== 'pro' ? (
+                <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 3 }}>Upgrade to Pro to unlock</div>
+                    <div style={{ fontSize: 12, color: '#6B7280' }}>Host your booking form at your own domain with no LaundroBot branding.</div>
+                  </div>
+                  <a href="#" onClick={e => { e.preventDefault(); alert('Contact hello@laundrobot.app to upgrade to Pro.'); }}
+                    style={{ padding: '8px 18px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                    Upgrade to Pro →
+                  </a>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={LABEL}>Custom domain</label>
+                    <input value={customDomain} onChange={e => setCustomDomain(e.target.value.trim())}
+                      placeholder="book.yourdomain.com" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6, lineHeight: 1.6 }}>
+                      Add a CNAME record: <code style={{ background: '#F3F4F6', padding: '1px 6px', borderRadius: 4 }}>book.yourdomain.com → laundrobot.app</code><br />
+                      Then enter the domain above and save. Allow up to 24 hours for DNS to propagate.
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <div
+                      onClick={() => setWhiteLabel(v => !v)}
+                      style={{ width: 40, height: 22, borderRadius: 11, background: whiteLabel ? '#38a9c2' : '#D1D5DB', position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: 3, left: whiteLabel ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Remove "Powered by LaundroBot"</div>
+                      <div style={{ fontSize: 12, color: '#6B7280' }}>Your customers won't see any LaundroBot branding on the booking form.</div>
+                    </div>
+                  </label>
+                </div>
+              )}
             </SectionCard>
 
             {error && (

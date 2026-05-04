@@ -18,16 +18,21 @@ router.post('/', async (req, res) => {
     // Subscription payment for a LaundroBot tenant (external_id starts with "sub-")
     if (String(external_id).startsWith('sub-')) {
       const tenantId = String(external_id).split('-')[1];
-      const plan = req.body.description?.includes('Annual') ? 'annual' : 'monthly';
+      const desc = req.body.description || '';
+      const isAnnual = desc.includes('Annual');
+      const isPro    = desc.includes('Pro');
+      const subPlan  = isAnnual ? (isPro ? 'pro_annual' : 'starter_annual') : (isPro ? 'pro_monthly' : 'starter_monthly');
+      const tier     = isPro ? 'pro' : 'starter';
       const paidUntil = new Date();
-      paidUntil.setMonth(paidUntil.getMonth() + (plan === 'annual' ? 12 : 1));
+      paidUntil.setMonth(paidUntil.getMonth() + (isAnnual ? 12 : 1));
       await db.query(
         `UPDATE tenants
          SET subscription_status = 'active',
              subscription_plan = $1,
-             subscription_paid_until = $2
-         WHERE id = $3`,
-        [plan, paidUntil.toISOString(), tenantId]
+             subscription_paid_until = $2,
+             plan = $3
+         WHERE id = $4`,
+        [subPlan, paidUntil.toISOString(), tier, tenantId]
       );
       console.log(`[xendit] subscription activated for tenant ${tenantId} (${plan})`);
       return res.sendStatus(200);
@@ -106,7 +111,7 @@ router.post('/', async (req, res) => {
                 `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
                 `We'll check your order for confirmation.\n\n` +
                 `For concerns, reach out to us using the following contact details:\n` +
-                `📧 Email: washup@thelaundryproject.ph\n` +
+                `📧 Email: ${tenant.notification_email || 'hello@laundrobot.app'}\n` +
                 (tenant.contact_number ? `📱 Contact: ${tenant.contact_number} (WhatsApp & Viber)` : '');
             const appUrl = process.env.APP_URL;
             const bookBtn = appUrl

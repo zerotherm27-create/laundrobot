@@ -33,7 +33,7 @@ router.post('/forgot-password', async (req, res) => {
       [user.id, token, expiresAt]
     );
 
-    const appUrl = process.env.APP_URL || 'https://www.thelaundryproject.app';
+    const appUrl = process.env.APP_URL || 'https://laundrobot.app';
     const resetUrl = `${appUrl}?reset_token=${token}`;
 
     const resend = getResend();

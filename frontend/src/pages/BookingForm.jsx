@@ -151,7 +151,7 @@ function normalizeOpts(options) {
     : { label: String(o), price: 0, price_type: 'fixed' });
 }
 
-export default function BookingForm({ tenantId }) {
+export default function BookingForm({ tenantId, whiteLabel = false }) {
   const [step, setStep]           = useState(1); // 1 | 2 | 3 | 'success'
   const [tenant, setTenant]       = useState(null);
   const [categories, setCategories] = useState([]);
@@ -1599,9 +1599,11 @@ export default function BookingForm({ tenantId }) {
 
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#374151' }}>
-        Powered by <strong>LaundroBot</strong>
-      </div>
+      {!whiteLabel && (
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#374151' }}>
+          Powered by <strong>LaundroBot</strong>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

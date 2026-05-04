@@ -163,12 +163,14 @@ router.get('/subscription', require('../middleware/auth'), async (req, res) => {
 
 // POST create a subscription payment invoice via platform Xendit key
 router.post('/subscription/pay', require('../middleware/auth'), async (req, res) => {
-  const { plan } = req.body; // 'monthly' | 'annual'
+  const { plan } = req.body; // 'starter_monthly' | 'pro_monthly' | 'starter_annual' | 'pro_annual'
   const PLANS = {
-    monthly: { amount: 999,  label: 'LaundroBot Monthly Plan' },
-    annual:  { amount: 9990, label: 'LaundroBot Annual Plan'  },
+    starter_monthly: { amount: 999,   label: 'LaundroBot Starter Monthly', tier: 'starter' },
+    pro_monthly:     { amount: 1999,  label: 'LaundroBot Pro Monthly',     tier: 'pro'     },
+    starter_annual:  { amount: 9990,  label: 'LaundroBot Starter Annual',  tier: 'starter' },
+    pro_annual:      { amount: 19990, label: 'LaundroBot Pro Annual',      tier: 'pro'     },
   };
-  const chosen = PLANS[plan] || PLANS.monthly;
+  const chosen = PLANS[plan] || PLANS.starter_monthly;
   const platformKey = process.env.XENDIT_PLATFORM_API_KEY;
   if (!platformKey) return res.status(500).json({ error: 'Platform payment not configured' });
 

@@ -23,7 +23,31 @@ import Landing from './pages/Landing.jsx';
 import PaywallScreen from './pages/PaywallScreen.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
-import { getSubscription } from './api.js';
+import { getSubscription, getPublicTenantByDomain } from './api.js';
+
+const PLATFORM_HOSTS = ['laundrobot.app', 'www.laundrobot.app', 'localhost', '127.0.0.1'];
+const isCustomDomain = !PLATFORM_HOSTS.some(h => window.location.hostname === h || window.location.hostname.endsWith('.vercel.app'));
+
+// On a custom domain every path serves the tenant's booking form
+function CustomDomainApp() {
+  const [tenantId, setTenantId]     = useState(null);
+  const [whiteLabel, setWhiteLabel] = useState(false);
+  const [error, setError]           = useState('');
+
+  useEffect(() => {
+    getPublicTenantByDomain(window.location.hostname)
+      .then(r => { setTenantId(r.data.tenant_id); setWhiteLabel(r.data.white_label); })
+      .catch(() => setError('This domain is not configured. Please contact support.'));
+  }, []);
+
+  if (error) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', color: '#374151' }}>
+      <p>{error}</p>
+    </div>
+  );
+  if (!tenantId) return null;
+  return <BookingForm tenantId={tenantId} whiteLabel={whiteLabel} />;
+}
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
@@ -148,6 +172,7 @@ function Inner() {
 }
 
 export default function App() {
+  if (isCustomDomain) return <CustomDomainApp />;
   return (
     <AuthProvider>
       <Inner />

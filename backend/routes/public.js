@@ -7,6 +7,19 @@ const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 const { haversine } = require('./deliveryBrackets');
 
+// Look up a tenant by custom domain — used by the booking form on white-label domains
+router.get('/by-domain/:hostname', async (req, res) => {
+  try {
+    const hostname = req.params.hostname.toLowerCase().trim();
+    const { rows: [tenant] } = await db.query(
+      `SELECT id, name, white_label FROM tenants WHERE LOWER(custom_domain) = $1 AND active = true`,
+      [hostname]
+    );
+    if (!tenant) return res.status(404).json({ error: 'Domain not configured' });
+    res.json({ tenant_id: tenant.id, tenant_name: tenant.name, white_label: tenant.white_label });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Serve service image — allows Messenger carousel to display base64-stored images via a public URL
 router.get('/image/:serviceId', async (req, res) => {
   try {
@@ -30,7 +43,7 @@ router.get('/geocode', async (req, res) => {
   try {
     const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
       params: { q: q.trim(), format: 'json', limit: 1, countrycodes: 'ph' },
-      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
+      headers: { 'User-Agent': 'LaundroBot/1.0 (hello@laundrobot.app)' },
       timeout: 8000,
     });
     if (!data.length) return res.json(null);
@@ -45,7 +58,7 @@ router.get('/geocode/suggest', async (req, res) => {
   try {
     const { data } = await axios.get('https://nominatim.openstreetmap.org/search', {
       params: { q: q.trim(), format: 'json', limit: 5, countrycodes: 'ph', addressdetails: 1 },
-      headers: { 'User-Agent': 'LaundroBot/1.0 (laundrobot@thelaundryproject.ph)' },
+      headers: { 'User-Agent': 'LaundroBot/1.0 (hello@laundrobot.app)' },
       timeout: 8000,
     });
     res.json(data.map(r => {
