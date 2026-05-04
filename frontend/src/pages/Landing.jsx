@@ -416,6 +416,10 @@ function Nav() {
           <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px', marginLeft: 4 }}
             onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
             onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Sign in</a>
+          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid #38a9c2', minHeight: 40 }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Book a demo</a>
           <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40 }}
             onMouseEnter={e => e.currentTarget.style.background = '#1d8ba0'}
             onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Get started free</a>
@@ -457,10 +461,11 @@ function Hero() {
                 Start for free
                 <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
               </a>
-              <a href="#how-it-works" style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'color .15s' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
                 onMouseLeave={e => e.currentTarget.style.color = '#374151'}>
-                See how it works ↓
+                📅 Book a free demo
               </a>
             </div>
           </div>
@@ -894,7 +899,7 @@ function Pricing() {
             14-day free trial on all plans · No credit card required · Cancel anytime
           </p>
           <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
-            Need help getting set up? <a href="/login" style={{ color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}>One-time onboarding for ₱1,500 →</a>
+            Not sure which plan? <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}>Book a free demo →</a>
           </p>
         </div>
 
@@ -925,11 +930,12 @@ function CtaBand() {
             Get started — it&apos;s free
             <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
           </a>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#9CA3AF' }}>
-            <Icon name="check" size={13} color="#38a9c2" /> No credit card
-            <span style={{ margin: '0 4px' }}>·</span>
-            <Icon name="check" size={13} color="#38a9c2" /> Set up in minutes
-          </div>
+          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: '#374151', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid #D1D5DB', minHeight: 52, transition: 'all .15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#38a9c2'; e.currentTarget.style.color = '#38a9c2'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#374151'; }}>
+            📅 Book a free demo
+          </a>
         </div>
       </div>
     </section>
