@@ -84,10 +84,12 @@ export default function Settings() {
   const logoFileRef = useRef();
 
   // White-label / custom domain (Pro only)
-  const [tenantPlan,     setTenantPlan]     = useState('starter');
-  const [customDomain,   setCustomDomain]   = useState('');
-  const [whiteLabel,     setWhiteLabel]     = useState(false);
-  const [upgradingPro,   setUpgradingPro]   = useState(false);
+  const [tenantPlan,        setTenantPlan]        = useState('starter');
+  const [customDomain,      setCustomDomain]      = useState('');
+  const [whiteLabel,        setWhiteLabel]        = useState(false);
+  const [upgradingPro,      setUpgradingPro]      = useState(false);
+  const [showUpgradeModal,  setShowUpgradeModal]  = useState(false);
+  const [upgradeAnnual,     setUpgradeAnnual]     = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -176,7 +178,98 @@ export default function Settings() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const PRO_FEATURES = [
+    { label: 'Everything in Starter', sub: 'All your current features carry over' },
+    { label: 'Up to 10 branches · 10 staff accounts', sub: 'Scale across all your locations' },
+    { label: 'White-label booking form', sub: 'Remove all LaundroBot branding' },
+    { label: 'Custom domain', sub: 'Host at book.yourdomain.com' },
+    { label: 'Custom AI instructions per branch', sub: 'Fine-tune the chatbot per location' },
+    { label: 'Unlimited orders', sub: 'No monthly order cap' },
+    { label: 'Priority support + dedicated onboarding', sub: 'Direct line, faster response' },
+  ];
+
   return (
+    <>
+    {showUpgradeModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+        onClick={e => { if (e.target === e.currentTarget) setShowUpgradeModal(false); }}>
+        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden' }}>
+          {/* Modal header */}
+          <div style={{ background: 'linear-gradient(135deg,#7C3AED,#5B21B6)', padding: '1.75rem 1.5rem 1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.2)', borderRadius: 20, padding: '3px 12px', marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '.06em' }}>PRO PLAN</span>
+                </div>
+                {/* Billing toggle */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                  {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
+                    <button key={opt.label} onClick={() => setUpgradeAnnual(opt.val)}
+                      style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, background: upgradeAnnual === opt.val ? '#fff' : 'rgba(255,255,255,.2)', color: upgradeAnnual === opt.val ? '#7C3AED' : '#fff', transition: 'all .15s' }}>
+                      {opt.label}
+                      {opt.val && <span style={{ marginLeft: 5, background: '#fdca00', color: '#7a5800', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 20 }}>SAVE 17%</span>}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.7)', alignSelf: 'flex-start', marginTop: 6 }}>₱</span>
+                  <span style={{ fontSize: 42, fontWeight: 900, color: '#fff', letterSpacing: '-.04em', lineHeight: 1 }}>
+                    {upgradeAnnual ? '4,583' : '5,499'}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 6 }}>/month</span>
+                </div>
+                {upgradeAnnual && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.75)', marginTop: 4 }}>Billed ₱54,990/year · 2 months free</div>
+                )}
+              </div>
+              <button onClick={() => setShowUpgradeModal(false)}
+                style={{ background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#fff', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                ×
+              </button>
+            </div>
+          </div>
+
+          {/* Features list */}
+          <div style={{ padding: '1.25rem 1.5rem' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>What you get</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {PRO_FEATURES.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#F5F3FF', flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{f.label}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{f.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
+            <button disabled={upgradingPro}
+              onClick={async () => {
+                setUpgradingPro(true);
+                try {
+                  const plan = upgradeAnnual ? 'pro_annual' : 'pro_monthly';
+                  const { data } = await createSubscriptionInvoice(plan);
+                  window.open(data.invoiceUrl, '_blank');
+                  setShowUpgradeModal(false);
+                } catch { alert('Could not open payment page. Please try again.'); }
+                finally { setUpgradingPro(false); }
+              }}
+              style={{ width: '100%', padding: '13px', borderRadius: 12, background: '#7C3AED', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
+              {upgradingPro
+                ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening payment…</>
+                : `Upgrade to Pro — ₱${upgradeAnnual ? '54,990/year' : '5,499/mo'} →`}
+            </button>
+            <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', margin: 0 }}>
+              Secure payment via Xendit · Cancel anytime
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="animate-fade-up">
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>Settings</h2>
@@ -379,23 +472,28 @@ export default function Settings() {
             <SectionCard icon="🌐" iconBg="#EDE9FE" title="Custom Domain & White-Label"
               subtitle={tenantPlan === 'pro' ? 'Point your own domain to your booking form' : 'Available on the Pro plan'}>
               {tenantPlan !== 'pro' ? (
-                <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 3 }}>Upgrade to Pro to unlock</div>
-                    <div style={{ fontSize: 12, color: '#6B7280' }}>Host your booking form at your own domain with no LaundroBot branding.</div>
+                <div style={{ background: 'linear-gradient(135deg,#F5F3FF,#EDE9FE)', borderRadius: 12, padding: '16px 18px', border: '1px solid #DDD6FE' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#4C1D95', marginBottom: 3 }}>Upgrade to Pro</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>White-label booking form, custom domain, unlimited orders, and more.</div>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#7C3AED', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>PRO</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                    {['Custom domain', 'White-label', 'Unlimited orders', '10 branches', 'Priority support'].map(f => (
+                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff', border: '1px solid #DDD6FE', borderRadius: 20, padding: '3px 10px' }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#4C1D95' }}>{f}</span>
+                      </div>
+                    ))}
                   </div>
                   <button
-                    disabled={upgradingPro}
-                    onClick={async () => {
-                      setUpgradingPro(true);
-                      try {
-                        const { data } = await createSubscriptionInvoice('pro_monthly');
-                        window.open(data.invoiceUrl, '_blank');
-                      } catch { alert('Could not open payment page. Please try again.'); }
-                      finally { setUpgradingPro(false); }
-                    }}
-                    style={{ padding: '8px 18px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {upgradingPro ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening…</> : 'Upgrade to Pro — ₱5,499/mo →'}
+                    onClick={() => setShowUpgradeModal(true)}
+                    style={{ padding: '9px 20px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    See plan details & upgrade →
                   </button>
                 </div>
               ) : (
@@ -799,5 +897,6 @@ export default function Settings() {
         )}
       </div>
     </div>
+    </>
   );
 }
