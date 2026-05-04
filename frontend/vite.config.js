@@ -27,8 +27,4 @@ export default defineConfig({
     }),
   ],
   server: { port: 5179 },
-  build: {
-    outDir: '../public',
-    emptyOutDir: false,
-  },
 })
