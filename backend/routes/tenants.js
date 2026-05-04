@@ -93,7 +93,7 @@ router.post('/settings/setup-messenger', auth, async (req, res) => {
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at,
+      `SELECT t.id, t.name, t.fb_page_id, t.fb_page_access_token, t.xendit_api_key, t.logo_url, t.active, t.created_at, t.plan,
               COUNT(o.id)::int AS total_orders,
               COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_revenue
        FROM tenants t
@@ -109,7 +109,7 @@ router.get('/', auth, superadminOnly, async (req, res) => {
 router.get('/:id', auth, superadminOnly, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, fb_page_id, logo_url, active, created_at FROM tenants WHERE id=$1`,
+      `SELECT id, name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, created_at, plan FROM tenants WHERE id=$1`,
       [req.params.id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
@@ -151,7 +151,7 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
 // PATCH update tenant plan (superadmin)
 router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
   const { plan, subscription_status } = req.body;
-  const validPlans = ['starter', 'pro'];
+  const validPlans = ['starter', 'growth', 'pro'];
   const validStatuses = ['trial', 'active', 'expired', 'cancelled'];
   if (plan && !validPlans.includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
   if (subscription_status && !validStatuses.includes(subscription_status)) return res.status(400).json({ error: 'Invalid status' });
