@@ -28,7 +28,7 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url } = req.body;
   try {
     // Only Pro tenants can set custom domain / white label
     const { rows: [current] } = await db.query(`SELECT plan FROM tenants WHERE id=$1`, [req.user.tenant_id]);
@@ -40,7 +40,8 @@ router.put('/settings', auth, async (req, res) => {
            store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6, ai_enabled=$7, ai_instructions=$8,
            ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
            custom_domain = CASE WHEN $14 THEN $13 ELSE custom_domain END,
-           white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END
+           white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END,
+           logo_url      = COALESCE($17, logo_url)
        WHERE id=$16
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
                  ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, plan,
@@ -64,6 +65,7 @@ router.put('/settings', auth, async (req, res) => {
         isPro,                                         // $14 — gate
         white_label === true || white_label === 'true',// $15
         req.user.tenant_id,                            // $16
+        logo_url || null,                              // $17
       ]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });

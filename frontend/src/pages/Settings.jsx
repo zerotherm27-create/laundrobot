@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink } from '../api.js';
 
 const INPUT = {
@@ -79,6 +79,10 @@ export default function Settings() {
   const [resettingMenu,  setResettingMenu]  = useState(false);
   const [menuResetMsg,   setMenuResetMsg]   = useState('');
 
+  // Logo
+  const [logoUrl,        setLogoUrl]        = useState('');
+  const logoFileRef = useRef();
+
   // White-label / custom domain (Pro only)
   const [tenantPlan,     setTenantPlan]     = useState('starter');
   const [customDomain,   setCustomDomain]   = useState('');
@@ -104,6 +108,7 @@ export default function Settings() {
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
       setFbPageId(s.data.fb_page_id || '');
+      setLogoUrl(s.data.logo_url || '');
       setTenantPlan(s.data.plan || 'starter');
       setCustomDomain(s.data.custom_domain || '');
       setWhiteLabel(!!s.data.white_label);
@@ -133,6 +138,7 @@ export default function Settings() {
         qr_image_url: qrImageUrl || null,
         custom_domain: customDomain || null,
         white_label: whiteLabel,
+        logo_url: logoUrl || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -183,6 +189,41 @@ export default function Settings() {
           <form onSubmit={handleSave}>
 
             {/* Notification Email */}
+            <SectionCard icon="🖼️" iconBg="#FEF3C7" title="Business Logo"
+              subtitle="Used on invoices and the booking form">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                {/* Preview */}
+                <div
+                  onClick={() => logoFileRef.current.click()}
+                  style={{ width: 80, height: 80, borderRadius: 12, border: '1.5px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F9FAFB', flexShrink: 0 }}>
+                  {logoUrl
+                    ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    : <div style={{ textAlign: 'center', color: '#9CA3AF' }}><div style={{ fontSize: 22 }}>📷</div><div style={{ fontSize: 10, marginTop: 2 }}>Upload</div></div>}
+                </div>
+                <input ref={logoFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setLogoUrl(ev.target.result);
+                    reader.readAsDataURL(file);
+                  }} />
+                <div>
+                  <button type="button" onClick={() => logoFileRef.current.click()}
+                    style={{ fontSize: 12, padding: '7px 16px', borderRadius: 7, border: '0.5px solid #D1D5DB', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, display: 'block' }}>
+                    {logoUrl ? 'Change logo' : 'Upload logo'}
+                  </button>
+                  {logoUrl && (
+                    <button type="button" onClick={() => setLogoUrl('')}
+                      style={{ fontSize: 11, color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                      Remove
+                    </button>
+                  )}
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>PNG or JPG, max 2MB</div>
+                </div>
+              </div>
+            </SectionCard>
+
             <SectionCard icon="📧" iconBg="#e6f5f8" title="Order Notifications"
               subtitle="Email you receive when new orders arrive and payments are confirmed">
               <label style={LABEL}>Notification Email</label>
