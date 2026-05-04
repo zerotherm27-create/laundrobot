@@ -41,16 +41,18 @@ const RESPONSIVE_CSS = `
   }
 `;
 
-// ── Messenger phone mockup — shows real flow: greeting → tap Book Now → webview form ──
+// ── Messenger phone mockup — matches real iPhone Messenger recording ──
 // Phases:
-//  0 → chat: bot greeting + 3 buttons           (2600ms)
-//  1 → "Book Now" button tap highlight           (600ms)
-//  2 → webview slides up                         (500ms — transition only)
-//  3 → webview shown (form)                      (3200ms)
-//  4 → webview closes, confirmation in chat      (2800ms)
+//  0 → page info card (The Laundry Project page, 1K followers, buttons)   (2800ms)
+//  1 → "Hi" sent by user, keyboard shown                                   (1800ms)
+//  2 → keyboard gone, bot typing indicator                                 (1200ms)
+//  3 → bot greeting + action buttons                                       (2600ms)
+//  4 → "Book Now" tap highlight                                            (600ms)
+//  5 → webview slides up (booking form)                                    (3200ms)
+//  6 → webview closes, confirmation in chat                                (2800ms)
 //  → restart
 
-const PHASE_DURATIONS = [2600, 600, 500, 3200, 2800];
+const PHASE_DURATIONS = [2800, 1800, 1200, 2600, 600, 3200, 2800];
 
 function MessengerMockup() {
   const [phase, setPhase] = useState(0);
@@ -60,88 +62,141 @@ function MessengerMockup() {
     return () => clearTimeout(t);
   }, [phase]);
 
-  const webviewOpen = phase === 2 || phase === 3;
-  const tapping     = phase === 1;
-  const confirmed   = phase === 4;
+  const showPageInfo = phase === 0;
+  const showKeyboard = phase === 1;
+  const showTyping   = phase === 2;
+  const showChat     = phase >= 3;
+  const tapping      = phase === 4;
+  const webviewOpen  = phase === 5;
+  const confirmed    = phase === 6;
 
-  // ── Chat screen (always behind webview) ──
+  // ── Page info card (initial Messenger screen) ──
+  const PageInfoScreen = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflowY: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 14px 10px', gap: 5 }}>
+        {/* Avatar */}
+        <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, boxShadow: '0 4px 14px rgba(56,169,194,.3)' }}>
+          <img src="/logo.png" alt="" style={{ width: 44, height: 44, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#050505', textAlign: 'center', letterSpacing: '-.2px' }}>The Laundry Project</div>
+        <div style={{ fontSize: 10, color: '#65676b' }}>1K people follow this</div>
+        <div style={{ fontSize: 10, color: '#65676b' }}>Laundromat</div>
+        <div style={{ fontSize: 10, color: '#0084ff', fontWeight: 500 }}>Business chats and your privacy</div>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 7, marginTop: 8, width: '100%' }}>
+          {[{ icon: '✕', label: 'Unfollow' }, { icon: 'ℹ', label: 'Info' }].map(b => (
+            <div key={b.label} style={{ flex: 1, border: '1px solid #e4e6ea', borderRadius: 8, padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, background: '#f0f2f5' }}>
+              <span style={{ fontSize: 13, color: '#050505' }}>{b.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#050505' }}>{b.label}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ width: '100%', border: '1px solid #e4e6ea', borderRadius: 8, padding: '7px', textAlign: 'center', background: '#f0f2f5', fontSize: 11, fontWeight: 600, color: '#050505' }}>
+          View profile
+        </div>
+        {/* Timestamp */}
+        <div style={{ fontSize: 9, color: '#65676b', marginTop: 8 }}>08:25</div>
+        {/* Hi bubble from user */}
+        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '7px 12px', fontSize: 12, color: '#fff', fontWeight: 500, marginTop: 4 }}>Hi</div>
+        <div style={{ alignSelf: 'flex-end', fontSize: 8.5, color: '#65676b', marginTop: 1 }}>Sent</div>
+      </div>
+      {/* Input bar */}
+      <div style={{ background: '#fff', padding: '6px 9px', borderTop: '1px solid #e4e6ea', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span style={{ fontSize: 16, color: '#0084ff' }}>›</span>
+        <span style={{ fontSize: 14, color: '#65676b' }}>📎</span>
+        <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 20, padding: '5px 11px', fontSize: 10, color: '#65676b' }}>Aa</div>
+        <span style={{ fontSize: 14 }}>😊</span>
+        <span style={{ fontSize: 14, color: '#0084ff' }}>👍</span>
+      </div>
+      {/* iOS keyboard */}
+      {showKeyboard && (
+        <div style={{ background: '#d1d5db', padding: '6px 3px 3px', flexShrink: 0, animation: 'msgIn .2s ease' }}>
+          {[['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['⇧','Z','X','C','V','B','N','M','⌫']].map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 3 }}>
+              {row.map(k => (
+                <div key={k} style={{ background: k === '⇧' || k === '⌫' ? '#adb5bd' : '#fff', borderRadius: 4, padding: '4px 0', minWidth: k.length > 1 ? 22 : 18, textAlign: 'center', fontSize: 9, fontWeight: 500, color: '#050505', boxShadow: '0 1px 0 #aaa' }}>{k}</div>
+              ))}
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 3, justifyContent: 'center', marginBottom: 2 }}>
+            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 8px', fontSize: 9, color: '#050505', fontWeight: 500 }}>123</div>
+            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 6px', fontSize: 9, color: '#050505' }}>🌐</div>
+            <div style={{ background: '#fff', borderRadius: 4, flex: 1, padding: '4px 0', fontSize: 9, color: '#050505', textAlign: 'center', fontWeight: 500, boxShadow: '0 1px 0 #aaa' }}>susunod</div>
+            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 8px', fontSize: 9, color: '#050505' }}>🎤</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── Chat screen ──
   const ChatScreen = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* messages */}
-      <div style={{ flex: 1, overflowY: 'hidden', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 6, background: '#f9f9f9', justifyContent: 'flex-end' }}>
-        {confirmed ? (
-          /* Confirmation message */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, animation: 'msgIn .3s ease' }}>
-            <div style={{ background: '#fff', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10.5, lineHeight: 1.6, color: '#0D1117', boxShadow: '0 1px 3px rgba(0,0,0,.08)', maxWidth: '88%' }}>
-              🎉 <strong>Booking confirmed!</strong>{'\n\n'}
-              🆔 ORD-482910{'\n'}
-              🧺 Wash &amp; Fold · 3.5 kg{'\n'}
-              🗓 Bukas, 9:00 AM{'\n'}
-              💰 Total: ₱175
+      <div style={{ flex: 1, overflowY: 'hidden', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 6, background: '#fff', justifyContent: 'flex-end' }}>
+        {/* User's Hi */}
+        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '7px 11px', fontSize: 10.5, color: '#fff' }}>Hi</div>
+        {showTyping && !confirmed && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '88%' }}>
-              <div style={{ background: '#fff', border: '1.5px solid #0084ff', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 700, color: '#0084ff', textAlign: 'center' }}>💳 Pay Now</div>
-              <div style={{ background: '#fff', border: '1.5px solid #e5e5e5', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 600, color: '#374151', textAlign: 'center' }}>📦 My Orders</div>
+            <div style={{ background: '#f0f2f5', borderRadius: '18px 18px 18px 3px', padding: '8px 12px', display: 'flex', gap: 3, alignItems: 'center' }}>
+              {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#65676b', animation: `typingDot 1.2s ${i*0.2}s infinite` }} />)}
             </div>
           </div>
-        ) : (
-          /* Greeting + action buttons */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ background: '#fff', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10.5, lineHeight: 1.6, color: '#0D1117', boxShadow: '0 1px 3px rgba(0,0,0,.08)', maxWidth: '88%' }}>
-              👋 <strong>Hi, Maria!</strong> Welcome to The Laundry Project!{'\n\n'}What would you like to do?
+        )}
+        {confirmed ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, animation: 'msgIn .3s ease' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+              </div>
+              <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10, lineHeight: 1.6, color: '#050505', maxWidth: '80%' }}>
+                🎉 <strong>Booking confirmed!</strong>{'\n\n'}🆔 ORD-482910{'\n'}🧺 Wash & Fold · 3.5 kg{'\n'}🗓 Bukas, 9:00 AM{'\n'}💰 Total: ₱175
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '88%' }}>
-              {[
-                { label: '🛒 Book Now', highlight: true },
-                { label: '📦 My Orders', highlight: false },
-                { label: '❓ FAQs', highlight: false },
-              ].map(({ label, highlight }) => (
-                <div key={label} style={{
-                  background: tapping && highlight ? '#0084ff' : '#fff',
-                  border: `1.5px solid ${highlight ? '#0084ff' : '#e5e5e5'}`,
-                  borderRadius: 14,
-                  padding: '5px 10px',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: tapping && highlight ? '#fff' : highlight ? '#0084ff' : '#374151',
-                  textAlign: 'center',
-                  transition: 'all .2s',
-                  transform: tapping && highlight ? 'scale(0.97)' : 'scale(1)',
-                }}>{label}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '80%', marginLeft: 29 }}>
+              <div style={{ background: '#fff', border: '1.5px solid #0084ff', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 700, color: '#0084ff', textAlign: 'center' }}>💳 Pay Now</div>
+              <div style={{ background: '#fff', border: '1.5px solid #e4e6ea', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 600, color: '#374151', textAlign: 'center' }}>📦 My Orders</div>
+            </div>
+          </div>
+        ) : showChat && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+              </div>
+              <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10, lineHeight: 1.6, color: '#050505', maxWidth: '80%', animation: 'msgIn .3s ease' }}>
+                👋 <strong>Hi, Maria!</strong> Welcome to The Laundry Project!{'\n\n'}What would you like to do?
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '80%', marginLeft: 29 }}>
+              {[{ label: '🛒 Book Now', hi: true }, { label: '📦 My Orders', hi: false }, { label: '❓ FAQs', hi: false }].map(({ label, hi }) => (
+                <div key={label} style={{ background: tapping && hi ? '#0084ff' : '#fff', border: `1.5px solid ${hi ? '#0084ff' : '#e4e6ea'}`, borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 700, color: tapping && hi ? '#fff' : hi ? '#0084ff' : '#374151', textAlign: 'center', transition: 'all .2s', transform: tapping && hi ? 'scale(.97)' : 'scale(1)' }}>{label}</div>
               ))}
             </div>
           </div>
         )}
       </div>
-      {/* input bar */}
-      <div style={{ background: '#fff', padding: '6px 9px', borderTop: '1px solid #f0f0ec', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#555' }}>☰</div>
-        <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 14, padding: '5px 10px', fontSize: 10, color: '#aaa' }}>Aa</div>
-        <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0084ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>→</span>
-        </div>
-      </div>
-      {/* persistent menu strip */}
-      <div style={{ background: '#fafafa', borderTop: '1px solid #ebebeb', padding: '5px 6px', display: 'flex', gap: 4 }}>
-        {['🛒 Book Now', '📦 My Orders', '❓ FAQs'].map(item => (
-          <div key={item} style={{ flex: 1, background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, padding: '4px 3px', fontSize: 8.5, fontWeight: 700, color: '#374151', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item}</div>
-        ))}
+      {/* Input bar */}
+      <div style={{ background: '#fff', padding: '6px 9px', borderTop: '1px solid #e4e6ea', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <span style={{ fontSize: 16, color: '#0084ff' }}>›</span>
+        <span style={{ fontSize: 14, color: '#65676b' }}>📎</span>
+        <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 20, padding: '5px 11px', fontSize: 10, color: '#65676b' }}>Aa</div>
+        <span style={{ fontSize: 14 }}>😊</span>
+        <span style={{ fontSize: 14, color: '#0084ff' }}>👍</span>
       </div>
     </div>
   );
 
-  // ── Webview overlay (the booking form inside Messenger) ──
+  // ── Webview overlay ──
   const WebviewScreen = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
-      {/* Webview top bar */}
       <div style={{ background: '#f5f5f5', borderBottom: '1px solid #e5e5e5', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-        <div style={{ fontSize: 13, color: '#555', fontWeight: 300, cursor: 'default' }}>✕</div>
-        <div style={{ flex: 1, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', fontSize: 9, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          thelaundryproject.app/book/tlp-001
-        </div>
+        <div style={{ fontSize: 13, color: '#555' }}>✕</div>
+        <div style={{ flex: 1, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', fontSize: 9, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>thelaundryproject.app/book/tlp-001</div>
         <div style={{ fontSize: 13, color: '#555' }}>⋯</div>
       </div>
-      {/* Form body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 11px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #f0f0ec' }}>
           <img src="/logo.png" alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'contain' }} />
@@ -150,17 +205,11 @@ function MessengerMockup() {
             <div style={{ fontSize: 9, color: '#9CA3AF' }}>The Laundry Project</div>
           </div>
         </div>
-        {[
-          { label: 'SERVICE',       value: 'Wash & Fold',       select: true  },
-          { label: 'WEIGHT (KG)',   value: '3.5 kg',            select: false },
-          { label: 'PICKUP',        value: '123 Mayon St., QC', select: false },
-          { label: 'SCHEDULE',      value: 'Tomorrow, 9:00 AM', select: true  },
-        ].map(f => (
+        {[{ label: 'SERVICE', value: 'Wash & Fold', select: true }, { label: 'WEIGHT (KG)', value: '3.5 kg', select: false }, { label: 'PICKUP', value: '123 Mayon St., QC', select: false }, { label: 'SCHEDULE', value: 'Tomorrow, 9:00 AM', select: true }].map(f => (
           <div key={f.label} style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 8, fontWeight: 700, color: '#9CA3AF', letterSpacing: '.06em', marginBottom: 3 }}>{f.label}</div>
             <div style={{ background: '#FAFAF8', border: '1.5px solid #E5E5DC', borderRadius: 7, padding: '6px 9px', fontSize: 10.5, color: '#0D1117', display: 'flex', justifyContent: 'space-between' }}>
-              <span>{f.value}</span>
-              {f.select && <span style={{ color: '#aaa', fontSize: 9 }}>▾</span>}
+              <span>{f.value}</span>{f.select && <span style={{ color: '#aaa', fontSize: 9 }}>▾</span>}
             </div>
           </div>
         ))}
@@ -168,9 +217,7 @@ function MessengerMockup() {
           <span style={{ fontSize: 9, fontWeight: 700, color: '#1a7d94' }}>ESTIMATED TOTAL</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: '#38a9c2' }}>₱175</span>
         </div>
-        <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 8, padding: '9px', textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>
-          Book Now →
-        </div>
+        <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 8, padding: '9px', textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>Book Now →</div>
       </div>
     </div>
   );
@@ -178,47 +225,58 @@ function MessengerMockup() {
   return (
     <div className="l-phone-wrap">
       <div style={{ width: 270, flexShrink: 0 }}>
-        <div style={{ background: '#1a1a1a', borderRadius: 42, padding: '16px 10px 20px', boxShadow: '0 32px 90px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.06)' }}>
-          {/* Notch */}
-          <div style={{ width: 70, height: 22, background: '#1a1a1a', borderRadius: 11, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2d2d2d' }} />
-          </div>
-          {/* Screen */}
-          <div style={{ background: '#f9f9f9', borderRadius: 30, overflow: 'hidden', height: 460, position: 'relative' }}>
-            {/* Status bar */}
-            <div style={{ background: '#fff', padding: '6px 16px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: '#0D1117' }}>9:41</span>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 9, color: '#374151' }}>
-                <span>●●●</span><span>WiFi</span><span>🔋</span>
-              </div>
+        {/* iPhone frame — white/silver matching real device */}
+        <div style={{ background: 'linear-gradient(180deg,#e8e8e8,#d0d0d0)', borderRadius: 44, padding: '3px', boxShadow: '0 32px 80px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.8)' }}>
+          <div style={{ background: '#f5f5f5', borderRadius: 42, padding: '14px 8px 18px', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.08)' }}>
+            {/* Notch */}
+            <div style={{ width: 90, height: 24, background: '#f5f5f5', borderRadius: 12, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative', zIndex: 2 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#222' }} />
+              <div style={{ width: 40, height: 6, borderRadius: 3, background: '#333' }} />
             </div>
-            {/* Messenger header */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #f0f0ec', padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 13, color: '#0084ff', fontWeight: 700 }}>‹</span>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-                <img src="/logo-dark.png" alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'contain' }} />
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', border: '1.5px solid #fff', position: 'absolute', bottom: 0, right: 0 }} />
+            {/* Screen */}
+            <div style={{ background: '#fff', borderRadius: 28, overflow: 'hidden', height: 480, position: 'relative' }}>
+              {/* Status bar — matches real iPhone recording */}
+              <div style={{ background: '#fff', padding: '5px 14px 3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#e53e3e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 7, fontWeight: 800, color: '#fff' }}>●</span>
+                  </div>
+                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#050505' }}>8:25</span>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <span style={{ fontSize: 9, color: '#050505', fontWeight: 600 }}>●●●</span>
+                  <span style={{ fontSize: 8 }}>📶</span>
+                  <span style={{ fontSize: 8 }}>🔋</span>
+                </div>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#0D1117', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>The Laundry Project</div>
-                <div style={{ fontSize: 9, color: '#22c55e', fontWeight: 600 }}>Active now</div>
+              {/* Messenger header */}
+              <div style={{ background: '#fff', borderBottom: '1px solid #e4e6ea', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                <span style={{ fontSize: 15, color: '#0084ff', fontWeight: 300, lineHeight: 1 }}>‹</span>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src="/logo.png" alt="" style={{ width: 22, height: 22, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+                  </div>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#31a24c', border: '1.5px solid #fff', position: 'absolute', bottom: 0, right: 0 }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#050505', lineHeight: 1.2 }}>The Laundry Project</div>
+                  <div style={{ fontSize: 9, color: '#65676b' }}>Business chat</div>
+                </div>
+                <span style={{ fontSize: 15, color: '#0084ff' }}>📞</span>
               </div>
-              <span style={{ fontSize: 11, color: '#0084ff' }}>⋯</span>
-            </div>
 
-            {/* Chat (full height remaining, sits behind webview) */}
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 0 }}>
-              {ChatScreen}
-            </div>
+              {/* Page info (phase 0–1) */}
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo || showKeyboard ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
+                {PageInfoScreen}
+              </div>
 
-            {/* Webview slides up over chat */}
-            <div style={{
-              position: 'absolute', left: 0, right: 0, top: 96, bottom: 0,
-              transform: webviewOpen ? 'translateY(0)' : 'translateY(100%)',
-              transition: 'transform 0.38s cubic-bezier(.32,.72,0,1)',
-              borderTop: '2px solid #e5e5e5',
-            }}>
-              {WebviewScreen}
+              {/* Chat + webview (phase 2+) */}
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo || showKeyboard ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
+                {ChatScreen}
+                <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: webviewOpen ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 0.38s cubic-bezier(.32,.72,0,1)', borderTop: '2px solid #e5e5e5' }}>
+                  {WebviewScreen}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -646,7 +704,7 @@ const PLANS = [
     cta: 'Contact us',
     features: [
       'Everything in Growth',
-      'Up to 10 branches · unlimited staff accounts',
+      'Up to 10 branches · 10  staff accounts',
       'Custom AI instructions per branch',
       'White-label booking form (your domain)',
       'Unlimited orders',
