@@ -23,6 +23,15 @@ api.interceptors.response.use(
 export const login = (email, password) =>
   api.post('/auth/login', { email, password });
 
+export const signup = (business_name, email, password) =>
+  api.post('/auth/signup', { business_name, email, password });
+
+export const getSubscription = () =>
+  api.get('/auth/subscription');
+
+export const createSubscriptionInvoice = (plan) =>
+  api.post('/auth/subscription/pay', { plan });
+
 export const createWalkInOrder = data => api.post('/orders/walk-in', data);
 export const getOrders = (params) => api.get('/orders', { params });
 export const getArchivedOrders = () => api.get('/orders', { params: { archived: 'true', limit: 500 } });

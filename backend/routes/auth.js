@@ -62,6 +62,136 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Self-service signup — creates a new tenant + admin user with a 14-day trial
+router.post('/signup', async (req, res) => {
+  const { business_name, email, password } = req.body;
+  if (!business_name?.trim() || !email?.trim() || !password) {
+    return res.status(400).json({ error: 'business_name, email and password are required' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  let client;
+  try {
+    client = await db.pool.connect();
+    await client.query('BEGIN');
+
+    // Check email not already registered
+    const { rows: existing } = await client.query(
+      `SELECT id FROM users WHERE email = $1`, [email.trim().toLowerCase()]
+    );
+    if (existing.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'An account with that email already exists' });
+    }
+
+    // Create tenant with 14-day trial
+    const { rows: [tenant] } = await client.query(
+      `INSERT INTO tenants (name, trial_ends_at, subscription_status)
+       VALUES ($1, NOW() + INTERVAL '14 days', 'trial')
+       RETURNING id, name, trial_ends_at, subscription_status`,
+      [business_name.trim()]
+    );
+
+    // Create admin user
+    const hash = await bcrypt.hash(password, 10);
+    await client.query(
+      `INSERT INTO users (email, password_hash, role, tenant_id)
+       VALUES ($1, $2, 'admin', $3)`,
+      [email.trim().toLowerCase(), hash, tenant.id]
+    );
+
+    await client.query('COMMIT');
+
+    const token = jwt.sign(
+      {
+        id: tenant.id,
+        role: 'admin',
+        tenant_id: tenant.id,
+        tenant_name: tenant.name,
+        email: email.trim().toLowerCase(),
+        permissions: [],
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      role: 'admin',
+      tenant_id: tenant.id,
+      tenant_name: tenant.name,
+      email: email.trim().toLowerCase(),
+      permissions: [],
+      subscription_status: tenant.subscription_status,
+      trial_ends_at: tenant.trial_ends_at,
+    });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    console.error('Signup error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+// GET subscription status for current tenant
+router.get('/subscription', require('../middleware/auth'), async (req, res) => {
+  try {
+    const { rows: [tenant] } = await db.query(
+      `SELECT subscription_status, trial_ends_at, subscription_paid_until, subscription_plan
+       FROM tenants WHERE id = $1`,
+      [req.user.tenant_id]
+    );
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+    // Auto-expire trial if past trial_ends_at
+    if (tenant.subscription_status === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) < new Date()) {
+      await db.query(
+        `UPDATE tenants SET subscription_status = 'expired' WHERE id = $1`,
+        [req.user.tenant_id]
+      );
+      tenant.subscription_status = 'expired';
+    }
+
+    res.json(tenant);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST create a subscription payment invoice via platform Xendit key
+router.post('/subscription/pay', require('../middleware/auth'), async (req, res) => {
+  const { plan } = req.body; // 'monthly' | 'annual'
+  const PLANS = {
+    monthly: { amount: 999,  label: 'LaundroBot Monthly Plan' },
+    annual:  { amount: 9990, label: 'LaundroBot Annual Plan'  },
+  };
+  const chosen = PLANS[plan] || PLANS.monthly;
+  const platformKey = process.env.XENDIT_PLATFORM_API_KEY;
+  if (!platformKey) return res.status(500).json({ error: 'Platform payment not configured' });
+
+  try {
+    const { rows: [tenant] } = await db.query(
+      `SELECT name FROM tenants WHERE id = $1`, [req.user.tenant_id]
+    );
+    const { createInvoice } = require('../utils/xendit');
+    const externalId = `sub-${req.user.tenant_id}-${Date.now()}`;
+    const { invoiceUrl } = await createInvoice(platformKey, {
+      externalId,
+      amount: chosen.amount,
+      payerEmail: req.user.email,
+      description: `${chosen.label} — ${tenant?.name || req.user.tenant_name}`,
+      successRedirectUrl: `${process.env.APP_URL || 'https://laundrobot.app'}/?subscribed=1`,
+    });
+    res.json({ invoiceUrl, externalId, amount: chosen.amount });
+  } catch (err) {
+    console.error('Subscription pay error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Register first superadmin (run once during setup)
 router.post('/setup', async (req, res) => {
   const { email, password } = req.body;

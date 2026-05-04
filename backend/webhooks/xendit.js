@@ -15,6 +15,24 @@ router.post('/', async (req, res) => {
   if (status !== 'PAID') return res.sendStatus(200);
 
   try {
+    // Subscription payment for a LaundroBot tenant (external_id starts with "sub-")
+    if (String(external_id).startsWith('sub-')) {
+      const tenantId = String(external_id).split('-')[1];
+      const plan = req.body.description?.includes('Annual') ? 'annual' : 'monthly';
+      const paidUntil = new Date();
+      paidUntil.setMonth(paidUntil.getMonth() + (plan === 'annual' ? 12 : 1));
+      await db.query(
+        `UPDATE tenants
+         SET subscription_status = 'active',
+             subscription_plan = $1,
+             subscription_paid_until = $2
+         WHERE id = $3`,
+        [plan, paidUntil.toISOString(), tenantId]
+      );
+      console.log(`[xendit] subscription activated for tenant ${tenantId} (${plan})`);
+      return res.sendStatus(200);
+    }
+
     // Strip the "-MANUAL-<timestamp>" suffix added by admin-generated payment links
     const refId = String(external_id).replace(/-MANUAL-\d+$/, '');
     const isBkgRef = refId.startsWith('BKG-');

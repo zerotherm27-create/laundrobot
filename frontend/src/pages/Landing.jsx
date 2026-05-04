@@ -413,12 +413,15 @@ function Nav() {
           <a href="#how" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
             onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
             onMouseLeave={e => e.currentTarget.style.color = '#374151'}>How it works</a>
-          <a href="/login" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', marginLeft: 4, minHeight: 40 }}
+          <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px', marginLeft: 4 }}
+            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
+            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Sign in</a>
+          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40 }}
             onMouseEnter={e => e.currentTarget.style.background = '#1d8ba0'}
-            onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Sign in</a>
+            onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Get started free</a>
         </div>
-        <a href="/login" className="l-mobile-signin" style={{ display: 'none', padding: '9px 18px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40, alignItems: 'center' }}>
-          Sign in
+        <a href="/signup" className="l-mobile-signin" style={{ display: 'none', padding: '9px 18px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40, alignItems: 'center' }}>
+          Get started free
         </a>
       </div>
     </nav>
@@ -448,7 +451,7 @@ function Hero() {
               Customers book via Facebook Messenger. Your AI chatbot replies in Tagalog — 24/7. All orders land in one board.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <a href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
+              <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#1d8ba0'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#38a9c2'; e.currentTarget.style.transform = 'none'; }}>
                 Start for free
@@ -792,7 +795,7 @@ function PricingCard({ plan, annual }) {
         </div>
 
         {/* CTA */}
-        <a href="/login" style={{
+        <a href="/signup" style={{
           display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
           background: isPopular ? plan.color : 'transparent',
           border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
@@ -916,7 +919,7 @@ function CtaBand() {
           Join laundry shops in the Philippines already using LaundroBot to save time, serve more customers, and grow revenue.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          <a href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
+          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
             onMouseEnter={e => { e.currentTarget.style.background = '#1d8ba0'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(56,169,194,.5)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = '#38a9c2'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(56,169,194,.4)'; }}>
             Get started — it&apos;s free

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import BookingForm from './pages/BookingForm.jsx';
 import Sidebar from './components/Sidebar.jsx';
+import TrialBanner from './components/TrialBanner.jsx';
 import Overview from './pages/Overview.jsx';
 import Kanban from './pages/Kanban.jsx';
 import Orders from './pages/Orders.jsx';
@@ -18,8 +20,10 @@ import DeliveryZones from './pages/DeliveryZones.jsx';
 import Settings from './pages/Settings.jsx';
 import WalkIn from './pages/WalkIn.jsx';
 import Landing from './pages/Landing.jsx';
+import PaywallScreen from './pages/PaywallScreen.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
+import { getSubscription } from './api.js';
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
@@ -46,21 +50,38 @@ function Dashboard() {
   const { user } = useAuth();
   const [page, setPage] = useState('Kanban');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [subStatus, setSubStatus] = useState(null); // null = loading
   const Page = PAGES[page] || Overview;
 
-  // Update page title on navigation
   useEffect(() => {
     const title = PAGE_TITLES[page] || page;
     document.title = `${title} — LaundroBot`;
   }, [page]);
 
+  // Check subscription on mount; superadmin is always exempt
+  useEffect(() => {
+    if (user.role === 'superadmin') { setSubStatus('active'); return; }
+    getSubscription()
+      .then(r => setSubStatus(r.data.subscription_status))
+      .catch(() => setSubStatus('active')); // fail open
+  }, [user.role]);
+
+  // While checking, show nothing (or you could show a spinner)
+  if (subStatus === null) return null;
+
+  // Trial expired → paywall
+  if (subStatus === 'expired') return <PaywallScreen />;
+
   function navigate(p) {
     setPage(p);
-    setSidebarOpen(false); // close drawer on mobile after nav
+    setSidebarOpen(false);
   }
 
   return (
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
+      {/* Trial banner — only shown for trial tenants */}
+      {user.role !== 'superadmin' && <TrialBanner />}
+
       {/* ── Mobile top bar ── */}
       <div className="mobile-topbar">
         <button className="hamburger-btn" onClick={() => setSidebarOpen(o => !o)} aria-label="Open menu">
@@ -115,6 +136,10 @@ function Inner() {
     if (path === '/login') {
       document.title = 'Sign In — LaundroBot';
       return <Login />;
+    }
+    if (path === '/signup') {
+      document.title = 'Start Free Trial — LaundroBot';
+      return <Signup />;
     }
     return <Landing />;
   }
