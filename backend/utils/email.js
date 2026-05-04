@@ -311,4 +311,4 @@ async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, custo
   }
 }
 
-module.exports = { sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail, sendInvoiceEmail, sendPaymentReminderEmail };
+module.exports = { sendEmail, sendNewOrderEmail, sendPaidOrderEmail, sendCustomerOrderEmail, sendCustomerPaymentEmail, sendInvoiceEmail, sendPaymentReminderEmail };

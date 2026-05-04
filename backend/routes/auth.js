@@ -166,9 +166,9 @@ router.post('/subscription/pay', require('../middleware/auth'), async (req, res)
   const { plan } = req.body; // 'starter_monthly' | 'pro_monthly' | 'starter_annual' | 'pro_annual'
   const PLANS = {
     starter_monthly: { amount: 999,   label: 'LaundroBot Starter Monthly', tier: 'starter' },
-    pro_monthly:     { amount: 1999,  label: 'LaundroBot Pro Monthly',     tier: 'pro'     },
+    pro_monthly:     { amount: 5499,  label: 'LaundroBot Pro Monthly',     tier: 'pro'     },
     starter_annual:  { amount: 9990,  label: 'LaundroBot Starter Annual',  tier: 'starter' },
-    pro_annual:      { amount: 19990, label: 'LaundroBot Pro Annual',      tier: 'pro'     },
+    pro_annual:      { amount: 54990, label: 'LaundroBot Pro Annual',      tier: 'pro'     },
   };
   const chosen = PLANS[plan] || PLANS.starter_monthly;
   const platformKey = process.env.XENDIT_PLATFORM_API_KEY;

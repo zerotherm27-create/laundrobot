@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { sendPaidOrderEmail, sendCustomerPaymentEmail } = require('../utils/email');
+const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
@@ -34,7 +34,32 @@ router.post('/', async (req, res) => {
          WHERE id = $4`,
         [subPlan, paidUntil.toISOString(), tier, tenantId]
       );
-      console.log(`[xendit] subscription activated for tenant ${tenantId} (${plan})`);
+      console.log(`[xendit] subscription activated for tenant ${tenantId} (${subPlan})`);
+
+      // Notify you (the platform owner) of the new subscription
+      const { rows: [newTenant] } = await db.query(
+        `SELECT t.name, u.email FROM tenants t LEFT JOIN users u ON u.tenant_id = t.id AND u.role = 'admin' WHERE t.id = $1 LIMIT 1`,
+        [tenantId]
+      );
+      const amount = req.body.amount || (isPro ? (isAnnual ? 54990 : 5499) : (isAnnual ? 9990 : 999));
+      sendEmail({
+        to: [process.env.PLATFORM_NOTIFY_EMAIL || 'hello@laundrobot.app'],
+        subject: `💰 New Subscription — ${newTenant?.name || tenantId} (${isPro ? 'Pro' : 'Starter'} ${isAnnual ? 'Annual' : 'Monthly'})`,
+        html: `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:24px;background:#f4f6f9;">
+          <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+            <div style="font-size:28px;margin-bottom:8px;">💰</div>
+            <h2 style="margin:0 0 16px;color:#111827;">New Subscription Payment</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:8px 0;color:#6B7280;width:130px;">Tenant</td><td style="color:#111827;font-weight:600;">${newTenant?.name || tenantId}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Email</td><td style="color:#111827;">${newTenant?.email || '—'}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Plan</td><td style="color:#7C3AED;font-weight:700;">${isPro ? 'Pro' : 'Starter'} ${isAnnual ? 'Annual' : 'Monthly'}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Amount</td><td style="color:#059669;font-weight:700;">₱${Number(amount).toLocaleString()}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Date</td><td style="color:#111827;">${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td></tr>
+            </table>
+          </div>
+        </body></html>`,
+      }).catch(e => console.warn('[xendit] subscription notify email failed:', e.message));
+
       return res.sendStatus(200);
     }
 

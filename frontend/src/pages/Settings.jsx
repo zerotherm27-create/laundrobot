@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice } from '../api.js';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -87,6 +87,7 @@ export default function Settings() {
   const [tenantPlan,     setTenantPlan]     = useState('starter');
   const [customDomain,   setCustomDomain]   = useState('');
   const [whiteLabel,     setWhiteLabel]     = useState(false);
+  const [upgradingPro,   setUpgradingPro]   = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -383,10 +384,19 @@ export default function Settings() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 3 }}>Upgrade to Pro to unlock</div>
                     <div style={{ fontSize: 12, color: '#6B7280' }}>Host your booking form at your own domain with no LaundroBot branding.</div>
                   </div>
-                  <a href="#" onClick={e => { e.preventDefault(); alert('Contact hello@laundrobot.app to upgrade to Pro.'); }}
-                    style={{ padding: '8px 18px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                    Upgrade to Pro →
-                  </a>
+                  <button
+                    disabled={upgradingPro}
+                    onClick={async () => {
+                      setUpgradingPro(true);
+                      try {
+                        const { data } = await createSubscriptionInvoice('pro_monthly');
+                        window.open(data.invoiceUrl, '_blank');
+                      } catch { alert('Could not open payment page. Please try again.'); }
+                      finally { setUpgradingPro(false); }
+                    }}
+                    style={{ padding: '8px 18px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {upgradingPro ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening…</> : 'Upgrade to Pro — ₱5,499/mo →'}
+                  </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

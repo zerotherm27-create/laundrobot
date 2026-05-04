@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const PLAN_TIERS = [
   { key: 'starter_monthly', label: 'Starter', price: '₱999',   per: '/month', badge: null,           pro: false },
-  { key: 'pro_monthly',     label: 'Pro',     price: '₱1,999', per: '/month', badge: '🌐 White-label', pro: true  },
+  { key: 'pro_monthly',     label: 'Pro',     price: '₱5,499', per: '/month', badge: '🌐 White-label', pro: true  },
 ];
 
 const FEATURES = [
