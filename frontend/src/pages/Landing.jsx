@@ -296,12 +296,12 @@ function MessengerMockup() {
               </div>
 
               {/* Page info (phase 0–1) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo || showKeyboard ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
                 {PageInfoScreen}
               </div>
 
               {/* Chat + webview (phase 2+) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo || showKeyboard ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
                 {ChatScreen}
                 <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: webviewOpen ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 0.38s cubic-bezier(.32,.72,0,1)', borderTop: '2px solid #e5e5e5' }}>
                   {WebviewScreen}
