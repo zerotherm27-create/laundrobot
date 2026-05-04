@@ -146,6 +146,25 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
   }
 });
 
+// PATCH update tenant plan (superadmin)
+router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
+  const { plan, subscription_status } = req.body;
+  const validPlans = ['starter', 'pro'];
+  const validStatuses = ['trial', 'active', 'expired', 'cancelled'];
+  if (plan && !validPlans.includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
+  if (subscription_status && !validStatuses.includes(subscription_status)) return res.status(400).json({ error: 'Invalid status' });
+  try {
+    const updates = [];
+    const vals = [];
+    if (plan) { updates.push(`plan=$${vals.length+1}`); vals.push(plan); }
+    if (subscription_status) { updates.push(`subscription_status=$${vals.length+1}`); vals.push(subscription_status); }
+    if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(req.params.id);
+    await db.query(`UPDATE tenants SET ${updates.join(',')} WHERE id=$${vals.length}`, vals);
+    res.json({ message: 'Updated' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // PUT update tenant
 router.put('/:id', auth, superadminOnly, async (req, res) => {
   const { name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active } = req.body;

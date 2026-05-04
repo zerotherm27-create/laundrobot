@@ -62,6 +62,7 @@ export const getCustomers = () => api.get('/customers');
 export const deleteCustomer = id => api.delete(`/customers/${id}`);
 
 export const getTenants = () => api.get('/tenants');
+export const updateTenantPlan = (id, plan, subscription_status) => api.patch(`/tenants/${id}/plan`, { plan, subscription_status });
 export const createTenant = data => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
 export const deleteTenant = (id) => api.delete(`/tenants/${id}`);

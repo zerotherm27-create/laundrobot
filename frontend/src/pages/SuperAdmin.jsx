@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices } from '../api.js';
+import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices, updateTenantPlan } from '../api.js';
 
 const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', logo_url: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
@@ -178,7 +178,7 @@ export default function SuperAdmin() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f5f5f3' }}>
-                  {['Branch','FB Page ID','Orders','Revenue','Status',''].map(h => (
+                  {['Branch','FB Page ID','Orders','Revenue','Status','Plan',''].map(h => (
                     <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                   ))}
                 </tr>
@@ -194,6 +194,21 @@ export default function SuperAdmin() {
                       <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, background: t.active ? '#EAF3DE' : '#f0f0ec', color: t.active ? '#3B6D11' : '#888' }}>
                         {t.active ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <select
+                        value={t.plan || 'starter'}
+                        onChange={async e => {
+                          const plan = e.target.value;
+                          try {
+                            await updateTenantPlan(t.id, plan, plan === 'pro' ? 'active' : undefined);
+                            setTenants(prev => prev.map(x => x.id === t.id ? { ...x, plan } : x));
+                          } catch { alert('Failed to update plan.'); }
+                        }}
+                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 5, border: '0.5px solid #ccc', cursor: 'pointer', background: t.plan === 'pro' ? '#F5F3FF' : '#fff', color: t.plan === 'pro' ? '#7C3AED' : '#374151', fontWeight: t.plan === 'pro' ? 700 : 400 }}>
+                        <option value="starter">Starter</option>
+                        <option value="pro">Pro</option>
+                      </select>
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
