@@ -318,60 +318,88 @@ function MessengerMockup() {
   );
 }
 
-// ── Web booking form mockup ───────────────────────────────────────────────────
-function WebFormMockup() {
+// ── Walk-in POS mockup ────────────────────────────────────────────────────────
+const POS_SERVICES = [
+  { name: 'Wash & Fold',          price: '₱330', unit: 'per bag',   selected: true  },
+  { name: 'Comforters',           price: '₱350', unit: 'per piece', selected: true  },
+  { name: 'Dry Cleaning',         price: '₱480', unit: 'per piece', selected: false },
+];
+
+function POSMockup() {
   return (
     <div style={{ width: '100%', maxWidth: 420 }}>
-      {/* Browser chrome */}
+      {/* Tablet chrome */}
       <div style={{ background: '#1e1e1e', borderRadius: '14px 14px 0 0', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
           {['#ff5f57', '#ffbd2e', '#28c840'].map((c, i) => (
             <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
           ))}
         </div>
-        <div style={{ flex: 1, background: '#2d2d2d', borderRadius: 6, padding: '4px 10px', fontSize: 10, color: '#888', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          thelaundryproject.app/book/tlp-001
+        <div style={{ flex: 1, background: '#2d2d2d', borderRadius: 6, padding: '4px 10px', fontSize: 10, color: '#888', textAlign: 'center' }}>
+          Walk-in POS · The Laundry Project
         </div>
       </div>
-      {/* Form body */}
-      <div style={{ background: '#fff', borderRadius: '0 0 14px 14px', border: '1px solid #E8E8E0', borderTop: 'none', padding: '22px 20px 24px', boxShadow: '0 24px 70px rgba(0,0,0,.13)' }}>
-        {/* Shop header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #F0F0EC' }}>
-          <img src="/logo.png" alt="" style={{ width: 36, height: 36, borderRadius: 9, objectFit: 'contain', border: '1px solid #E8E8E0' }} />
+      {/* POS body */}
+      <div style={{ background: '#F8F8F6', borderRadius: '0 0 14px 14px', border: '1px solid #E8E8E0', borderTop: 'none', boxShadow: '0 24px 70px rgba(0,0,0,.13)', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ background: '#fff', padding: '14px 18px', borderBottom: '1px solid #F0F0EC', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#0D1117' }}>Book a Laundry Service</div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>The Laundry Project · Quezon City</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#0D1117' }}>New Walk-in Order</div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>Select services for the customer</div>
           </div>
+          <div style={{ background: '#e6f5f8', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: '#1a7d94' }}>POS Mode</div>
         </div>
-        {/* Fields */}
-        {[
-          { label: 'Service',        value: 'Wash & Fold',        select: true  },
-          { label: 'Weight (kg)',     value: '3.5 kg',             select: false },
-          { label: 'Pickup Address',  value: '123 Mayon St., QC',  select: false },
-          { label: 'Preferred Time',  value: 'Tomorrow, 9:00 AM',  select: true  },
-        ].map(f => (
-          <div key={f.label} style={{ marginBottom: 11 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', letterSpacing: '.05em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>{f.label}</label>
-            <div style={{ background: '#FAFAF8', border: '1.5px solid #E5E5DC', borderRadius: 9, padding: '9px 13px', fontSize: 12.5, color: '#0D1117', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{f.value}</span>
-              {f.select && <span style={{ color: '#9CA3AF', fontSize: 10 }}>▾</span>}
+        {/* Service list */}
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {POS_SERVICES.map(s => (
+            <div key={s.name} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: s.selected ? '#fff' : '#F0F0EC',
+              border: s.selected ? '1.5px solid #38a9c2' : '1.5px solid transparent',
+              borderRadius: 10, padding: '10px 12px',
+            }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: s.selected ? 'none' : '1.5px solid #D1D5DB', background: s.selected ? '#38a9c2' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {s.selected && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                <div style={{ fontSize: 11, color: '#9CA3AF' }}>{s.unit}</div>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? '#38a9c2' : '#9CA3AF' }}>{s.price}</div>
             </div>
-          </div>
-        ))}
-        {/* Price */}
-        <div style={{ background: '#F0FAFE', border: '1px solid #C9ECF5', borderRadius: 10, padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0' }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#1a7d94', textTransform: 'uppercase', letterSpacing: '.04em' }}>Estimated Total</div>
-            <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>3.5 kg × ₱50/kg</div>
-          </div>
-          <span style={{ fontSize: 22, fontWeight: 900, color: '#38a9c2', letterSpacing: '-.03em' }}>₱175</span>
+          ))}
         </div>
-        {/* CTA */}
-        <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 10, padding: '13px', textAlign: 'center', fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: '.01em', boxShadow: '0 4px 18px rgba(56,169,194,.35)' }}>
-          Book Now →
+        {/* Order summary */}
+        <div style={{ background: '#fff', margin: '0 14px', borderRadius: 10, padding: '12px 14px', border: '1px solid #F0F0EC' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Order Summary</div>
+          {POS_SERVICES.filter(s => s.selected).map(s => (
+            <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+              <span>{s.name}</span><span style={{ fontWeight: 600 }}>{s.price}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: '1px solid #F0F0EC', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>Total</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#38a9c2', letterSpacing: '-.02em' }}>₱680</span>
+          </div>
         </div>
-        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: '#9CA3AF' }}>
-          Powered by LaundroBot
+        {/* Payment buttons */}
+        <div style={{ padding: '12px 14px 16px', display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, background: '#0070BA', borderRadius: 9, padding: '10px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>GCash</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', marginTop: 1 }}>QR / Link</div>
+          </div>
+          <div style={{ flex: 1, background: '#5A2D82', borderRadius: 9, padding: '10px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Maya</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', marginTop: 1 }}>QR / Link</div>
+          </div>
+          <div style={{ flex: 1, background: '#111827', borderRadius: 9, padding: '10px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>Cash</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.6)', marginTop: 1 }}>On hand</div>
+          </div>
         </div>
       </div>
     </div>
@@ -498,37 +526,38 @@ function StatsStrip() {
   );
 }
 
-// ── Web form showcase section ─────────────────────────────────────────────────
-function BookingLinkSection() {
+// ── Walk-in POS section ───────────────────────────────────────────────────────
+function POSSection() {
   const ref = useFadeUp();
   return (
-    <section id="how-it-works" style={{ background: '#fff', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
+    <section id="walkin" style={{ background: '#fff', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         <div className="l-showcase" style={{ alignItems: 'center' }}>
-          {/* Web form mockup */}
+          {/* POS mockup */}
           <div style={{ flex: '1 1 360px', maxWidth: 440 }}>
-            <WebFormMockup />
+            <POSMockup />
           </div>
           {/* Text */}
           <div ref={ref} style={{ flex: '1 1 320px', maxWidth: 440, opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#e6f5f8', color: '#1a7d94', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1.25rem' }}>
-              Public Booking Link
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#F0EFFC', color: '#4740a8', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1.25rem' }}>
+              Walk-in POS
             </div>
             <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.85rem', lineHeight: 1.15 }}>
-              Customers can also book from your website
+              Serve walk-in customers right at the counter
             </h2>
             <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.75, marginBottom: '1.5rem', fontWeight: 400 }}>
-              Share your unique booking link on Instagram, your Facebook page bio, or anywhere else. Customers fill out the form — order lands straight in your board.
+              Staff can assist the customer or let them order on their own. Select services, get the total automatically, and collect payment — all in one screen.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { icon: 'services',  text: 'Service & weight selection with auto-pricing' },
-                { icon: 'delivery',  text: 'Pickup address with delivery fee calculation' },
-                { icon: 'check',     text: 'No login required for your customers' },
+                { icon: 'walkin',    text: 'Staff-assisted or self-service — works both ways' },
+                { icon: 'services',  text: 'Auto-calculates totals from your service price list' },
+                { icon: 'check',     text: 'Accept GCash, Maya, QR codes, and cash on the spot' },
+                { icon: 'kanban',    text: 'Every walk-in order syncs to your dashboard instantly' },
               ].map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#e6f5f8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                    <Icon name={item.icon} size={13} color="#38a9c2" />
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#F0EFFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <Icon name={item.icon} size={13} color="#7F77DD" />
                   </div>
                   <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.5, fontWeight: 500 }}>{item.text}</span>
                 </div>
@@ -983,7 +1012,7 @@ export default function Landing() {
       <main style={{ flex: 1 }}>
         <Hero />
         <StatsStrip />
-        <BookingLinkSection />
+        <POSSection />
         <Features />
         <HowItWorks />
         <Pricing />
