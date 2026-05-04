@@ -41,18 +41,17 @@ const RESPONSIVE_CSS = `
   }
 `;
 
-// ── Messenger phone mockup — matches real iPhone Messenger recording ──
+// ── Messenger phone mockup — exact match to real screenshots ──
 // Phases:
-//  0 → page info card (The Laundry Project page, 1K followers, buttons)   (2800ms)
-//  1 → "Hi" sent by user, keyboard shown                                   (1800ms)
-//  2 → keyboard gone, bot typing indicator                                 (1200ms)
-//  3 → bot greeting + action buttons                                       (2600ms)
-//  4 → "Book Now" tap highlight                                            (600ms)
-//  5 → webview slides up (booking form)                                    (3200ms)
-//  6 → webview closes, confirmation in chat                                (2800ms)
+//  0 → page info card + "Hi" sent                                          (2500ms)
+//  1 → bot greeting card with Book Now / My Orders / FAQs buttons          (2800ms)
+//  2 → "Book Now" tap highlight                                            (600ms)
+//  3 → webview: booking form step 1 (service selection)                   (3500ms)
+//  4 → webview: cart with yellow checkout button                           (2800ms)
+//  5 → webview closes, confirmation back in chat                           (2500ms)
 //  → restart
 
-const PHASE_DURATIONS = [2800, 1800, 1200, 2600, 600, 3200, 2800];
+const PHASE_DURATIONS = [2500, 2800, 600, 3500, 2800, 2500];
 
 function MessengerMockup() {
   const [phase, setPhase] = useState(0);
@@ -63,161 +62,197 @@ function MessengerMockup() {
   }, [phase]);
 
   const showPageInfo = phase === 0;
-  const showKeyboard = phase === 1;
-  const showTyping   = phase === 2;
-  const showChat     = phase >= 3;
-  const tapping      = phase === 4;
-  const webviewOpen  = phase === 5;
-  const confirmed    = phase === 6;
+  const showChat     = phase >= 1;
+  const tapping      = phase === 2;
+  const webviewOpen  = phase === 3 || phase === 4;
+  const showCart     = phase === 4;
+  const confirmed    = phase === 5;
+
+  // ── Shared input bar (matches real Messenger) ──
+  const InputBar = (
+    <div style={{ background: '#fff', padding: '7px 10px', borderTop: '1px solid #e4e6ea', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <span style={{ fontSize: 15, color: '#0084ff' }}>📷</span>
+      <span style={{ fontSize: 15, color: '#0084ff' }}>🖼️</span>
+      <span style={{ fontSize: 15, color: '#0084ff' }}>🎤</span>
+      <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 20, padding: '5px 12px', fontSize: 9.5, color: '#8e8d8d' }}>Aa</div>
+      <span style={{ fontSize: 15 }}>😊</span>
+      <span style={{ fontSize: 15, color: '#0084ff' }}>👍</span>
+    </div>
+  );
 
   // ── Page info card (initial Messenger screen) ──
   const PageInfoScreen = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflowY: 'hidden' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 14px 10px', gap: 5 }}>
-        {/* Avatar */}
-        <div style={{ width: 62, height: 62, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6, boxShadow: '0 4px 14px rgba(56,169,194,.3)' }}>
-          <img src="/logo.png" alt="" style={{ width: 44, height: 44, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+      {/* Teal gradient background at top */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 14px 10px', gap: 4, background: 'linear-gradient(180deg,rgba(56,169,194,.15) 0%,#fff 50%)' }}>
+        <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+          <img src="/logo.png" alt="" style={{ width: 42, height: 42, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
         </div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: '#050505', textAlign: 'center', letterSpacing: '-.2px' }}>The Laundry Project</div>
-        <div style={{ fontSize: 10, color: '#65676b' }}>1K people follow this</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: '#050505', textAlign: 'center' }}>The Laundry Project</div>
+        <div style={{ fontSize: 10, color: '#65676b' }}>1.1K people follow this</div>
         <div style={{ fontSize: 10, color: '#65676b' }}>Laundromat</div>
-        <div style={{ fontSize: 10, color: '#0084ff', fontWeight: 500 }}>Business chats and your privacy</div>
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 7, marginTop: 8, width: '100%' }}>
+        <div style={{ fontSize: 10, color: '#0084ff', fontWeight: 700 }}>Business chats and your privacy</div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           {[{ icon: '✕', label: 'Unfollow' }, { icon: 'ℹ', label: 'Info' }].map(b => (
-            <div key={b.label} style={{ flex: 1, border: '1px solid #e4e6ea', borderRadius: 8, padding: '6px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, background: '#f0f2f5' }}>
-              <span style={{ fontSize: 13, color: '#050505' }}>{b.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: 600, color: '#050505' }}>{b.label}</span>
+            <div key={b.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#e4e6ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>{b.icon}</div>
+              <span style={{ fontSize: 9, color: '#050505' }}>{b.label}</span>
             </div>
           ))}
         </div>
-        <div style={{ width: '100%', border: '1px solid #e4e6ea', borderRadius: 8, padding: '7px', textAlign: 'center', background: '#f0f2f5', fontSize: 11, fontWeight: 600, color: '#050505' }}>
-          View profile
-        </div>
-        {/* Timestamp */}
-        <div style={{ fontSize: 9, color: '#65676b', marginTop: 8 }}>08:25</div>
-        {/* Hi bubble from user */}
-        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '7px 12px', fontSize: 12, color: '#fff', fontWeight: 500, marginTop: 4 }}>Hi</div>
-        <div style={{ alignSelf: 'flex-end', fontSize: 8.5, color: '#65676b', marginTop: 1 }}>Sent</div>
+        <div style={{ background: '#e4e6ea', borderRadius: 18, padding: '7px 28px', fontSize: 11, fontWeight: 700, color: '#050505', marginTop: 2 }}>View profile</div>
+        <div style={{ fontSize: 9, color: '#65676b', marginTop: 8 }}>19:53</div>
+        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '8px 14px', fontSize: 12, color: '#fff', fontWeight: 500 }}>Hi</div>
       </div>
-      {/* Input bar */}
-      <div style={{ background: '#fff', padding: '6px 9px', borderTop: '1px solid #e4e6ea', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 16, color: '#0084ff' }}>›</span>
-        <span style={{ fontSize: 14, color: '#65676b' }}>📎</span>
-        <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 20, padding: '5px 11px', fontSize: 10, color: '#65676b' }}>Aa</div>
-        <span style={{ fontSize: 14 }}>😊</span>
-        <span style={{ fontSize: 14, color: '#0084ff' }}>👍</span>
-      </div>
-      {/* iOS keyboard */}
-      {showKeyboard && (
-        <div style={{ background: '#d1d5db', padding: '6px 3px 3px', flexShrink: 0, animation: 'msgIn .2s ease' }}>
-          {[['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['⇧','Z','X','C','V','B','N','M','⌫']].map((row, ri) => (
-            <div key={ri} style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 3 }}>
-              {row.map(k => (
-                <div key={k} style={{ background: k === '⇧' || k === '⌫' ? '#adb5bd' : '#fff', borderRadius: 4, padding: '4px 0', minWidth: k.length > 1 ? 22 : 18, textAlign: 'center', fontSize: 9, fontWeight: 500, color: '#050505', boxShadow: '0 1px 0 #aaa' }}>{k}</div>
-              ))}
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 3, justifyContent: 'center', marginBottom: 2 }}>
-            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 8px', fontSize: 9, color: '#050505', fontWeight: 500 }}>123</div>
-            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 6px', fontSize: 9, color: '#050505' }}>🌐</div>
-            <div style={{ background: '#fff', borderRadius: 4, flex: 1, padding: '4px 0', fontSize: 9, color: '#050505', textAlign: 'center', fontWeight: 500, boxShadow: '0 1px 0 #aaa' }}>susunod</div>
-            <div style={{ background: '#adb5bd', borderRadius: 4, padding: '4px 8px', fontSize: 9, color: '#050505' }}>🎤</div>
-          </div>
-        </div>
-      )}
+      {InputBar}
     </div>
   );
 
   // ── Chat screen ──
+  const BotAvatar = (
+    <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+    </div>
+  );
   const ChatScreen = (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ flex: 1, overflowY: 'hidden', padding: '10px 9px', display: 'flex', flexDirection: 'column', gap: 6, background: '#fff', justifyContent: 'flex-end' }}>
-        {/* User's Hi */}
-        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '7px 11px', fontSize: 10.5, color: '#fff' }}>Hi</div>
-        {showTyping && !confirmed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
-            </div>
-            <div style={{ background: '#f0f2f5', borderRadius: '18px 18px 18px 3px', padding: '8px 12px', display: 'flex', gap: 3, alignItems: 'center' }}>
-              {[0,1,2].map(i => <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#65676b', animation: `typingDot 1.2s ${i*0.2}s infinite` }} />)}
-            </div>
-          </div>
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+      <div style={{ flex: 1, overflowY: 'hidden', padding: '10px 10px 6px', display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'flex-end' }}>
+        <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '8px 14px', fontSize: 11, color: '#fff', fontWeight: 500 }}>Hi</div>
         {confirmed ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, animation: 'msgIn .3s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
-              </div>
-              <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10, lineHeight: 1.6, color: '#050505', maxWidth: '80%' }}>
-                🎉 <strong>Booking confirmed!</strong>{'\n\n'}🆔 ORD-482910{'\n'}🧺 Wash & Fold · 3.5 kg{'\n'}🗓 Bukas, 9:00 AM{'\n'}💰 Total: ₱175
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '80%', marginLeft: 29 }}>
-              <div style={{ background: '#fff', border: '1.5px solid #0084ff', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 700, color: '#0084ff', textAlign: 'center' }}>💳 Pay Now</div>
-              <div style={{ background: '#fff', border: '1.5px solid #e4e6ea', borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 600, color: '#374151', textAlign: 'center' }}>📦 My Orders</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, animation: 'msgIn .3s ease' }}>
+            {BotAvatar}
+            <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '10px 12px', fontSize: 10, lineHeight: 1.65, color: '#050505', maxWidth: '82%' }}>
+              🎉 <strong>Booking confirmed!</strong>{'\n\n'}🆔 ORD-482910{'\n'}🧺 Clothes – Machine Wash{'\n'}🗓 Bukas, 9:00 AM{'\n'}💰 Total: ₱660
             </div>
           </div>
-        ) : showChat && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="/logo.png" alt="" style={{ width: 16, height: 16, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+        ) : (
+          /* Bot greeting card with buttons INSIDE — matches real screenshot */
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
+            {BotAvatar}
+            <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', overflow: 'hidden', maxWidth: '84%', animation: 'msgIn .3s ease' }}>
+              <div style={{ padding: '10px 12px 8px', fontSize: 10.5, lineHeight: 1.65, color: '#050505' }}>
+                👋 <strong>Hi, Bren! Welcome to THE LAUNDRY PROJECT!</strong>{'\n\n'}What would you like to do?
               </div>
-              <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '8px 11px', fontSize: 10, lineHeight: 1.6, color: '#050505', maxWidth: '80%', animation: 'msgIn .3s ease' }}>
-                👋 <strong>Hi, Maria!</strong> Welcome to The Laundry Project!{'\n\n'}What would you like to do?
+              <div style={{ borderTop: '1px solid #e4e6ea' }}>
+                {[
+                  { label: '🛒 Book Now', hi: true },
+                  { label: '📦 My Orders', hi: false },
+                  { label: '❓ FAQs', hi: false },
+                ].map(({ label, hi }, i) => (
+                  <div key={label} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 700, color: tapping && hi ? '#fff' : '#0084ff', textAlign: 'center', background: tapping && hi ? '#0084ff' : '#fff', borderTop: i > 0 ? '1px solid #e4e6ea' : 'none', transition: 'all .2s' }}>
+                    {label}
+                  </div>
+                ))}
               </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '80%', marginLeft: 29 }}>
-              {[{ label: '🛒 Book Now', hi: true }, { label: '📦 My Orders', hi: false }, { label: '❓ FAQs', hi: false }].map(({ label, hi }) => (
-                <div key={label} style={{ background: tapping && hi ? '#0084ff' : '#fff', border: `1.5px solid ${hi ? '#0084ff' : '#e4e6ea'}`, borderRadius: 14, padding: '5px 10px', fontSize: 10, fontWeight: 700, color: tapping && hi ? '#fff' : hi ? '#0084ff' : '#374151', textAlign: 'center', transition: 'all .2s', transform: tapping && hi ? 'scale(.97)' : 'scale(1)' }}>{label}</div>
-              ))}
             </div>
           </div>
         )}
       </div>
-      {/* Input bar */}
-      <div style={{ background: '#fff', padding: '6px 9px', borderTop: '1px solid #e4e6ea', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 16, color: '#0084ff' }}>›</span>
-        <span style={{ fontSize: 14, color: '#65676b' }}>📎</span>
-        <div style={{ flex: 1, background: '#f0f2f5', borderRadius: 20, padding: '5px 11px', fontSize: 10, color: '#65676b' }}>Aa</div>
-        <span style={{ fontSize: 14 }}>😊</span>
-        <span style={{ fontSize: 14, color: '#0084ff' }}>👍</span>
-      </div>
+      {InputBar}
     </div>
   );
 
-  // ── Webview overlay ──
+  // ── Webview overlay — matches real booking form screenshots exactly ──
   const WebviewScreen = (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
-      <div style={{ background: '#f5f5f5', borderBottom: '1px solid #e5e5e5', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-        <div style={{ fontSize: 13, color: '#555' }}>✕</div>
-        <div style={{ flex: 1, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', fontSize: 9, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>thelaundryproject.app/book/tlp-001</div>
-        <div style={{ fontSize: 13, color: '#555' }}>⋯</div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f8fa' }}>
+      {/* Webview browser bar — "Messenger / thelaundryproject.app / Done" */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #e0e0e0', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#050505' }}>Messenger</div>
+          <div style={{ fontSize: 8.5, color: '#65676b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>🔒 thelaundryproject.app</div>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#0084ff' }}>Done</div>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 11px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #f0f0ec' }}>
-          <img src="/logo.png" alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'contain' }} />
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: '#0D1117' }}>Book a Laundry Service</div>
-            <div style={{ fontSize: 9, color: '#9CA3AF' }}>The Laundry Project</div>
-          </div>
+      {/* Form content */}
+      <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ background: '#f0f8fa', padding: '10px 10px 6px', textAlign: 'center', flexShrink: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, color: '#0D1117', letterSpacing: '.02em' }}>THE LAUNDRY PROJECT</div>
+          <div style={{ fontSize: 9, color: '#6B7280', marginTop: 1 }}>Online Booking</div>
         </div>
-        {[{ label: 'SERVICE', value: 'Wash & Fold', select: true }, { label: 'WEIGHT (KG)', value: '3.5 kg', select: false }, { label: 'PICKUP', value: '123 Mayon St., QC', select: false }, { label: 'SCHEDULE', value: 'Tomorrow, 9:00 AM', select: true }].map(f => (
-          <div key={f.label} style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 8, fontWeight: 700, color: '#9CA3AF', letterSpacing: '.06em', marginBottom: 3 }}>{f.label}</div>
-            <div style={{ background: '#FAFAF8', border: '1.5px solid #E5E5DC', borderRadius: 7, padding: '6px 9px', fontSize: 10.5, color: '#0D1117', display: 'flex', justifyContent: 'space-between' }}>
-              <span>{f.value}</span>{f.select && <span style={{ color: '#aaa', fontSize: 9 }}>▾</span>}
+        {/* Step progress */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', background: '#f0f8fa', flexShrink: 0, gap: 0 }}>
+          {[{ n: 1, label: 'SERVICE', active: true }, { n: 2, label: 'DETAILS', active: false }, { n: 3, label: 'REVIEW', active: false }].map((s, i) => (
+            <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: s.active ? '#38a9c2' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: s.active ? '#fff' : '#9CA3AF' }}>{s.n}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: s.active ? '#38a9c2' : '#9CA3AF', letterSpacing: '.03em' }}>{s.label}</div>
+              </div>
+              {i < 2 && <div style={{ flex: 1, height: 1, background: '#e0e0e0', margin: '0 3px', marginBottom: 10 }} />}
             </div>
-          </div>
-        ))}
-        <div style={{ background: '#F0FAFE', border: '1px solid #C9ECF5', borderRadius: 8, padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#1a7d94' }}>ESTIMATED TOTAL</span>
-          <span style={{ fontSize: 16, fontWeight: 900, color: '#38a9c2' }}>₱175</span>
+          ))}
         </div>
-        <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 8, padding: '9px', textAlign: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>Book Now →</div>
+        {/* Service card */}
+        <div style={{ flex: 1, background: '#fff', borderRadius: '12px 12px 0 0', margin: '0 6px', padding: '10px 10px 6px', overflowY: 'hidden' }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#0D1117', marginBottom: 2 }}>Choose a Service</div>
+          <div style={{ fontSize: 9, color: '#6B7280', marginBottom: 8 }}>Select the laundry service you need.</div>
+          {/* Filter chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+            {['All', 'MACHINE WASH', 'HAND WASH', 'IRONING / PRESS', 'DRY CLEANING'].map(c => (
+              <div key={c} style={{ background: c === 'MACHINE WASH' ? '#38a9c2' : '#f0f0f0', borderRadius: 20, padding: '3px 8px', fontSize: 7.5, fontWeight: 700, color: c === 'MACHINE WASH' ? '#fff' : '#374151', whiteSpace: 'nowrap' }}>{c}</div>
+            ))}
+          </div>
+          {/* Service items */}
+          {showCart ? (
+            /* Cart view */
+            <div>
+              {[{ name: 'Clothes – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱330', unit: 'per bag', img: '👔' },
+                { name: 'Comforters – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱350', unit: 'per piece', img: '🛏️' }].map(s => (
+                <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #e8e8e8', borderRadius: 10, padding: '7px 8px', marginBottom: 5 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#38a9c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                    <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 8, color: '#9CA3AF' }}>Starts at</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
+                    <div style={{ fontSize: 8, color: '#9CA3AF' }}>{s.unit}</div>
+                  </div>
+                </div>
+              ))}
+              {/* Cart summary */}
+              <div style={{ border: '1.5px solid #38a9c2', borderRadius: 10, padding: '8px 10px', background: '#f0f8fa' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: '#38a9c2' }}>🛒 CART (1 ITEM)</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>₱660</div>
+                </div>
+                <div style={{ fontSize: 8.5, color: '#0D1117', fontWeight: 600, marginBottom: 2 }}>Clothes – Machine Wash</div>
+                <div style={{ fontSize: 8, color: '#6B7280', lineHeight: 1.5 }}>Type: Colored · Small Bag · ₱330{'\n'}Express (₱330 · 1 Day)</div>
+              </div>
+            </div>
+          ) : (
+            /* Service list */
+            [{ name: 'Clothes – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱330', unit: 'per bag', img: '👔', selected: true },
+             { name: 'Comforters – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱350', unit: 'per piece', img: '🛏️', selected: false },
+             { name: 'Bedsheets & Towels', desc: 'Wash, Dry & Fold', price: '₱440', unit: 'per bag', img: '🛁', selected: false }].map(s => (
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1.5px solid ${s.selected ? '#38a9c2' : '#e8e8e8'}`, borderRadius: 10, padding: '7px 8px', marginBottom: 5, background: s.selected ? '#f0f8fa' : '#fff' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#38a9c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                  <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 8, color: '#9CA3AF' }}>Starts at</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
+                  <div style={{ fontSize: 8, color: '#9CA3AF' }}>{s.unit}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        {/* Bottom buttons */}
+        <div style={{ background: '#fff', margin: '0 6px', borderRadius: '0 0 12px 12px', padding: '8px 10px', flexShrink: 0, borderTop: '1px solid #f0f0ec' }}>
+          {showCart ? (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ flex: 1, background: '#e8edf2', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: '#374151' }}>+ Add to Cart</div>
+              <div style={{ flex: 2, background: '#fdca00', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 800, color: '#5a3e00' }}>Checkout (1) · ₱660 →</div>
+            </div>
+          ) : (
+            <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 10, padding: '9px', textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: '#fff' }}>Continue →</div>
+          )}
+          <div style={{ textAlign: 'center', marginTop: 6, fontSize: 8.5, color: '#9CA3AF' }}>Powered by <strong>LaundroBot</strong></div>
+        </div>
       </div>
     </div>
   );
@@ -225,28 +260,23 @@ function MessengerMockup() {
   return (
     <div className="l-phone-wrap">
       <div style={{ width: 270, flexShrink: 0 }}>
-        {/* iPhone frame — white/silver matching real device */}
-        <div style={{ background: 'linear-gradient(180deg,#e8e8e8,#d0d0d0)', borderRadius: 44, padding: '3px', boxShadow: '0 32px 80px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.8)' }}>
-          <div style={{ background: '#f5f5f5', borderRadius: 42, padding: '14px 8px 18px', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.08)' }}>
+        {/* iPhone frame — black matching real device */}
+        <div style={{ background: 'linear-gradient(180deg,#2a2a2a,#1a1a1a)', borderRadius: 44, padding: '3px', boxShadow: '0 32px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1)' }}>
+          <div style={{ background: '#111', borderRadius: 42, padding: '14px 8px 18px' }}>
             {/* Notch */}
-            <div style={{ width: 90, height: 24, background: '#f5f5f5', borderRadius: 12, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative', zIndex: 2 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#222' }} />
-              <div style={{ width: 40, height: 6, borderRadius: 3, background: '#333' }} />
+            <div style={{ width: 90, height: 24, background: '#111', borderRadius: 12, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative', zIndex: 2 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2a2a2a' }} />
+              <div style={{ width: 40, height: 6, borderRadius: 3, background: '#2a2a2a' }} />
             </div>
             {/* Screen */}
             <div style={{ background: '#fff', borderRadius: 28, overflow: 'hidden', height: 480, position: 'relative' }}>
-              {/* Status bar — matches real iPhone recording */}
+              {/* Status bar — white text on white bg (real Messenger style) */}
               <div style={{ background: '#fff', padding: '5px 14px 3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#e53e3e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 7, fontWeight: 800, color: '#fff' }}>●</span>
-                  </div>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#050505' }}>8:25</span>
-                </div>
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <span style={{ fontSize: 9, color: '#050505', fontWeight: 600 }}>●●●</span>
-                  <span style={{ fontSize: 8 }}>📶</span>
-                  <span style={{ fontSize: 8 }}>🔋</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#050505' }}>19:53</span>
+                <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                  <span style={{ fontSize: 8, color: '#050505', letterSpacing: 1 }}>· · · ·</span>
+                  <span style={{ fontSize: 9 }}>📶</span>
+                  <span style={{ fontSize: 9 }}>🔋</span>
                 </div>
               </div>
               {/* Messenger header */}
