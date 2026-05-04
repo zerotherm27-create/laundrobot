@@ -37,7 +37,8 @@ router.put('/settings', auth, async (req, res) => {
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants
        SET notification_email=$1, contact_number=$2,
-           store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6, ai_enabled=$7, ai_instructions=$8,
+           store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6, ai_enabled=$7,
+           ai_instructions = CASE WHEN $14 THEN $8 ELSE ai_instructions END,
            ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
            custom_domain = CASE WHEN $14 THEN $13 ELSE custom_domain END,
            white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END,
@@ -151,7 +152,7 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
 // PATCH update tenant plan (superadmin)
 router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
   const { plan, subscription_status } = req.body;
-  const validPlans = ['starter', 'pro'];
+  const validPlans = ['starter', 'growth', 'pro'];
   const validStatuses = ['trial', 'active', 'expired', 'cancelled'];
   if (plan && !validPlans.includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
   if (subscription_status && !validStatuses.includes(subscription_status)) return res.status(400).json({ error: 'Invalid status' });

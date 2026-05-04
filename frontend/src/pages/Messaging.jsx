@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi } from '../api.js';
+import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings } from '../api.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -11,10 +11,12 @@ export default function Messaging() {
   const [history,        setHistory]        = useState([]);
   const [pausedCustomers,setPausedCustomers] = useState([]);
   const [releasingId,    setReleasingId]    = useState(null);
+  const [tenantPlan,     setTenantPlan]     = useState('starter');
 
   useEffect(() => {
     getBlastHistory().then(r => setHistory(r.data)).catch(() => {});
     getPausedCustomers().then(r => setPausedCustomers(r.data)).catch(() => {});
+    getMyTenantSettings().then(r => setTenantPlan(r.data.plan || 'starter')).catch(() => {});
   }, []);
 
   async function handleReleaseAi(fbUserId) {
@@ -73,6 +75,15 @@ export default function Messaging() {
         <div>
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 10 }}>Send blast message</div>
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
+          {!['growth', 'pro'].includes(tenantPlan) ? (
+            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 6 }}>Growth plan feature</div>
+              <div style={{ fontSize: 12, color: '#374151', marginBottom: 14, lineHeight: 1.6 }}>
+                Blast messaging lets you send a message to all your customers at once. Available on the <strong>Growth plan</strong> and above.
+              </div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>Contact your admin to upgrade your plan.</div>
+            </div>
+          ) : (<>
             <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>Send to</label>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
               style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', marginBottom: 14 }}>
@@ -96,6 +107,7 @@ export default function Messaging() {
                 {result}
               </div>
             )}
+          </>)}
           </div>
         </div>
         <div>

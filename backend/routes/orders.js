@@ -6,6 +6,8 @@ const { sendTaggedMessage } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
 const { sendInvoiceEmail } = require('../utils/email');
 
+const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
+
 // POST walk-in order (staff POS — paid in cash/QR, no Xendit)
 router.post('/walk-in', auth, async (req, res) => {
   const { cart, name, phone, email, address, notes, pickup_date } = req.body;
@@ -14,6 +16,17 @@ router.post('/walk-in', auth, async (req, res) => {
   }
   let client;
   try {
+    const { rows: [tenant] } = await db.query('SELECT plan FROM tenants WHERE id=$1', [req.user.tenant_id]);
+    const monthLimit = MONTH_LIMITS[tenant?.plan || 'starter'] ?? 200;
+    if (isFinite(monthLimit)) {
+      const { rows: [{ count }] } = await db.query(
+        `SELECT COUNT(*) FROM orders WHERE tenant_id=$1 AND date_trunc('month', created_at) = date_trunc('month', NOW())`,
+        [req.user.tenant_id]
+      );
+      if (Number(count) >= monthLimit) {
+        return res.status(403).json({ error: `You've reached your ${monthLimit}-order/month limit on the ${tenant?.plan || 'starter'} plan. Upgrade to continue.` });
+      }
+    }
     client = await db.pool.connect();
     await client.query('BEGIN');
 

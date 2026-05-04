@@ -8,8 +8,11 @@ router.post('/blast', auth, async (req, res) => {
   const tenantId = req.user.tenant_id;
   try {
     const { rows: [tenant] } = await db.query(
-      'SELECT fb_page_access_token FROM tenants WHERE id=$1', [tenantId]
+      'SELECT fb_page_access_token, plan FROM tenants WHERE id=$1', [tenantId]
     );
+    if (!['growth', 'pro'].includes(tenant?.plan)) {
+      return res.status(403).json({ error: 'Blast messaging requires the Growth plan or higher.' });
+    }
     let customers;
     if (filter_status === 'subscribed') {
       const { rows } = await db.query(

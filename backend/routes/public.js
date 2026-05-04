@@ -376,8 +376,22 @@ router.post('/:tenantId/orders', async (req, res) => {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
+  const PUB_MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
+
   let client;
   try {
+    const { rows: [tenantPlan] } = await db.query('SELECT plan FROM tenants WHERE id=$1', [req.params.tenantId]);
+    const monthLimit = PUB_MONTH_LIMITS[tenantPlan?.plan || 'starter'] ?? 200;
+    if (isFinite(monthLimit)) {
+      const { rows: [{ count }] } = await db.query(
+        `SELECT COUNT(*) FROM orders WHERE tenant_id=$1 AND date_trunc('month', created_at) = date_trunc('month', NOW())`,
+        [req.params.tenantId]
+      );
+      if (Number(count) >= monthLimit) {
+        return res.status(403).json({ error: `This shop has reached its monthly order limit. Please contact the shop directly or try again next month.` });
+      }
+    }
+
     client = await db.pool.connect();
     await client.query('BEGIN');
 

@@ -201,12 +201,18 @@ export default function SuperAdmin() {
                         onChange={async e => {
                           const plan = e.target.value;
                           try {
-                            await updateTenantPlan(t.id, plan, plan === 'pro' ? 'active' : undefined);
+                            await updateTenantPlan(t.id, plan, plan !== 'starter' ? 'active' : undefined);
                             setTenants(prev => prev.map(x => x.id === t.id ? { ...x, plan } : x));
                           } catch { alert('Failed to update plan.'); }
                         }}
-                        style={{ fontSize: 11, padding: '3px 6px', borderRadius: 5, border: '0.5px solid #ccc', cursor: 'pointer', background: t.plan === 'pro' ? '#F5F3FF' : '#fff', color: t.plan === 'pro' ? '#7C3AED' : '#374151', fontWeight: t.plan === 'pro' ? 700 : 400 }}>
+                        style={{
+                          fontSize: 11, padding: '3px 6px', borderRadius: 5, border: '0.5px solid #ccc', cursor: 'pointer',
+                          background: t.plan === 'pro' ? '#F5F3FF' : t.plan === 'growth' ? '#E0F7F5' : '#fff',
+                          color: t.plan === 'pro' ? '#7C3AED' : t.plan === 'growth' ? '#0D9488' : '#374151',
+                          fontWeight: t.plan !== 'starter' ? 700 : 400,
+                        }}>
                         <option value="starter">Starter</option>
+                        <option value="growth">Growth</option>
                         <option value="pro">Pro</option>
                       </select>
                     </td>

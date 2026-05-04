@@ -20,6 +20,8 @@ router.get('/', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+const STAFF_LIMITS = { starter: 2, growth: 5, pro: 10 };
+
 // POST create new user
 router.post('/', auth, async (req, res) => {
   const { name, email, password, role, permissions, tenant_id } = req.body;
@@ -28,6 +30,17 @@ router.post('/', auth, async (req, res) => {
     ? (tenant_id || null)
     : req.user.tenant_id;
   try {
+    // Enforce staff limit per plan (superadmin accounts have no tenant, skip)
+    if (targetTenantId && req.user.role !== 'superadmin') {
+      const { rows: [t] } = await db.query('SELECT plan FROM tenants WHERE id=$1', [targetTenantId]);
+      const limit = STAFF_LIMITS[t?.plan || 'starter'] ?? 2;
+      const { rows: [{ count }] } = await db.query(
+        `SELECT COUNT(*) FROM users WHERE tenant_id=$1`, [targetTenantId]
+      );
+      if (Number(count) >= limit) {
+        return res.status(403).json({ error: `Your plan allows up to ${limit} staff account(s). Upgrade your plan to add more.` });
+      }
+    }
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
       `INSERT INTO users (tenant_id, name, email, password_hash, role, permissions)

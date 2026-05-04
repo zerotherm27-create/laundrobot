@@ -353,18 +353,26 @@ export default function Settings() {
                 </div>
               </div>
               <div style={{ marginTop: 14 }}>
-                <label style={LABEL}>AI Instructions (optional)</label>
-                <textarea
-                  value={aiInstructions}
-                  onChange={e => setAiInstructions(e.target.value)}
-                  rows={4}
-                  placeholder={'e.g. Always reply in Tagalog.\nNever discuss competitor shops.\nAlways end with "Salamat sa inyong tiwala! 🙏"'}
-                  style={{ ...INPUT, resize: 'vertical', lineHeight: 1.5 }}
-                  onFocus={FOCUS} onBlur={BLUR}
-                />
-                <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>
-                  These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
-                </div>
+                <label style={LABEL}>AI Instructions <span style={{ color: '#7C3AED', fontSize: 10, fontWeight: 600, background: '#EDE9FE', padding: '1px 5px', borderRadius: 4, marginLeft: 5 }}>Pro</span></label>
+                {tenantPlan === 'pro' ? (
+                  <>
+                    <textarea
+                      value={aiInstructions}
+                      onChange={e => setAiInstructions(e.target.value)}
+                      rows={4}
+                      placeholder={'e.g. Always reply in Tagalog.\nNever discuss competitor shops.\nAlways end with "Salamat sa inyong tiwala! 🙏"'}
+                      style={{ ...INPUT, resize: 'vertical', lineHeight: 1.5 }}
+                      onFocus={FOCUS} onBlur={BLUR}
+                    />
+                    <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>
+                      These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ background: '#F5F3FF', border: '0.5px solid #DDD6FE', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#5B21B6' }}>
+                    Custom AI instructions are available on the <strong>Pro plan</strong>. Upgrade to fine-tune the chatbot's language, tone, and behavior per branch.
+                  </div>
+                )}
               </div>
               <div style={{ marginTop: 14 }}>
                 <label style={LABEL}>AI Pause After Human Reply (hours)</label>
@@ -663,14 +671,22 @@ export default function Settings() {
                   <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Discount codes customers can apply at checkout</div>
                 </div>
               </div>
-              {!addingPromo && (
-                <button type="button" onClick={() => { setAddingPromo(true); setPromoForm({ code: '', discount_type: 'fixed', discount_value: '', min_order: '', max_uses: '', expires_at: '' }); setPromoErr(''); }}
-                  style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#7C3AED', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  + Add Promo
-                </button>
-              )}
+              {!['growth', 'pro'].includes(tenantPlan)
+                ? <span style={{ fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#065F46', padding: '2px 7px', borderRadius: 4 }}>GROWTH+</span>
+                : !addingPromo && (
+                  <button type="button" onClick={() => { setAddingPromo(true); setPromoForm({ code: '', discount_type: 'fixed', discount_value: '', min_order: '', max_uses: '', expires_at: '' }); setPromoErr(''); }}
+                    style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#7C3AED', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    + Add Promo
+                  </button>
+                )
+              }
             </div>
 
+            {!['growth', 'pro'].includes(tenantPlan) ? (
+              <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
+                Promo codes are available on the <strong>Growth plan</strong> and above. Upgrade to offer discounts and run promotions for your customers.
+              </div>
+            ) : <>
             {addingPromo && (
               <form onSubmit={async e => {
                 e.preventDefault();
@@ -791,6 +807,7 @@ export default function Settings() {
                 })}
               </div>
             )}
+            </>}
           </div>
         </div>
       )}
@@ -802,14 +819,22 @@ export default function Settings() {
             <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={15} color="#374151" />Referral Links</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>Track which marketing channels drive clicks and bookings.</div>
           </div>
-          {!addingRef && (
-            <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
-              style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1.5px solid #38a9c2', background: '#fff', color: '#38a9c2', fontWeight: 600, cursor: 'pointer' }}>
-              + Add Link
-            </button>
-          )}
+          {!['growth', 'pro'].includes(tenantPlan)
+            ? <span style={{ fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#065F46', padding: '2px 7px', borderRadius: 4 }}>GROWTH+</span>
+            : !addingRef && (
+              <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
+                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1.5px solid #38a9c2', background: '#fff', color: '#38a9c2', fontWeight: 600, cursor: 'pointer' }}>
+                + Add Link
+              </button>
+            )
+          }
         </div>
 
+        {!['growth', 'pro'].includes(tenantPlan) ? (
+          <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
+            Referral links are available on the <strong>Growth plan</strong> and above. Upgrade to track which marketing channels drive clicks and bookings.
+          </div>
+        ) : <>
         {addingRef && (
           <form onSubmit={async e => {
             e.preventDefault(); setSavingRef(true); setRefErr('');
@@ -896,6 +921,7 @@ export default function Settings() {
             </table>
           </div>
         )}
+        </>}
       </div>
     </div>
     </>

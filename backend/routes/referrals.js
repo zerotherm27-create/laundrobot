@@ -29,6 +29,10 @@ router.post('/', auth, async (req, res) => {
   }
   const cleanRef = ref.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
   try {
+    const { rows: [t] } = await db.query('SELECT plan FROM tenants WHERE id=$1', [req.user.tenant_id]);
+    if (!['growth', 'pro'].includes(t?.plan)) {
+      return res.status(403).json({ error: 'Referral links require the Growth plan or higher.' });
+    }
     const { rows: [link] } = await db.query(
       `INSERT INTO referral_links (tenant_id, name, ref)
        VALUES ($1, $2, $3)

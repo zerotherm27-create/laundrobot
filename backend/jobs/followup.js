@@ -143,6 +143,7 @@ async function runFollowUp() {
         AND o.status != 'CANCELLED'
         AND (o.source IS NULL OR o.source != 'admin')
         AND o.created_at < NOW() - INTERVAL '${CANCEL_AFTER_MINUTES} minutes'
+        AND t.plan IN ('growth', 'pro')
     `);
 
     for (const order of toCancel) {
@@ -182,6 +183,7 @@ async function runFollowUp() {
           AND o.reminder_count = $1
           AND (c.fb_id IS NOT NULL OR c.email IS NOT NULL)
           AND o.created_at < NOW() - INTERVAL '${afterMinutes} minutes'
+          AND t.plan IN ('growth', 'pro')
       `, [reminder - 1]);
 
       for (const order of orders) {

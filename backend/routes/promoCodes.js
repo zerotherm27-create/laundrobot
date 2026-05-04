@@ -17,6 +17,12 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const { code, discount_type, discount_value, min_order, max_uses, expires_at } = req.body;
   if (!code?.trim()) return res.status(400).json({ error: 'Code is required' });
+  try {
+    const { rows: [t] } = await db.query('SELECT plan FROM tenants WHERE id=$1', [req.user.tenant_id]);
+    if (!['growth', 'pro'].includes(t?.plan)) {
+      return res.status(403).json({ error: 'Promo codes require the Growth plan or higher.' });
+    }
+  } catch (err) { return res.status(500).json({ error: err.message }); }
   if (!discount_type || !['fixed', 'percent'].includes(discount_type))
     return res.status(400).json({ error: 'discount_type must be fixed or percent' });
   if (!discount_value || Number(discount_value) <= 0)

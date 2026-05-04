@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders } from '../api.js';
+import { getOrders, getMyTenantSettings } from '../api.js';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
@@ -17,9 +17,11 @@ export default function Reports() {
   const [orders, setOrders] = useState([]);
   const [period, setPeriod] = useState('Monthly');
   const [loading, setLoading] = useState(true);
+  const [tenantPlan, setTenantPlan] = useState('starter');
 
   useEffect(() => {
     getOrders().then(r => { setOrders(r.data); setLoading(false); }).catch(() => setLoading(false));
+    getMyTenantSettings().then(r => setTenantPlan(r.data.plan || 'starter')).catch(() => {});
   }, []);
 
   const start = getRange(period);
@@ -89,6 +91,21 @@ export default function Reports() {
     a.href = url;
     a.download = `laundrobot-report-${period.toLowerCase()}.csv`;
     a.click();
+  }
+
+  if (!['growth', 'pro'].includes(tenantPlan)) {
+    return (
+      <div>
+        <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Reports</h2>
+        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '3rem 2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 8 }}>Revenue reports & analytics</div>
+          <div style={{ fontSize: 13, color: '#374151', marginBottom: 4, lineHeight: 1.7 }}>
+            Revenue reports, order breakdowns, and analytics are available on the <strong>Growth plan</strong> and above.
+          </div>
+          <div style={{ fontSize: 12, color: '#6B7280' }}>Contact your admin to upgrade your plan.</div>
+        </div>
+      </div>
+    );
   }
 
   return (
