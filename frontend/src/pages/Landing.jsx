@@ -462,10 +462,11 @@ function Hero() {
                 <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
               </a>
               <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'color .15s' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-                onMouseLeave={e => e.currentTarget.style.color = '#374151'}>
-                📅 Book a free demo
+                style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'color .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#38a9c2'; e.currentTarget.querySelector('svg').style.stroke = '#38a9c2'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#374151'; e.currentTarget.querySelector('svg').style.stroke = '#374151'; }}>
+                <Icon name="calendar" size={15} color="#374151" />
+                Book a free demo
               </a>
             </div>
           </div>
@@ -931,10 +932,11 @@ function CtaBand() {
             <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
           </a>
           <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: '#374151', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid #D1D5DB', minHeight: 52, transition: 'all .15s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#38a9c2'; e.currentTarget.style.color = '#38a9c2'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#374151'; }}>
-            📅 Book a free demo
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid #38a9c2', minHeight: 52, transition: 'all .15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.transform = 'none'; }}>
+            <Icon name="calendar" size={16} color="#38a9c2" />
+            Book a free demo
           </a>
         </div>
       </div>

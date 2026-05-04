@@ -68,7 +68,9 @@ export default function Signup() {
 
         {/* Trial badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EAF9F2', border: '0.5px solid #6EE7B7', borderRadius: 20, padding: '5px 12px', marginBottom: 20 }}>
-          <span style={{ fontSize: 13 }}>🎉</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
           <span style={{ fontSize: 12, fontWeight: 600, color: '#065F46' }}>14-day free trial — no credit card required</span>
         </div>
 
@@ -133,8 +135,11 @@ export default function Signup() {
           </div>
 
           {error && (
-            <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16 }}>
-              ⚠️ {error}
+            <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A32D2D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {error}
             </div>
           )}
 
