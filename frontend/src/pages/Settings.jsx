@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice } from '../api.js';
+import { Icon } from '../components/Icons.jsx';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -17,7 +18,7 @@ function SectionCard({ icon, iconBg, title, subtitle, children }) {
   return (
     <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{icon}</div>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
         <div>
           <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{title}</div>
           <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>{subtitle}</div>
@@ -283,7 +284,7 @@ export default function Settings() {
           <form onSubmit={handleSave}>
 
             {/* Notification Email */}
-            <SectionCard icon="🖼️" iconBg="#FEF3C7" title="Business Logo"
+            <SectionCard icon={<Icon name="image" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Business Logo"
               subtitle="Used on invoices and the booking form">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 {/* Preview */}
@@ -292,7 +293,7 @@ export default function Settings() {
                   style={{ width: 80, height: 80, borderRadius: 12, border: '1.5px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F9FAFB', flexShrink: 0 }}>
                   {logoUrl
                     ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    : <div style={{ textAlign: 'center', color: '#9CA3AF' }}><div style={{ fontSize: 22 }}>📷</div><div style={{ fontSize: 10, marginTop: 2 }}>Upload</div></div>}
+                    : <div style={{ textAlign: 'center', color: '#9CA3AF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}><Icon name="camera" size={22} color="#9CA3AF" /><div style={{ fontSize: 10 }}>Upload</div></div>}
                 </div>
                 <input ref={logoFileRef} type="file" accept="image/*" style={{ display: 'none' }}
                   onChange={e => {
@@ -318,7 +319,7 @@ export default function Settings() {
               </div>
             </SectionCard>
 
-            <SectionCard icon="📧" iconBg="#e6f5f8" title="Order Notifications"
+            <SectionCard icon={<Icon name="mail" size={18} color="#1a7d94" />} iconBg="#e6f5f8" title="Order Notifications"
               subtitle="Email you receive when new orders arrive and payments are confirmed">
               <label style={LABEL}>Notification Email</label>
               <input type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)}
@@ -327,7 +328,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* AI Messenger Replies */}
-            <SectionCard icon="🤖" iconBg="#EDE9FE" title="AI Messenger Replies"
+            <SectionCard icon={<Icon name="services" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="AI Messenger Replies"
               subtitle="Gemini Flash answers customer questions outside the booking flow">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
@@ -382,7 +383,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Instagram Messaging */}
-            <SectionCard icon="📸" iconBg="#FCE7F3" title="Instagram Messaging"
+            <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
               subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
               <label style={LABEL}>Instagram Business User ID</label>
               <input value={igUserId} onChange={e => setIgUserId(e.target.value)}
@@ -395,7 +396,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Customer Contact Number */}
-            <SectionCard icon="📞" iconBg="#EAF3DE" title="Customer Contact Number"
+            <SectionCard icon={<Icon name="phone" size={18} color="#15803D" />} iconBg="#EAF3DE" title="Customer Contact Number"
               subtitle="Shown to customers after booking — for questions via SMS or call">
               <label style={LABEL}>Phone / Mobile Number</label>
               <input type="tel" value={contactNumber} onChange={e => setContactNumber(e.target.value)}
@@ -404,7 +405,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Shop Address */}
-            <SectionCard icon="📍" iconBg="#FEF3C7" title="Shop Address"
+            <SectionCard icon={<Icon name="delivery" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Shop Address"
               subtitle="Shown on invoices sent to customers">
               <label style={LABEL}>Full Address</label>
               <input type="text" value={shopAddress} onChange={e => setShopAddress(e.target.value)}
@@ -412,7 +413,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Walk-in QR */}
-            <SectionCard icon="📱" iconBg="#EAF3DE" title="Walk-in QR Payment"
+            <SectionCard icon={<Icon name="smartphone" size={18} color="#15803D" />} iconBg="#EAF3DE" title="Walk-in QR Payment"
               subtitle="QR code shown to walk-in customers at the POS payment step">
               <label style={LABEL}>QR Image URL</label>
               <input type="url" value={qrImageUrl} onChange={e => setQrImageUrl(e.target.value)}
@@ -428,7 +429,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Minimum Order */}
-            <SectionCard icon="🛒" iconBg="#FEF3C7" title="Minimum Order Amount"
+            <SectionCard icon={<Icon name="walkin" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Minimum Order Amount"
               subtitle="Customers must reach this amount before they can proceed to checkout">
               <label style={LABEL}>Minimum Order (₱)</label>
               <input type="number" min="0" step="1" value={minimumOrder} onChange={e => setMinimumOrder(e.target.value)}
@@ -439,7 +440,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Store Hours */}
-            <SectionCard icon="🕐" iconBg="#FEF3C7" title="Store Hours &amp; Booking Window"
+            <SectionCard icon={<Icon name="clock" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Store Hours &amp; Booking Window"
               subtitle="Controls what times customers can select when placing a booking">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
@@ -469,7 +470,7 @@ export default function Settings() {
             </SectionCard>
 
             {/* Custom Domain (Pro plan) */}
-            <SectionCard icon="🌐" iconBg="#EDE9FE" title="Custom Domain & White-Label"
+            <SectionCard icon={<Icon name="globe" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="Custom Domain & White-Label"
               subtitle={tenantPlan === 'pro' ? 'Point your own domain to your booking form' : 'Available on the Pro plan'}>
               {tenantPlan !== 'pro' ? (
                 <div style={{ background: 'linear-gradient(135deg,#F5F3FF,#EDE9FE)', borderRadius: 12, padding: '16px 18px', border: '1px solid #DDD6FE' }}>
@@ -529,7 +530,7 @@ export default function Settings() {
               <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 7, background: '#FCEBEB', color: '#A32D2D', fontSize: 13 }}>{error}</div>
             )}
             {saved && (
-              <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 7, background: '#EAF7EC', color: '#1D6A3B', fontSize: 13 }}>✅ Settings saved!</div>
+              <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 7, background: '#EAF7EC', color: '#1D6A3B', fontSize: 13, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="check-circle" size={14} color="#15803D" />Settings saved!</div>
             )}
 
             <button type="submit" disabled={saving}
@@ -542,7 +543,7 @@ export default function Settings() {
           <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FCEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🚫</div>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FCEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ban" size={18} color="#DC2626" /></div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>Blocked Dates</div>
                   <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Dates unavailable for booking (holidays, closures, etc.)</div>
@@ -595,7 +596,7 @@ export default function Settings() {
                 {blockedDates.map(b => (
                   <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: '#FFF5F5', border: '0.5px solid #F09595' }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>🚫 {formatDateDisplay(b.date)}</div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="ban" size={13} color="#DC2626" />{formatDateDisplay(b.date)}</div>
                       {b.reason && <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{b.reason}</div>}
                     </div>
                     <button type="button" onClick={() => handleDeleteDate(b.id)}
@@ -609,7 +610,7 @@ export default function Settings() {
           </div>
 
           {/* ── Messenger Menu ── */}
-          <SectionCard icon="💬" iconBg="#E0F2FE" title="Facebook Messenger Menu"
+          <SectionCard icon={<Icon name="messenger" size={18} color="#0369A1" />} iconBg="#E0F2FE" title="Facebook Messenger Menu"
             subtitle="Reset the persistent menu shown to all customers in Messenger">
             <div style={{ fontSize: 13, color: '#374151', marginBottom: 12, lineHeight: 1.6 }}>
               If customers are still seeing an old menu from a previous chatbot (e.g. Chatgenie), click below to override it with your current menu.
@@ -643,7 +644,7 @@ export default function Settings() {
             </button>
 
             <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 8, background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#0369A1', marginBottom: 6 }}>ℹ️ How it works for customers</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#0369A1', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="info" size={13} color="#0369A1" />How it works for customers</div>
               <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.7 }}>
                 <div>• The menu does <strong>not</strong> pop up automatically — customers tap the <strong>☰ icon</strong> at the bottom-left of the chat to open it.</div>
                 <div>• The <strong>greeting message</strong> and <strong>Get Started</strong> button only appear for customers who have <strong>never messaged your page before</strong>.</div>
@@ -656,7 +657,7 @@ export default function Settings() {
           <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🎟️</div>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ticket" size={18} color="#7C3AED" /></div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>Promo Codes</div>
                   <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Discount codes customers can apply at checkout</div>
@@ -798,7 +799,7 @@ export default function Settings() {
       <div style={{ marginTop: 32, background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,.06)', padding: '24px 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>🔗 Referral Links</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={15} color="#374151" />Referral Links</div>
             <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>Track which marketing channels drive clicks and bookings.</div>
           </div>
           {!addingRef && (
