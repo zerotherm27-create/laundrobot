@@ -354,8 +354,11 @@ export default function Settings() {
                     <input value={customDomain} onChange={e => setCustomDomain(e.target.value.trim())}
                       placeholder="book.yourdomain.com" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
                     <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6, lineHeight: 1.6 }}>
-                      Add a CNAME record: <code style={{ background: '#F3F4F6', padding: '1px 6px', borderRadius: 4 }}>book.yourdomain.com → laundrobot.app</code><br />
-                      Then enter the domain above and save. Allow up to 24 hours for DNS to propagate.
+                      Step 1 — Add a CNAME record at your domain registrar:<br />
+                      <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, display: 'inline-block', margin: '4px 0' }}>book.yourdomain.com → cname.vercel-dns.com</code><br />
+                      Step 2 — Enter your domain above and save.<br />
+                      Step 3 — Send your domain to <strong>hello@laundrobot.app</strong> so we can activate it (takes ~5 min).<br />
+                      <span style={{ color: '#9CA3AF' }}>DNS propagation can take up to 24 hours.</span>
                     </div>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
