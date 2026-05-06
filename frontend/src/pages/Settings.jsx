@@ -221,25 +221,36 @@ export default function Settings() {
   useEffect(() => {
     const appId = import.meta.env.VITE_FB_APP_ID;
     if (!appId) return;
-    window.fbAsyncInit = () => {
+
+    const initSdk = () => {
       try {
-        window.FB.init({ appId, version: 'v19.0', cookie: true, xfbml: false });
+        if (!window.FB._initialized) window.FB.init({ appId, version: 'v19.0', cookie: true, xfbml: false });
         setFbSdkReady(true);
       } catch (e) {
         setFbMsg('Facebook SDK failed to initialize. Check your App ID.');
       }
     };
+
+    // If already loaded, init immediately
+    if (window.FB) { initSdk(); return; }
+
+    window.fbAsyncInit = initSdk;
+
     if (!document.getElementById('fb-sdk')) {
       const s = document.createElement('script');
       s.id = 'fb-sdk';
       s.src = 'https://connect.facebook.net/en_US/sdk.js';
       s.async = true;
       s.defer = true;
-      s.onerror = () => setFbMsg('Could not load Facebook SDK. Check your internet connection.');
+      s.onerror = () => setFbMsg('Could not load Facebook SDK — try disabling any ad blockers and refresh.');
       document.body.appendChild(s);
-    } else if (window.FB) {
-      setFbSdkReady(true);
     }
+
+    // Timeout fallback — show error if SDK never loads
+    const timeout = setTimeout(() => {
+      if (!window.FB) setFbMsg('Facebook SDK took too long to load — try disabling any ad blockers and refresh.');
+    }, 10000);
+    return () => clearTimeout(timeout);
   }, []);
 
   function handleFbLogin() {
