@@ -18,13 +18,61 @@ const NAV = [
   { key: 'Settings',      iconName: 'settings',   label: 'Settings' },
 ];
 
+const GUIDE_STEPS = [
+  {
+    num: '1', title: 'Sign Up & Start Trial',
+    body: 'Go to laundrobot.app → "Start Free Trial". Your 14-day free trial starts immediately — no credit card needed.',
+  },
+  {
+    num: '2', title: 'Configure Your Shop',
+    body: 'Settings → fill in your logo, contact number, shop address, store hours, and minimum order amount. Click "Save Settings".',
+  },
+  {
+    num: '3', title: 'Add Services & Pricing',
+    body: 'Services → create categories (e.g. Wash & Dry) then add each service with its name, price, and unit (per kg / per piece).',
+  },
+  {
+    num: '4', title: 'Set Up Delivery Zones',
+    body: 'Delivery Zones → add flat-fee zones by barangay or set distance brackets (0–5 km = ₱50, 5–10 km = ₱100, etc.).',
+  },
+  {
+    num: '5', title: 'Connect Facebook Page',
+    body: 'Settings → "Connect Facebook Page" → click the blue button → log in with Facebook → select your Page → "Save & Connect". The bot and Messenger menu are set up automatically.',
+  },
+  {
+    num: '6', title: 'Connect Instagram DMs',
+    body: 'Settings → "Instagram Messaging" → paste your Instagram Business Account ID → Save. (Requires Meta App Review — contact hello@laundrobot.app if not working.)',
+  },
+  {
+    num: '7', title: 'Enable Online Payments',
+    body: 'Get your Xendit API key from xendit.co → Developers → API Keys. Email it to hello@laundrobot.app and we\'ll activate it for your account.',
+  },
+  {
+    num: '8', title: 'Enable AI Chatbot',
+    body: 'Settings → "AI Messenger Replies" → toggle ON. The AI answers customer questions 24/7 in Tagalog, English, and Taglish using your FAQs.',
+  },
+  {
+    num: '9', title: 'Add FAQs',
+    body: 'FAQs → add common questions and answers. Click "AI Suggest" to auto-generate FAQs from past conversations.',
+  },
+  {
+    num: '10', title: 'Invite Your Staff',
+    body: 'Users → "+ Invite Staff" → enter their email. They can log in and manage orders on the Kanban board right away.',
+  },
+  {
+    num: '11', title: 'Test the Bot',
+    body: 'Go to your Facebook Page → "Send Message" → tap "Get Started". You should see the greeting and "Book Now" button. Try placing a test order.',
+  },
+];
+
 export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
-  const [pwOpen,  setPwOpen]  = useState(false);
-  const [form,    setForm]    = useState({ current: '', newPw: '', confirm: '' });
-  const [saving,  setSaving]  = useState(false);
-  const [msg,     setMsg]     = useState('');
-  const [show,    setShow]    = useState(false);
+  const [pwOpen,    setPwOpen]    = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [form,      setForm]      = useState({ current: '', newPw: '', confirm: '' });
+  const [saving,    setSaving]    = useState(false);
+  const [msg,       setMsg]       = useState('');
+  const [show,      setShow]      = useState(false);
 
   async function handleChangePw(e) {
     e.preventDefault();
@@ -98,6 +146,16 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
             </button>
           ))}
 
+          {/* Setup Guide */}
+          <div style={{ margin: '8px 12px 4px' }}>
+            <button onClick={() => setGuideOpen(true)}
+              className="nav-item"
+              style={{ width: '100%', background: '#F0FAF5', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontWeight: 600 }}>
+              <Icon name="info" size={15} color="#15803D" style={{ width: 18, flexShrink: 0 }} />
+              Setup Guide
+            </button>
+          </div>
+
           {role === 'superadmin' && (
             <>
               <div style={{ margin: '10px 1.25rem 6px', borderTop: '0.5px solid #F0F0EC' }} />
@@ -152,6 +210,58 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
           </button>
         </div>
       </aside>
+
+      {/* ── Setup Guide Panel ── */}
+      {guideOpen && (
+        <div onClick={() => setGuideOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 480, height: '100%', background: '#fff', display: 'flex', flexDirection: 'column',
+              boxShadow: '-4px 0 24px rgba(0,0,0,.12)', animation: 'slideInRight .22s ease' }}>
+
+            {/* Header */}
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid #E8E8E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="info" size={16} color="#15803D" /> Setup Guide
+                </div>
+                <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>Follow these steps to get fully set up</div>
+              </div>
+              <button onClick={() => setGuideOpen(false)}
+                style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#6B7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                ×
+              </button>
+            </div>
+
+            {/* Steps */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
+              {GUIDE_STEPS.map((step, i) => (
+                <div key={step.num} style={{ display: 'flex', gap: 14, marginBottom: i < GUIDE_STEPS.length - 1 ? 20 : 0 }}>
+                  {/* Step number + connector line */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ECFDF5', border: '1.5px solid #6EE7B7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#059669' }}>
+                      {step.num}
+                    </div>
+                    {i < GUIDE_STEPS.length - 1 && (
+                      <div style={{ width: 1.5, flex: 1, background: '#D1FAE5', marginTop: 4 }} />
+                    )}
+                  </div>
+                  {/* Content */}
+                  <div style={{ paddingBottom: i < GUIDE_STEPS.length - 1 ? 20 : 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', marginBottom: 4 }}>{step.title}</div>
+                    <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>{step.body}</div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Footer */}
+              <div style={{ marginTop: 24, padding: '14px 16px', borderRadius: 10, background: '#F0F9FF', border: '0.5px solid #BAE6FD', fontSize: 12, color: '#0369A1', lineHeight: 1.6 }}>
+                Need help? Email <strong>hello@laundrobot.app</strong> and we'll get you set up.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Change Password Modal ── */}
       {pwOpen && (
