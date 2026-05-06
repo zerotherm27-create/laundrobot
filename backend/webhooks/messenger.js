@@ -864,7 +864,8 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     );
     const cap = capRow?.ai_daily_cap ?? 200;
     let used = capRow?.ai_daily_used ?? 0;
-    if (capRow?.ai_daily_reset?.toISOString().slice(0, 10) !== today) {
+    const resetDate = capRow?.ai_daily_reset ? String(capRow.ai_daily_reset).slice(0, 10) : null;
+    if (resetDate !== today) {
       used = 0;
       await db.query(`UPDATE tenants SET ai_daily_used=0, ai_daily_reset=$1 WHERE id=$2`, [today, tenant.id]);
     }
