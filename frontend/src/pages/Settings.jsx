@@ -512,7 +512,7 @@ export default function Settings() {
                       background: paymentMode === opt.value ? '#F5F3FF' : '#fff',
                       transition: 'all .15s' }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {opt.value === 'xendit' ? <Icon name="card" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} /> : <Icon name="camera" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} />}
+                      {opt.value === 'xendit' ? <Icon name="card" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} /> : <Icon name="qr-code" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} />}
                       {opt.label}
                     </div>
                     <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{opt.desc}</div>
