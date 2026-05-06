@@ -38,6 +38,10 @@ function formatDateDisplay(dateStr) {
 export default function Settings() {
   const [paymentMode,    setPaymentMode]    = useState('xendit');
   const [qrImageUrl,     setQrImageUrl]     = useState('');
+  const [xenditKeySet,   setXenditKeySet]   = useState(false);
+  const [xenditKeyHint,  setXenditKeyHint]  = useState('');
+  const [xenditKeyInput, setXenditKeyInput] = useState('');
+  const [xenditKeyEditing, setXenditKeyEditing] = useState(false);
   const [notifEmail,     setNotifEmail]     = useState('');
   const [contactNumber,  setContactNumber]  = useState('');
   const [shopAddress,    setShopAddress]    = useState('');
@@ -112,6 +116,8 @@ export default function Settings() {
     ]).then(([s, b, p, r]) => {
       setPaymentMode(s.data.payment_mode || 'xendit');
       setQrImageUrl(s.data.qr_image_url || '');
+      setXenditKeySet(!!s.data.has_xendit_key);
+      setXenditKeyHint(s.data.xendit_key_hint || '');
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
       setShopAddress(s.data.shop_address || '');
@@ -139,7 +145,7 @@ export default function Settings() {
     e.preventDefault();
     setSaving(true); setSaved(false); setError('');
     try {
-      await updateMyTenantSettings({
+      const { data } = await updateMyTenantSettings({
         notification_email: notifEmail,
         contact_number: contactNumber,
         shop_address: shopAddress,
@@ -156,7 +162,13 @@ export default function Settings() {
         custom_domain: customDomain || null,
         white_label: whiteLabel,
         logo_url: logoUrl || null,
+        xendit_api_key: xenditKeyInput.trim() || undefined,
       });
+      // Update key state from response
+      setXenditKeySet(!!data.has_xendit_key);
+      setXenditKeyHint(data.xendit_key_hint || '');
+      setXenditKeyInput('');
+      setXenditKeyEditing(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -523,6 +535,53 @@ export default function Settings() {
                 <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
                   <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
                   <span>Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.</span>
+                </div>
+              )}
+
+              {paymentMode === 'xendit' && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+                  <label style={LABEL}>
+                    Xendit Secret API Key
+                    <a href="https://dashboard.xendit.co/settings/developers" target="_blank" rel="noreferrer"
+                      style={{ marginLeft: 8, fontSize: 11, color: '#38a9c2', fontWeight: 400, textDecoration: 'none' }}>
+                      Get from Xendit dashboard ↗
+                    </a>
+                  </label>
+
+                  {xenditKeySet && !xenditKeyEditing ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 13, color: '#374151', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        xnd_production_••••••••••••••{xenditKeyHint}
+                      </div>
+                      <button type="button" onClick={() => setXenditKeyEditing(true)}
+                        style={{ padding: '9px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                        Replace key
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="password"
+                        value={xenditKeyInput}
+                        onChange={e => setXenditKeyInput(e.target.value)}
+                        placeholder="xnd_production_..."
+                        style={INPUT}
+                        onFocus={FOCUS} onBlur={BLUR}
+                        autoComplete="new-password"
+                      />
+                      <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
+                        Starts with <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 3 }}>xnd_production_</code>.
+                        Found in Xendit Dashboard → Settings → Developers → API Keys.
+                        The key is validated before saving.
+                      </div>
+                      {xenditKeySet && (
+                        <button type="button" onClick={() => { setXenditKeyEditing(false); setXenditKeyInput(''); }}
+                          style={{ marginTop: 6, fontSize: 11, color: '#374151', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontFamily: 'inherit' }}>
+                          Cancel — keep existing key
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </SectionCard>
