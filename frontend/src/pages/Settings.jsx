@@ -255,10 +255,22 @@ export default function Settings() {
 
   function handleFbLogin() {
     if (!window.FB) return setFbMsg('Facebook SDK not loaded yet — please refresh and try again.');
-    setFbConnecting(true);
     setFbMsg('');
     setFbPages([]);
+
+    // Detect silently blocked popups — if callback never fires in 15s, show error
+    let responded = false;
+    const popupTimeout = setTimeout(() => {
+      if (!responded) {
+        setFbConnecting(false);
+        setFbMsg('❌ The Facebook login popup was blocked. Please allow popups for this site in your browser settings, then try again.');
+      }
+    }, 15000);
+
+    setFbConnecting(true);
     window.FB.login(async response => {
+      responded = true;
+      clearTimeout(popupTimeout);
       if (response.authResponse) {
         try {
           const { data } = await getFacebookPages(response.authResponse.accessToken);
