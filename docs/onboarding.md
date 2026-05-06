@@ -17,7 +17,7 @@ Use this to track your progress:
 - [ ] 5. Connect your Facebook Page via the "Connect Facebook Page" button in Settings
 - [ ] 6. Add your Instagram Business Account ID (optional but recommended)
 - [ ] 7. Test the Messenger bot with a real Facebook message
-- [ ] 8. Set up online payments via Xendit
+- [ ] 8. Set up online payments (Xendit **or** QR Code)
 - [ ] 9. Turn on the AI chatbot
 - [ ] 10. Add FAQs so the bot can answer common questions
 - [ ] 11. Invite your staff
@@ -68,8 +68,8 @@ Enter your **full address** (e.g., 123 Main St, Barangay, City, Province). This 
 ### Minimum Order Amount
 Enter the minimum order total (in ₱) a customer must reach before they can check out. Leave blank to accept any amount.
 
-### Walk-In QR Payment
-If you accept GCash or Maya for walk-in customers, upload your QR code image to any image hosting service (Google Drive, Imgur, etc.) and paste the direct image link here. This QR will appear on the walk-in POS payment screen.
+### Payment Method & QR Code
+Choose how online customers pay (see Step 8 below). If you use the **QR Code** option, you can also upload your QR image here — it will be shown to customers after they complete a booking online so they can scan and pay. The same QR image is shown to walk-in customers at the POS payment step.
 
 Click **"Save Settings"** when done.
 
@@ -193,24 +193,32 @@ Alternatively, ask the LaundroBot team and they can look it up for you.
 
 ---
 
-## Step 8 — Enable Online Payments via Xendit
+## Step 8 — Set Up Online Payments
 
-Xendit lets your customers pay online using GCash, Maya, credit/debit cards, bank transfers, and e-wallets — directly from the booking form or a payment link you send to them.
+LaundroBot supports two payment modes. Choose the one that fits your setup.
 
-### 8a. Create a Xendit account
+---
+
+### Option A — Xendit (Fully Automated)
+
+Xendit lets your customers pay online using GCash, Maya, credit/debit cards, bank transfers, and e-wallets — directly from the booking form or a payment link you send to them. Payment is confirmed automatically.
+
+**Best for:** Shops that want a fully hands-off payment process.
+
+#### 8A-1. Create a Xendit account
 
 1. Go to **[xendit.co](https://xendit.co)** and sign up for a business account
 2. Complete their verification process (requires business documents)
 3. Once verified, you will have access to the Xendit Dashboard
 
-### 8b. Get your API key
+#### 8A-2. Get your API key
 
 1. In the Xendit Dashboard, go to **Settings** → **Developers** → **API Keys**
 2. Click **"Generate secret key"**
 3. Choose **"Money-in products"** permissions
 4. Copy the key — it starts with `xnd_production_...`
 
-### 8c. Send your API key to the LaundroBot team
+#### 8A-3. Send your API key to the LaundroBot team
 
 Email **hello@laundrobot.app** with:
 
@@ -219,15 +227,60 @@ Email **hello@laundrobot.app** with:
 
 The team will add your key to your account configuration.
 
-### 8d. What happens after setup
+#### 8A-4. What happens after setup
 
-Once configured, your customers will see a **"Pay Online"** option in the booking form. When they pay, you receive:
+Once configured, your customers will see a **"Pay Online"** button in the booking form. When they pay, you receive:
 
 - An email confirmation with the order details
 - A Messenger message sent to the customer confirming payment
 - The order automatically marked as **Paid** on your Kanban board
 
 > **Note:** Xendit charges a processing fee per transaction (typically 2.5–3.5%). Check your Xendit dashboard for the current rates.
+
+---
+
+### Option B — QR Code / GCash / Maya (Manual Confirmation)
+
+Use this option if you do not have a Xendit account yet, or if you prefer customers to pay directly via your own GCash or Maya merchant QR code.
+
+**Best for:** New shops or shops that already have a GCash/Maya merchant account.
+
+> **Important:** With this option, payments are **not automated**. You must review the customer's screenshot and confirm each payment manually in the Orders panel.
+
+#### 8B-1. Switch to QR Code mode
+
+1. Go to **Settings** in your dashboard
+2. Scroll to **"Online Payment Method"**
+3. Click **"QR Code"** to select it
+4. Click **"Save Settings"**
+
+#### 8B-2. Upload your QR code image
+
+1. In Settings, scroll to the **"Payment QR Code"** section
+2. Click **"Upload QR Image"** and select your GCash or Maya merchant QR code from your device
+3. Click **"Save Settings"**
+
+Your QR code will be displayed to customers on the booking success screen after they submit an order.
+
+#### 8B-3. How the customer pays
+
+1. Customer completes the booking form and submits their order
+2. They see your QR code on the screen with instructions to scan and pay
+3. After paying, they upload a screenshot of the payment confirmation
+4. You receive an email notification that a screenshot has been submitted
+
+#### 8B-4. How you confirm payment
+
+1. Go to **Orders** in the sidebar
+2. Click on an order with a pending payment screenshot
+3. In the order detail panel, click **"View Screenshot"** to review the payment proof
+4. Click **"Confirm Payment"** — the order is marked as Paid and the customer receives a confirmation via Messenger and email
+
+---
+
+### Switching Between Modes
+
+You can switch between Xendit and QR Code mode at any time in **Settings** → **"Online Payment Method"**. Existing orders are not affected — each order keeps the payment flow it was created with.
 
 ---
 
@@ -318,16 +371,24 @@ Orders move through these statuses:
 
 | Status | Meaning |
 |---|---|
-| **NEW ORDER** | Just received, not yet assigned to a rider/staff |
-| **ASSIGNED** | Rider assigned, pickup scheduled |
-| **READY FOR PICKUP** | Laundry is done, ready for delivery |
+| **NEW ORDER** | Just received, not yet actioned |
+| **FOR PICK UP** | Pickup is scheduled, waiting on rider/customer |
+| **PROCESSING** | Laundry is being cleaned |
+| **FOR DELIVERY** | Done, out for delivery |
 | **COMPLETED** | Order delivered and done |
-| **CANCELLED** | Order was cancelled |
 
 **To update an order:**
-- **Drag** the order card to move it to the next column
-- Click an order card to **add notes**, **mark as paid**, or **send a Messenger update** to the customer
-- Click **"Generate Payment Link"** to send the customer a Xendit payment link via Messenger
+- **Drag** the order card to move it to the next column, or use the **◀ ▶** arrows on expanded cards
+- Click an order card to view full details, update the status, set a delivery date, or edit the order
+- Click **"Edit Order"** to change the service, price, or notes — a summary is generated for you to send to the customer
+
+**Payment actions:**
+- **Xendit mode:** Click **"Generate Payment Link"** to create a Xendit payment link for the customer. The order is automatically marked paid when the customer pays.
+- **QR Code mode:** When a customer submits a payment screenshot, click **"View Screenshot"** to review it, then click **"Confirm Payment"** to mark the order as paid and notify the customer.
+
+**Invoices:** Click **"Download PDF"** to generate a PDF invoice, or **"Send to Email"** to email it directly to the customer.
+
+**Archives:** Completed orders can be moved to the Archives tab month by month. Click the archive button to clear completed orders from your active board.
 
 ---
 
@@ -372,9 +433,17 @@ Configure:
 - The Get Started button only appears for users who have **never** messaged your Page before
 - Existing followers will see the chat directly — tell them to tap **☰** to open the menu
 
-### Payments are not being recorded
-- Confirm your Xendit API key is set up (Step 8c)
+### Payments are not being recorded (Xendit)
+- Confirm your Xendit API key is set up (Step 8A-3)
 - Xendit payments can take a few minutes to process after a customer pays
+
+### Customer did not see the QR code after booking
+- Confirm your payment mode is set to **QR Code** in Settings
+- Make sure you have uploaded a QR image in the **"Payment QR Code"** section and saved settings
+
+### Customer uploaded a screenshot but I can't see it
+- Go to **Orders**, click on the order, and look for the **QR Payment** section in the detail panel
+- The section only appears for unpaid orders on shops using QR Code mode
 
 ### AI is not answering questions
 - Confirm AI replies are toggled ON in Settings
