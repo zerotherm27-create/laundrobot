@@ -227,7 +227,7 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT t.id, t.name, t.fb_page_id, t.fb_page_access_token, t.xendit_api_key, t.logo_url, t.active, t.created_at, t.plan,
+      `SELECT t.id, t.name, t.fb_page_id, t.fb_page_access_token, t.xendit_api_key, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap,
               COUNT(o.id)::int AS total_orders,
               COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_revenue
        FROM tenants t
@@ -303,14 +303,16 @@ router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
 
 // PUT update tenant
 router.put('/:id', auth, superadminOnly, async (req, res) => {
-  const { name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active } = req.body;
+  const { name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, ai_daily_cap } = req.body;
   try {
     const { rows } = await db.query(
       `UPDATE tenants SET name=$1, fb_page_id=$2, fb_page_access_token=$3,
-                          xendit_api_key=$4, logo_url=$5, active=$6
+                          xendit_api_key=$4, logo_url=$5, active=$6,
+                          ai_daily_cap=COALESCE($8, ai_daily_cap)
        WHERE id=$7
-       RETURNING id, name, fb_page_id, logo_url, active, created_at`,
-      [name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, req.params.id]
+       RETURNING id, name, fb_page_id, logo_url, active, created_at, ai_daily_cap`,
+      [name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, req.params.id,
+       ai_daily_cap != null ? Number(ai_daily_cap) : null]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Tenant not found' });
     res.json(rows[0]);

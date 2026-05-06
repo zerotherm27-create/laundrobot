@@ -528,6 +528,12 @@ export default function SuperAdmin() {
                 ))}
               </>
             )}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>AI daily reply cap</label>
+              <input type="number" min="0" value={tenantForm.ai_daily_cap ?? 200} onChange={e => setTenantForm(p => ({ ...p, ai_daily_cap: e.target.value }))}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Max AI-generated replies per day for this branch (0 = disabled)</div>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <input type="checkbox" id="activeT" checked={tenantForm.active} onChange={e => setTenantForm(p => ({ ...p, active: e.target.checked }))} />
               <label htmlFor="activeT" style={{ fontSize: 13, cursor: 'pointer' }}>Branch active</label>

@@ -857,12 +857,28 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     if (pausedUntil && new Date(pausedUntil) > new Date()) {
       return; // human takeover active — stay silent
     }
-    sendTyping(token, senderId, true).catch(() => {});
-    const aiReply = await askGemini(tenant.id, text, senderId);
-    sendTyping(token, senderId, false).catch(() => {});
-    if (aiReply) {
-      await sendMessage(token, senderId, aiReply);
-      return;
+    // Check daily cap — reset counter if day has changed
+    const today = new Date().toISOString().slice(0, 10);
+    const { rows: [capRow] } = await db.query(
+      `SELECT ai_daily_cap, ai_daily_used, ai_daily_reset FROM tenants WHERE id=$1`, [tenant.id]
+    );
+    const cap = capRow?.ai_daily_cap ?? 200;
+    let used = capRow?.ai_daily_used ?? 0;
+    if (capRow?.ai_daily_reset?.toISOString().slice(0, 10) !== today) {
+      used = 0;
+      await db.query(`UPDATE tenants SET ai_daily_used=0, ai_daily_reset=$1 WHERE id=$2`, [today, tenant.id]);
+    }
+    if (used >= cap) {
+      console.log(`[ai-cap] tenant ${tenant.id} hit daily cap (${cap}), falling back to menu`);
+    } else {
+      sendTyping(token, senderId, true).catch(() => {});
+      const aiReply = await askGemini(tenant.id, text, senderId);
+      sendTyping(token, senderId, false).catch(() => {});
+      if (aiReply) {
+        await db.query(`UPDATE tenants SET ai_daily_used=ai_daily_used+1 WHERE id=$1`, [tenant.id]);
+        await sendMessage(token, senderId, aiReply);
+        return;
+      }
     }
   }
 
