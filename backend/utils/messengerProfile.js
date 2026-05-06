@@ -7,7 +7,7 @@ const GRAPH = 'https://graph.facebook.com/v19.0';
  * - Webhook subscription, whitelisted domains, Get Started, greeting, persistent menu
  * - If igUserId is provided, also sets the Instagram persistent menu
  */
-async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, igUserId) {
+async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, igUserId, customDomain = null) {
   const name = tenantName || 'us';
   const fbBase = `${GRAPH}/me/messenger_profile`;
 
@@ -27,10 +27,12 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
   // ── 1. Whitelist domain (required for messenger_extensions webview) ──────
   if (appUrl) {
     try {
+      const domains = [appUrl];
+      if (customDomain) domains.push(`https://${customDomain}`);
       await axios.post(`${fbBase}?access_token=${pageToken}`, {
-        whitelisted_domains: [appUrl],
+        whitelisted_domains: domains,
       });
-      console.log(`[messenger-profile] whitelisted domain: ${appUrl}`);
+      console.log(`[messenger-profile] whitelisted domains: ${domains.join(', ')}`);
     } catch (e) {
       console.warn(`[messenger-profile] domain whitelist failed for ${name}:`, e.response?.data?.error?.message || e.message);
     }
