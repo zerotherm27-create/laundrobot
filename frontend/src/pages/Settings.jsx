@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 
 const INPUT = {
@@ -108,7 +108,6 @@ export default function Settings() {
   const [fbConnecting,     setFbConnecting]     = useState(false);
   const [fbSaving,         setFbSaving]         = useState(false);
   const [fbMsg,            setFbMsg]            = useState('');
-  const [fbSdkReady,       setFbSdkReady]       = useState(false);
 
   // Logo
   const [logoUrl,        setLogoUrl]        = useState('');
@@ -217,74 +216,36 @@ export default function Settings() {
     } catch { alert('Failed to remove blocked date.'); }
   }
 
-  // Load Facebook JS SDK once on mount
+  // Handle Facebook OAuth redirect return
   useEffect(() => {
-    const appId = import.meta.env.VITE_FB_APP_ID;
-    if (!appId) return;
-
-    const initSdk = () => {
-      try {
-        if (!window.FB._initialized) window.FB.init({ appId, version: 'v19.0', cookie: true, xfbml: false });
-        setFbSdkReady(true);
-      } catch (e) {
-        setFbMsg('Facebook SDK failed to initialize. Check your App ID.');
-      }
-    };
-
-    // If already loaded, init immediately
-    if (window.FB) { initSdk(); return; }
-
-    window.fbAsyncInit = initSdk;
-
-    if (!document.getElementById('fb-sdk')) {
-      const s = document.createElement('script');
-      s.id = 'fb-sdk';
-      s.src = 'https://connect.facebook.net/en_US/sdk.js';
-      s.async = true;
-      s.defer = true;
-      s.onerror = () => setFbMsg('Could not load Facebook SDK — try disabling any ad blockers and refresh.');
-      document.body.appendChild(s);
-    }
-
-    // Timeout fallback — show error if SDK never loads
-    const timeout = setTimeout(() => {
-      if (!window.FB) setFbMsg('Facebook SDK took too long to load — try disabling any ad blockers and refresh.');
-    }, 10000);
-    return () => clearTimeout(timeout);
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const storedState = sessionStorage.getItem('fb_oauth_state');
+    if (!code || !state || state !== storedState) return;
+    sessionStorage.removeItem('fb_oauth_state');
+    window.history.replaceState({}, '', '/settings');
+    setFbConnecting(true);
+    setFbMsg('');
+    const redirectUri = window.location.origin + '/settings';
+    exchangeFbOAuthCode(code, redirectUri)
+      .then(({ data }) => {
+        setFbPages(data.pages);
+        setFbPageDataToken(data.pageDataToken);
+        if (data.pages.length === 1) setFbSelectedPageId(data.pages[0].id);
+      })
+      .catch(err => setFbMsg('❌ ' + (err.response?.data?.error || 'Failed to fetch your Pages.')))
+      .finally(() => setFbConnecting(false));
   }, []);
 
   function handleFbLogin() {
-    if (!window.FB) return setFbMsg('Facebook SDK not loaded yet — please refresh and try again.');
-    setFbMsg('');
-    setFbPages([]);
-
-    // Detect silently blocked popups — if callback never fires in 15s, show error
-    let responded = false;
-    const popupTimeout = setTimeout(() => {
-      if (!responded) {
-        setFbConnecting(false);
-        setFbMsg('❌ The Facebook login popup was blocked. Please allow popups for this site in your browser settings, then try again.');
-      }
-    }, 15000);
-
-    setFbConnecting(true);
-    window.FB.login(async response => {
-      responded = true;
-      clearTimeout(popupTimeout);
-      if (response.authResponse) {
-        try {
-          const { data } = await getFacebookPages(response.authResponse.accessToken);
-          setFbPages(data.pages);
-          setFbPageDataToken(data.pageDataToken);
-          if (data.pages.length === 1) setFbSelectedPageId(data.pages[0].id);
-        } catch (err) {
-          setFbMsg(err.response?.data?.error || 'Failed to fetch your Pages.');
-        }
-      } else {
-        setFbMsg('Facebook login was cancelled.');
-      }
-      setFbConnecting(false);
-    }, { scope: 'pages_manage_metadata,pages_messaging,pages_read_engagement' });
+    const appId = import.meta.env.VITE_FB_APP_ID;
+    if (!appId) return setFbMsg('❌ Facebook App ID not configured — contact support.');
+    const state = Math.random().toString(36).slice(2);
+    sessionStorage.setItem('fb_oauth_state', state);
+    const redirectUri = window.location.origin + '/settings';
+    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_manage_metadata,pages_messaging,pages_read_engagement&response_type=code&state=${state}`;
+    window.location.href = url;
   }
 
   async function handleFbConnect() {
@@ -893,14 +854,13 @@ export default function Settings() {
 
             {fbPages.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <button type="button" disabled={fbConnecting || !fbSdkReady} onClick={handleFbLogin}
-                  title={!fbSdkReady ? 'Facebook SDK is still loading…' : ''}
+                <button type="button" disabled={fbConnecting} onClick={handleFbLogin}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 8, border: 'none',
-                    background: (fbConnecting || !fbSdkReady) ? '#93C5FD' : '#1877F2',
+                    background: fbConnecting ? '#93C5FD' : '#1877F2',
                     color: '#fff', fontWeight: 700, fontSize: 13,
-                    cursor: (fbConnecting || !fbSdkReady) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    cursor: fbConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                  {fbConnecting ? 'Opening Facebook…' : !fbSdkReady ? 'Loading SDK…' : fbPageId ? 'Reconnect Facebook Page' : 'Connect Facebook Page'}
+                  {fbConnecting ? 'Connecting…' : fbPageId ? 'Reconnect Facebook Page' : 'Connect Facebook Page'}
                 </button>
                 {!import.meta.env.VITE_FB_APP_ID && (
                   <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>VITE_FB_APP_ID is not set — contact support</div>
