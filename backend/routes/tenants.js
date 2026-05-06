@@ -322,6 +322,8 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
   }
 });
 
+const PLAN_AI_CAPS = { starter: 100, growth: 500, pro: 9999 };
+
 // PATCH update tenant plan (superadmin)
 router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
   const { plan, subscription_status } = req.body;
@@ -332,7 +334,10 @@ router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
   try {
     const updates = [];
     const vals = [];
-    if (plan) { updates.push(`plan=$${vals.length+1}`); vals.push(plan); }
+    if (plan) {
+      updates.push(`plan=$${vals.length+1}`); vals.push(plan);
+      updates.push(`ai_daily_cap=$${vals.length+1}`); vals.push(PLAN_AI_CAPS[plan]);
+    }
     if (subscription_status) { updates.push(`subscription_status=$${vals.length+1}`); vals.push(subscription_status); }
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.params.id);
