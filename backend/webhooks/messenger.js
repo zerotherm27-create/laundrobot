@@ -21,10 +21,10 @@ function makeSends(channel, token, igUserId) {
   return { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog };
 }
 
-function bookBtn(tenantId, psid = null) {
-  const appUrl = process.env.APP_URL;
-  const url = psid ? `${appUrl}/book/${tenantId}?psid=${psid}` : `${appUrl}/book/${tenantId}`;
-  return appUrl
+function bookBtn(tenantId, psid = null, customDomain = null) {
+  const base = customDomain ? `https://${customDomain}` : process.env.APP_URL;
+  const url = psid ? `${base}/book/${tenantId}?psid=${psid}` : `${base}/book/${tenantId}`;
+  return base
     ? { type: 'web_url', title: '🛒 Book Now', url, webview_height_ratio: 'full', messenger_extensions: true }
     : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
 }
@@ -313,7 +313,7 @@ async function handleOptin(tenant, senderId, ref) {
       await sends.sendButtons(token, senderId,
         `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
         [
-          bookBtn(tenant.id, senderId),
+          bookBtn(tenant.id, senderId, tenant.custom_domain),
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
           { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
         ]
@@ -432,7 +432,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     await sendButtons(token, senderId,
       `${greeting}\n\nWhat would you like to do?`,
       [
-        bookBtn(tenant.id),
+        bookBtn(tenant.id, null, tenant.custom_domain),
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
@@ -447,7 +447,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     await sendButtons(token, senderId,
       `${greeting}\n\nWhat would you like to do?`,
       [
-        bookBtn(tenant.id, channel === 'messenger' ? senderId : null),
+        bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
@@ -458,7 +458,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
 
   if (lc === 'book' || text === 'BOOK') {
     if (channel === 'messenger' && process.env.APP_URL) {
-      await sendButtons(token, senderId, `Ready to book? Tap below to get started! 👇`, [bookBtn(tenant.id, senderId)]);
+      await sendButtons(token, senderId, `Ready to book? Tap below to get started! 👇`, [bookBtn(tenant.id, senderId, tenant.custom_domain)]);
     } else {
       await setState('SELECT_CATEGORY', {}, {});
       await showCategoryMenu(sends, token, senderId, tenant.id, channel);
@@ -507,7 +507,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   if (text === 'MAIN_MENU') {
     await sendButtons(token, senderId, `What would you like to do?`,
       [
-        bookBtn(tenant.id, channel === 'messenger' ? senderId : null),
+        bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
         { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
       ]
@@ -547,7 +547,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Service selected (Instagram only — Messenger uses webform "Book Now" button) ──
   if (text.startsWith('SVC:')) {
     if (channel === 'messenger' && process.env.APP_URL) {
-      await sendButtons(token, senderId, `Tap below to complete your booking! 👇`, [bookBtn(tenant.id, senderId)]);
+      await sendButtons(token, senderId, `Tap below to complete your booking! 👇`, [bookBtn(tenant.id, senderId, tenant.custom_domain)]);
       return;
     }
     const parts   = text.split(':');
@@ -570,7 +570,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Booking flow (Instagram only — Messenger redirects to webform above) ─────
   // Guard: if a Messenger user has a stale in-flight booking step, redirect them
   if (channel === 'messenger' && ['ASK_WEIGHT','ASK_PHONE','ASK_ADDRESS','ASK_EMAIL','ASK_DATETIME','ASK_NAME','CONFIRM'].includes(step)) {
-    await sendButtons(token, senderId, `Let's complete your booking using our form! 👇`, [bookBtn(tenant.id, senderId)]);
+    await sendButtons(token, senderId, `Let's complete your booking using our form! 👇`, [bookBtn(tenant.id, senderId, tenant.custom_domain)]);
     await setState('MENU', {}, {});
     return;
   }
@@ -760,11 +760,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       ? [
           { type: 'web_url', url: paymentUrl, title: '💳 Pay Now' },
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          { ...bookBtn(tenant.id), title: '🛒 Book Again' },
+          { ...bookBtn(tenant.id, null, tenant.custom_domain), title: '🛒 Book Again' },
         ]
       : [
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          { ...bookBtn(tenant.id), title: '🛒 Book Again' },
+          { ...bookBtn(tenant.id, null, tenant.custom_domain), title: '🛒 Book Again' },
         ];
 
     await sendButtons(token, senderId,
@@ -804,7 +804,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
         ? `Your order has been cancelled. No worries! 😊`
         : `Okay, no problem! What would you like to do?`,
       [
-        bookBtn(tenant.id, channel === 'messenger' ? senderId : null),
+        bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
         { type: 'postback', title: '📋 View Services', payload: 'SERVICES' },
       ]
     );
@@ -885,7 +885,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   await sendButtons(token, senderId,
     `I didn't quite get that. 😊 What would you like to do?`,
     [
-      bookBtn(tenant.id, channel === 'messenger' ? senderId : null),
+      bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
       { type: 'postback', title: '📦 My Orders',     payload: 'MY_ORDERS'},
       { type: 'postback', title: '❓ FAQs',          payload: 'FAQS'     },
     ]
