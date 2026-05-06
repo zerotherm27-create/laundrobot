@@ -44,7 +44,9 @@ export const notifyOrderUpdate    = (id, data) => api.post(`/orders/${id}/notify
 export const generatePaymentLink  = id          => api.post(`/orders/${id}/payment-link`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 export const cancelOrder     = id => api.post(`/orders/${id}/cancel`);
-export const verifyPayment   = id => api.post(`/orders/${id}/verify-payment`);
+export const verifyPayment       = id => api.post(`/orders/${id}/verify-payment`);
+export const uploadPaymentScreenshot = (id, screenshot) => api.post(`/orders/${id}/upload-screenshot`, { screenshot });
+export const confirmQrPayment    = id => api.post(`/orders/${id}/confirm-qr-payment`);
 export const sendInvoice   = (id, pdfBase64, customerEmail) =>
   api.post(`/orders/${id}/send-invoice`, { pdf_base64: pdfBase64, customer_email: customerEmail });
 

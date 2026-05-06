@@ -4,7 +4,8 @@ const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
-const { sendInvoiceEmail } = require('../utils/email');
+const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
+const { sendButtons } = require('../utils/messenger');
 
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
 
@@ -514,6 +515,112 @@ router.post('/:id/send-invoice', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[send-invoice]', err.response?.data || err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST upload payment screenshot (public — called by customer on booking success screen)
+router.post('/:id/upload-screenshot', async (req, res) => {
+  const { screenshot } = req.body;
+  if (!screenshot) return res.status(400).json({ error: 'screenshot is required' });
+  try {
+    const { rows: [order] } = await db.query(
+      `UPDATE orders SET payment_screenshot=$1 WHERE id=$2 RETURNING id`,
+      [screenshot, req.params.id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[upload-screenshot]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST confirm QR payment manually (admin — marks paid and notifies customer)
+router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT o.id, o.booking_ref, o.paid, c.name AS customer_name, c.email AS customer_email, c.fb_id,
+              o.address, o.price, o.tenant_id
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id=$1 AND o.tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.paid) return res.json({ ok: true, already_paid: true });
+
+    // Mark all orders in booking as paid
+    const { rows: allOrders } = await db.query(
+      `UPDATE orders SET paid=TRUE
+       WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2
+       RETURNING id, price, booking_ref`,
+      [req.params.id, req.user.tenant_id]
+    );
+
+    const bookingRef = order.booking_ref || req.params.id;
+    const total = allOrders.reduce((s, o) => s + Number(o.price), 0);
+
+    // Load service names for notifications
+    const { rows: orderDetails } = await db.query(
+      `SELECT s.name AS service_name FROM orders o
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.booking_ref=$1`,
+      [bookingRef]
+    );
+    const serviceName = orderDetails.map(o => o.service_name).filter(Boolean).join(', ');
+
+    // Email: customer payment confirmation
+    sendCustomerPaymentEmail(req.user.tenant_id, {
+      orderId: bookingRef,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      serviceName,
+      address: order.address,
+      total,
+    }).catch(e => console.warn('[confirm-qr-payment] customer email failed:', e.message));
+
+    // Email: shop owner paid notification
+    sendPaidOrderEmail(req.user.tenant_id, {
+      orderId: bookingRef,
+      serviceName,
+      customerName: order.customer_name,
+      address: order.address,
+      total,
+    }).catch(e => console.warn('[confirm-qr-payment] owner email failed:', e.message));
+
+    // Messenger: notify customer if they have fb_id
+    if (order.fb_id) {
+      try {
+        const { rows: [tenant] } = await db.query(
+          `SELECT name, fb_page_access_token, contact_number, notification_email FROM tenants WHERE id=$1`,
+          [req.user.tenant_id]
+        );
+        if (tenant?.fb_page_access_token) {
+          const msg = `✅ Payment Confirmed!\n\n` +
+            `Hi ${order.customer_name || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
+            `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
+            `We'll check your order for confirmation.\n\n` +
+            `For concerns, reach out to us:\n` +
+            `📧 Email: ${tenant.notification_email || 'hello@laundrobot.app'}\n` +
+            (tenant.contact_number ? `📱 Contact: ${tenant.contact_number}` : '');
+          const appUrl = process.env.APP_URL;
+          const bookBtn = appUrl
+            ? { type: 'web_url', title: '🛒 Book Again', url: `${appUrl}/book/${req.user.tenant_id}`, webview_height_ratio: 'full', messenger_extensions: true }
+            : { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' };
+          await sendButtons(tenant.fb_page_access_token, order.fb_id, msg, [
+            bookBtn,
+            { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          ]);
+        }
+      } catch (e) {
+        console.warn('[confirm-qr-payment] messenger failed:', e.message);
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[confirm-qr-payment]', err.message);
     res.status(500).json({ error: err.message });
   }
 });

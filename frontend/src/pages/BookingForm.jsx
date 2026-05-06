@@ -3,7 +3,7 @@ import {
   getPublicBootstrap, getPublicGeocode,
   getPublicAddressSuggest,
   lookupPublicCustomer, createPublicOrder, validatePublicPromo,
-  savePublicCart, updatePublicCart,
+  savePublicCart, updatePublicCart, uploadPaymentScreenshot,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -232,7 +232,10 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   // Result
   const [submitting, setSubmitting] = useState(false);
   const [submitErr,  setSubmitErr]  = useState('');
-  const [result, setResult]         = useState(null); // { order_id, payment_url, total, service_name }
+  const [result, setResult]         = useState(null); // { order_id, payment_url, qr_url, total, service_name }
+  const [screenshotUploading, setScreenshotUploading] = useState(false);
+  const [screenshotDone,      setScreenshotDone]      = useState(false);
+  const [screenshotErr,       setScreenshotErr]       = useState('');
 
   useEffect(() => {
     // Read psid from URL param first (set by bot when opening the booking link)
@@ -662,6 +665,32 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
 
   // ─── Success ───────────────────────────────────────────────────────────────
   if (step === 'success') {
+    const isQrStatic = !!result.qr_url && !result.payment_url;
+
+    async function handleScreenshotUpload(e) {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setScreenshotErr('');
+      setScreenshotUploading(true);
+      try {
+        // Compress to max 800px wide before base64
+        const bitmap = await createImageBitmap(file);
+        const maxW = 800;
+        const scale = bitmap.width > maxW ? maxW / bitmap.width : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(bitmap.width * scale);
+        canvas.height = Math.round(bitmap.height * scale);
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        await uploadPaymentScreenshot(result.order_ids[0], base64);
+        setScreenshotDone(true);
+      } catch (err) {
+        setScreenshotErr('Upload failed — please try again.');
+      } finally {
+        setScreenshotUploading(false);
+      }
+    }
+
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
         <div style={{ textAlign: 'center', maxWidth: 380, width: '100%' }}>
@@ -672,7 +701,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
           <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 8 }}>
             Ref: {result.booking_ref}
           </div>
-          {result.is_dropoff && result.payment_url && (
+          {result.is_dropoff && (result.payment_url || isQrStatic) && (
             <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1.5px solid #F59E0B', textAlign: 'left' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} color="#92400E" /> Payment required before drop-off</div>
               <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>Your slot is not confirmed until payment is received. Please pay below before coming to the shop.</div>
@@ -681,10 +710,14 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
           <div style={{ fontSize: 14, color: '#374151', marginBottom: 20, lineHeight: 1.6 }}>
             {messengerPsid
               ? 'Check your Messenger — we sent you the full booking details.'
-              : result.is_dropoff
-                ? 'We\'ve received your booking. Pay below to confirm your drop-off slot.'
-                : 'We\'ve received your order and will be in touch shortly.'}
+              : isQrStatic
+                ? 'Scan the QR code below to pay, then upload your screenshot to confirm your booking.'
+                : result.is_dropoff
+                  ? 'We\'ve received your booking. Pay below to confirm your drop-off slot.'
+                  : 'We\'ve received your order and will be in touch shortly.'}
           </div>
+
+          {/* Xendit payment link (unchanged) */}
           {result.payment_url && (
             <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: `1.5px solid ${result.is_dropoff ? '#F59E0B' : '#9ED3DC'}`, boxShadow: '0 2px 12px rgba(56,169,194,.1)' }}>
               <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>{result.is_dropoff ? 'Pay now to confirm your slot' : 'Total due'}</div>
@@ -700,6 +733,43 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                 style={{ display: 'block', padding: '13px 24px', borderRadius: 10, background: result.is_dropoff ? '#D97706' : '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
                 <Icon name="card" size={15} color="#fff" style={{ marginRight: 6 }} /> Pay Now
               </a>
+            </div>
+          )}
+
+          {/* QR-static payment flow */}
+          {isQrStatic && (
+            <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: '1.5px solid #9ED3DC', boxShadow: '0 2px 12px rgba(56,169,194,.1)' }}>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>Total due</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 12 }}>
+                ₱{Number(result.total).toLocaleString('en-PH')}
+                {result.promo_discount > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#16a34a', marginLeft: 8 }}>
+                    (₱{Number(result.promo_discount).toLocaleString('en-PH')} off)
+                  </span>
+                )}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <img src={result.qr_url} alt="Payment QR Code"
+                  style={{ maxWidth: 200, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto' }}
+                  onError={e => { e.target.style.display = 'none'; }} />
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Scan with GCash, Maya, or your bank app</div>
+              </div>
+              {screenshotDone ? (
+                <div style={{ padding: '12px', borderRadius: 10, background: '#EAF3DE', border: '1px solid #86EFAC', fontSize: 13, fontWeight: 600, color: '#166534' }}>
+                  ✅ Screenshot submitted — we'll confirm your payment shortly!
+                </div>
+              ) : (
+                <>
+                  <label style={{ display: 'block', padding: '12px', borderRadius: 10, background: screenshotUploading ? '#F3F4F6' : '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 14, cursor: screenshotUploading ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
+                    {screenshotUploading
+                      ? <><span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', animation: 'spin .7s linear infinite', marginRight: 8, verticalAlign: 'middle' }} />Uploading…</>
+                      : '📷 Upload Payment Screenshot'}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleScreenshotUpload} disabled={screenshotUploading} />
+                  </label>
+                  {screenshotErr && <div style={{ fontSize: 12, color: '#A32D2D', marginTop: 8 }}>{screenshotErr}</div>}
+                  <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Take a screenshot of your GCash/Maya payment confirmation and upload it here.</div>
+                </>
+              )}
             </div>
           )}
         </div>

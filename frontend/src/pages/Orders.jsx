@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -89,6 +89,11 @@ export default function Orders() {
   const [payLinkUrl,     setPayLinkUrl]     = useState('');   // generated or existing
   const [payLinkErr,     setPayLinkErr]     = useState('');
   const [payLinkCopied,  setPayLinkCopied]  = useState(false);
+
+  // QR-static payment confirmation
+  const [qrConfirming,  setQrConfirming]  = useState(false);
+  const [qrConfirmErr,  setQrConfirmErr]  = useState('');
+  const [screenshotOpen, setScreenshotOpen] = useState(false);
 
   // Invoice
   const [shopInfo,        setShopInfo]        = useState(null);
@@ -377,7 +382,7 @@ export default function Orders() {
                       const isSelected = (selected?.booking_ref || selected?.id) === gKey;
                       return (
                       <tr key={gKey}
-                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); setInvoiceResult(''); }}
+                        onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); setInvoiceResult(''); setQrConfirmErr(''); setScreenshotOpen(false); }}
                         style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
                         <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
                           <div>{g.booking_ref || g.id}</div>
@@ -620,8 +625,55 @@ export default function Orders() {
                   </>
                 )}
 
-                {/* ── Payment Link ── */}
-                {!editMode && (
+                {/* ── QR-Static Payment Confirmation ── */}
+                {!editMode && shopInfo?.payment_mode === 'qr_static' && !selected.paid && (
+                  <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                      📷 QR Payment
+                    </div>
+                    {selected.payment_screenshot ? (
+                      <div>
+                        <div style={{ fontSize: 12, color: '#374151', marginBottom: 8 }}>
+                          Customer submitted a payment screenshot.
+                        </div>
+                        <button onClick={() => setScreenshotOpen(true)}
+                          style={{ width: '100%', marginBottom: 8, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          🔍 View Screenshot
+                        </button>
+                        {screenshotOpen && (
+                          <div onClick={() => setScreenshotOpen(false)}
+                            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+                            <img src={selected.payment_screenshot} alt="Payment screenshot"
+                              style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }} onClick={e => e.stopPropagation()} />
+                          </div>
+                        )}
+                        <button
+                          onClick={async () => {
+                            setQrConfirming(true); setQrConfirmErr('');
+                            try {
+                              await confirmQrPayment(selected.orderIds[0]);
+                              setSelected(prev => prev ? { ...prev, paid: true } : prev);
+                              setOrders(prev => prev.map(o => selected.orderIds.includes(o.id) ? { ...o, paid: true } : o));
+                            } catch (e) { setQrConfirmErr(e.response?.data?.error || 'Failed to confirm payment'); }
+                            setQrConfirming(false);
+                          }}
+                          disabled={qrConfirming}
+                          style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', cursor: qrConfirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                            background: qrConfirming ? '#9CA3AF' : '#16a34a', color: '#fff' }}>
+                          {qrConfirming ? 'Confirming…' : '✅ Confirm Payment'}
+                        </button>
+                        {qrConfirmErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{qrConfirmErr}</div>}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '10px 12px', borderRadius: 8, background: '#F7F7F5', border: '1px solid #E8E8E0', fontSize: 12, color: '#374151' }}>
+                        ⏳ Awaiting payment screenshot from customer.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Payment Link (Xendit only) ── */}
+                {!editMode && shopInfo?.payment_mode !== 'qr_static' && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
                     <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>
                       💳 Payment Link

@@ -36,6 +36,7 @@ function formatDateDisplay(dateStr) {
 }
 
 export default function Settings() {
+  const [paymentMode,    setPaymentMode]    = useState('xendit');
   const [qrImageUrl,     setQrImageUrl]     = useState('');
   const [notifEmail,     setNotifEmail]     = useState('');
   const [contactNumber,  setContactNumber]  = useState('');
@@ -108,6 +109,7 @@ export default function Settings() {
       getPromoCodes(),
       getReferralLinks(),
     ]).then(([s, b, p, r]) => {
+      setPaymentMode(s.data.payment_mode || 'xendit');
       setQrImageUrl(s.data.qr_image_url || '');
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
@@ -149,6 +151,7 @@ export default function Settings() {
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
         ig_user_id: igUserId,
         qr_image_url: qrImageUrl || null,
+        payment_mode: paymentMode,
         custom_domain: customDomain || null,
         white_label: whiteLabel,
         logo_url: logoUrl || null,
@@ -494,9 +497,35 @@ export default function Settings() {
                 placeholder="e.g. 123 Main St, Barangay, City, Province" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
             </SectionCard>
 
-            {/* Walk-in QR */}
-            <SectionCard icon={<Icon name="smartphone" size={18} color="#15803D" />} iconBg="#EAF3DE" title="Walk-in QR Payment"
-              subtitle="QR code shown to walk-in customers at the POS payment step">
+            {/* Payment Mode */}
+            <SectionCard icon={<Icon name="card" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="Online Payment Method"
+              subtitle="How customers pay when placing a booking online">
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                {[
+                  { value: 'xendit', label: '💳 Xendit', desc: 'GCash, Maya, cards via Xendit — fully automated' },
+                  { value: 'qr_static', label: '📷 QR Code', desc: 'Your own GCash/Maya QR — customer uploads screenshot' },
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setPaymentMode(opt.value)}
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      border: `2px solid ${paymentMode === opt.value ? '#7C3AED' : '#E2E8F0'}`,
+                      background: paymentMode === opt.value ? '#F5F3FF' : '#fff',
+                      transition: 'all .15s' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3 }}>{opt.label}</div>
+                    <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+              {paymentMode === 'qr_static' && (
+                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E' }}>
+                  ⚠️ Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.
+                </div>
+              )}
+            </SectionCard>
+
+            {/* QR Code Image */}
+            <SectionCard icon={<Icon name="smartphone" size={18} color="#15803D" />} iconBg="#EAF3DE"
+              title={paymentMode === 'qr_static' ? 'Payment QR Code' : 'Walk-in QR Payment'}
+              subtitle={paymentMode === 'qr_static' ? 'Shown to customers after online booking — they scan this to pay' : 'QR code shown to walk-in customers at the POS payment step'}>
               <label style={LABEL}>QR Image URL</label>
               <input type="url" value={qrImageUrl} onChange={e => setQrImageUrl(e.target.value)}
                 placeholder="https://... (link to your GCash/Maya QR image)" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />

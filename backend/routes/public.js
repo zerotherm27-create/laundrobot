@@ -552,11 +552,17 @@ router.post('/:tenantId/orders', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Xendit invoice (one for the whole booking)
+    // Payment setup — branch on tenant payment_mode
     let paymentUrl = null;
+    let qrUrl = null;
     try {
-      const { rows: [t] } = await db.query('SELECT xendit_api_key, fb_page_id FROM tenants WHERE id=$1', [req.params.tenantId]);
-      if (t?.xendit_api_key) {
+      const { rows: [t] } = await db.query('SELECT xendit_api_key, fb_page_id, payment_mode, qr_image_url FROM tenants WHERE id=$1', [req.params.tenantId]);
+
+      if (t?.payment_mode === 'qr_static') {
+        // QR-static: no Xendit invoice — use tenant's merchant QR image
+        qrUrl = t.qr_image_url || null;
+      } else if (t?.xendit_api_key) {
+        // Xendit: create invoice as before (unchanged)
         const invoice = await createInvoice(t.xendit_api_key, {
           externalId: bookingRef,
           amount: grandTotal,
@@ -570,7 +576,7 @@ router.post('/:tenantId/orders', async (req, res) => {
         paymentUrl = invoice.invoiceUrl;
       }
     } catch (e) {
-      console.warn('[public order] xendit invoice failed:', e.message);
+      console.warn('[public order] payment setup failed:', e.message);
     }
 
     // Resolve fb_id — use request value or fall back to stored customer record
@@ -597,14 +603,18 @@ router.post('/:tenantId/orders', async (req, res) => {
               `${servicesList}\n\n` +
               `📅 Drop-off: ${pickupFormatted}\n` +
               `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
-              `⚠️ Please complete your payment BEFORE dropping off your laundry. Your slot is not confirmed until payment is received.`
+              (qrUrl
+                ? `⚠️ Please scan the QR code sent to you and upload your payment screenshot to confirm your slot.`
+                : `⚠️ Please complete your payment BEFORE dropping off your laundry. Your slot is not confirmed until payment is received.`)
             : `✅ Booking Confirmed!\n\n` +
               `Ref: ${bookingRef}\n` +
               `Hi ${name.trim()}! We've received your order.\n\n` +
               `${servicesList}\n\n` +
               `📅 Pickup: ${pickupFormatted}\n` +
               `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
-              `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`;
+              (qrUrl
+                ? `Please scan the QR code and upload your payment screenshot to confirm your booking. Thank you! 🧺`
+                : `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`);
 
           if (paymentUrl) {
             await sendButtons(tenant.fb_page_access_token, effectiveFbId, confirmText, [{
@@ -651,6 +661,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       order_ids: createdOrders.map(o => o.order_id),
       items: createdOrders,
       payment_url: paymentUrl,
+      qr_url: qrUrl,
       total: grandTotal,
       promo_discount: promoDiscount,
       promo_code: promoCodeApplied,

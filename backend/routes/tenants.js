@@ -18,7 +18,7 @@ router.get('/settings', auth, async (req, res) => {
     const { rows: [tenant] } = await db.query(
       `SELECT id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
               ig_user_id, ai_pause_hours, shop_address, fb_page_id, qr_image_url,
-              custom_domain, white_label, plan,
+              custom_domain, white_label, plan, payment_mode,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -32,11 +32,14 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url, payment_mode } = req.body;
   try {
     // Only Pro tenants can set custom domain / white label
     const { rows: [current] } = await db.query(`SELECT plan FROM tenants WHERE id=$1`, [req.user.tenant_id]);
     const isPro = current?.plan === 'pro';
+
+    const validPaymentModes = ['xendit', 'qr_static'];
+    const safePaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : null;
 
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants
@@ -46,10 +49,11 @@ router.put('/settings', auth, async (req, res) => {
            ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
            custom_domain = CASE WHEN $14 THEN $13 ELSE custom_domain END,
            white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END,
-           logo_url      = COALESCE($17, logo_url)
+           logo_url      = COALESCE($17, logo_url),
+           payment_mode  = COALESCE($18, payment_mode)
        WHERE id=$16
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
-                 ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, plan,
+                 ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, plan, payment_mode,
                  to_char(store_open, 'HH24:MI') AS store_open,
                  to_char(store_close, 'HH24:MI') AS store_close,
                  to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff`,
@@ -71,6 +75,7 @@ router.put('/settings', auth, async (req, res) => {
         white_label === true || white_label === 'true',// $15
         req.user.tenant_id,                            // $16
         logo_url || null,                              // $17
+        safePaymentMode,                               // $18
       ]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
