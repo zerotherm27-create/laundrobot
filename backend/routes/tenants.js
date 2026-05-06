@@ -107,6 +107,32 @@ router.put('/settings', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST fetch linked Instagram Business Account from the connected Facebook Page
+router.post('/settings/instagram-fetch', auth, async (req, res) => {
+  try {
+    const { rows: [tenant] } = await db.query(
+      `SELECT fb_page_id, fb_page_access_token FROM tenants WHERE id=$1`, [req.user.tenant_id]
+    );
+    if (!tenant?.fb_page_id || !tenant?.fb_page_access_token) {
+      return res.status(400).json({ error: 'Connect your Facebook Page first before auto-detecting Instagram.' });
+    }
+    const igRes = await axios.get(`${GRAPH}/${tenant.fb_page_id}`, {
+      params: { fields: 'instagram_business_account', access_token: tenant.fb_page_access_token },
+    });
+    const igId = igRes.data?.instagram_business_account?.id;
+    if (!igId) {
+      return res.status(404).json({ error: 'No Instagram Business account linked to this Facebook Page. Make sure your Instagram account is connected to the Page in Meta Business Suite.' });
+    }
+    // Save it
+    await db.query(`UPDATE tenants SET ig_user_id=$1 WHERE id=$2`, [igId, req.user.tenant_id]);
+    res.json({ ig_user_id: igId });
+  } catch (err) {
+    const fbMsg = err.response?.data?.error?.message;
+    console.error('[instagram-fetch]', fbMsg || err.message);
+    res.status(500).json({ error: fbMsg || 'Failed to fetch Instagram account.' });
+  }
+});
+
 // POST reset Messenger profile for own tenant (any admin)
 router.post('/settings/setup-messenger', auth, async (req, res) => {
   try {
