@@ -29,6 +29,16 @@ function SectionCard({ icon, iconBg, title, subtitle, children }) {
   );
 }
 
+function GroupHeader({ label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 24 }}>
+      <div style={{ flex: 1, height: 1, background: '#E8E8E0' }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.07em', whiteSpace: 'nowrap' }}>{label}</span>
+      <div style={{ flex: 1, height: 1, background: '#E8E8E0' }} />
+    </div>
+  );
+}
+
 function formatDateDisplay(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -88,6 +98,8 @@ export default function Settings() {
   // Instagram auto-connect
   const [igConnecting,   setIgConnecting]   = useState(false);
   const [igConnectMsg,   setIgConnectMsg]   = useState('');
+  const [igSaving,       setIgSaving]       = useState(false);
+  const [igSaved,        setIgSaved]        = useState(false);
 
   // Facebook OAuth connect flow
   const [fbPages,          setFbPages]          = useState([]);
@@ -160,7 +172,6 @@ export default function Settings() {
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
-        ig_user_id: igUserId,
         qr_image_url: qrImageUrl || null,
         payment_mode: paymentMode,
         custom_domain: customDomain || null,
@@ -377,11 +388,12 @@ export default function Settings() {
         <div style={{ maxWidth: 560 }}>
           <form onSubmit={handleSave}>
 
-            {/* Notification Email */}
+            {/* ── SHOP IDENTITY ── */}
+            <GroupHeader label="Shop Identity" />
+
             <SectionCard icon={<Icon name="image" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Business Logo"
               subtitle="Used on invoices and the booking form">
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                {/* Preview */}
                 <div
                   onClick={() => logoFileRef.current.click()}
                   style={{ width: 80, height: 80, borderRadius: 12, border: '1.5px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F9FAFB', flexShrink: 0 }}>
@@ -413,6 +425,66 @@ export default function Settings() {
               </div>
             </SectionCard>
 
+            <SectionCard icon={<Icon name="delivery" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Shop Address"
+              subtitle="Shown on invoices sent to customers">
+              <label style={LABEL}>Full Address</label>
+              <input type="text" value={shopAddress} onChange={e => setShopAddress(e.target.value)}
+                placeholder="e.g. 123 Main St, Barangay, City, Province" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+            </SectionCard>
+
+            <SectionCard icon={<Icon name="phone" size={18} color="#15803D" />} iconBg="#EAF3DE" title="Customer Contact Number"
+              subtitle="Shown to customers after booking — for questions via SMS or call">
+              <label style={LABEL}>Phone / Mobile Number</label>
+              <input type="tel" value={contactNumber} onChange={e => setContactNumber(e.target.value)}
+                placeholder="e.g. 09XX XXX XXXX or +63 9XX XXX XXXX" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>Customers will see this on their order confirmation screen</div>
+            </SectionCard>
+
+            {/* ── BOOKING & OPERATIONS ── */}
+            <GroupHeader label="Booking & Operations" />
+
+            <SectionCard icon={<Icon name="clock" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Store Hours &amp; Booking Window"
+              subtitle="Controls what times customers can select when placing a booking">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <label style={LABEL}>Store Opens</label>
+                  <input type="time" value={storeOpen} onChange={e => setStoreOpen(e.target.value)}
+                    style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
+                </div>
+                <div>
+                  <label style={LABEL}>Store Closes</label>
+                  <input type="time" value={storeClose} onChange={e => setStoreClose(e.target.value)}
+                    style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
+                </div>
+              </div>
+              <div>
+                <label style={LABEL}>Same-Day Booking Cutoff</label>
+                <input type="time" value={bookingCutoff} onChange={e => setBookingCutoff(e.target.value)}
+                  style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
+                  After this time, today's slots are unavailable — customers will be directed to book the next available day.
+                  {storeOpen && storeClose && bookingCutoff && (
+                    <span style={{ display: 'block', marginTop: 4, color: '#1a7d94', fontWeight: 600 }}>
+                      Example: booking open {storeOpen} – {bookingCutoff}, same-day cutoff at {bookingCutoff}, store closes at {storeClose}.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard icon={<Icon name="walkin" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Minimum Order Amount"
+              subtitle="Customers must reach this amount before they can proceed to checkout">
+              <label style={LABEL}>Minimum Order (₱)</label>
+              <input type="number" min="0" step="1" value={minimumOrder} onChange={e => setMinimumOrder(e.target.value)}
+                placeholder="e.g. 200 — leave blank to disable" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>
+                {minimumOrder ? `Customers need at least ₱${Number(minimumOrder).toLocaleString()} in their cart to check out.` : 'No minimum set — any order amount is accepted.'}
+              </div>
+            </SectionCard>
+
+            {/* ── NOTIFICATIONS ── */}
+            <GroupHeader label="Notifications" />
+
             <SectionCard icon={<Icon name="mail" size={18} color="#1a7d94" />} iconBg="#e6f5f8" title="Order Notifications"
               subtitle="Email you receive when new orders arrive and payments are confirmed">
               <label style={LABEL}>Notification Email</label>
@@ -421,7 +493,129 @@ export default function Settings() {
               <div style={{ fontSize: 11, color: '#374151', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="inbox" size={11} color="#374151" />New order alert · <Icon name="check-circle" size={11} color="#374151" />Payment confirmed alert</div>
             </SectionCard>
 
-            {/* AI Messenger Replies */}
+            {/* ── ONLINE PAYMENTS ── */}
+            <GroupHeader label="Online Payments" />
+
+            {/* Payment Mode + Xendit key + QR image — all in one card */}
+            <SectionCard icon={<Icon name="card" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="Online Payment Method"
+              subtitle="How customers pay when placing a booking online">
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                {[
+                  { value: 'xendit', label: 'Xendit', desc: 'GCash, Maya, cards via Xendit — fully automated' },
+                  { value: 'qr_static', label: 'QR Code', desc: 'Your own GCash/Maya QR — customer uploads screenshot' },
+                ].map(opt => (
+                  <button key={opt.value} type="button" onClick={() => setPaymentMode(opt.value)}
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                      border: `2px solid ${paymentMode === opt.value ? '#7C3AED' : '#E2E8F0'}`,
+                      background: paymentMode === opt.value ? '#F5F3FF' : '#fff',
+                      transition: 'all .15s' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {opt.value === 'xendit' ? <Icon name="card" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} /> : <Icon name="qr-code" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} />}
+                      {opt.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {paymentMode === 'qr_static' && (
+                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7, marginBottom: 16 }}>
+                  <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.</span>
+                </div>
+              )}
+
+              {paymentMode === 'xendit' && (
+                <div style={{ paddingBottom: 16, borderBottom: '0.5px solid #E8E8E0', marginBottom: 16 }}>
+                  <label style={LABEL}>
+                    Xendit Secret API Key
+                    <a href="https://dashboard.xendit.co/settings/developers" target="_blank" rel="noreferrer"
+                      style={{ marginLeft: 8, fontSize: 11, color: '#38a9c2', fontWeight: 400, textDecoration: 'none' }}>
+                      Get from Xendit dashboard ↗
+                    </a>
+                  </label>
+
+                  {xenditKeySet && !xenditKeyEditing ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 13, color: '#374151', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                        xnd_production_••••••••••••••{xenditKeyHint}
+                      </div>
+                      <button type="button" onClick={() => setXenditKeyEditing(true)}
+                        style={{ padding: '9px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                        Replace key
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="password"
+                        value={xenditKeyInput}
+                        onChange={e => setXenditKeyInput(e.target.value)}
+                        placeholder="xnd_production_..."
+                        style={INPUT}
+                        onFocus={FOCUS} onBlur={BLUR}
+                        autoComplete="new-password"
+                      />
+                      <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
+                        Starts with <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 3 }}>xnd_production_</code>.
+                        Found in Xendit Dashboard → Settings → Developers → API Keys.
+                        The key is validated before saving.
+                      </div>
+                      {xenditKeySet && (
+                        <button type="button" onClick={() => { setXenditKeyEditing(false); setXenditKeyInput(''); }}
+                          style={{ marginTop: 6, fontSize: 11, color: '#374151', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontFamily: 'inherit' }}>
+                          Cancel — keep existing key
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* QR Code image — context-aware label & description */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+                  {paymentMode === 'qr_static' ? 'Payment QR Code' : 'Walk-in QR Payment'}
+                </div>
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                  {paymentMode === 'qr_static'
+                    ? 'Shown to customers after online booking — they scan this to pay'
+                    : 'QR code shown to walk-in customers at the POS payment step'}
+                </div>
+                <input ref={qrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setQrImageUrl(ev.target.result);
+                    reader.readAsDataURL(file);
+                  }} />
+                {qrImageUrl ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <img src={qrImageUrl} alt="QR preview"
+                      style={{ maxWidth: 180, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto 10px' }} />
+                    <button type="button" onClick={() => qrFileRef.current?.click()}
+                      style={{ fontSize: 12, color: '#1a7d94', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                      Replace image
+                    </button>
+                    <button type="button" onClick={() => setQrImageUrl('')}
+                      style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', marginLeft: 12 }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => qrFileRef.current?.click()}
+                    style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Icon name="camera" size={14} color="#1a7d94" />Upload QR Image
+                  </button>
+                )}
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your GCash or Maya merchant QR code image from your device.</div>
+              </div>
+            </SectionCard>
+
+            {/* ── AI & AUTOMATION ── */}
+            <GroupHeader label="AI & Automation" />
+
             <SectionCard icon={<Icon name="services" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="AI Messenger Replies"
               subtitle="Gemini Flash answers customer questions outside the booking flow">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -484,235 +678,9 @@ export default function Settings() {
               )}
             </SectionCard>
 
-            {/* Instagram Messaging */}
-            <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
-              subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
+            {/* ── ADVANCED ── */}
+            <GroupHeader label="Advanced" />
 
-              {/* Auto-connect via Facebook Page */}
-              {fbPageId ? (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.5 }}>
-                    If your Instagram Business account is linked to your connected Facebook Page, click below to detect it automatically.
-                  </div>
-                  <button type="button" disabled={igConnecting} onClick={async () => {
-                    setIgConnecting(true); setIgConnectMsg('');
-                    try {
-                      const { data } = await fetchInstagramAccount();
-                      setIgUserId(data.ig_user_id);
-                      setIgConnectMsg('✅ Instagram account connected — ID: ' + data.ig_user_id);
-                    } catch (e) {
-                      setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Could not detect Instagram account.'));
-                    }
-                    setIgConnecting(false);
-                  }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none',
-                      background: igConnecting ? '#F9A8D4' : '#DB2777', color: '#fff', fontWeight: 700, fontSize: 13,
-                      cursor: igConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    <Icon name="camera" size={15} color="#fff" />
-                    {igConnecting ? 'Detecting…' : igUserId ? 'Re-detect Instagram Account' : 'Connect Instagram Account'}
-                  </button>
-                  {igConnectMsg && (
-                    <div style={{ marginTop: 8, fontSize: 12, padding: '7px 10px', borderRadius: 7,
-                      background: igConnectMsg.startsWith('✅') ? '#FCE7F3' : '#FCEBEB',
-                      color: igConnectMsg.startsWith('✅') ? '#9D174D' : '#A32D2D' }}>
-                      {igConnectMsg}
-                    </div>
-                  )}
-                  <div style={{ marginTop: 10, fontSize: 11, color: '#9CA3AF' }}>
-                    Requires your Instagram Business account to be linked to your Facebook Page in Meta Business Suite.
-                  </div>
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #F3F4F6', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    Or enter ID manually
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#FEF3C7', border: '1px solid #FCD34D', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                  <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>Connect your <strong>Facebook Page</strong> first (below), then come back here to auto-detect your Instagram account.</span>
-                </div>
-              )}
-
-              <label style={LABEL}>Instagram Business User ID</label>
-              <input value={igUserId} onChange={e => setIgUserId(e.target.value)}
-                placeholder="e.g. 17841400000000000"
-                style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
-                {fbPageId
-                  ? 'Auto-filled after clicking Connect above. You can also enter or edit it manually.'
-                  : 'Found in Meta Business Suite → Settings → Instagram Account → Account ID.'}
-                {' '}Leave blank to keep Instagram messaging disabled.
-              </div>
-            </SectionCard>
-
-            {/* Customer Contact Number */}
-            <SectionCard icon={<Icon name="phone" size={18} color="#15803D" />} iconBg="#EAF3DE" title="Customer Contact Number"
-              subtitle="Shown to customers after booking — for questions via SMS or call">
-              <label style={LABEL}>Phone / Mobile Number</label>
-              <input type="tel" value={contactNumber} onChange={e => setContactNumber(e.target.value)}
-                placeholder="e.g. 09XX XXX XXXX or +63 9XX XXX XXXX" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>Customers will see this on their order confirmation screen</div>
-            </SectionCard>
-
-            {/* Shop Address */}
-            <SectionCard icon={<Icon name="delivery" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Shop Address"
-              subtitle="Shown on invoices sent to customers">
-              <label style={LABEL}>Full Address</label>
-              <input type="text" value={shopAddress} onChange={e => setShopAddress(e.target.value)}
-                placeholder="e.g. 123 Main St, Barangay, City, Province" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-            </SectionCard>
-
-            {/* Payment Mode */}
-            <SectionCard icon={<Icon name="card" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="Online Payment Method"
-              subtitle="How customers pay when placing a booking online">
-              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                {[
-                  { value: 'xendit', label: 'Xendit', desc: 'GCash, Maya, cards via Xendit — fully automated' },
-                  { value: 'qr_static', label: 'QR Code', desc: 'Your own GCash/Maya QR — customer uploads screenshot' },
-                ].map(opt => (
-                  <button key={opt.value} type="button" onClick={() => setPaymentMode(opt.value)}
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                      border: `2px solid ${paymentMode === opt.value ? '#7C3AED' : '#E2E8F0'}`,
-                      background: paymentMode === opt.value ? '#F5F3FF' : '#fff',
-                      transition: 'all .15s' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {opt.value === 'xendit' ? <Icon name="card" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} /> : <Icon name="qr-code" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} />}
-                      {opt.label}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{opt.desc}</div>
-                  </button>
-                ))}
-              </div>
-              {paymentMode === 'qr_static' && (
-                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                  <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.</span>
-                </div>
-              )}
-
-              {paymentMode === 'xendit' && (
-                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
-                  <label style={LABEL}>
-                    Xendit Secret API Key
-                    <a href="https://dashboard.xendit.co/settings/developers" target="_blank" rel="noreferrer"
-                      style={{ marginLeft: 8, fontSize: 11, color: '#38a9c2', fontWeight: 400, textDecoration: 'none' }}>
-                      Get from Xendit dashboard ↗
-                    </a>
-                  </label>
-
-                  {xenditKeySet && !xenditKeyEditing ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 13, color: '#374151', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                        xnd_production_••••••••••••••{xenditKeyHint}
-                      </div>
-                      <button type="button" onClick={() => setXenditKeyEditing(true)}
-                        style={{ padding: '9px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                        Replace key
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="password"
-                        value={xenditKeyInput}
-                        onChange={e => setXenditKeyInput(e.target.value)}
-                        placeholder="xnd_production_..."
-                        style={INPUT}
-                        onFocus={FOCUS} onBlur={BLUR}
-                        autoComplete="new-password"
-                      />
-                      <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
-                        Starts with <code style={{ background: '#F3F4F6', padding: '1px 5px', borderRadius: 3 }}>xnd_production_</code>.
-                        Found in Xendit Dashboard → Settings → Developers → API Keys.
-                        The key is validated before saving.
-                      </div>
-                      {xenditKeySet && (
-                        <button type="button" onClick={() => { setXenditKeyEditing(false); setXenditKeyInput(''); }}
-                          style={{ marginTop: 6, fontSize: 11, color: '#374151', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontFamily: 'inherit' }}>
-                          Cancel — keep existing key
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </SectionCard>
-
-            {/* QR Code Image */}
-            <SectionCard icon={<Icon name="smartphone" size={18} color="#15803D" />} iconBg="#EAF3DE"
-              title={paymentMode === 'qr_static' ? 'Payment QR Code' : 'Walk-in QR Payment'}
-              subtitle={paymentMode === 'qr_static' ? 'Shown to customers after online booking — they scan this to pay' : 'QR code shown to walk-in customers at the POS payment step'}>
-              <input ref={qrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = ev => setQrImageUrl(ev.target.result);
-                  reader.readAsDataURL(file);
-                }} />
-              {qrImageUrl ? (
-                <div style={{ textAlign: 'center' }}>
-                  <img src={qrImageUrl} alt="QR preview"
-                    style={{ maxWidth: 180, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto 10px' }} />
-                  <button type="button" onClick={() => qrFileRef.current?.click()}
-                    style={{ fontSize: 12, color: '#1a7d94', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
-                    Replace image
-                  </button>
-                  <button type="button" onClick={() => setQrImageUrl('')}
-                    style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', marginLeft: 12 }}>
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <button type="button" onClick={() => qrFileRef.current?.click()}
-                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Icon name="camera" size={14} color="#1a7d94" />Upload QR Image
-                </button>
-              )}
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your GCash or Maya merchant QR code image from your device.</div>
-            </SectionCard>
-
-            {/* Minimum Order */}
-            <SectionCard icon={<Icon name="walkin" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Minimum Order Amount"
-              subtitle="Customers must reach this amount before they can proceed to checkout">
-              <label style={LABEL}>Minimum Order (₱)</label>
-              <input type="number" min="0" step="1" value={minimumOrder} onChange={e => setMinimumOrder(e.target.value)}
-                placeholder="e.g. 200 — leave blank to disable" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>
-                {minimumOrder ? `Customers need at least ₱${Number(minimumOrder).toLocaleString()} in their cart to check out.` : 'No minimum set — any order amount is accepted.'}
-              </div>
-            </SectionCard>
-
-            {/* Store Hours */}
-            <SectionCard icon={<Icon name="clock" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Store Hours &amp; Booking Window"
-              subtitle="Controls what times customers can select when placing a booking">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div>
-                  <label style={LABEL}>Store Opens</label>
-                  <input type="time" value={storeOpen} onChange={e => setStoreOpen(e.target.value)}
-                    style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
-                </div>
-                <div>
-                  <label style={LABEL}>Store Closes</label>
-                  <input type="time" value={storeClose} onChange={e => setStoreClose(e.target.value)}
-                    style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
-                </div>
-              </div>
-              <div>
-                <label style={LABEL}>Same-Day Booking Cutoff</label>
-                <input type="time" value={bookingCutoff} onChange={e => setBookingCutoff(e.target.value)}
-                  style={{ ...TIME_INPUT, width: '100%' }} onFocus={FOCUS} onBlur={BLUR} />
-                <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
-                  After this time, today's slots are unavailable — customers will be directed to book the next available day.
-                  {storeOpen && storeClose && bookingCutoff && (
-                    <span style={{ display: 'block', marginTop: 4, color: '#1a7d94', fontWeight: 600 }}>
-                      Example: booking open {storeOpen} – {bookingCutoff}, same-day cutoff at {bookingCutoff}, store closes at {storeClose}.
-                    </span>
-                  )}
-                </div>
-              </div>
-            </SectionCard>
-
-            {/* Custom Domain (Pro plan) */}
             <SectionCard icon={<Icon name="globe" size={18} color="#7C3AED" />} iconBg="#EDE9FE" title="Custom Domain & White-Label"
               subtitle={tenantPlan === 'pro' ? 'Point your own domain to your booking form' : 'Available on the Pro plan'}>
               {tenantPlan !== 'pro' ? (
@@ -782,8 +750,11 @@ export default function Settings() {
             </button>
           </form>
 
-          {/* Blocked Dates — separate section, no save button needed */}
-          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginTop: 16 }}>
+          {/* ── OPERATIONS ── */}
+          <GroupHeader label="Operations" />
+
+          {/* Blocked Dates */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FCEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ban" size={18} color="#DC2626" /></div>
@@ -800,7 +771,6 @@ export default function Settings() {
               )}
             </div>
 
-            {/* Add date form */}
             {addingDate && (
               <form onSubmit={handleAddDate} style={{ background: '#F7F9FD', borderRadius: 10, padding: '14px', marginBottom: 14, border: '1px solid #9ed3dc' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
@@ -829,7 +799,6 @@ export default function Settings() {
               </form>
             )}
 
-            {/* Blocked dates list */}
             {blockedDates.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
                 No blocked dates. Add holidays or closure days here.
@@ -852,7 +821,10 @@ export default function Settings() {
             )}
           </div>
 
-          {/* ── Facebook Page Connect ── */}
+          {/* ── MESSAGING SETUP ── */}
+          <GroupHeader label="Messaging & Integrations" />
+
+          {/* Facebook Page Connect */}
           <SectionCard icon={<Icon name="messenger" size={18} color="#1877F2" />} iconBg="#EBF3FD" title="Connect Facebook Page"
             subtitle="Link your Facebook Page so customers can order via Messenger">
             {fbMsg && (
@@ -863,7 +835,6 @@ export default function Settings() {
               </div>
             )}
 
-            {/* Already connected */}
             {fbPageId && fbPages.length === 0 && !fbMsg.startsWith('✅') && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '10px 14px', borderRadius: 8, background: '#EAF7EC', border: '0.5px solid #86EFAC' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -873,7 +844,6 @@ export default function Settings() {
               </div>
             )}
 
-            {/* Page selector — shown after successful FB login */}
             {fbPages.length > 0 && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
@@ -898,7 +868,6 @@ export default function Settings() {
               </div>
             )}
 
-            {/* Connect / Reconnect button */}
             {fbPages.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <button type="button" disabled={fbConnecting || !fbSdkReady} onClick={handleFbLogin}
@@ -922,7 +891,72 @@ export default function Settings() {
             </div>
           </SectionCard>
 
-          {/* ── Messenger Menu ── */}
+          {/* Instagram Messaging */}
+          <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
+            subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.5 }}>
+                If your Instagram Business account is linked to your connected Facebook Page, click below to detect it automatically.
+              </div>
+              <button type="button" disabled={igConnecting} onClick={async () => {
+                setIgConnecting(true); setIgConnectMsg('');
+                try {
+                  const { data } = await fetchInstagramAccount();
+                  setIgUserId(data.ig_user_id);
+                  setIgConnectMsg('✅ Instagram account connected — ID: ' + data.ig_user_id);
+                } catch (e) {
+                  setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Could not detect Instagram account.'));
+                }
+                setIgConnecting(false);
+              }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none',
+                  background: igConnecting ? '#F9A8D4' : '#DB2777', color: '#fff', fontWeight: 700, fontSize: 13,
+                  cursor: igConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                <Icon name="camera" size={15} color="#fff" />
+                {igConnecting ? 'Detecting…' : igUserId ? 'Re-detect Instagram Account' : 'Connect Instagram Account'}
+              </button>
+              {igConnectMsg && (
+                <div style={{ marginTop: 8, fontSize: 12, padding: '7px 10px', borderRadius: 7,
+                  background: igConnectMsg.startsWith('✅') ? '#FCE7F3' : '#FCEBEB',
+                  color: igConnectMsg.startsWith('✅') ? '#9D174D' : '#A32D2D' }}>
+                  {igConnectMsg}
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 11, color: '#9CA3AF' }}>
+                Requires your Instagram Business account to be linked to your Facebook Page in Meta Business Suite.
+              </div>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #F3F4F6', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Or enter ID manually
+              </div>
+            </div>
+
+            <label style={LABEL}>Instagram Business User ID</label>
+            <input value={igUserId} onChange={e => { setIgUserId(e.target.value); setIgSaved(false); }}
+              placeholder="e.g. 17841400000000000"
+              style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+            <div style={{ fontSize: 11, color: '#374151', marginTop: 5, marginBottom: 12, lineHeight: 1.5 }}>
+              Auto-filled after clicking Connect above, or enter it manually. Leave blank to keep Instagram messaging disabled.
+            </div>
+            <button type="button" disabled={igSaving} onClick={async () => {
+              setIgSaving(true); setIgSaved(false);
+              try {
+                await updateMyTenantSettings({ ig_user_id: igUserId });
+                setIgSaved(true);
+                setTimeout(() => setIgSaved(false), 3000);
+              } catch (e) {
+                setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Failed to save.'));
+              }
+              setIgSaving(false);
+            }}
+              style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none',
+                background: igSaved ? '#D1FAE5' : igSaving ? '#7dd3e0' : '#38a9c2',
+                color: igSaved ? '#065F46' : '#fff', cursor: igSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {igSaved ? '✅ Saved' : igSaving ? 'Saving…' : 'Save Instagram ID'}
+            </button>
+          </SectionCard>
+
+          {/* Messenger Menu */}
           <SectionCard icon={<Icon name="messenger" size={18} color="#0369A1" />} iconBg="#E0F2FE" title="Facebook Messenger Menu"
             subtitle="Reset the persistent menu shown to all customers in Messenger">
             <div style={{ fontSize: 13, color: '#374151', marginBottom: 12, lineHeight: 1.6 }}>
@@ -966,8 +1000,11 @@ export default function Settings() {
             </div>
           </SectionCard>
 
-          {/* ── Promo Codes ── */}
-          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginTop: 16 }}>
+          {/* ── MARKETING ── */}
+          <GroupHeader label="Marketing" />
+
+          {/* Promo Codes */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ticket" size={18} color="#7C3AED" /></div>
@@ -1114,120 +1151,124 @@ export default function Settings() {
             )}
             </>}
           </div>
+
+          {/* Referral Links */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="link" size={18} color="#0369A1" /></div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>Referral Links</div>
+                  <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Track which marketing channels drive clicks and bookings.</div>
+                </div>
+              </div>
+              {!['growth', 'pro'].includes(tenantPlan)
+                ? <span style={{ fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#065F46', padding: '2px 7px', borderRadius: 4 }}>GROWTH+</span>
+                : !addingRef && (
+                  <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
+                    style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#0369A1', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    + Add Link
+                  </button>
+                )
+              }
+            </div>
+
+            {!['growth', 'pro'].includes(tenantPlan) ? (
+              <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
+                Referral links are available on the <strong>Growth plan</strong> and above. Upgrade to track which marketing channels drive clicks and bookings.
+              </div>
+            ) : <>
+            {addingRef && (
+              <form onSubmit={async e => {
+                e.preventDefault(); setSavingRef(true); setRefErr('');
+                try {
+                  const { data } = await createReferralLink(refForm);
+                  setReferrals(prev => [data, ...prev]);
+                  setAddingRef(false);
+                } catch (err) { setRefErr(err.response?.data?.error || 'Failed to create link'); }
+                finally { setSavingRef(false); }
+              }} style={{ background: '#F9FAFB', borderRadius: 10, padding: '16px 18px', marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ flex: 2, minWidth: 160 }}>
+                <label style={LABEL}>Link Name</label>
+                <input style={INPUT} placeholder="e.g. Facebook Ads March" value={refForm.name}
+                  onChange={e => setRefForm(p => ({ ...p, name: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
+              </div>
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <label style={LABEL}>Ref Code</label>
+                <input style={INPUT} placeholder="e.g. FB_ADS_MARCH" value={refForm.ref}
+                  onChange={e => setRefForm(p => ({ ...p, ref: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={savingRef}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#38a9c2', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  {savingRef ? 'Saving…' : 'Save'}
+                </button>
+                <button type="button" onClick={() => setAddingRef(false)}
+                  style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+              {refErr && <div style={{ width: '100%', fontSize: 12, color: '#ef4444' }}>{refErr}</div>}
+            </form>
+            )}
+
+            {referrals.length === 0 && !addingRef ? (
+              <div style={{ textAlign: 'center', padding: '28px 0', color: '#9CA3AF', fontSize: 14 }}>
+                No referral links yet. Add one to start tracking.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1.5px solid #F3F4F6' }}>
+                      {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Revenue', 'Conv %', ''].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {referrals.map(r => {
+                      const conv = r.click_count > 0 ? ((Number(r.paid_order_count) / r.click_count) * 100).toFixed(1) : '—';
+                      const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
+                      return (
+                        <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                          <td style={{ padding: '10px 10px', fontWeight: 600, color: '#111827' }}>{r.name}</td>
+                          <td style={{ padding: '10px 10px' }}>
+                            <span style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4, fontSize: 12 }}>{r.ref}</span>
+                          </td>
+                          <td style={{ padding: '10px 10px' }}>
+                            <button type="button" onClick={() => { navigator.clipboard.writeText(link); }}
+                              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid #E2E8F0', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
+                              Copy Link
+                            </button>
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
+                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.paid_order_count}</td>
+                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
+                          <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
+                          <td style={{ padding: '10px 10px' }}>
+                            <button type="button"
+                              onClick={async () => {
+                                if (!confirm(`Delete referral link "${r.name}"?`)) return;
+                                try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
+                                catch { alert('Failed to delete.'); }
+                              }}
+                              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            </>}
+          </div>
+
         </div>
       )}
-
-      {/* ── Referral Links ── */}
-      <div style={{ marginTop: 32, background: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,.06)', padding: '24px 28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="link" size={15} color="#374151" />Referral Links</div>
-            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>Track which marketing channels drive clicks and bookings.</div>
-          </div>
-          {!['growth', 'pro'].includes(tenantPlan)
-            ? <span style={{ fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#065F46', padding: '2px 7px', borderRadius: 4 }}>GROWTH+</span>
-            : !addingRef && (
-              <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
-                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1.5px solid #38a9c2', background: '#fff', color: '#38a9c2', fontWeight: 600, cursor: 'pointer' }}>
-                + Add Link
-              </button>
-            )
-          }
-        </div>
-
-        {!['growth', 'pro'].includes(tenantPlan) ? (
-          <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
-            Referral links are available on the <strong>Growth plan</strong> and above. Upgrade to track which marketing channels drive clicks and bookings.
-          </div>
-        ) : <>
-        {addingRef && (
-          <form onSubmit={async e => {
-            e.preventDefault(); setSavingRef(true); setRefErr('');
-            try {
-              const { data } = await createReferralLink(refForm);
-              setReferrals(prev => [data, ...prev]);
-              setAddingRef(false);
-            } catch (err) { setRefErr(err.response?.data?.error || 'Failed to create link'); }
-            finally { setSavingRef(false); }
-          }} style={{ background: '#F9FAFB', borderRadius: 10, padding: '16px 18px', marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: 2, minWidth: 160 }}>
-              <label style={LABEL}>Link Name</label>
-              <input style={INPUT} placeholder="e.g. Facebook Ads March" value={refForm.name}
-                onChange={e => setRefForm(p => ({ ...p, name: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
-            </div>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={LABEL}>Ref Code</label>
-              <input style={INPUT} placeholder="e.g. FB_ADS_MARCH" value={refForm.ref}
-                onChange={e => setRefForm(p => ({ ...p, ref: e.target.value }))} onFocus={FOCUS} onBlur={BLUR} required />
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" disabled={savingRef}
-                style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#38a9c2', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                {savingRef ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" onClick={() => setAddingRef(false)}
-                style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#fff', color: '#374151', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                Cancel
-              </button>
-            </div>
-            {refErr && <div style={{ width: '100%', fontSize: 12, color: '#ef4444' }}>{refErr}</div>}
-          </form>
-        )}
-
-        {referrals.length === 0 && !addingRef ? (
-          <div style={{ textAlign: 'center', padding: '28px 0', color: '#9CA3AF', fontSize: 14 }}>
-            No referral links yet. Add one to start tracking.
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '1.5px solid #F3F4F6' }}>
-                  {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Revenue', 'Conv %', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {referrals.map(r => {
-                  const conv = r.click_count > 0 ? ((Number(r.paid_order_count) / r.click_count) * 100).toFixed(1) : '—';
-                  const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
-                  return (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                      <td style={{ padding: '10px 10px', fontWeight: 600, color: '#111827' }}>{r.name}</td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <span style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4, fontSize: 12 }}>{r.ref}</span>
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <button type="button" onClick={() => { navigator.clipboard.writeText(link); }}
-                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid #E2E8F0', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
-                          Copy Link
-                        </button>
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
-                      <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.paid_order_count}</td>
-                      <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
-                      <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <button type="button"
-                          onClick={async () => {
-                            if (!confirm(`Delete referral link "${r.name}"?`)) return;
-                            try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
-                            catch { alert('Failed to delete.'); }
-                          }}
-                          style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </>}
-      </div>
     </div>
     </>
   );
