@@ -93,6 +93,7 @@ export default function Settings() {
   // Logo
   const [logoUrl,        setLogoUrl]        = useState('');
   const logoFileRef = useRef();
+  const qrFileRef   = useRef();
 
   // White-label / custom domain (Pro only)
   const [tenantPlan,        setTenantPlan]        = useState('starter');
@@ -526,17 +527,34 @@ export default function Settings() {
             <SectionCard icon={<Icon name="smartphone" size={18} color="#15803D" />} iconBg="#EAF3DE"
               title={paymentMode === 'qr_static' ? 'Payment QR Code' : 'Walk-in QR Payment'}
               subtitle={paymentMode === 'qr_static' ? 'Shown to customers after online booking — they scan this to pay' : 'QR code shown to walk-in customers at the POS payment step'}>
-              <label style={LABEL}>QR Image URL</label>
-              <input type="url" value={qrImageUrl} onChange={e => setQrImageUrl(e.target.value)}
-                placeholder="https://... (link to your GCash/Maya QR image)" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              {qrImageUrl && (
-                <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <input ref={qrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = ev => setQrImageUrl(ev.target.result);
+                  reader.readAsDataURL(file);
+                }} />
+              {qrImageUrl ? (
+                <div style={{ textAlign: 'center' }}>
                   <img src={qrImageUrl} alt="QR preview"
-                    style={{ maxWidth: 160, borderRadius: 10, border: '1px solid #E8E8E0', boxShadow: 'var(--shadow-sm)' }}
-                    onError={e => { e.target.style.display = 'none'; }} />
+                    style={{ maxWidth: 180, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto 10px' }} />
+                  <button type="button" onClick={() => qrFileRef.current?.click()}
+                    style={{ fontSize: 12, color: '#1a7d94', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                    Replace image
+                  </button>
+                  <button type="button" onClick={() => setQrImageUrl('')}
+                    style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', marginLeft: 12 }}>
+                    Remove
+                  </button>
                 </div>
+              ) : (
+                <button type="button" onClick={() => qrFileRef.current?.click()}
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  📷 Upload QR Image
+                </button>
               )}
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your QR image to any image host (e.g. Google Drive, Imgur) and paste the direct link here.</div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your GCash or Maya merchant QR code image from your device.</div>
             </SectionCard>
 
             {/* Minimum Order */}
