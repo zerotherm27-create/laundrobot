@@ -191,6 +191,46 @@ router.post('/settings/facebook-pages', auth, async (req, res) => {
   }
 });
 
+// POST exchange Facebook OAuth code for pages (redirect-based flow)
+router.post('/settings/facebook-oauth-exchange', auth, async (req, res) => {
+  const { code, redirectUri } = req.body;
+  if (!code || !redirectUri) return res.status(400).json({ error: 'code and redirectUri are required' });
+  const appId     = process.env.FB_APP_ID;
+  const appSecret = process.env.FB_APP_SECRET;
+  if (!appId || !appSecret) return res.status(500).json({ error: 'Facebook app credentials not configured on server.' });
+  try {
+    // Exchange code for short-lived user token
+    const tokenRes = await axios.get('https://graph.facebook.com/v19.0/oauth/access_token', {
+      params: { client_id: appId, client_secret: appSecret, redirect_uri: redirectUri, code },
+    });
+    const shortToken = tokenRes.data.access_token;
+
+    // Exchange short-lived → long-lived user token
+    const exchangeRes = await axios.get('https://graph.facebook.com/oauth/access_token', {
+      params: { grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: shortToken },
+    });
+    const longLivedToken = exchangeRes.data.access_token;
+
+    // Fetch pages
+    const pagesRes = await axios.get(`${GRAPH}/me/accounts`, {
+      params: { access_token: longLivedToken, fields: 'id,name,category,access_token' },
+    });
+    const pages = pagesRes.data.data || [];
+    if (pages.length === 0) return res.status(400).json({ error: 'No Facebook Pages found for this account. Make sure you are an Admin of at least one Page.' });
+
+    const pageDataToken = jwt.sign(
+      { pages, tid: req.user.tenant_id },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    res.json({ pages: pages.map(p => ({ id: p.id, name: p.name, category: p.category })), pageDataToken });
+  } catch (err) {
+    const fbMsg = err.response?.data?.error?.message;
+    console.error('[facebook-oauth-exchange]', fbMsg || err.message);
+    res.status(400).json({ error: fbMsg || 'Failed to exchange Facebook code.' });
+  }
+});
+
 // POST save selected Facebook Page and run Messenger setup (step 2 of OAuth connect flow)
 router.post('/settings/facebook-connect', auth, async (req, res) => {
   const { pageId, pageDataToken } = req.body;
