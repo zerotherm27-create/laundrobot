@@ -98,6 +98,8 @@ export default function Settings() {
   // Instagram auto-connect
   const [igConnecting,   setIgConnecting]   = useState(false);
   const [igConnectMsg,   setIgConnectMsg]   = useState('');
+  const [igSaving,       setIgSaving]       = useState(false);
+  const [igSaved,        setIgSaved]        = useState(false);
 
   // Facebook OAuth connect flow
   const [fbPages,          setFbPages]          = useState([]);
@@ -170,7 +172,6 @@ export default function Settings() {
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
-        ig_user_id: igUserId,
         qr_image_url: qrImageUrl || null,
         payment_mode: paymentMode,
         custom_domain: customDomain || null,
@@ -612,68 +613,6 @@ export default function Settings() {
               </div>
             </SectionCard>
 
-            {/* ── MESSAGING & INTEGRATIONS ── */}
-            <GroupHeader label="Messaging & Integrations" />
-
-            {/* Instagram Messaging — igUserId is saved with main form */}
-            <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
-              subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
-
-              {fbPageId ? (
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.5 }}>
-                    If your Instagram Business account is linked to your connected Facebook Page, click below to detect it automatically.
-                  </div>
-                  <button type="button" disabled={igConnecting} onClick={async () => {
-                    setIgConnecting(true); setIgConnectMsg('');
-                    try {
-                      const { data } = await fetchInstagramAccount();
-                      setIgUserId(data.ig_user_id);
-                      setIgConnectMsg('✅ Instagram account connected — ID: ' + data.ig_user_id);
-                    } catch (e) {
-                      setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Could not detect Instagram account.'));
-                    }
-                    setIgConnecting(false);
-                  }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none',
-                      background: igConnecting ? '#F9A8D4' : '#DB2777', color: '#fff', fontWeight: 700, fontSize: 13,
-                      cursor: igConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    <Icon name="camera" size={15} color="#fff" />
-                    {igConnecting ? 'Detecting…' : igUserId ? 'Re-detect Instagram Account' : 'Connect Instagram Account'}
-                  </button>
-                  {igConnectMsg && (
-                    <div style={{ marginTop: 8, fontSize: 12, padding: '7px 10px', borderRadius: 7,
-                      background: igConnectMsg.startsWith('✅') ? '#FCE7F3' : '#FCEBEB',
-                      color: igConnectMsg.startsWith('✅') ? '#9D174D' : '#A32D2D' }}>
-                      {igConnectMsg}
-                    </div>
-                  )}
-                  <div style={{ marginTop: 10, fontSize: 11, color: '#9CA3AF' }}>
-                    Requires your Instagram Business account to be linked to your Facebook Page in Meta Business Suite.
-                  </div>
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #F3F4F6', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    Or enter ID manually
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#FEF3C7', border: '1px solid #FCD34D', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                  <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>Connect your <strong>Facebook Page</strong> first (in the Messaging Setup section below), then come back here to auto-detect your Instagram account.</span>
-                </div>
-              )}
-
-              <label style={LABEL}>Instagram Business User ID</label>
-              <input value={igUserId} onChange={e => setIgUserId(e.target.value)}
-                placeholder="e.g. 17841400000000000"
-                style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 5, lineHeight: 1.5 }}>
-                {fbPageId
-                  ? 'Auto-filled after clicking Connect above. You can also enter or edit it manually.'
-                  : 'Found in Meta Business Suite → Settings → Instagram Account → Account ID.'}
-                {' '}Leave blank to keep Instagram messaging disabled.
-              </div>
-            </SectionCard>
-
             {/* ── AI & AUTOMATION ── */}
             <GroupHeader label="AI & Automation" />
 
@@ -883,7 +822,7 @@ export default function Settings() {
           </div>
 
           {/* ── MESSAGING SETUP ── */}
-          <GroupHeader label="Messaging Setup" />
+          <GroupHeader label="Messaging & Integrations" />
 
           {/* Facebook Page Connect */}
           <SectionCard icon={<Icon name="messenger" size={18} color="#1877F2" />} iconBg="#EBF3FD" title="Connect Facebook Page"
@@ -950,6 +889,71 @@ export default function Settings() {
               Requires <strong>pages_messaging</strong> &amp; <strong>pages_manage_metadata</strong> permissions — available once Meta App Review is approved.
               If the login fails, email <strong>hello@laundrobot.app</strong> and we'll connect your page manually.
             </div>
+          </SectionCard>
+
+          {/* Instagram Messaging */}
+          <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
+            subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.5 }}>
+                If your Instagram Business account is linked to your connected Facebook Page, click below to detect it automatically.
+              </div>
+              <button type="button" disabled={igConnecting} onClick={async () => {
+                setIgConnecting(true); setIgConnectMsg('');
+                try {
+                  const { data } = await fetchInstagramAccount();
+                  setIgUserId(data.ig_user_id);
+                  setIgConnectMsg('✅ Instagram account connected — ID: ' + data.ig_user_id);
+                } catch (e) {
+                  setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Could not detect Instagram account.'));
+                }
+                setIgConnecting(false);
+              }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', borderRadius: 8, border: 'none',
+                  background: igConnecting ? '#F9A8D4' : '#DB2777', color: '#fff', fontWeight: 700, fontSize: 13,
+                  cursor: igConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                <Icon name="camera" size={15} color="#fff" />
+                {igConnecting ? 'Detecting…' : igUserId ? 'Re-detect Instagram Account' : 'Connect Instagram Account'}
+              </button>
+              {igConnectMsg && (
+                <div style={{ marginTop: 8, fontSize: 12, padding: '7px 10px', borderRadius: 7,
+                  background: igConnectMsg.startsWith('✅') ? '#FCE7F3' : '#FCEBEB',
+                  color: igConnectMsg.startsWith('✅') ? '#9D174D' : '#A32D2D' }}>
+                  {igConnectMsg}
+                </div>
+              )}
+              <div style={{ marginTop: 10, fontSize: 11, color: '#9CA3AF' }}>
+                Requires your Instagram Business account to be linked to your Facebook Page in Meta Business Suite.
+              </div>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #F3F4F6', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Or enter ID manually
+              </div>
+            </div>
+
+            <label style={LABEL}>Instagram Business User ID</label>
+            <input value={igUserId} onChange={e => { setIgUserId(e.target.value); setIgSaved(false); }}
+              placeholder="e.g. 17841400000000000"
+              style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+            <div style={{ fontSize: 11, color: '#374151', marginTop: 5, marginBottom: 12, lineHeight: 1.5 }}>
+              Auto-filled after clicking Connect above, or enter it manually. Leave blank to keep Instagram messaging disabled.
+            </div>
+            <button type="button" disabled={igSaving} onClick={async () => {
+              setIgSaving(true); setIgSaved(false);
+              try {
+                await updateMyTenantSettings({ ig_user_id: igUserId });
+                setIgSaved(true);
+                setTimeout(() => setIgSaved(false), 3000);
+              } catch (e) {
+                setIgConnectMsg('❌ ' + (e.response?.data?.error || 'Failed to save.'));
+              }
+              setIgSaving(false);
+            }}
+              style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none',
+                background: igSaved ? '#D1FAE5' : igSaving ? '#7dd3e0' : '#38a9c2',
+                color: igSaved ? '#065F46' : '#fff', cursor: igSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+              {igSaved ? '✅ Saved' : igSaving ? 'Saving…' : 'Save Instagram ID'}
+            </button>
           </SectionCard>
 
           {/* Messenger Menu */}
