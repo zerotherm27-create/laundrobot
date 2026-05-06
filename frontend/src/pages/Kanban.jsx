@@ -430,13 +430,13 @@ export default function Kanban() {
                           )
                         )}
                         {g.pickup_date && (
-                          <div style={{ fontSize: 10, color: '#374151', marginTop: 5 }}>
-                            📅 Pickup: {fmtDateTime(g.pickup_date)}
+                          <div style={{ fontSize: 10, color: '#374151', marginTop: 5, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Icon name="calendar" size={10} color="#374151" />Pickup: {fmtDateTime(g.pickup_date)}
                           </div>
                         )}
                         {g.delivery_date && g.status !== 'COMPLETED' && (
-                          <div style={{ fontSize: 10, marginTop: 3, fontWeight: 600, color: URGENCY_META[getUrgency(g)].color || '#374151' }}>
-                            🚚 Deliver by: {fmtDate(g.delivery_date)}
+                          <div style={{ fontSize: 10, marginTop: 3, fontWeight: 600, color: URGENCY_META[getUrgency(g)].color || '#374151', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Icon name="truck" size={10} color={URGENCY_META[getUrgency(g)].color || '#374151'} />Deliver by: {fmtDate(g.delivery_date)}
                           </div>
                         )}
                         {/* Move buttons */}
@@ -567,7 +567,7 @@ export default function Kanban() {
               {/* Promo */}
               {Number(modalOrder.promo_discount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                  <span style={{ color: '#7C3AED', fontWeight: 600 }}>🎟️ Promo{modalOrder.promo_code ? ` (${modalOrder.promo_code})` : ''}</span>
+                  <span style={{ color: '#7C3AED', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ticket" size={12} color="#7C3AED" />Promo{modalOrder.promo_code ? ` (${modalOrder.promo_code})` : ''}</span>
                   <span style={{ fontWeight: 700, color: '#7C3AED' }}>−₱{Number(modalOrder.promo_discount).toLocaleString()}</span>
                 </div>
               )}
@@ -595,7 +595,7 @@ export default function Kanban() {
 
             {/* Delivery date row — editable */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '0.5px solid #F0F0EC', fontSize: 13 }}>
-              <span style={{ color: '#374151', flexShrink: 0 }}>🚚 Deliver by</span>
+              <span style={{ color: '#374151', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="truck" size={13} color="#374151" />Deliver by</span>
               {editingDelivery ? (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input type="date" value={deliveryInput} onChange={e => setDeliveryInput(e.target.value)}
@@ -615,8 +615,8 @@ export default function Kanban() {
                     {modalOrder.delivery_date ? fmtDate(modalOrder.delivery_date) : 'Not set'}
                   </span>
                   <button onClick={() => { setEditingDelivery(true); setDeliveryInput(modalOrder.delivery_date ? modalOrder.delivery_date.slice(0,10) : ''); }}
-                    style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, border: '0.5px solid #D1D5DB', background: '#F7F7F5', cursor: 'pointer', color: '#374151', fontFamily: 'inherit' }}>
-                    ✎ Edit
+                    style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, border: '0.5px solid #D1D5DB', background: '#F7F7F5', cursor: 'pointer', color: '#374151', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <Icon name="pencil" size={10} color="#374151" />Edit
                   </button>
                 </div>
               )}
@@ -624,8 +624,8 @@ export default function Kanban() {
 
             {modalOrder.xendit_invoice_url && (
               <a href={modalOrder.xendit_invoice_url} target="_blank" rel="noreferrer"
-                style={{ display: 'block', marginTop: 10, padding: '8px', textAlign: 'center', background: '#EAF3DE', color: '#3B6D11', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
-                💳 View Payment Link
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10, padding: '8px', textAlign: 'center', background: '#EAF3DE', color: '#3B6D11', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600 }}>
+                <Icon name="card" size={13} color="#3B6D11" />View Payment Link
               </a>
             )}
 
@@ -657,11 +657,11 @@ export default function Kanban() {
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
               <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600 }}>
-                  📄 Download PDF
+                <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Icon name="file" size={13} color="#1D4ED8" />Download PDF
                 </button>
-                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600 }}>
-                  {invoiceSending ? '⏳ Sending…' : '📧 Send to Email'}
+                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Send to Email</>}
                 </button>
               </div>
               {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
@@ -710,7 +710,7 @@ export default function Kanban() {
                     }}
                     disabled={cancelling}
                     style={{ width: '100%', padding: '8px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: '1px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: cancelling ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    {cancelling ? '⏳ Cancelling…' : '✕ Cancel Order'}
+                    {cancelling ? 'Cancelling…' : <><Icon name="x" size={12} color="#DC2626" style={{ marginRight: 5 }} />Cancel Order</>}
                   </button>
                 )}
               </div>

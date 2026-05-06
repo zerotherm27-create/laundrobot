@@ -305,7 +305,7 @@ export default function Orders() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setShowCreateModal(true)}
             className="btn-primary" style={{ gap: 6 }}>
-            ➕ New Order
+            <Icon name="plus" size={13} color="#fff" style={{ marginRight: 5 }} />New Order
           </button>
           <button onClick={() => { setView('active'); setSelected(null); }}
             style={{ padding: '6px 14px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
@@ -522,7 +522,7 @@ export default function Orders() {
                       {/* Promo */}
                       {Number(selected.promo_discount) > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
-                          <span style={{ color: '#7C3AED', fontWeight: 600 }}>🎟️ Promo{selected.promo_code ? ` (${selected.promo_code})` : ''}</span>
+                          <span style={{ color: '#7C3AED', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="ticket" size={12} color="#7C3AED" />Promo{selected.promo_code ? ` (${selected.promo_code})` : ''}</span>
                           <span style={{ fontWeight: 700, color: '#7C3AED' }}>−₱{Number(selected.promo_discount).toLocaleString()}</span>
                         </div>
                       )}
@@ -575,8 +575,8 @@ export default function Orders() {
                           </button>
                           {savedDiff.payment_url && (
                             <a href={savedDiff.payment_url} target="_blank" rel="noreferrer"
-                              style={{ display: 'block', marginTop: 6, padding: '8px', fontSize: 13, borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', textAlign: 'center', textDecoration: 'none', fontWeight: 600 }}>
-                              💳 Open New Payment Link
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 6, padding: '8px', fontSize: 13, borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', textAlign: 'center', textDecoration: 'none', fontWeight: 600 }}>
+                              <Icon name="card" size={13} color="#3B6D11" />Open Payment Link
                             </a>
                           )}
                           <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
@@ -615,8 +615,8 @@ export default function Orders() {
                               </div>
                             )
                           ) : (
-                            <div style={{ marginTop: 8, fontSize: 11, color: '#374151' }}>
-                              ℹ️ Web booking — contact the customer directly via phone.
+                            <div style={{ marginTop: 8, fontSize: 11, color: '#374151', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Icon name="info" size={11} color="#374151" />Web booking — contact the customer directly via phone.
                             </div>
                           )}
                         </div>
@@ -628,8 +628,8 @@ export default function Orders() {
                 {/* ── QR-Static Payment Confirmation ── */}
                 {!editMode && shopInfo?.payment_mode === 'qr_static' && !selected.paid && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
-                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                      📷 QR Payment
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="camera" size={12} color="#374151" />QR Payment
                     </div>
                     {selected.payment_screenshot ? (
                       <div>
@@ -637,8 +637,8 @@ export default function Orders() {
                           Customer submitted a payment screenshot.
                         </div>
                         <button onClick={() => setScreenshotOpen(true)}
-                          style={{ width: '100%', marginBottom: 8, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit' }}>
-                          🔍 View Screenshot
+                          style={{ width: '100%', marginBottom: 8, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                          <Icon name="eye" size={12} color="#1a7d94" />View Screenshot
                         </button>
                         {screenshotOpen && (
                           <div onClick={() => setScreenshotOpen(false)}
@@ -660,13 +660,13 @@ export default function Orders() {
                           disabled={qrConfirming}
                           style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', cursor: qrConfirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                             background: qrConfirming ? '#9CA3AF' : '#16a34a', color: '#fff' }}>
-                          {qrConfirming ? 'Confirming…' : '✅ Confirm Payment'}
+                          {qrConfirming ? 'Confirming…' : <><Icon name="check-circle" size={13} color="#fff" style={{ marginRight: 5 }} />Confirm Payment</>}
                         </button>
                         {qrConfirmErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{qrConfirmErr}</div>}
                       </div>
                     ) : (
-                      <div style={{ padding: '10px 12px', borderRadius: 8, background: '#F7F7F5', border: '1px solid #E8E8E0', fontSize: 12, color: '#374151' }}>
-                        ⏳ Awaiting payment screenshot from customer.
+                      <div style={{ padding: '10px 12px', borderRadius: 8, background: '#F7F7F5', border: '1px solid #E8E8E0', fontSize: 12, color: '#374151', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Icon name="clock" size={12} color="#374151" />Awaiting payment screenshot from customer.
                       </div>
                     )}
                   </div>
@@ -675,8 +675,8 @@ export default function Orders() {
                 {/* ── Payment Link (Xendit only) ── */}
                 {!editMode && shopInfo?.payment_mode !== 'qr_static' && (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
-                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                      💳 Payment Link
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="card" size={12} color="#374151" />Payment Link
                     </div>
 
                     {payLinkUrl ? (
@@ -728,7 +728,7 @@ export default function Orders() {
                           style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: payLinkLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                           {payLinkLoading
                             ? <><span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #9ED3DC', borderTopColor: '#38a9c2', animation: 'spin .7s linear infinite', display: 'inline-block' }} /> Generating…</>
-                            : '💳 Generate Payment Link'}
+                            : <><Icon name="card" size={12} color="#1a7d94" style={{ marginRight: 5 }} />Generate Payment Link</>}
                         </button>
                         {payLinkErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{payLinkErr}</div>}
                       </div>
@@ -771,7 +771,7 @@ export default function Orders() {
                         }}
                         disabled={cancelling}
                         style={{ width: '100%', padding: '8px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: '1px solid #FECACA', background: '#FEF2F2', color: '#DC2626', cursor: cancelling ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                        {cancelling ? '⏳ Cancelling…' : '✕ Cancel Order'}
+                        {cancelling ? 'Cancelling…' : <><Icon name="x" size={12} color="#DC2626" style={{ marginRight: 5 }} />Cancel Order</>}
                       </button>
                     )}
                   </div>
@@ -780,8 +780,8 @@ export default function Orders() {
                 {/* Edit form */}
                 {editMode && (
                   <div style={{ marginTop: 4 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1a7d94', marginBottom: 12 }}>
-                      ✏️ Edit {bookingRef ? `Booking ${bookingRef}` : 'Order'}
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#1a7d94', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="pencil" size={13} color="#1a7d94" />Edit {bookingRef ? `Booking ${bookingRef}` : 'Order'}
                     </div>
 
                     {/* Booking items editor */}
@@ -933,8 +933,8 @@ export default function Orders() {
                     </div>
 
                     <button onClick={() => enterEditMode(selected)}
-                      style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#e6f5f8', border: '0.5px solid #9ed3dc', color: '#1a7d94' }}>
-                      ✏️ Edit Order
+                      style={{ marginTop: 10, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: '#e6f5f8', border: '0.5px solid #9ed3dc', color: '#1a7d94', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      <Icon name="pencil" size={13} color="#1a7d94" />Edit Order
                     </button>
 
                     {selected.status === 'COMPLETED' && (
@@ -951,8 +951,8 @@ export default function Orders() {
                     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
                       <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600 }}>
-                          📄 Download PDF
+                        <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                          <Icon name="file" size={13} color="#1D4ED8" />Download PDF
                         </button>
                         <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600 }}>
                           <Icon name="messaging" size={13} color="#374151" style={{ marginRight: 5 }} />{invoiceSending ? 'Sending…' : 'Send to Email'}

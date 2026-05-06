@@ -402,7 +402,7 @@ export default function Settings() {
               <label style={LABEL}>Notification Email</label>
               <input type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)}
                 placeholder="e.g. myshop@gmail.com" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>📦 New order alert · 💰 Payment confirmed alert</div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="inbox" size={11} color="#374151" />New order alert · <Icon name="check-circle" size={11} color="#374151" />Payment confirmed alert</div>
             </SectionCard>
 
             {/* AI Messenger Replies */}
@@ -503,22 +503,26 @@ export default function Settings() {
               subtitle="How customers pay when placing a booking online">
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
                 {[
-                  { value: 'xendit', label: '💳 Xendit', desc: 'GCash, Maya, cards via Xendit — fully automated' },
-                  { value: 'qr_static', label: '📷 QR Code', desc: 'Your own GCash/Maya QR — customer uploads screenshot' },
+                  { value: 'xendit', label: 'Xendit', desc: 'GCash, Maya, cards via Xendit — fully automated' },
+                  { value: 'qr_static', label: 'QR Code', desc: 'Your own GCash/Maya QR — customer uploads screenshot' },
                 ].map(opt => (
                   <button key={opt.value} type="button" onClick={() => setPaymentMode(opt.value)}
                     style={{ flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
                       border: `2px solid ${paymentMode === opt.value ? '#7C3AED' : '#E2E8F0'}`,
                       background: paymentMode === opt.value ? '#F5F3FF' : '#fff',
                       transition: 'all .15s' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3 }}>{opt.label}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: paymentMode === opt.value ? '#7C3AED' : '#111827', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {opt.value === 'xendit' ? <Icon name="card" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} /> : <Icon name="camera" size={13} color={paymentMode === opt.value ? '#7C3AED' : '#374151'} />}
+                      {opt.label}
+                    </div>
                     <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.4 }}>{opt.desc}</div>
                   </button>
                 ))}
               </div>
               {paymentMode === 'qr_static' && (
-                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E' }}>
-                  ⚠️ Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.
+                <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#92400E', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                  <Icon name="alert-triangle" size={13} color="#92400E" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>Payments are <strong>not automated</strong> — you'll confirm each payment manually in the Orders panel after the customer uploads their screenshot.</span>
                 </div>
               )}
             </SectionCard>
@@ -550,8 +554,8 @@ export default function Settings() {
                 </div>
               ) : (
                 <button type="button" onClick={() => qrFileRef.current?.click()}
-                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  📷 Upload QR Image
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Icon name="camera" size={14} color="#1a7d94" />Upload QR Image
                 </button>
               )}
               <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your GCash or Maya merchant QR code image from your device.</div>

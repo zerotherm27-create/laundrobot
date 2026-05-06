@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getServices, getCategories, getDeliveryZones, createPublicOrder } from '../api.js';
+import { Icon } from '../components/Icons.jsx';
 
 const STATUSES = ['NEW ORDER', 'FOR PICK UP', 'PROCESSING', 'FOR DELIVERY', 'COMPLETED'];
 
@@ -198,7 +199,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
         {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid #E8E8E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>📝 New Order</div>
+            <div style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 7 }}><Icon name="orders" size={16} color="#374151" />New Order</div>
             <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>Create an order on behalf of a customer</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6B7280', lineHeight: 1 }}>×</button>
@@ -209,7 +210,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
 
           {!tenantId && (
             <div style={{ padding: '12px 16px', background: '#FEF3C7', borderRadius: 8, fontSize: 13, color: '#92400e', marginBottom: 16 }}>
-              ⚠️ Super Admin accounts cannot create orders directly. Log in as a branch admin.
+              <Icon name="alert-triangle" size={13} color="#92400e" style={{ marginRight: 6, flexShrink: 0 }} />Super Admin accounts cannot create orders directly. Log in as a branch admin.
             </div>
           )}
 
@@ -218,7 +219,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
           ) : result ? (
             /* ── SUCCESS STATE ── */
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="check-circle" size={48} color="#16a34a" strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Order Created!</div>
               <div style={{ fontSize: 13, color: '#374151', marginBottom: 16 }}>
                 Booking ref: <strong>{result.booking_ref}</strong>
