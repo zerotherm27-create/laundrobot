@@ -14,7 +14,7 @@ Use this to track your progress:
 - [ ] 2. Add your business logo, contact details, and store hours
 - [ ] 3. Add your laundry services and pricing
 - [ ] 4. Set up your delivery zones
-- [ ] 5. Send your Facebook Page credentials to the LaundroBot team
+- [ ] 5. Connect your Facebook Page via the "Connect Facebook Page" button in Settings
 - [ ] 6. Add your Instagram Business Account ID (optional but recommended)
 - [ ] 7. Test the Messenger bot with a real Facebook message
 - [ ] 8. Set up online payments via Xendit
@@ -132,65 +132,29 @@ You can use both options together if needed.
 
 ## Step 6 — Connect Facebook Messenger
 
-This is the most important step — it connects your Facebook Page to the LaundroBot chatbot.
+This is the most important step — it links your Facebook Page to the LaundroBot chatbot so customers can order via Messenger.
 
-Because the Facebook Page Access Token is a sensitive credential, **the LaundroBot team configures this for you**. Here is what you need to do:
-
-### 6a. Make sure your Facebook Page is ready
+### Before you start
 - Your business must have an existing **Facebook Page** (not a personal profile)
 - You must be an **Admin** of that Page
+- Log into LaundroBot with the same Facebook account that manages your Page
 
-### 6b. Generate a Page Access Token
-
-1. Go to **[developers.facebook.com/apps](https://developers.facebook.com/apps)** and log in with the Facebook account that manages your Page.
-2. If you do not have a Meta Developer account, click **"Get Started"** and follow the steps to create one (it's free).
-3. Click **"Create App"** → choose **"Business"** → give it any name (e.g., "My Laundrobot App") → click **"Create App"**.
-4. On the App Dashboard, find **"Messenger"** in the product list and click **"Set Up"**.
-5. Scroll to **"Token Generation"** → select your **Facebook Page** from the dropdown.
-6. Facebook will show a **Page Access Token** — a long string starting with "EAAB..." or similar. Click **"Copy"**.
-
-> **Note:** You may need to accept Facebook's permissions prompt when generating the token.
-
-### 6c. Find your Facebook Page ID
-
-1. Open your Facebook Page in a browser.
-2. Click on **"About"** in the left menu.
-3. Scroll down to find **"Page ID"** — it's a long number (e.g., `123456789012345`).
-
-Alternatively, go to your Page, click the three-dot menu → **"Page Transparency"** → your Page ID is shown there.
-
-### 6d. Send your credentials to the LaundroBot team
-
-Email **hello@laundrobot.app** with the subject line **"Facebook Page Setup — [Your Business Name]"** and include:
-
-- Your **Page Access Token** (the long token from step 6b)
-- Your **Facebook Page ID** (from step 6c)
-- Your **LaundroBot account email** (so we can match it to your account)
-
-The LaundroBot team will configure your page within **1 business day** and confirm via email.
-
-### 6e. Set Up the Webhook (done by the LaundroBot team)
-
-The LaundroBot team will configure the following webhook in your Meta App on your behalf:
-
-- **Callback URL:** `https://laundrobot-production.up.railway.app/webhook/messenger`
-- **Subscribed events:** Messages, Postbacks, Opt-ins, Referrals, Message Echoes
-
-You do not need to do this yourself.
-
-### 6f. Reset the Messenger Menu
-
-Once the LaundroBot team confirms your page is connected:
+### 6a. Click "Connect Facebook Page"
 
 1. Go to **Settings** in your LaundroBot dashboard
-2. Scroll to **"Facebook Messenger Menu"**
-3. Click **"Reset Messenger Menu"**
+2. Scroll to the **"Connect Facebook Page"** card
+3. Click the blue **"Connect Facebook Page"** button
+4. A Facebook login popup will appear — log in and click **"Continue"** when asked to grant permissions
 
-This sets up the **Get Started** button, the welcome greeting with your shop name, and the persistent menu (**Book Now**, **My Orders**, **FAQs**) that customers see when they open your chat.
+> **Note:** Facebook will ask for permission to manage your Pages and send messages. These permissions are required for the bot to work.
 
-> **Note:** The greeting and Get Started button only appear for customers who have **never messaged your Page before**. Existing followers can open the menu by tapping the **☰ icon** at the bottom-left of the chat window.
+### 6b. Select your Page
 
-### 6g. Test the connection
+After logging in, LaundroBot will show a list of all Facebook Pages you admin. Select your laundry business Page and click **"Save & Connect Page"**.
+
+The bot is now connected and the Messenger menu (**Book Now**, **My Orders**, **FAQs**) is set up automatically.
+
+### 6c. Test the connection
 
 1. Go to your Facebook Page
 2. Click **"Send Message"**
@@ -198,7 +162,9 @@ This sets up the **Get Started** button, the welcome greeting with your shop nam
 4. You should see: *"Hi [Your Name]! Welcome to [Your Shop]. Tap 'Get Started' to book your laundry pickup!"*
 5. Tap **"Book Now"** — the booking form should open inside Messenger
 
-If the greeting or menu does not appear, email hello@laundrobot.app and we will check your setup.
+> **Note:** The greeting and Get Started button only appear for customers who have **never messaged your Page before**. Existing followers can open the menu by tapping the **☰ icon** at the bottom-left of the chat window.
+
+If anything goes wrong, scroll down in Settings to **"Facebook Messenger Menu"** and click **"Reset Messenger Menu"** to re-apply the bot configuration. If the problem persists, email **hello@laundrobot.app**.
 
 ---
 
