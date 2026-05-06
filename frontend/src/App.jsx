@@ -72,7 +72,8 @@ const PAGE_TITLES = {
 
 function Dashboard() {
   const { user } = useAuth();
-  const [page, setPage] = useState('Kanban');
+  const hasOAuthCode = new URLSearchParams(window.location.search).has('code');
+  const [page, setPage] = useState(hasOAuthCode ? 'Settings' : 'Kanban');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
   const Page = PAGES[page] || Overview;
