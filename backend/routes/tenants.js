@@ -2,6 +2,10 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { setupMessengerProfile } = require('../utils/messengerProfile');
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
+
+const GRAPH = 'https://graph.facebook.com/v19.0';
 
 function superadminOnly(req, res, next) {
   if (req.user.role !== 'superadmin') return res.status(403).json({ error: 'Superadmin only' });
@@ -87,6 +91,80 @@ router.post('/settings/setup-messenger', auth, async (req, res) => {
   } catch (err) {
     console.error('[setup-messenger]', err.response?.data || err.message);
     res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+  }
+});
+
+// POST fetch Facebook Pages the user admins (step 1 of OAuth connect flow)
+router.post('/settings/facebook-pages', auth, async (req, res) => {
+  const { userToken } = req.body;
+  if (!userToken) return res.status(400).json({ error: 'userToken is required' });
+  const appId     = process.env.FB_APP_ID;
+  const appSecret = process.env.FB_APP_SECRET;
+  if (!appId || !appSecret) return res.status(500).json({ error: 'Facebook app credentials not configured on server.' });
+  try {
+    // Exchange short-lived user token → long-lived user token
+    const exchangeRes = await axios.get('https://graph.facebook.com/oauth/access_token', {
+      params: { grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: userToken },
+    });
+    const longLivedToken = exchangeRes.data.access_token;
+
+    // Fetch pages the user admins, including their page access tokens
+    const pagesRes = await axios.get(`${GRAPH}/me/accounts`, {
+      params: { access_token: longLivedToken, fields: 'id,name,category,access_token' },
+    });
+    const pages = pagesRes.data.data || [];
+    if (pages.length === 0) {
+      return res.status(400).json({ error: 'No Facebook Pages found for this account. Make sure you are an Admin of at least one Page.' });
+    }
+
+    // Sign page data (including tokens) into a short-lived JWT so tokens stay server-side
+    const pageDataToken = jwt.sign(
+      { pages, tid: req.user.tenant_id },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+
+    // Return only names/IDs — never expose access tokens to the frontend
+    res.json({
+      pages: pages.map(p => ({ id: p.id, name: p.name, category: p.category })),
+      pageDataToken,
+    });
+  } catch (err) {
+    const fbMsg = err.response?.data?.error?.message;
+    console.error('[facebook-pages]', fbMsg || err.message);
+    res.status(400).json({ error: fbMsg || 'Failed to fetch Facebook Pages. Check your app permissions.' });
+  }
+});
+
+// POST save selected Facebook Page and run Messenger setup (step 2 of OAuth connect flow)
+router.post('/settings/facebook-connect', auth, async (req, res) => {
+  const { pageId, pageDataToken } = req.body;
+  if (!pageId || !pageDataToken) return res.status(400).json({ error: 'pageId and pageDataToken are required' });
+  try {
+    const payload = jwt.verify(pageDataToken, process.env.JWT_SECRET);
+    if (payload.tid !== req.user.tenant_id) return res.status(403).json({ error: 'Token mismatch' });
+
+    const page = payload.pages.find(p => p.id === pageId);
+    if (!page) return res.status(400).json({ error: 'Selected page not found in session' });
+
+    const { rows: [tenant] } = await db.query(
+      `UPDATE tenants SET fb_page_id=$1, fb_page_access_token=$2 WHERE id=$3 RETURNING id, name`,
+      [page.id, page.access_token, req.user.tenant_id]
+    );
+
+    try {
+      await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL);
+    } catch (e) {
+      console.warn('[facebook-connect] messenger profile setup failed:', e.message);
+    }
+
+    res.json({ success: true, pageName: page.name });
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(400).json({ error: 'Session expired — please try connecting again.' });
+    }
+    console.error('[facebook-connect]', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

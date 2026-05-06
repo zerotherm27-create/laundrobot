@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 
 const INPUT = {
@@ -79,6 +79,15 @@ export default function Settings() {
   // Messenger menu reset
   const [resettingMenu,  setResettingMenu]  = useState(false);
   const [menuResetMsg,   setMenuResetMsg]   = useState('');
+
+  // Facebook OAuth connect flow
+  const [fbPages,          setFbPages]          = useState([]);
+  const [fbPageDataToken,  setFbPageDataToken]  = useState('');
+  const [fbSelectedPageId, setFbSelectedPageId] = useState('');
+  const [fbConnecting,     setFbConnecting]     = useState(false);
+  const [fbSaving,         setFbSaving]         = useState(false);
+  const [fbMsg,            setFbMsg]            = useState('');
+  const [fbSdkReady,       setFbSdkReady]       = useState(false);
 
   // Logo
   const [logoUrl,        setLogoUrl]        = useState('');
@@ -175,6 +184,66 @@ export default function Settings() {
       await deleteBlockedDate(id);
       setBlockedDates(prev => prev.filter(b => b.id !== id));
     } catch { alert('Failed to remove blocked date.'); }
+  }
+
+  // Load Facebook JS SDK once on mount
+  useEffect(() => {
+    const appId = import.meta.env.VITE_FB_APP_ID;
+    if (!appId) return;
+    window.fbAsyncInit = () => {
+      window.FB.init({ appId, version: 'v19.0', cookie: true, xfbml: false });
+      setFbSdkReady(true);
+    };
+    if (!document.getElementById('fb-sdk')) {
+      const s = document.createElement('script');
+      s.id = 'fb-sdk';
+      s.src = 'https://connect.facebook.net/en_US/sdk.js';
+      s.async = true;
+      s.defer = true;
+      document.body.appendChild(s);
+    } else if (window.FB) {
+      setFbSdkReady(true);
+    }
+  }, []);
+
+  function handleFbLogin() {
+    if (!window.FB) return setFbMsg('Facebook SDK not loaded yet — please refresh and try again.');
+    setFbConnecting(true);
+    setFbMsg('');
+    setFbPages([]);
+    window.FB.login(async response => {
+      if (response.authResponse) {
+        try {
+          const { data } = await getFacebookPages(response.authResponse.accessToken);
+          setFbPages(data.pages);
+          setFbPageDataToken(data.pageDataToken);
+          if (data.pages.length === 1) setFbSelectedPageId(data.pages[0].id);
+        } catch (err) {
+          setFbMsg(err.response?.data?.error || 'Failed to fetch your Pages.');
+        }
+      } else {
+        setFbMsg('Facebook login was cancelled.');
+      }
+      setFbConnecting(false);
+    }, { scope: 'pages_manage_metadata,pages_messaging,pages_read_engagement' });
+  }
+
+  async function handleFbConnect() {
+    if (!fbSelectedPageId) return;
+    setFbSaving(true);
+    setFbMsg('');
+    try {
+      const { data } = await connectFacebookPage(fbSelectedPageId, fbPageDataToken);
+      setFbPageId(fbSelectedPageId);
+      setFbMsg(`✅ Connected to "${data.pageName}" — Messenger menu configured!`);
+      setFbPages([]);
+      setFbPageDataToken('');
+      setFbSelectedPageId('');
+    } catch (err) {
+      setFbMsg(err.response?.data?.error || 'Failed to connect page.');
+    } finally {
+      setFbSaving(false);
+    }
   }
 
   const today = new Date().toISOString().split('T')[0];
@@ -616,6 +685,72 @@ export default function Settings() {
               </div>
             )}
           </div>
+
+          {/* ── Facebook Page Connect ── */}
+          <SectionCard icon={<Icon name="messenger" size={18} color="#1877F2" />} iconBg="#EBF3FD" title="Connect Facebook Page"
+            subtitle="Link your Facebook Page so customers can order via Messenger">
+            {fbMsg && (
+              <div style={{ marginBottom: 12, padding: '8px 12px', borderRadius: 7, fontSize: 13,
+                background: fbMsg.startsWith('✅') ? '#EAF7EC' : '#FCEBEB',
+                color: fbMsg.startsWith('✅') ? '#1D6A3B' : '#A32D2D' }}>
+                {fbMsg}
+              </div>
+            )}
+
+            {/* Already connected */}
+            {fbPageId && fbPages.length === 0 && !fbMsg.startsWith('✅') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '10px 14px', borderRadius: 8, background: '#EAF7EC', border: '0.5px solid #86EFAC' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                <div style={{ fontSize: 13, color: '#15803D' }}>
+                  <strong>Page connected</strong> — ID: <code style={{ background: '#D1FAE5', padding: '1px 5px', borderRadius: 4 }}>{fbPageId}</code>
+                </div>
+              </div>
+            )}
+
+            {/* Page selector — shown after successful FB login */}
+            {fbPages.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                  Select the Page to connect:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {fbPages.map(p => (
+                    <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${fbSelectedPageId === p.id ? '#1877F2' : '#E2E8F0'}`, background: fbSelectedPageId === p.id ? '#EBF3FD' : '#fff', cursor: 'pointer' }}>
+                      <input type="radio" name="fbPage" value={p.id} checked={fbSelectedPageId === p.id}
+                        onChange={() => setFbSelectedPageId(p.id)} style={{ accentColor: '#1877F2' }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{p.name}</div>
+                        {p.category && <div style={{ fontSize: 11, color: '#6B7280' }}>{p.category}</div>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <button type="button" disabled={!fbSelectedPageId || fbSaving} onClick={handleFbConnect}
+                  style={{ marginTop: 12, padding: '9px 22px', borderRadius: 8, border: 'none', background: fbSaving ? '#93C5FD' : '#1877F2', color: '#fff', fontWeight: 700, fontSize: 13, cursor: fbSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  {fbSaving ? 'Connecting…' : 'Save & Connect Page'}
+                </button>
+              </div>
+            )}
+
+            {/* Connect / Reconnect button */}
+            {fbPages.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button type="button" disabled={fbConnecting} onClick={handleFbLogin}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 20px', borderRadius: 8, border: 'none', background: fbConnecting ? '#93C5FD' : '#1877F2', color: '#fff', fontWeight: 700, fontSize: 13, cursor: fbConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  {fbConnecting ? 'Opening Facebook…' : fbPageId ? 'Reconnect Facebook Page' : 'Connect Facebook Page'}
+                </button>
+                {!import.meta.env.VITE_FB_APP_ID && (
+                  <div style={{ fontSize: 11, color: '#9CA3AF' }}>VITE_FB_APP_ID not set</div>
+                )}
+              </div>
+            )}
+
+            <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
+              Requires <strong>pages_messaging</strong> &amp; <strong>pages_manage_metadata</strong> permissions — available once Meta App Review is approved.
+              If the login fails, email <strong>hello@laundrobot.app</strong> and we'll connect your page manually.
+            </div>
+          </SectionCard>
 
           {/* ── Messenger Menu ── */}
           <SectionCard icon={<Icon name="messenger" size={18} color="#0369A1" />} iconBg="#E0F2FE" title="Facebook Messenger Menu"
