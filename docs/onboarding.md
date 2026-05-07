@@ -21,6 +21,7 @@ Use this to track your progress:
 - [ ] 9. Turn on the AI chatbot
 - [ ] 10. Add FAQs so the bot can answer common questions
 - [ ] 11. Invite your staff
+- [ ] 12. *(Pro only)* Set up your custom domain and white-label booking form
 
 ---
 
@@ -34,8 +35,9 @@ You will be logged in and taken to your dashboard. No credit card is needed duri
 
 > **Subscription Plans**
 > After your trial, choose a plan to keep your account active:
-> - **Starter** — ₱999/month (or ₱9,990/year)
-> - **Pro** — ₱5,499/month (or ₱54,990/year) — includes custom domain, white-label booking form, up to 10 branches, and priority support
+> - **Starter** — ₱599/month · 1 branch · 2 staff · 100 AI replies/day · up to 200 orders/month
+> - **Growth** — ₱1,999/month · up to 3 branches · 5 staff · 500 AI replies/day · blast messaging · promo codes · up to 1,000 orders/month
+> - **Pro** — ₱5,499/month · up to 10 branches · 10 staff · unlimited AI replies · custom domain · white-label booking form · priority support
 
 ---
 
@@ -297,6 +299,13 @@ The AI chatbot (powered by Google Gemini) handles customer questions outside of 
 
 > **How it works:** When a customer sends a message that is not part of the booking flow, the AI reads your FAQs and service list to answer their question. If it cannot answer, it shows the main menu.
 
+> **Daily reply limits by plan:**
+> - Starter: 100 AI replies/day
+> - Growth: 500 AI replies/day
+> - Pro: unlimited
+>
+> Once the daily limit is reached, the bot falls back to the standard button menu for the rest of the day. The counter resets automatically at midnight.
+
 ### 9b. Set the AI pause duration
 
 When you (or a staff member) manually replies to a customer from the Facebook Page inbox, the AI automatically pauses so you can handle the conversation personally. You can set how many hours the AI stays paused:
@@ -356,7 +365,7 @@ Once everything is set up, your customers can order in three ways:
 ### Via Your Booking Link
 Share the link **`laundrobot.app/book/[your-tenant-id]`** anywhere — Facebook posts, WhatsApp groups, SMS, QR codes on your flyers. Customers can book without needing Messenger.
 
-> Your booking link can be found by opening the booking form from your dashboard.
+> **Pro plan:** If you have set up a custom domain (e.g., `book.yourshop.com`), that URL works as your booking link directly — no tenant ID in the URL, cleaner for customers.
 
 ### Via the Walk-In POS
 For customers who call or walk in, go to **Walk-in** in the sidebar. Fill in their details and create the order directly — no Messenger needed.
@@ -415,6 +424,34 @@ Configure:
 
 ---
 
+## Pro Feature — Custom Domain & White Label
+
+Available on the **Pro plan** only. This lets customers access your booking form at your own branded URL (e.g., `book.yourshop.com`) instead of `laundrobot.app`.
+
+### Setting up your custom domain
+
+1. Go to **Settings** → scroll to **"Custom Domain & White Label"**
+2. Enter your domain (e.g., `book.yourshop.com`) and save
+3. The system automatically updates your Messenger booking link and Facebook whitelist — no extra steps needed
+
+### Pointing your DNS
+
+After saving, go to your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.) and add:
+
+| Type | Name | Value |
+|---|---|---|
+| CNAME | `book` | `cname.vercel-dns.com` |
+
+DNS propagation takes 5–30 minutes. Once live, `book.yourshop.com` will load your booking form directly.
+
+### White label toggle
+
+When enabled, hides the **"Powered by LaundroBot"** footer from your booking form. Toggle this ON once your custom domain is working if you want a fully branded experience.
+
+> **Note:** The custom domain and white label are independent — your domain can be active with or without the white label toggle.
+
+---
+
 ## Troubleshooting
 
 ### Messenger bot is not responding
@@ -427,7 +464,9 @@ Configure:
 - Email hello@laundrobot.app and include the error message
 
 ### The booking form is not loading in Messenger
-- This is a domain whitelisting issue — contact hello@laundrobot.app to resolve it
+- Go to **Settings** → scroll to **"Facebook Messenger Menu"** → click **"Reset Messenger Menu"**
+- This re-pushes the domain whitelist to Facebook and usually fixes the issue immediately
+- If you are on the Pro plan and recently set a custom domain, make sure you saved your settings — this triggers the whitelist update automatically
 
 ### Customers do not see the Get Started button
 - The Get Started button only appears for users who have **never** messaged your Page before
