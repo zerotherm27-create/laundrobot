@@ -3,6 +3,7 @@ import { Icon } from '../components/Icons.jsx';
 
 const RESPONSIVE_CSS = `
   .l-nav-links  { display: flex; align-items: center; gap: 4px; }
+  .l-mobile-nav-actions { display: none; align-items: center; gap: 8px; }
   .l-hero       { display: flex; align-items: center; justify-content: space-between; gap: 3rem; flex-wrap: wrap; }
   .l-hero-text  { flex: 1 1 380px; max-width: 520px; }
   .l-phone-wrap { flex-shrink: 0; display: flex; justify-content: center; }
@@ -21,6 +22,7 @@ const RESPONSIVE_CSS = `
   }
   @media (max-width: 640px) {
     .l-nav-links  { display: none; }
+    .l-mobile-nav-actions { display: flex; }
     .l-hero       { flex-direction: column; align-items: stretch; gap: 2rem; }
     .l-phone-wrap { margin-top: 0; }
     .l-features   { grid-template-columns: 1fr; }
@@ -423,40 +425,91 @@ function useFadeUp() {
 }
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
+const NAV_LINKS = [
+  { label: 'Features', href: '#features' },
+  { label: 'Pricing', href: '#pricing' },
+  { label: 'How it works', href: '#how' },
+  { label: 'Sign in', href: '/login' },
+];
+
 function Nav() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const closeDrawer = () => setDrawerOpen(false);
+
   return (
-    <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #F0F0EC' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-          <img src="/logo.png" alt="LaundroBot" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
-          <span style={{ fontWeight: 800, fontSize: 15, color: '#0D1117', letterSpacing: '-.3px' }}>LaundroBot</span>
-        </a>
-        <div className="l-nav-links">
-          <a href="#features" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Features</a>
-          <a href="#pricing" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Pricing</a>
-          <a href="#how" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>How it works</a>
-          <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px', marginLeft: 4 }}
-            onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-            onMouseLeave={e => e.currentTarget.style.color = '#374151'}>Sign in</a>
-          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid #38a9c2', minHeight: 40 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Book a demo</a>
-          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40 }}
-            onMouseEnter={e => e.currentTarget.style.background = '#1d8ba0'}
-            onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Get started free</a>
+    <>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #F0F0EC' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
+            <img src="/logo.png" alt="LaundroBot" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
+            <span style={{ fontWeight: 800, fontSize: 15, color: '#0D1117', letterSpacing: '-.3px' }}>LaundroBot</span>
+          </a>
+          <div className="l-nav-links">
+            {NAV_LINKS.map(l => (
+              <a key={l.href} href={l.href} style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
+                onMouseLeave={e => e.currentTarget.style.color = '#374151'}>{l.label}</a>
+            ))}
+            <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid #38a9c2', minHeight: 40, marginLeft: 4 }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Book a demo</a>
+            <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40 }}
+              onMouseEnter={e => e.currentTarget.style.background = '#1d8ba0'}
+              onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Get started free</a>
+          </div>
+          {/* Mobile right side */}
+          <div className="l-mobile-nav-actions">
+            <a href="/signup" style={{ padding: '8px 16px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+              Get started
+            </a>
+            <button onClick={() => setDrawerOpen(o => !o)} aria-label="Open menu"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                {drawerOpen
+                  ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
+                  : <><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></>
+                }
+              </svg>
+            </button>
+          </div>
         </div>
-        <a href="/signup" className="l-mobile-signin" style={{ display: 'none', padding: '9px 18px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40, alignItems: 'center' }}>
-          Get started free
-        </a>
+      </nav>
+
+      {/* Mobile drawer backdrop */}
+      {drawerOpen && (
+        <div onClick={closeDrawer} style={{ position: 'fixed', inset: 0, zIndex: 98, background: 'rgba(0,0,0,.25)', backdropFilter: 'blur(2px)' }} />
+      )}
+
+      {/* Mobile drawer */}
+      <div style={{
+        position: 'fixed', top: 60, left: 0, right: 0, zIndex: 99,
+        background: '#fff', borderBottom: '1px solid #F0F0EC',
+        padding: '1rem 1.25rem 1.5rem',
+        boxShadow: '0 8px 32px rgba(0,0,0,.12)',
+        transform: drawerOpen ? 'translateY(0)' : 'translateY(-110%)',
+        transition: 'transform 0.25s ease',
+        display: 'flex', flexDirection: 'column', gap: 4,
+      }}>
+        {NAV_LINKS.map(l => (
+          <a key={l.href} href={l.href} onClick={closeDrawer}
+            style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '12px 4px', borderBottom: '1px solid #F5F5F3', display: 'block' }}>
+            {l.label}
+          </a>
+        ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: '1rem' }}>
+          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" onClick={closeDrawer}
+            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, border: '1.5px solid #38a9c2', color: '#38a9c2', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            Book a demo
+          </a>
+          <a href="/signup" onClick={closeDrawer}
+            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            Get started free
+          </a>
+        </div>
       </div>
-    </nav>
+    </>
   );
 }
 
@@ -497,6 +550,9 @@ function Hero() {
                 Book a free demo
               </a>
             </div>
+            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: '1rem', fontWeight: 500 }}>
+              14-day free trial · No credit card required · Cancel anytime
+            </p>
           </div>
           {/* Right — phone mockup */}
           <MessengerMockup />
@@ -523,6 +579,63 @@ function StatsStrip() {
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Testimonials ─────────────────────────────────────────────────────────────
+const TESTIMONIALS = [
+  {
+    quote: 'Mas mabilis na ang operations namin. Dati manual lahat — ngayon automated na kahit wala ako sa shop.',
+    name: 'Maria Santos',
+    shop: 'Sparkling Clean Laundry · Quezon City',
+    initial: 'M',
+    color: '#38a9c2',
+  },
+  {
+    quote: 'Yung blast messaging feature, sobrang helpful. Na-recover namin yung mga lapsed customers sa isang click.',
+    name: 'Carlo Reyes',
+    shop: 'FreshFold Express · Cebu City',
+    initial: 'C',
+    color: '#7F77DD',
+  },
+  {
+    quote: 'Customers think they\'re talking to a real person. Ang chatbot namin in Tagalog is very accurate!',
+    name: 'Ana Gonzales',
+    shop: 'LabaLab Laundry · Davao City',
+    initial: 'A',
+    color: '#1D9E75',
+  },
+];
+
+function Testimonials() {
+  return (
+    <section style={{ background: '#F8F8F6', padding: 'clamp(3rem,6vw,5rem) 1.25rem' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#e6f5f8', color: '#1a7d94', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>
+            What shop owners say
+          </div>
+          <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em' }}>
+            Real shops. Real results.
+          </h2>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 16, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 2px 12px rgba(0,0,0,.04)' }}>
+              <div style={{ fontSize: 28, color: t.color, lineHeight: 1, fontFamily: 'Georgia, serif', marginBottom: -8 }}>"</div>
+              <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.7, fontWeight: 400, fontStyle: 'italic', margin: 0 }}>{t.quote}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid #F0F0EC' }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.initial}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>{t.name}</div>
+                  <div style={{ fontSize: 12, color: '#9CA3AF' }}>{t.shop}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -830,14 +943,17 @@ function PricingCard({ plan, annual }) {
         </div>
 
         {/* CTA */}
-        <a href="/signup" style={{
-          display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
-          background: isPopular ? plan.color : 'transparent',
-          border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
-          color: isPopular ? '#fff' : '#374151',
-          fontWeight: 800, fontSize: 14, textDecoration: 'none',
-          marginBottom: '1.5rem', transition: 'all .15s',
-        }}
+        <a href={plan.cta === 'Contact us' ? 'https://calendly.com/laundrobotph/30min' : '/signup'}
+          target={plan.cta === 'Contact us' ? '_blank' : undefined}
+          rel={plan.cta === 'Contact us' ? 'noopener noreferrer' : undefined}
+          style={{
+            display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
+            background: isPopular ? plan.color : 'transparent',
+            border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
+            color: isPopular ? '#fff' : '#374151',
+            fontWeight: 800, fontSize: 14, textDecoration: 'none',
+            marginBottom: '1.5rem', transition: 'all .15s',
+          }}
           onMouseEnter={e => { e.currentTarget.style.background = isPopular ? '#1d8ba0' : '#F8F8F6'; e.currentTarget.style.borderColor = isPopular ? '#1d8ba0' : '#bbb'; }}
           onMouseLeave={e => { e.currentTarget.style.background = isPopular ? plan.color : 'transparent'; e.currentTarget.style.borderColor = isPopular ? plan.color : '#DADADA'; }}
         >
@@ -861,7 +977,7 @@ function PricingCard({ plan, annual }) {
 }
 
 function Pricing() {
-  const [annual, setAnnual] = useState(false);
+  const [annual, setAnnual] = useState(true);
   const ref = useFadeUp();
 
   return (
@@ -1007,11 +1123,11 @@ export default function Landing() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#fff' }}>
       <style>{RESPONSIVE_CSS}</style>
-      <style>{`.l-mobile-signin{display:none}@media(max-width:640px){.l-mobile-signin{display:inline-flex!important}}`}</style>
       <Nav />
       <main style={{ flex: 1 }}>
         <Hero />
         <StatsStrip />
+        <Testimonials />
         <POSSection />
         <Features />
         <HowItWorks />
