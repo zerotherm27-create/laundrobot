@@ -11,7 +11,7 @@ Welcome to LaundroBot! This guide walks you through everything you need to do to
 Use this to track your progress:
 
 - [ ] 1. Sign up and start your 14-day free trial
-- [ ] 2. Add your business logo, contact details, and store hours
+- [ ] 2. Add your contact details and store hours *(logo upload available on Pro plan)*
 - [ ] 3. Add your laundry services and pricing
 - [ ] 4. Set up your delivery zones
 - [ ] 5. Connect your Facebook Page via the "Connect Facebook Page" button in Settings
@@ -45,8 +45,8 @@ You will be logged in and taken to your dashboard. No credit card is needed duri
 
 Go to **Settings** in the left sidebar and fill in the following:
 
-### Business Logo
-Click **"Upload logo"** and choose a PNG or JPG file (max 2 MB). Your logo appears on customer invoices and the booking form.
+### Business Logo *(Pro plan only)*
+On the **Pro plan**, you can upload your logo (PNG or JPG, max 2 MB). It appears on customer invoices and at the top of your booking form. On Starter and Growth plans, the logo upload is locked — the Settings page will show an upgrade prompt instead.
 
 ### Order Notifications
 Enter the **email address** where you want to receive new order alerts and payment confirmations.
@@ -421,6 +421,22 @@ Configure:
 - **Minimum order amount** (optional)
 - **Maximum uses** (optional, blank = unlimited)
 - **Expiry date** (optional)
+
+---
+
+## Pro Features
+
+The following features are exclusive to the **Pro plan**:
+
+| Feature | Description |
+|---|---|
+| **Business Logo** | Shown on invoices and the booking form |
+| **Custom Domain** | Branded URL for your booking form (e.g., `book.yourshop.com`) |
+| **White Label** | Hides the "Powered by LaundroBot" footer |
+| **Custom AI Instructions** | Fine-tune the bot's language, tone, and behavior |
+| **Unlimited AI replies** | No daily cap on AI-generated responses |
+| **Up to 10 branches & 10 staff** | |
+| **Priority support** | |
 
 ---
 
