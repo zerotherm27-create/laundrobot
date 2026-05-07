@@ -5,7 +5,7 @@ const C = { brand: '#38a9c2', dark: '#111827', mid: '#374151', muted: '#6B7280',
 const s = StyleSheet.create({
   page:        { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: C.dark, backgroundColor: '#fff' },
   header:      { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28, paddingBottom: 18, borderBottom: `1px solid ${C.border}` },
-  logo:        { width: 48, height: 48, borderRadius: 6, marginBottom: 6, objectFit: 'contain' },
+  logo:        { width: 72, height: 72, borderRadius: 8, marginBottom: 8, objectFit: 'contain' },
   shopName:    { fontSize: 15, fontFamily: 'Helvetica-Bold', color: C.dark, marginBottom: 3 },
   shopMeta:    { fontSize: 9, color: C.muted, marginBottom: 2 },
   invTitle:    { fontSize: 22, fontFamily: 'Helvetica-Bold', color: C.brand, textAlign: 'right' },
