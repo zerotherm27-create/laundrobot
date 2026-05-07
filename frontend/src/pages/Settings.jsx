@@ -688,11 +688,6 @@ export default function Settings() {
                   When you manually reply to a customer, AI stays silent for this many hours. Set to 0 to disable the pause.
                 </div>
               </div>
-              {aiEnabled && (
-                <div style={{ marginTop: 10, fontSize: 11, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '7px 10px' }}>
-                  Requires <strong>GEMINI_API_KEY</strong> env var on your server. Free tier: 1,500 requests/day.
-                </div>
-              )}
             </SectionCard>
 
             {/* ── ADVANCED ── */}
