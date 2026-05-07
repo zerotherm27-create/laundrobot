@@ -1022,11 +1022,11 @@ function Pricing() {
         </div>
 
         {/* Monthly / Annual toggle */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
-            {[{ label: 'Monthly', val: false }, { label: 'Annual · 2 months free', val: true }].map(opt => (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', padding: '0 1rem' }}>
+          <div style={{ display: 'flex', width: '100%', maxWidth: 460, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
+            {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
-                style={{ padding: '8px 16px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? '#38a9c2' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? '#38a9c2' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 {opt.label}
                 {opt.val && <span style={{ background: '#fdca00', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 17%</span>}
               </button>
