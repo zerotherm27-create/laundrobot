@@ -73,7 +73,7 @@ router.put('/settings', auth, async (req, res) => {
            white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END,
            logo_url      = COALESCE($17, logo_url),
            payment_mode  = COALESCE($18, payment_mode),
-           xendit_api_key = CASE WHEN $19 IS NOT NULL THEN $19 ELSE xendit_api_key END
+           xendit_api_key = COALESCE($19, xendit_api_key)
        WHERE id=$16
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
                  ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, plan, payment_mode,
