@@ -797,7 +797,12 @@ function FAQAccordion({ q, a }) {
       <button onClick={() => setOpen(o => !o)} aria-expanded={open}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '1.25rem 1.5rem', background: open ? '#F8F8F6' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'background .15s' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: '#0D1117', lineHeight: 1.4 }}>{q}</span>
-        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? '#38a9c2' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s, transform .2s', transform: open ? 'rotate(45deg)' : 'none', color: open ? '#fff' : '#374151', fontSize: 20, lineHeight: 1, fontWeight: 300 }}>+</span>
+        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? '#38a9c2' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s, transform .2s', transform: open ? 'rotate(45deg)' : 'none' }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <line x1="6" y1="1" x2="6" y2="11" stroke={open ? '#fff' : '#374151'} strokeWidth="1.8" strokeLinecap="round"/>
+            <line x1="1" y1="6" x2="11" y2="6" stroke={open ? '#fff' : '#374151'} strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </span>
       </button>
       {open && (
         <div style={{ padding: '0 1.5rem 1.25rem', fontSize: 14, color: '#6B7280', lineHeight: 1.8, fontWeight: 400 }}>{a}</div>
