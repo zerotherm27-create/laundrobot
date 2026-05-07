@@ -88,7 +88,7 @@ export default function InvoiceDocument({ order, shop }) {
         {/* ── Header ── */}
         <View style={s.header}>
           <View>
-            {shop?.logo_url && <Image style={s.logo} src={shop.logo_url} />}
+            {shop?.plan === 'pro' && shop?.logo_url && <Image style={s.logo} src={shop.logo_url} />}
             <Text style={s.shopName}>{shop?.name || 'Laundry Shop'}</Text>
             {shop?.shop_address   && <Text style={s.shopMeta}>{shop.shop_address}</Text>}
             {shop?.contact_number && <Text style={s.shopMeta}>{shop.contact_number}</Text>}

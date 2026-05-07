@@ -90,7 +90,7 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
       { rows: blockedDates },
     ] = await Promise.all([
       db.query(
-        `SELECT name, logo_url, contact_number, minimum_order, fb_page_id,
+        `SELECT name, logo_url, contact_number, minimum_order, fb_page_id, plan,
                 to_char(store_open, 'HH24:MI') AS store_open,
                 to_char(store_close, 'HH24:MI') AS store_close,
                 to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff

@@ -781,7 +781,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #d6eff4 0%, #F7F7F5 60%)', padding: '2rem 1rem', fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* ── Header ── */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        {tenant?.logo_url && !tenant.logo_url.startsWith('data:') && (
+        {tenant?.plan === 'pro' && tenant?.logo_url && !tenant.logo_url.startsWith('data:') && (
           <img src={tenant.logo_url} alt={tenant.name} style={{ width: 52, height: 52, borderRadius: 14, objectFit: 'cover', marginBottom: 8, boxShadow: '0 2px 8px rgba(0,0,0,.12)' }} />
         )}
         <div style={{ fontWeight: 700, fontSize: 20, color: '#111827' }}>{tenant?.name}</div>

@@ -382,7 +382,33 @@ export default function Settings() {
             <GroupHeader label="Shop Identity" />
 
             <SectionCard icon={<Icon name="image" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Business Logo"
-              subtitle="Used on invoices and the booking form">
+              subtitle={tenantPlan === 'pro' ? 'Shown on invoices and your booking form' : 'Available on the Pro plan'}>
+              {tenantPlan !== 'pro' ? (
+                <div style={{ background: 'linear-gradient(135deg,#F5F3FF,#EDE9FE)', borderRadius: 12, padding: '16px 18px', border: '1px solid #DDD6FE' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#4C1D95', marginBottom: 3 }}>Upgrade to Pro</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>Add your logo to invoices and the booking form for a more professional look.</div>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#7C3AED', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>PRO</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                    {['Logo on booking form', 'Logo on invoices', 'Custom domain', 'White-label', 'Priority support'].map(f => (
+                      <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff', border: '1px solid #DDD6FE', borderRadius: 20, padding: '3px 10px' }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#4C1D95' }}>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowUpgradeModal(true)}
+                    style={{ padding: '9px 20px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    See plan details & upgrade →
+                  </button>
+                </div>
+              ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <div
                   onClick={() => logoFileRef.current.click()}
@@ -413,6 +439,7 @@ export default function Settings() {
                   <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>PNG or JPG, max 2MB</div>
                 </div>
               </div>
+              )}
             </SectionCard>
 
             <SectionCard icon={<Icon name="delivery" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Shop Address"
