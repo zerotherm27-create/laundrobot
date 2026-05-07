@@ -70,10 +70,9 @@ const PAGE_TITLES = {
   WalkIn:         'Walk-in POS',
 };
 
-function Dashboard() {
+function Dashboard({ initialPage }) {
   const { user } = useAuth();
-  const hasOAuthCode = new URLSearchParams(window.location.search).has('code');
-  const [page, setPage] = useState(hasOAuthCode ? 'Settings' : 'Kanban');
+  const [page, setPage] = useState(initialPage || 'Kanban');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
   const Page = PAGES[page] || Overview;
@@ -167,6 +166,20 @@ function Inner() {
       return <Signup />;
     }
     return <Landing />;
+  }
+
+  // Intercept Facebook OAuth return before Dashboard renders
+  const oauthCode  = params.get('code');
+  const oauthState = params.get('state');
+  if (oauthCode && oauthState) {
+    localStorage.setItem('fb_oauth_pending', JSON.stringify({
+      code: oauthCode,
+      state: oauthState,
+      redirectUri: window.location.origin + '/settings',
+      ts: Date.now(),
+    }));
+    window.history.replaceState({}, '', '/settings');
+    return <Dashboard initialPage="Settings" />;
   }
 
   return <Dashboard />;

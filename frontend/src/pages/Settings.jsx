@@ -216,19 +216,25 @@ export default function Settings() {
     } catch { alert('Failed to remove blocked date.'); }
   }
 
-  // Handle Facebook OAuth redirect return
+  // Handle Facebook OAuth redirect return (code stored in localStorage by App.jsx Inner)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
-    const storedState = sessionStorage.getItem('fb_oauth_state');
-    if (!code || !state || state !== storedState) return;
-    sessionStorage.removeItem('fb_oauth_state');
-    window.history.replaceState({}, '', '/settings');
+    const raw = localStorage.getItem('fb_oauth_pending');
+    if (!raw) return;
+    let pending;
+    try { pending = JSON.parse(raw); } catch { localStorage.removeItem('fb_oauth_pending'); return; }
+    localStorage.removeItem('fb_oauth_pending');
+    // Expire after 5 minutes
+    if (Date.now() - pending.ts > 5 * 60 * 1000) return;
+    // Validate state
+    const storedState = localStorage.getItem('fb_oauth_state');
+    localStorage.removeItem('fb_oauth_state');
+    if (storedState && pending.state !== storedState) {
+      setFbMsg('❌ OAuth state mismatch — please try connecting again.');
+      return;
+    }
     setFbConnecting(true);
     setFbMsg('');
-    const redirectUri = window.location.origin + '/settings';
-    exchangeFbOAuthCode(code, redirectUri)
+    exchangeFbOAuthCode(pending.code, pending.redirectUri)
       .then(({ data }) => {
         setFbPages(data.pages);
         setFbPageDataToken(data.pageDataToken);
@@ -242,7 +248,7 @@ export default function Settings() {
     const appId = import.meta.env.VITE_FB_APP_ID;
     if (!appId) return setFbMsg('❌ Facebook App ID not configured — contact support.');
     const state = Math.random().toString(36).slice(2);
-    sessionStorage.setItem('fb_oauth_state', state);
+    localStorage.setItem('fb_oauth_state', state);
     const redirectUri = window.location.origin + '/settings';
     const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement&response_type=code&state=${state}`;
     window.location.href = url;
