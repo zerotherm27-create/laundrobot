@@ -1023,7 +1023,7 @@ function Pricing() {
 
         {/* Monthly / Annual toggle */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', padding: '0 1rem' }}>
-          <div style={{ display: 'flex', width: '100%', maxWidth: 460, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
+          <div style={{ display: 'flex', width: '100%', maxWidth: 460, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4, overflow: 'hidden' }}>
             {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
                 style={{ flex: 1, padding: '8px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? '#38a9c2' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
