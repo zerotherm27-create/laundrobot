@@ -38,7 +38,10 @@ router.put('/settings', auth, async (req, res) => {
   const { notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key } = req.body;
   try {
     // Only Pro tenants can set custom domain / white label
-    const { rows: [current] } = await db.query(`SELECT plan FROM tenants WHERE id=$1`, [req.user.tenant_id]);
+    const { rows: [current] } = await db.query(
+      `SELECT plan, custom_domain, fb_page_access_token, ig_user_id FROM tenants WHERE id=$1`,
+      [req.user.tenant_id]
+    );
     const isPro = current?.plan === 'pro';
 
     const validPaymentModes = ['xendit', 'qr_static'];
@@ -104,6 +107,15 @@ router.put('/settings', auth, async (req, res) => {
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     res.json(tenant);
+
+    // Auto-update Messenger whitelist if custom domain changed (fire-and-forget)
+    const newDomain = custom_domain?.trim().toLowerCase() || null;
+    if (isPro && newDomain !== (current?.custom_domain || null) && current?.fb_page_access_token) {
+      setupMessengerProfile(
+        current.fb_page_access_token, tenant.name, req.user.tenant_id,
+        process.env.APP_URL, current.ig_user_id, newDomain
+      ).catch(e => console.warn('[auto-whitelist] messenger profile update failed:', e.message));
+    }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
