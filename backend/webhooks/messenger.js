@@ -75,6 +75,7 @@ router.post('/', async (req, res) => {
         'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
       );
       if (!tenant) { console.log('[webhook] no tenant for page:', pageId); continue; }
+      if (!tenant.fb_page_access_token) { console.warn('[webhook] tenant has no page access token:', tenant.id); continue; }
       for (const event of (e.messaging || [])) {
         if (event.optin) {
           try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
@@ -192,21 +193,21 @@ function nextInfoStep(customer) {
 }
 
 // ── Catalog helpers ─────────────────────────────────────────────────────────
-async function showCategoryMenu(sends, token, senderId, tenantId, channel) {
+async function showCategoryMenu(sends, token, senderId, tenantId, channel, customDomain = null) {
   const { rows: cats } = await db.query(
     `SELECT * FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`,
     [tenantId]
   );
 
-  if (cats.length === 0) return showServiceCatalog(sends, token, senderId, tenantId, null, channel);
-  if (cats.length === 1) return showServiceCatalog(sends, token, senderId, tenantId, cats[0].id, channel);
+  if (cats.length === 0) return showServiceCatalog(sends, token, senderId, tenantId, null, channel, customDomain);
+  if (cats.length === 1) return showServiceCatalog(sends, token, senderId, tenantId, cats[0].id, channel, customDomain);
 
   const replies = cats.map(c => ({ title: c.name, payload: `CAT:${c.id}:${c.name}` }));
   replies.push({ title: '🛍 All Services', payload: 'CAT:ALL:All Services' });
   await sends.sendQuickReplies(token, senderId, '🧺 What type of laundry service are you looking for?', replies);
 }
 
-async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, channel) {
+async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, channel, customDomain = null) {
   let query, params;
   if (!categoryId || categoryId === 'ALL') {
     query = `SELECT s.*, c.name AS category_name FROM services s
@@ -245,10 +246,10 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
   // Messenger: "Book Now" opens webform. Instagram: "Book This" starts bot flow.
   const appUrl = process.env.APP_URL;
   const backendUrl = process.env.BACKEND_URL;
-  const useWebform = channel === 'messenger' && appUrl;
-  // Include psid in URL so BookingForm can link the order to this Messenger user
-  // even when the webview opens in an external browser (where MessengerExtensions SDK is unavailable)
-  const bookUrl = appUrl ? `${appUrl}/book/${tenantId}?psid=${senderId}` : null;
+  const useWebform = channel === 'messenger' && baseUrl;
+  // Use custom domain for Pro tenants; fall back to APP_URL
+  const baseUrl = customDomain ? `https://${customDomain}` : appUrl;
+  const bookUrl = baseUrl ? `${baseUrl}/book/${tenantId}?psid=${senderId}` : null;
 
   const elements = services.map(s => {
     const basePrice = Number(s.price);
@@ -303,10 +304,10 @@ async function handleOptin(tenant, senderId, ref) {
     if (link) {
       await db.query(`UPDATE referral_links SET click_count = click_count + 1 WHERE id=$1`, [link.id]);
       await db.query(
-        `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
-         VALUES ($1, $2, 'MENU', jsonb_build_object('referral_ref', $3::text), NOW())
+        `INSERT INTO conversations (tenant_id, fb_user_id, step, data, referral_ref, updated_at)
+         VALUES ($1, $2, 'MENU', '{}', $3, NOW())
          ON CONFLICT (tenant_id, fb_user_id)
-         DO UPDATE SET data = conversations.data || jsonb_build_object('referral_ref', $3::text), updated_at = NOW()`,
+         DO UPDATE SET referral_ref = $3, updated_at = NOW()`,
         [tenant.id, senderId, ref]
       );
       // Referral link — drop into booking menu
@@ -366,14 +367,14 @@ async function showSubscribePrompt(sends, token, senderId, customer) {
 
 // ── Pause AI for a customer (called on admin echo) ───────────────────────────
 async function pauseAiForCustomer(tenant, customerId) {
-  const pauseHours = tenant.ai_pause_hours || 2;
+  const pauseHours = tenant.ai_pause_hours ?? 2;
   if (!pauseHours) return; // 0 = disabled
   const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
   await db.query(
-    `INSERT INTO conversations (tenant_id, fb_user_id, step, data, updated_at)
-     VALUES ($1, $2, 'AI', jsonb_build_object('ai_paused_until', $3::text), NOW())
+    `INSERT INTO conversations (tenant_id, fb_user_id, step, data, ai_paused_until, updated_at)
+     VALUES ($1, $2, 'AI', '{}', $3, NOW())
      ON CONFLICT (tenant_id, fb_user_id)
-     DO UPDATE SET data = conversations.data || jsonb_build_object('ai_paused_until', $3::text), updated_at=NOW()`,
+     DO UPDATE SET ai_paused_until=$3, updated_at=NOW()`,
     [tenant.id, customerId, pauseUntil]
   );
   console.log(`[ai-pause] paused for ${customerId} until ${pauseUntil}`);
@@ -461,14 +462,14 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       await sendButtons(token, senderId, `Ready to book? Tap below to get started! 👇`, [bookBtn(tenant.id, senderId, tenant.custom_domain)]);
     } else {
       await setState('SELECT_CATEGORY', {}, {});
-      await showCategoryMenu(sends, token, senderId, tenant.id, channel);
+      await showCategoryMenu(sends, token, senderId, tenant.id, channel, tenant.custom_domain);
     }
     return;
   }
 
   if (lc === 'services' || text === 'SERVICES') {
     await setState('SELECT_CATEGORY', {}, {});
-    await showCategoryMenu(sends, token, senderId, tenant.id, channel);
+    await showCategoryMenu(sends, token, senderId, tenant.id, channel, tenant.custom_domain);
     return;
   }
 
@@ -518,7 +519,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
 
   if (text === 'MY_ORDERS') {
     const { rows: orders } = await db.query(
-      `SELECT o.id, o.status, o.price, o.created_at, s.name as service_name
+      `SELECT o.id, o.booking_ref, o.status, o.price, o.created_at, s.name as service_name
        FROM orders o LEFT JOIN services s ON s.id=o.service_id
        WHERE o.customer_id=$1 ORDER BY o.created_at DESC LIMIT 5`,
       [customer.id]
@@ -527,7 +528,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       await sendMessage(token, senderId, "You don't have any orders yet. Type \"book\" to get started!");
     } else {
       const list = orders.map(o =>
-        `📦 ${o.id}\n   ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString()}\n   Status: ${o.status}`
+        `📦 ${o.booking_ref || o.id.slice(-8).toUpperCase()}\n   ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString()}\n   Status: ${o.status}`
       ).join('\n\n');
       await sendMessage(token, senderId, `Your recent orders:\n\n${list}\n\nType "book" to place a new order.`);
     }
@@ -540,7 +541,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     const parts = text.split(':');
     const catId = parts[1];
     await setState('SELECT_SERVICE', {}, {});
-    await showServiceCatalog(sends, token, senderId, tenant.id, catId === 'ALL' ? null : catId, channel);
+    await showServiceCatalog(sends, token, senderId, tenant.id, catId === 'ALL' ? null : catId, channel, tenant.custom_domain);
     return;
   }
 
@@ -849,12 +850,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   console.log('[ai-check] ai_enabled:', tenant.ai_enabled, '| has text:', !!event.message?.text, '| step:', step, '| text:', text);
   if (tenant.ai_enabled && event.message?.text) {
     // Skip AI if human replied recently (pause window active)
-    const { rows: [conv] } = await db.query(
-      `SELECT data FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+    const { rows: [pauseRow] } = await db.query(
+      `SELECT ai_paused_until FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
       [tenant.id, senderId]
     );
-    const pausedUntil = conv?.data?.ai_paused_until;
-    if (pausedUntil && new Date(pausedUntil) > new Date()) {
+    if (pauseRow?.ai_paused_until && new Date(pauseRow.ai_paused_until) > new Date()) {
       return; // human takeover active — stay silent
     }
     // Check daily cap — reset counter if day has changed

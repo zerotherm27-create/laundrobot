@@ -472,7 +472,7 @@ router.post('/:tenantId/orders', async (req, res) => {
     let referralRef = null;
     if (fb_id) {
       const { rows: [conv] } = await db.query(
-        `SELECT data->>'referral_ref' AS referral_ref FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+        `SELECT referral_ref FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
         [req.params.tenantId, fb_id]
       );
       referralRef = conv?.referral_ref || null;
@@ -582,6 +582,14 @@ router.post('/:tenantId/orders', async (req, res) => {
     // Resolve fb_id — use request value or fall back to stored customer record
     const { rows: [customerRow] } = await db.query('SELECT fb_id FROM customers WHERE id=$1', [customerId]);
     const effectiveFbId = fb_id || customerRow?.fb_id || null;
+
+    // Mark any in-progress cart as converted so cart reminders stop firing
+    if (effectiveFbId) {
+      await db.query(
+        `UPDATE carts SET converted=TRUE WHERE tenant_id=$1 AND fb_user_id=$2 AND converted=FALSE`,
+        [req.params.tenantId, effectiveFbId]
+      ).catch(() => {});
+    }
 
     // Messenger confirmation to customer
     if (effectiveFbId) {
