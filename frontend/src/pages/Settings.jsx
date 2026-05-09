@@ -329,7 +329,7 @@ export default function Settings() {
     {showUpgradeModal && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
         onClick={e => { if (e.target === e.currentTarget) setShowUpgradeModal(false); }}>
-        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 560, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 600, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden', maxHeight: '92vh', overflowY: 'auto' }}>
           {/* Header */}
           <div style={{ padding: '1.25rem 1.5rem 1rem', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -352,27 +352,47 @@ export default function Settings() {
           {/* Plan cards */}
           <div style={{ padding: '1.25rem 1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             {[
-              { tier: 'starter', label: 'Starter', monthly: 999,  annual: 9990,  annualMo: 833,  color: '#38a9c2', lightBg: '#F0FBFD', features: ['1 branch · 3 staff', 'AI Messenger bot', 'Online booking form', 'Xendit payments'] },
-              { tier: 'growth',  label: 'Growth',  monthly: 1999, annual: 19990, annualMo: 1666, color: '#059669', lightBg: '#F0FDF4', badge: 'Most Popular', features: ['3 branches · 5 staff', 'Everything in Starter', 'Referral links', 'Priority support'] },
-              { tier: 'pro',     label: 'Pro',     monthly: 5499, annual: 54990, annualMo: 4583, color: '#7C3AED', lightBg: '#F5F3FF', features: ['10 branches · 10 staff', 'Custom domain', 'White-label form', 'Dedicated onboarding'] },
+              {
+                tier: 'starter', label: 'Starter', tagline: 'For shops tired of managing orders by hand',
+                monthly: 999, annualMo: 833, annualTotal: '₱9,990',
+                color: '#38a9c2', lightBg: '#F0FBFD',
+                features: ['1 branch · 2 staff accounts', 'Messenger bot + AI chatbot (Tagalog & English)', 'Booking webform with Xendit payments', 'Kanban order board + Walk-in POS', 'Email notifications to owner & customer', 'Up to 200 orders/month'],
+              },
+              {
+                tier: 'growth', label: 'Growth', tagline: 'Works harder than a part-time staff — for less',
+                monthly: 1999, annualMo: 1666, annualTotal: '₱19,990',
+                color: '#059669', lightBg: '#F0FDF4', badge: 'Most Popular',
+                features: ['Everything in Starter', 'Up to 3 branches · 5 staff accounts', 'Blast messaging to all your customers', 'Promo codes & referral links', 'Auto payment reminders (4-stage follow-up)', 'Auto-cancel unpaid orders after 24 hours', 'Revenue reports & analytics', 'Up to 1,000 orders/month'],
+              },
+              {
+                tier: 'pro', label: 'Pro', tagline: 'One dashboard for all your branches',
+                monthly: 5499, annualMo: 4583, annualTotal: '₱54,990',
+                color: '#7C3AED', lightBg: '#F5F3FF',
+                features: ['Everything in Growth', 'Up to 10 branches · 10 staff accounts', 'Custom AI instructions per branch', 'White-label booking form (your domain)', 'Unlimited orders', 'Priority support + dedicated onboarding'],
+              },
             ].map(p => {
               const isSel = upgradeTier === p.tier;
               return (
                 <button key={p.tier} onClick={() => setUpgradeTier(p.tier)}
-                  style={{ textAlign: 'left', borderRadius: 12, border: `2px solid ${isSel ? p.color : '#E5E7EB'}`, background: isSel ? p.lightBg : '#fff', padding: '12px', cursor: 'pointer', fontFamily: 'inherit', position: 'relative', transition: 'all .15s' }}>
+                  style={{ textAlign: 'left', borderRadius: 12, border: `2px solid ${isSel ? p.color : '#E5E7EB'}`, background: isSel ? p.lightBg : '#fff', padding: '12px', cursor: 'pointer', fontFamily: 'inherit', position: 'relative', transition: 'all .15s', verticalAlign: 'top' }}>
                   {p.badge && (
                     <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: p.color, color: '#fff', fontSize: 9, fontWeight: 800, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{p.badge}</div>
                   )}
-                  <div style={{ fontSize: 11, fontWeight: 700, color: p.color, marginBottom: 4 }}>{p.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: p.color, marginBottom: 3 }}>{p.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 8, lineHeight: 1.4 }}>{p.tagline}</div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: '#111827', lineHeight: 1 }}>
                     ₱{(upgradeAnnual ? p.annualMo : p.monthly).toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: upgradeAnnual ? 4 : 8 }}>/month</div>
-                  {upgradeAnnual && <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 8 }}>₱{p.annual.toLocaleString()}/year</div>}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>/month</div>
+                  {upgradeAnnual
+                    ? <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 10 }}>Billed {p.annualTotal}/year · 2 months free</div>
+                    : <div style={{ marginBottom: 10 }} />
+                  }
+                  <div style={{ height: '0.5px', background: '#E5E7EB', marginBottom: 10 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {p.features.map(f => (
-                      <div key={f} style={{ fontSize: 10, color: '#374151', display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-                        <span style={{ color: p.color, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                      <div key={f} style={{ fontSize: 10, color: '#374151', display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+                        <svg style={{ flexShrink: 0, marginTop: 1 }} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                         {f}
                       </div>
                     ))}
