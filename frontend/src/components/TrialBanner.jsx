@@ -21,7 +21,7 @@ export default function TrialBanner() {
   async function handleUpgrade() {
     setPaying(true);
     try {
-      const { data } = await createSubscriptionInvoice('monthly');
+      const { data } = await createSubscriptionInvoice('growth_annual');
       window.open(data.invoiceUrl, '_blank');
     } catch (e) {
       alert('Could not open payment page. Please try again.');
@@ -63,7 +63,7 @@ export default function TrialBanner() {
           }}>
           {paying
             ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} /> Opening…</>
-            : '✨ Upgrade — ₱999/mo'}
+            : '✨ Upgrade — ₱1,666/mo'}
         </button>
         {!isUrgent && (
           <button onClick={() => setDismissed(true)}
