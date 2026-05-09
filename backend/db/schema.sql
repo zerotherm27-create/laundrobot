@@ -6,8 +6,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  fb_page_id TEXT UNIQUE NOT NULL,
-  fb_page_access_token TEXT NOT NULL,
+  fb_page_id TEXT UNIQUE,
+  fb_page_access_token TEXT,
   xendit_api_key TEXT,
   logo_url TEXT,
   active BOOLEAN DEFAULT TRUE,
