@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getSubscription, createSubscriptionInvoice } from '../api.js';
+import { getSubscription } from '../api.js';
+import { useUpgrade } from '../context/UpgradeContext.jsx';
 
 export default function TrialBanner() {
-  const [sub, setSub]         = useState(null);
-  const [paying, setPaying]   = useState(false);
+  const [sub, setSub]             = useState(null);
   const [dismissed, setDismissed] = useState(false);
+  const { openUpgradeModal }      = useUpgrade();
 
   useEffect(() => {
     getSubscription()
@@ -17,18 +18,6 @@ export default function TrialBanner() {
   const trialEnd  = new Date(sub.trial_ends_at);
   const daysLeft  = Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000));
   const isUrgent  = daysLeft <= 3;
-
-  async function handleUpgrade() {
-    setPaying(true);
-    try {
-      const { data } = await createSubscriptionInvoice('growth_annual');
-      window.open(data.invoiceUrl, '_blank');
-    } catch (e) {
-      alert('Could not open payment page. Please try again.');
-    } finally {
-      setPaying(false);
-    }
-  }
 
   return (
     <div style={{
@@ -53,17 +42,13 @@ export default function TrialBanner() {
 
       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
         <button
-          onClick={handleUpgrade}
-          disabled={paying}
+          onClick={openUpgradeModal}
           style={{
             padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
             background: isUrgent ? '#DC2626' : '#38a9c2',
             color: '#fff', fontWeight: 700, fontSize: 12, fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-          {paying
-            ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} /> Opening…</>
-            : '✨ Upgrade — ₱1,666/mo'}
+          ✨ View plans
         </button>
         {!isUrgent && (
           <button onClick={() => setDismissed(true)}

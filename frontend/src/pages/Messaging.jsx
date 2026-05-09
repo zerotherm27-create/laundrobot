@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings, createSubscriptionInvoice } from '../api.js';
+import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings } from '../api.js';
+import { useUpgrade } from '../context/UpgradeContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -12,7 +13,7 @@ export default function Messaging() {
   const [pausedCustomers,setPausedCustomers] = useState([]);
   const [releasingId,    setReleasingId]    = useState(null);
   const [tenantPlan,     setTenantPlan]     = useState('starter');
-  const [upgrading,      setUpgrading]      = useState(false);
+  const { openUpgradeModal } = useUpgrade();
 
   useEffect(() => {
     getBlastHistory().then(r => setHistory(r.data)).catch(() => {});
@@ -94,19 +95,9 @@ export default function Messaging() {
                   <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>✓ {f}</div>
                 ))}
               </div>
-              <button disabled={upgrading}
-                onClick={async () => {
-                  setUpgrading(true);
-                  try {
-                    const { data } = await createSubscriptionInvoice('growth_annual');
-                    window.open(data.invoiceUrl, '_blank');
-                  } catch { alert('Could not open payment page. Please try again.'); }
-                  finally { setUpgrading(false); }
-                }}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                {upgrading
-                  ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Opening payment…</>
-                  : 'Upgrade to Growth — ₱19,990/year →'}
+              <button onClick={openUpgradeModal}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                View plans & upgrade →
               </button>
               <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 6 }}>₱1,666/month · 2 months free · Cancel anytime</div>
             </div>

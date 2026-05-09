@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
+import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 
 const INPUT = {
@@ -30,7 +31,7 @@ function SectionCard({ icon, iconBg, title, subtitle, children }) {
 }
 
 function UpgradeCta({ title, desc, features }) {
-  const [upgrading, setUpgrading] = useState(false);
+  const { openUpgradeModal } = useUpgrade();
   return (
     <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 10, padding: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
@@ -47,19 +48,9 @@ function UpgradeCta({ title, desc, features }) {
           <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '2px 9px' }}>✓ {f}</div>
         ))}
       </div>
-      <button disabled={upgrading}
-        onClick={async () => {
-          setUpgrading(true);
-          try {
-            const { data } = await createSubscriptionInvoice('growth_annual');
-            window.open(data.invoiceUrl, '_blank');
-          } catch { alert('Could not open payment page. Please try again.'); }
-          finally { setUpgrading(false); }
-        }}
-        style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
-        {upgrading
-          ? <><span style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Opening payment…</>
-          : 'Upgrade to Growth — ₱19,990/year →'}
+      <button onClick={openUpgradeModal}
+        style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
+        View plans & upgrade →
       </button>
       <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
     </div>
@@ -157,10 +148,7 @@ export default function Settings() {
   const [tenantPlan,        setTenantPlan]        = useState('starter');
   const [customDomain,      setCustomDomain]      = useState('');
   const [whiteLabel,        setWhiteLabel]        = useState(false);
-  const [upgradingPro,      setUpgradingPro]      = useState(false);
-  const [showUpgradeModal,  setShowUpgradeModal]  = useState(false);
-  const [upgradeAnnual,     setUpgradeAnnual]     = useState(true);
-  const [upgradeTier,       setUpgradeTier]       = useState('growth');
+  const { openUpgradeModal } = useUpgrade();
 
   useEffect(() => {
     Promise.all([
@@ -314,117 +302,8 @@ export default function Settings() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const PRO_FEATURES = [
-    { label: 'Everything in Starter', sub: 'All your current features carry over' },
-    { label: 'Up to 10 branches · 10 staff accounts', sub: 'Scale across all your locations' },
-    { label: 'White-label booking form', sub: 'Remove all LaundroBot branding' },
-    { label: 'Custom domain', sub: 'Host at book.yourdomain.com' },
-    { label: 'Custom AI instructions per branch', sub: 'Fine-tune the chatbot per location' },
-    { label: 'Unlimited orders', sub: 'No monthly order cap' },
-    { label: 'Priority support + dedicated onboarding', sub: 'Direct line, faster response' },
-  ];
-
   return (
     <>
-    {showUpgradeModal && (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-        onClick={e => { if (e.target === e.currentTarget) setShowUpgradeModal(false); }}>
-        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 600, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden', maxHeight: '92vh', overflowY: 'auto' }}>
-          {/* Header */}
-          <div style={{ padding: '1.25rem 1.5rem 1rem', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', marginBottom: 10 }}>Choose your plan</div>
-              <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: 20, padding: 3, gap: 2 }}>
-                {[{ label: 'Monthly', val: false }, { label: 'Annual — Save 17%', val: true }].map(opt => (
-                  <button key={opt.label} onClick={() => setUpgradeAnnual(opt.val)}
-                    style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, background: upgradeAnnual === opt.val ? '#fff' : 'transparent', color: upgradeAnnual === opt.val ? '#111827' : '#6B7280', boxShadow: upgradeAnnual === opt.val ? '0 1px 4px rgba(0,0,0,.12)' : 'none', transition: 'all .15s' }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button onClick={() => setShowUpgradeModal(false)}
-              style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#374151', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              ×
-            </button>
-          </div>
-
-          {/* Plan cards */}
-          <div style={{ padding: '1.25rem 1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            {[
-              {
-                tier: 'starter', label: 'Starter', tagline: 'For shops tired of managing orders by hand',
-                monthly: 999, annualMo: 833, annualTotal: '₱9,990',
-                color: '#38a9c2', lightBg: '#F0FBFD',
-                features: ['1 branch · 2 staff accounts', 'Messenger bot + AI chatbot (Tagalog & English)', 'Booking webform with Xendit payments', 'Kanban order board + Walk-in POS', 'Email notifications to owner & customer', 'Up to 200 orders/month'],
-              },
-              {
-                tier: 'growth', label: 'Growth', tagline: 'Works harder than a part-time staff — for less',
-                monthly: 1999, annualMo: 1666, annualTotal: '₱19,990',
-                color: '#059669', lightBg: '#F0FDF4', badge: 'Most Popular',
-                features: ['Everything in Starter', 'Up to 3 branches · 5 staff accounts', 'Blast messaging to all your customers', 'Promo codes & referral links', 'Auto payment reminders (4-stage follow-up)', 'Auto-cancel unpaid orders after 24 hours', 'Revenue reports & analytics', 'Up to 1,000 orders/month'],
-              },
-              {
-                tier: 'pro', label: 'Pro', tagline: 'One dashboard for all your branches',
-                monthly: 5499, annualMo: 4583, annualTotal: '₱54,990',
-                color: '#7C3AED', lightBg: '#F5F3FF',
-                features: ['Everything in Growth', 'Up to 10 branches · 10 staff accounts', 'Custom AI instructions per branch', 'White-label booking form (your domain)', 'Unlimited orders', 'Priority support + dedicated onboarding'],
-              },
-            ].map(p => {
-              const isSel = upgradeTier === p.tier;
-              return (
-                <button key={p.tier} onClick={() => setUpgradeTier(p.tier)}
-                  style={{ textAlign: 'left', borderRadius: 12, border: `2px solid ${isSel ? p.color : '#E5E7EB'}`, background: isSel ? p.lightBg : '#fff', padding: '12px', cursor: 'pointer', fontFamily: 'inherit', position: 'relative', transition: 'all .15s', verticalAlign: 'top' }}>
-                  {p.badge && (
-                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: p.color, color: '#fff', fontSize: 9, fontWeight: 800, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{p.badge}</div>
-                  )}
-                  <div style={{ fontSize: 11, fontWeight: 700, color: p.color, marginBottom: 3 }}>{p.label.toUpperCase()}</div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 8, lineHeight: 1.4 }}>{p.tagline}</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: '#111827', lineHeight: 1 }}>
-                    ₱{(upgradeAnnual ? p.annualMo : p.monthly).toLocaleString()}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>/month</div>
-                  {upgradeAnnual
-                    ? <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 10 }}>Billed {p.annualTotal}/year · 2 months free</div>
-                    : <div style={{ marginBottom: 10 }} />
-                  }
-                  <div style={{ height: '0.5px', background: '#E5E7EB', marginBottom: 10 }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {p.features.map(f => (
-                      <div key={f} style={{ fontSize: 10, color: '#374151', display: 'flex', alignItems: 'flex-start', gap: 5 }}>
-                        <svg style={{ flexShrink: 0, marginTop: 1 }} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                        {f}
-                      </div>
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* CTA */}
-          <div style={{ padding: '0 1.5rem 1.5rem' }}>
-            <button disabled={upgradingPro}
-              onClick={async () => {
-                setUpgradingPro(true);
-                try {
-                  const plan = `${upgradeTier}_${upgradeAnnual ? 'annual' : 'monthly'}`;
-                  const { data } = await createSubscriptionInvoice(plan);
-                  window.open(data.invoiceUrl, '_blank');
-                  setShowUpgradeModal(false);
-                } catch { alert('Could not open payment page. Please try again.'); }
-                finally { setUpgradingPro(false); }
-              }}
-              style={{ width: '100%', padding: '13px', borderRadius: 12, background: upgradeTier === 'pro' ? '#7C3AED' : upgradeTier === 'growth' ? '#059669' : '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-              {upgradingPro
-                ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening payment…</>
-                : `Upgrade to ${upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)} →`}
-            </button>
-            <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', margin: 0 }}>Secure payment via Xendit · Cancel anytime</p>
-          </div>
-        </div>
-      </div>
-    )}
     <div className="animate-fade-up">
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>Settings</h2>
@@ -462,7 +341,7 @@ export default function Settings() {
                     ))}
                   </div>
                   <button
-                    onClick={() => setShowUpgradeModal(true)}
+                    onClick={() => openUpgradeModal()}
                     style={{ padding: '9px 20px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     See plan details & upgrade →
                   </button>
@@ -774,7 +653,7 @@ export default function Settings() {
                     ))}
                   </div>
                   <button
-                    onClick={() => setShowUpgradeModal(true)}
+                    onClick={() => openUpgradeModal()}
                     style={{ padding: '9px 20px', borderRadius: 20, background: '#7C3AED', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     See plan details & upgrade →
                   </button>
