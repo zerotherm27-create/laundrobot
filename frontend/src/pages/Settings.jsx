@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 
 const INPUT = {
@@ -108,6 +108,8 @@ export default function Settings() {
   const [fbConnecting,     setFbConnecting]     = useState(false);
   const [fbSaving,         setFbSaving]         = useState(false);
   const [fbMsg,            setFbMsg]            = useState('');
+  const [fbTesting,        setFbTesting]        = useState(false);
+  const [fbTestResult,     setFbTestResult]     = useState(null);
 
   // Logo
   const [logoUrl,        setLogoUrl]        = useState('');
@@ -121,6 +123,7 @@ export default function Settings() {
   const [upgradingPro,      setUpgradingPro]      = useState(false);
   const [showUpgradeModal,  setShowUpgradeModal]  = useState(false);
   const [upgradeAnnual,     setUpgradeAnnual]     = useState(false);
+  const [upgradeTier,       setUpgradeTier]       = useState('growth');
 
   useEffect(() => {
     Promise.all([
@@ -289,79 +292,78 @@ export default function Settings() {
     {showUpgradeModal && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
         onClick={e => { if (e.target === e.currentTarget) setShowUpgradeModal(false); }}>
-        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 480, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden' }}>
-          {/* Modal header */}
-          <div style={{ background: 'linear-gradient(135deg,#7C3AED,#5B21B6)', padding: '1.75rem 1.5rem 1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,.2)', borderRadius: 20, padding: '3px 12px', marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: '.06em' }}>PRO PLAN</span>
-                </div>
-                {/* Billing toggle */}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-                  {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
-                    <button key={opt.label} onClick={() => setUpgradeAnnual(opt.val)}
-                      style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, background: upgradeAnnual === opt.val ? '#fff' : 'rgba(255,255,255,.2)', color: upgradeAnnual === opt.val ? '#7C3AED' : '#fff', transition: 'all .15s' }}>
-                      {opt.label}
-                      {opt.val && <span style={{ marginLeft: 5, background: '#fdca00', color: '#7a5800', fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 20 }}>SAVE 17%</span>}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.7)', alignSelf: 'flex-start', marginTop: 6 }}>₱</span>
-                  <span style={{ fontSize: 42, fontWeight: 900, color: '#fff', letterSpacing: '-.04em', lineHeight: 1 }}>
-                    {upgradeAnnual ? '4,583' : '5,499'}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,.7)', marginBottom: 6 }}>/month</span>
-                </div>
-                {upgradeAnnual && (
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.75)', marginTop: 4 }}>Billed ₱54,990/year · 2 months free</div>
-                )}
+        <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 560, boxShadow: '0 24px 64px rgba(0,0,0,.2)', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ padding: '1.25rem 1.5rem 1rem', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', marginBottom: 10 }}>Choose your plan</div>
+              <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: 20, padding: 3, gap: 2 }}>
+                {[{ label: 'Monthly', val: false }, { label: 'Annual — Save 17%', val: true }].map(opt => (
+                  <button key={opt.label} onClick={() => setUpgradeAnnual(opt.val)}
+                    style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, background: upgradeAnnual === opt.val ? '#fff' : 'transparent', color: upgradeAnnual === opt.val ? '#111827' : '#6B7280', boxShadow: upgradeAnnual === opt.val ? '0 1px 4px rgba(0,0,0,.12)' : 'none', transition: 'all .15s' }}>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-              <button onClick={() => setShowUpgradeModal(false)}
-                style={{ background: 'rgba(255,255,255,.2)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#fff', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                ×
-              </button>
             </div>
+            <button onClick={() => setShowUpgradeModal(false)}
+              style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#374151', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              ×
+            </button>
           </div>
 
-          {/* Features list */}
-          <div style={{ padding: '1.25rem 1.5rem' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 12 }}>What you get</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-              {PRO_FEATURES.map((f, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#F5F3FF', flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          {/* Plan cards */}
+          <div style={{ padding: '1.25rem 1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {[
+              { tier: 'starter', label: 'Starter', monthly: 999,  annual: 9990,  annualMo: 833,  color: '#38a9c2', lightBg: '#F0FBFD', features: ['1 branch · 3 staff', 'AI Messenger bot', 'Online booking form', 'Xendit payments'] },
+              { tier: 'growth',  label: 'Growth',  monthly: 1999, annual: 19990, annualMo: 1666, color: '#059669', lightBg: '#F0FDF4', badge: 'Most Popular', features: ['3 branches · 5 staff', 'Everything in Starter', 'Referral links', 'Priority support'] },
+              { tier: 'pro',     label: 'Pro',     monthly: 5499, annual: 54990, annualMo: 4583, color: '#7C3AED', lightBg: '#F5F3FF', features: ['10 branches · 10 staff', 'Custom domain', 'White-label form', 'Dedicated onboarding'] },
+            ].map(p => {
+              const isSel = upgradeTier === p.tier;
+              return (
+                <button key={p.tier} onClick={() => setUpgradeTier(p.tier)}
+                  style={{ textAlign: 'left', borderRadius: 12, border: `2px solid ${isSel ? p.color : '#E5E7EB'}`, background: isSel ? p.lightBg : '#fff', padding: '12px', cursor: 'pointer', fontFamily: 'inherit', position: 'relative', transition: 'all .15s' }}>
+                  {p.badge && (
+                    <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: p.color, color: '#fff', fontSize: 9, fontWeight: 800, borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap' }}>{p.badge}</div>
+                  )}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: p.color, marginBottom: 4 }}>{p.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: '#111827', lineHeight: 1 }}>
+                    ₱{(upgradeAnnual ? p.annualMo : p.monthly).toLocaleString()}
                   </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{f.label}</div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>{f.sub}</div>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: upgradeAnnual ? 4 : 8 }}>/month</div>
+                  {upgradeAnnual && <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 8 }}>₱{p.annual.toLocaleString()}/year</div>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {p.features.map(f => (
+                      <div key={f} style={{ fontSize: 10, color: '#374151', display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                        <span style={{ color: p.color, fontWeight: 700, flexShrink: 0 }}>✓</span>
+                        {f}
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
+                </button>
+              );
+            })}
+          </div>
 
-            {/* CTA */}
+          {/* CTA */}
+          <div style={{ padding: '0 1.5rem 1.5rem' }}>
             <button disabled={upgradingPro}
               onClick={async () => {
                 setUpgradingPro(true);
                 try {
-                  const plan = upgradeAnnual ? 'pro_annual' : 'pro_monthly';
+                  const plan = `${upgradeTier}_${upgradeAnnual ? 'annual' : 'monthly'}`;
                   const { data } = await createSubscriptionInvoice(plan);
                   window.open(data.invoiceUrl, '_blank');
                   setShowUpgradeModal(false);
                 } catch { alert('Could not open payment page. Please try again.'); }
                 finally { setUpgradingPro(false); }
               }}
-              style={{ width: '100%', padding: '13px', borderRadius: 12, background: '#7C3AED', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
+              style={{ width: '100%', padding: '13px', borderRadius: 12, background: upgradeTier === 'pro' ? '#7C3AED' : upgradeTier === 'growth' ? '#059669' : '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgradingPro ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
               {upgradingPro
                 ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening payment…</>
-                : `Upgrade to Pro — ₱${upgradeAnnual ? '54,990/year' : '5,499/mo'} →`}
+                : `Upgrade to ${upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)} →`}
             </button>
-            <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', margin: 0 }}>
-              Secure payment via Xendit · Cancel anytime
-            </p>
+            <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', margin: 0 }}>Secure payment via Xendit · Cancel anytime</p>
           </div>
         </div>
       </div>
@@ -848,11 +850,35 @@ export default function Settings() {
             )}
 
             {fbPageId && fbPages.length === 0 && !fbMsg.startsWith('✅') && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '10px 14px', borderRadius: 8, background: '#EAF7EC', border: '0.5px solid #86EFAC' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                <div style={{ fontSize: 13, color: '#15803D' }}>
-                  <strong>Page connected</strong> — ID: <code style={{ background: '#D1FAE5', padding: '1px 5px', borderRadius: 4 }}>{fbPageId}</code>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: '#EAF7EC', border: '0.5px solid #86EFAC' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  <div style={{ fontSize: 13, color: '#15803D', flex: 1 }}>
+                    <strong>Page connected</strong> — ID: <code style={{ background: '#D1FAE5', padding: '1px 5px', borderRadius: 4 }}>{fbPageId}</code>
+                  </div>
+                  <button type="button" disabled={fbTesting} onClick={async () => {
+                    setFbTesting(true); setFbTestResult(null);
+                    try {
+                      const { data } = await testFacebookConnection();
+                      setFbTestResult(data);
+                    } catch { setFbTestResult({ connected: false, reason: 'request_failed' }); }
+                    finally { setFbTesting(false); }
+                  }} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #86EFAC', background: '#fff', color: '#15803D', fontWeight: 600, fontSize: 12, cursor: fbTesting ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                    {fbTesting ? 'Testing…' : 'Test Connection'}
+                  </button>
                 </div>
+                {fbTestResult && (
+                  <div style={{ marginTop: 6, padding: '7px 12px', borderRadius: 6, fontSize: 12,
+                    background: fbTestResult.connected ? '#EAF7EC' : '#FCEBEB',
+                    color: fbTestResult.connected ? '#1D6A3B' : '#A32D2D',
+                    border: `0.5px solid ${fbTestResult.connected ? '#86EFAC' : '#FCA5A5'}` }}>
+                    {fbTestResult.connected
+                      ? `✅ Token valid — connected as "${fbTestResult.page_name}"`
+                      : fbTestResult.reason === 'no_token'
+                        ? '❌ No page token saved — reconnect your Facebook Page below'
+                        : `❌ Token invalid: ${fbTestResult.fb_error || 'Please reconnect your Facebook Page below'}`}
+                  </div>
+                )}
               </div>
             )}
 

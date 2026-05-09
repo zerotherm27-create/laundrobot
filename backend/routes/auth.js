@@ -163,11 +163,13 @@ router.get('/subscription', require('../middleware/auth'), async (req, res) => {
 
 // POST create a subscription payment invoice via platform Xendit key
 router.post('/subscription/pay', require('../middleware/auth'), async (req, res) => {
-  const { plan } = req.body; // 'starter_monthly' | 'pro_monthly' | 'starter_annual' | 'pro_annual'
+  const { plan } = req.body; // 'starter_monthly' | 'growth_monthly' | 'pro_monthly' | '*_annual'
   const PLANS = {
     starter_monthly: { amount: 999,   label: 'LaundroBot Starter Monthly', tier: 'starter' },
+    growth_monthly:  { amount: 1999,  label: 'LaundroBot Growth Monthly',  tier: 'growth'  },
     pro_monthly:     { amount: 5499,  label: 'LaundroBot Pro Monthly',     tier: 'pro'     },
     starter_annual:  { amount: 9990,  label: 'LaundroBot Starter Annual',  tier: 'starter' },
+    growth_annual:   { amount: 19990, label: 'LaundroBot Growth Annual',   tier: 'growth'  },
     pro_annual:      { amount: 54990, label: 'LaundroBot Pro Annual',      tier: 'pro'     },
   };
   const chosen = PLANS[plan] || PLANS.starter_monthly;

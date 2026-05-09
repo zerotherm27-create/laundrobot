@@ -275,6 +275,26 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
   }
 });
 
+// GET validate the stored Facebook page token against Graph API
+router.get('/settings/facebook-status', auth, async (req, res) => {
+  try {
+    const { rows: [tenant] } = await db.query(
+      `SELECT fb_page_id, fb_page_access_token FROM tenants WHERE id=$1`, [req.user.tenant_id]
+    );
+    if (!tenant?.fb_page_access_token) {
+      return res.json({ connected: false, reason: 'no_token' });
+    }
+    const { data } = await axios.get('https://graph.facebook.com/v19.0/me', {
+      params: { fields: 'id,name', access_token: tenant.fb_page_access_token },
+      timeout: 5000,
+    });
+    res.json({ connected: true, page_name: data.name, page_id: data.id });
+  } catch (err) {
+    const fbError = err.response?.data?.error?.message;
+    res.json({ connected: false, reason: 'invalid_token', fb_error: fbError || err.message });
+  }
+});
+
 // GET all tenants (superadmin only)
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {

@@ -3,8 +3,9 @@ import { createSubscriptionInvoice } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const PLAN_TIERS = [
-  { key: 'starter_monthly', label: 'Starter', price: '₱999',   per: '/month', badge: null,           pro: false },
-  { key: 'pro_monthly',     label: 'Pro',     price: '₱5,499', per: '/month', badge: '🌐 White-label', pro: true  },
+  { key: 'starter_monthly', label: 'Starter', price: '₱999',   per: '/month', badge: null,              color: '#38a9c2', lightBg: '#F0FBFD' },
+  { key: 'growth_monthly',  label: 'Growth',  price: '₱1,999', per: '/month', badge: '⭐ Most Popular',  color: '#059669', lightBg: '#F0FDF4' },
+  { key: 'pro_monthly',     label: 'Pro',     price: '₱5,499', per: '/month', badge: '🌐 White-label',   color: '#7C3AED', lightBg: '#F5F3FF' },
 ];
 
 const FEATURES = [
@@ -64,31 +65,28 @@ export default function PaywallScreen() {
           </p>
 
           {/* Plan selector */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
             {PLAN_TIERS.map(plan => (
               <button key={plan.key} onClick={() => setSelected(plan.key)}
                 style={{
-                  flex: 1, padding: '14px 12px', borderRadius: 12, cursor: 'pointer',
-                  border: selected === plan.key ? `2px solid ${plan.pro ? '#7C3AED' : '#38a9c2'}` : '1.5px solid #E5E7EB',
-                  background: selected === plan.key ? (plan.pro ? '#F5F3FF' : '#F0FBFD') : '#fff',
+                  flex: 1, padding: '14px 10px', borderRadius: 12, cursor: 'pointer',
+                  border: selected === plan.key ? `2px solid ${plan.color}` : '1.5px solid #E5E7EB',
+                  background: selected === plan.key ? plan.lightBg : '#fff',
                   textAlign: 'center', fontFamily: 'inherit', position: 'relative',
                   transition: 'all .15s',
                 }}>
                 {plan.badge && (
                   <div style={{
                     position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-                    background: '#7C3AED', color: '#fff', fontSize: 10, fontWeight: 700,
-                    borderRadius: 20, padding: '2px 10px', whiteSpace: 'nowrap',
+                    background: plan.color, color: '#fff', fontSize: 9, fontWeight: 700,
+                    borderRadius: 20, padding: '2px 8px', whiteSpace: 'nowrap',
                   }}>
                     {plan.badge}
                   </div>
                 )}
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{plan.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#111827' }}>{plan.price}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: plan.color, marginBottom: 4 }}>{plan.label.toUpperCase()}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#111827' }}>{plan.price}</div>
                 <div style={{ fontSize: 11, color: '#6B7280' }}>{plan.per}</div>
-                {plan.pro && (
-                  <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600, marginTop: 4 }}>Custom domain included</div>
-                )}
               </button>
             ))}
           </div>
