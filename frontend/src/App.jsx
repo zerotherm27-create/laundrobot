@@ -6,6 +6,8 @@ import ResetPassword from './pages/ResetPassword.jsx';
 import BookingForm from './pages/BookingForm.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
+import UpgradeModal from './components/UpgradeModal.jsx';
+import { UpgradeProvider } from './context/UpgradeContext.jsx';
 import Overview from './pages/Overview.jsx';
 import Kanban from './pages/Kanban.jsx';
 import Orders from './pages/Orders.jsx';
@@ -102,6 +104,8 @@ function Dashboard({ initialPage }) {
   }
 
   return (
+    <UpgradeProvider>
+    <UpgradeModal />
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
       {/* Trial banner — only shown for trial tenants */}
       {user.role !== 'superadmin' && <TrialBanner />}
@@ -126,6 +130,7 @@ function Dashboard({ initialPage }) {
         </main>
       </div>
     </div>
+    </UpgradeProvider>
   );
 }
 
