@@ -122,7 +122,7 @@ export default function Settings() {
   const [whiteLabel,        setWhiteLabel]        = useState(false);
   const [upgradingPro,      setUpgradingPro]      = useState(false);
   const [showUpgradeModal,  setShowUpgradeModal]  = useState(false);
-  const [upgradeAnnual,     setUpgradeAnnual]     = useState(false);
+  const [upgradeAnnual,     setUpgradeAnnual]     = useState(true);
   const [upgradeTier,       setUpgradeTier]       = useState('growth');
 
   useEffect(() => {

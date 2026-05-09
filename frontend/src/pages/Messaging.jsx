@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings } from '../api.js';
+import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings, createSubscriptionInvoice } from '../api.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -12,6 +12,7 @@ export default function Messaging() {
   const [pausedCustomers,setPausedCustomers] = useState([]);
   const [releasingId,    setReleasingId]    = useState(null);
   const [tenantPlan,     setTenantPlan]     = useState('starter');
+  const [upgrading,      setUpgrading]      = useState(false);
 
   useEffect(() => {
     getBlastHistory().then(r => setHistory(r.data)).catch(() => {});
@@ -76,12 +77,38 @@ export default function Messaging() {
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 10 }}>Send blast message</div>
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
           {!['growth', 'pro'].includes(tenantPlan) ? (
-            <div style={{ padding: '1.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 6 }}>Growth plan feature</div>
-              <div style={{ fontSize: 12, color: '#374151', marginBottom: 14, lineHeight: 1.6 }}>
-                Blast messaging lets you send a message to all your customers at once. Available on the <strong>Growth plan</strong> and above.
+            <div style={{ padding: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Blast messaging</div>
+                  <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>
+                    Send a promo or update to all your customers at once — or filter by order status. Available on <strong>Growth</strong> and above.
+                  </div>
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: '#6B7280' }}>Contact your admin to upgrade your plan.</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {['Send to all customers', 'Filter by order status', 'Blast history log'].map(f => (
+                  <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>✓ {f}</div>
+                ))}
+              </div>
+              <button disabled={upgrading}
+                onClick={async () => {
+                  setUpgrading(true);
+                  try {
+                    const { data } = await createSubscriptionInvoice('growth_annual');
+                    window.open(data.invoiceUrl, '_blank');
+                  } catch { alert('Could not open payment page. Please try again.'); }
+                  finally { setUpgrading(false); }
+                }}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                {upgrading
+                  ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Opening payment…</>
+                  : 'Upgrade to Growth — ₱19,990/year →'}
+              </button>
+              <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 6 }}>₱1,666/month · 2 months free · Cancel anytime</div>
             </div>
           ) : (<>
             <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>Send to</label>
