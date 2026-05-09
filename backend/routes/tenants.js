@@ -328,8 +328,8 @@ router.post('/', auth, superadminOnly, async (req, res) => {
   const { name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url } = req.body;
   try {
     const { rows } = await db.query(
-      `INSERT INTO tenants (name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO tenants (name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, subscription_status, trial_ends_at)
+       VALUES ($1, $2, $3, $4, $5, 'trial', NOW() + INTERVAL '14 days')
        RETURNING id, name, fb_page_id, logo_url, active, created_at`,
       [name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url]
     );

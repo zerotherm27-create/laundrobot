@@ -86,7 +86,7 @@ function Dashboard({ initialPage }) {
   useEffect(() => {
     if (user.role === 'superadmin') { setSubStatus('active'); return; }
     getSubscription()
-      .then(r => setSubStatus(r.data.subscription_status))
+      .then(r => setSubStatus(r.data.subscription_status || 'active'))
       .catch(() => setSubStatus('active')); // fail open
   }, [user.role]);
 
