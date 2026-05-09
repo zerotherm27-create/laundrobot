@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getMyTenantSettings } from '../api.js';
+import { getOrders, getMyTenantSettings, createSubscriptionInvoice } from '../api.js';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
@@ -18,6 +18,7 @@ export default function Reports() {
   const [period, setPeriod] = useState('Monthly');
   const [loading, setLoading] = useState(true);
   const [tenantPlan, setTenantPlan] = useState('starter');
+  const [upgrading,  setUpgrading]  = useState(false);
 
   useEffect(() => {
     getOrders().then(r => { setOrders(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -97,12 +98,38 @@ export default function Reports() {
     return (
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Reports</h2>
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '3rem 2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 8 }}>Revenue reports & analytics</div>
-          <div style={{ fontSize: 13, color: '#374151', marginBottom: 4, lineHeight: 1.7 }}>
-            Revenue reports, order breakdowns, and analytics are available on the <strong>Growth plan</strong> and above.
+        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Revenue reports & analytics</div>
+              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                Track revenue, order volume, and trends over time. Available on <strong>Growth</strong> and above.
+              </div>
+            </div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>Contact your admin to upgrade your plan.</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            {['Daily / weekly / monthly view', 'Revenue breakdown by service', 'CSV export', 'Order count trends'].map(f => (
+              <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>✓ {f}</div>
+            ))}
+          </div>
+          <button disabled={upgrading}
+            onClick={async () => {
+              setUpgrading(true);
+              try {
+                const { data } = await createSubscriptionInvoice('growth_annual');
+                window.open(data.invoiceUrl, '_blank');
+              } catch { alert('Could not open payment page. Please try again.'); }
+              finally { setUpgrading(false); }
+            }}
+            style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+            {upgrading
+              ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Opening payment…</>
+              : 'Upgrade to Growth — ₱19,990/year →'}
+          </button>
+          <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
         </div>
       </div>
     );

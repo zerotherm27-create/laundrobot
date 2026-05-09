@@ -29,6 +29,43 @@ function SectionCard({ icon, iconBg, title, subtitle, children }) {
   );
 }
 
+function UpgradeCta({ title, desc, features }) {
+  const [upgrading, setUpgrading] = useState(false);
+  return (
+    <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 10, padding: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 3 }}>{title}</div>
+          <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{desc}</div>
+        </div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+        {features.map(f => (
+          <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '2px 9px' }}>✓ {f}</div>
+        ))}
+      </div>
+      <button disabled={upgrading}
+        onClick={async () => {
+          setUpgrading(true);
+          try {
+            const { data } = await createSubscriptionInvoice('growth_annual');
+            window.open(data.invoiceUrl, '_blank');
+          } catch { alert('Could not open payment page. Please try again.'); }
+          finally { setUpgrading(false); }
+        }}
+        style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
+        {upgrading
+          ? <><span style={{ width: 13, height: 13, border: '2px solid rgba(255,255,255,.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} />Opening payment…</>
+          : 'Upgrade to Growth — ₱19,990/year →'}
+      </button>
+      <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
+    </div>
+  );
+}
+
 function GroupHeader({ label }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 24 }}>
@@ -1062,9 +1099,11 @@ export default function Settings() {
             </div>
 
             {!['growth', 'pro'].includes(tenantPlan) ? (
-              <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
-                Promo codes are available on the <strong>Growth plan</strong> and above. Upgrade to offer discounts and run promotions for your customers.
-              </div>
+              <UpgradeCta
+                title="Promo codes"
+                desc="Offer discounts and run promotions — fixed amount or percentage off, with min order and expiry date."
+                features={['Fixed & percentage discounts', 'Min order threshold', 'Usage limits & expiry', 'Active/inactive toggle']}
+              />
             ) : <>
             {addingPromo && (
               <form onSubmit={async e => {
@@ -1211,9 +1250,11 @@ export default function Settings() {
             </div>
 
             {!['growth', 'pro'].includes(tenantPlan) ? (
-              <div style={{ background: '#F0FDF4', border: '0.5px solid #BBF7D0', borderRadius: 8, padding: '14px 16px', fontSize: 13, color: '#065F46' }}>
-                Referral links are available on the <strong>Growth plan</strong> and above. Upgrade to track which marketing channels drive clicks and bookings.
-              </div>
+              <UpgradeCta
+                title="Referral links"
+                desc="Create trackable links for Facebook posts, flyers, or influencers — see clicks and bookings per source."
+                features={['Unique link per channel', 'Click & booking tracking', 'Revenue attribution', 'Unlimited links']}
+              />
             ) : <>
             {addingRef && (
               <form onSubmit={async e => {
