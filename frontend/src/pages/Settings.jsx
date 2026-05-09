@@ -91,6 +91,7 @@ export default function Settings() {
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
+  const [openDays,       setOpenDays]       = useState([0,1,2,3,4,5,6]);
   const [fbPageId,       setFbPageId]       = useState('');
   const [loading,        setLoading]        = useState(true);
   const [saving,         setSaving]         = useState(false);
@@ -172,6 +173,7 @@ export default function Settings() {
       setStoreOpen(s.data.store_open || '');
       setStoreClose(s.data.store_close || '');
       setBookingCutoff(s.data.booking_cutoff || '');
+      setOpenDays(Array.isArray(s.data.open_days) && s.data.open_days.length ? s.data.open_days.map(Number) : [0,1,2,3,4,5,6]);
       setFbPageId(s.data.fb_page_id || '');
       setLogoUrl(s.data.logo_url || '');
       setTenantPlan(s.data.plan || 'starter');
@@ -196,6 +198,7 @@ export default function Settings() {
         store_open: storeOpen || null,
         store_close: storeClose || null,
         booking_cutoff: bookingCutoff || null,
+        open_days: openDays,
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
@@ -220,8 +223,7 @@ export default function Settings() {
     }
   }
 
-  async function handleAddDate(e) {
-    e.preventDefault();
+  async function handleAddDate() {
     if (!newDate) return setDateErr('Please select a date.');
     setSavingDate(true); setDateErr('');
     try {
@@ -399,7 +401,32 @@ export default function Settings() {
             <GroupHeader label="Booking & Operations" />
 
             <SectionCard icon={<Icon name="clock" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Store Hours &amp; Booking Window"
-              subtitle="Controls what times customers can select when placing a booking">
+              subtitle="Controls what times and days customers can select when placing a booking">
+              {/* Open days */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={LABEL}>Open Days</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day, idx) => {
+                    const isOn = openDays.includes(idx);
+                    return (
+                      <button key={idx} type="button"
+                        onClick={() => setOpenDays(prev => isOn ? prev.filter(d => d !== idx) : [...prev, idx].sort((a,b) => a-b))}
+                        style={{
+                          padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          border: isOn ? 'none' : '1.5px solid #D1D5DB',
+                          background: isOn ? '#38a9c2' : '#F9FAFB',
+                          color: isOn ? '#fff' : '#6B7280',
+                          cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
+                        }}>
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+                {openDays.length === 0 && (
+                  <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 5 }}>No open days selected — customers won't be able to book.</div>
+                )}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
                   <label style={LABEL}>Store Opens</label>
@@ -436,6 +463,74 @@ export default function Settings() {
                 {minimumOrder ? `Customers need at least ₱${Number(minimumOrder).toLocaleString()} in their cart to check out.` : 'No minimum set — any order amount is accepted.'}
               </div>
             </SectionCard>
+
+            {/* Blocked Dates — inside Booking & Operations section */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FCEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ban" size={18} color="#DC2626" /></div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>Blocked Dates</div>
+                    <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Dates unavailable for booking (holidays, closures, etc.)</div>
+                  </div>
+                </div>
+                {!addingDate && (
+                  <button type="button" onClick={() => { setAddingDate(true); setNewDate(''); setNewReason(''); setDateErr(''); }}
+                    style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    + Block Date
+                  </button>
+                )}
+              </div>
+
+              {addingDate && (
+                <div style={{ background: '#F7F9FD', borderRadius: 10, padding: '14px', marginBottom: 14, border: '1px solid #9ed3dc' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={LABEL}>Date to Block *</label>
+                      <input type="date" value={newDate} min={today} onChange={e => setNewDate(e.target.value)}
+                        style={{ ...INPUT }} onFocus={FOCUS} onBlur={BLUR} />
+                    </div>
+                    <div>
+                      <label style={LABEL}>Reason <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
+                      <input type="text" value={newReason} onChange={e => setNewReason(e.target.value)}
+                        placeholder="e.g. Holiday, Staff Day Off" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+                    </div>
+                  </div>
+                  {dateErr && <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>{dateErr}</div>}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" disabled={savingDate} onClick={handleAddDate}
+                      style={{ padding: '7px 18px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: savingDate ? '#aaa' : '#38a9c2', color: '#fff', cursor: 'pointer' }}>
+                      {savingDate ? 'Saving…' : 'Add'}
+                    </button>
+                    <button type="button" onClick={() => setAddingDate(false)}
+                      style={{ padding: '7px 18px', fontSize: 12, fontWeight: 500, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {blockedDates.length === 0 ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
+                  No blocked dates. Add holidays or closure days here.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {blockedDates.map(b => (
+                    <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: '#FFF5F5', border: '0.5px solid #F09595' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="ban" size={13} color="#DC2626" />{formatDateDisplay(b.date)}</div>
+                        {b.reason && <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{b.reason}</div>}
+                      </div>
+                      <button type="button" onClick={() => handleDeleteDate(b.id)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* ── NOTIFICATIONS ── */}
             <GroupHeader label="Notifications" />
@@ -699,77 +794,6 @@ export default function Settings() {
               {saving ? 'Saving…' : 'Save Settings'}
             </button>
           </form>
-
-          {/* ── OPERATIONS ── */}
-          <GroupHeader label="Operations" />
-
-          {/* Blocked Dates */}
-          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FCEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="ban" size={18} color="#DC2626" /></div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>Blocked Dates</div>
-                  <div style={{ fontSize: 12, color: '#374151', marginTop: 1 }}>Dates unavailable for booking (holidays, closures, etc.)</div>
-                </div>
-              </div>
-              {!addingDate && (
-                <button type="button" onClick={() => { setAddingDate(true); setNewDate(''); setNewReason(''); setDateErr(''); }}
-                  style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  + Block Date
-                </button>
-              )}
-            </div>
-
-            {addingDate && (
-              <form onSubmit={handleAddDate} style={{ background: '#F7F9FD', borderRadius: 10, padding: '14px', marginBottom: 14, border: '1px solid #9ed3dc' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={LABEL}>Date to Block *</label>
-                    <input type="date" value={newDate} min={today} onChange={e => setNewDate(e.target.value)}
-                      style={{ ...INPUT }} onFocus={FOCUS} onBlur={BLUR} required />
-                  </div>
-                  <div>
-                    <label style={LABEL}>Reason <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
-                    <input type="text" value={newReason} onChange={e => setNewReason(e.target.value)}
-                      placeholder="e.g. Holiday, Staff Day Off" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
-                  </div>
-                </div>
-                {dateErr && <div style={{ fontSize: 12, color: '#A32D2D', marginBottom: 8 }}>{dateErr}</div>}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="submit" disabled={savingDate}
-                    style={{ padding: '7px 18px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', background: savingDate ? '#aaa' : '#38a9c2', color: '#fff', cursor: 'pointer' }}>
-                    {savingDate ? 'Saving…' : 'Add'}
-                  </button>
-                  <button type="button" onClick={() => setAddingDate(false)}
-                    style={{ padding: '7px 18px', fontSize: 12, fontWeight: 500, borderRadius: 6, border: '0.5px solid #ccc', background: '#fff', color: '#374151', cursor: 'pointer' }}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {blockedDates.length === 0 ? (
-              <div style={{ padding: '1.5rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>
-                No blocked dates. Add holidays or closure days here.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {blockedDates.map(b => (
-                  <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: '#FFF5F5', border: '0.5px solid #F09595' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="ban" size={13} color="#DC2626" />{formatDateDisplay(b.date)}</div>
-                      {b.reason && <div style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{b.reason}</div>}
-                    </div>
-                    <button type="button" onClick={() => handleDeleteDate(b.id)}
-                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* ── MESSAGING SETUP ── */}
           <GroupHeader label="Messaging & Integrations" />

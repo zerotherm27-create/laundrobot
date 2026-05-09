@@ -49,7 +49,7 @@ function makeTimeSlots(open, close) {
   return slots;
 }
 
-function getMinBookingDate(cutoff, blockedSet) {
+function getMinBookingDate(cutoff, blockedSet, openDays) {
   const now = new Date();
   let d = new Date(now);
   if (cutoff) {
@@ -58,9 +58,10 @@ function getMinBookingDate(cutoff, blockedSet) {
       d.setDate(d.getDate() + 1);
     }
   }
-  // skip blocked dates
+  // skip blocked dates and closed days of week
+  const closedDays = openDays && openDays.length > 0 ? new Set([0,1,2,3,4,5,6].filter(d => !openDays.includes(d))) : new Set();
   let safety = 0;
-  while (blockedSet.has(toLocalDateStr(d)) && safety++ < 60) d.setDate(d.getDate() + 1);
+  while ((blockedSet.has(toLocalDateStr(d)) || closedDays.has(d.getDay())) && safety++ < 60) d.setDate(d.getDate() + 1);
   return toLocalDateStr(d);
 }
 
@@ -1419,11 +1420,13 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
             <Field label="Preferred Pickup Date & Time" required>
               {(() => {
                 const blockedSet = new Set(blockedDates.map(b => b.date));
-                const minDate = getMinBookingDate(tenant?.booking_cutoff, blockedSet);
+                const tenantOpenDays = Array.isArray(tenant?.open_days) ? tenant.open_days.map(Number) : [0,1,2,3,4,5,6];
+                const closedWeekdays = new Set([0,1,2,3,4,5,6].filter(d => !tenantOpenDays.includes(d)));
+                const minDate = getMinBookingDate(tenant?.booking_cutoff, blockedSet, tenantOpenDays);
                 const hasHours = !!(tenant?.store_open && tenant?.store_close);
                 const allSlots = hasHours ? makeTimeSlots(tenant.store_open, tenant.store_close) : [];
                 const availableSlots = form.pickup_date ? filterSlotsForDate(allSlots, form.pickup_date, tenant?.store_open) : allSlots;
-                const isDateBlocked = d => blockedSet.has(d);
+                const isDateUnavailable = d => blockedSet.has(d) || closedWeekdays.has(new Date(d + 'T00:00:00').getDay());
 
                 return hasHours ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1431,7 +1434,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                       value={form.pickup_date} min={minDate}
                       onChange={e => {
                         const d = e.target.value;
-                        if (isDateBlocked(d)) return;
+                        if (isDateUnavailable(d)) return;
                         setForm(p => ({ ...p, pickup_date: d, pickup_time: '' }));
                       }}
                       onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
