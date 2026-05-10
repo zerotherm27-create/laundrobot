@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getHumanConversations, releaseConversation } from '../api.js';
+import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
@@ -25,15 +25,19 @@ function timeAgo(dateStr) {
 
 export default function Overview() {
   const { user } = useAuth();
-  const [orders,     setOrders]     = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [copied,     setCopied]     = useState(false);
-  const [humanConvs, setHumanConvs] = useState([]);
-  const [releasing,  setReleasing]  = useState(null);
-  const [replyMsg,   setReplyMsg]   = useState({});
+  const [orders,      setOrders]     = useState([]);
+  const [loading,     setLoading]    = useState(true);
+  const [copied,      setCopied]     = useState(false);
+  const [humanConvs,  setHumanConvs] = useState([]);
+  const [releasing,   setReleasing]  = useState(null);
+  const [replyMsg,    setReplyMsg]   = useState({});
+  const [customDomain, setCustomDomain] = useState('');
+  const [tenantPlan,   setTenantPlan]   = useState('');
 
   const bookingUrl = user?.tenant_id
-    ? `${window.location.origin}/book/${user.tenant_id}`
+    ? (tenantPlan === 'pro' && customDomain
+        ? `https://${customDomain}`
+        : `${window.location.origin}/book/${user.tenant_id}`)
     : null;
 
   function copyLink() {
@@ -46,6 +50,10 @@ export default function Overview() {
       .catch(() => {})
       .finally(() => setLoading(false));
     getHumanConversations().then(r => setHumanConvs(r.data)).catch(() => {});
+    getMyTenantSettings().then(r => {
+      setCustomDomain(r.data.custom_domain || '');
+      setTenantPlan(r.data.plan || '');
+    }).catch(() => {});
   }, []);
 
   async function handleRelease(fbUserId) {
