@@ -534,7 +534,7 @@ router.post('/:tenantId/orders', async (req, res) => {
         }
       } catch (_) {}
 
-      const orderSource = 'web';
+      const orderSource = fb_id ? 'messenger' : 'web';
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
                              address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,

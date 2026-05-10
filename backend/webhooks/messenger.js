@@ -750,9 +750,9 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   if (step === 'CONFIRM' && (text === 'CONFIRM_YES' || lc === 'confirm')) {
     const address = data.address || customer.address;
     await db.query(
-      `INSERT INTO orders (id,tenant_id,customer_id,service_id,weight,price,pickup_date,address,status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [data.order_id, tenant.id, customer.id, data.service_id, data.weight, data.total, data.pickup_date, address, 'NEW ORDER']
+      `INSERT INTO orders (id,tenant_id,customer_id,service_id,weight,price,pickup_date,address,status,source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [data.order_id, tenant.id, customer.id, data.service_id, data.weight, data.total, data.pickup_date, address, 'NEW ORDER', channel]
     );
 
     // Generate Xendit payment link immediately
