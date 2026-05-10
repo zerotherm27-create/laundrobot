@@ -236,7 +236,7 @@ They'll receive a login link and can start managing orders immediately. Staff ha
 Before going live, do a full test yourself:
 
 1. Open your Facebook Page and click **"Send Message"**
-2. Tap **"Get Started"** — you should see the welcome message
+2. Tap **"Get Started"** or send any message — you should see the welcome menu with **Book Now**, **My Orders**, and **FAQs**
 3. Tap **"Book Now"** — the booking form should open
 4. Complete a test booking and verify:
    - Closed days are skipped in the date picker
@@ -275,8 +275,8 @@ Once everything is set up, customers can order in three ways:
 
 ### Via Facebook Messenger
 1. Customer goes to your Facebook Page → clicks **"Send Message"**
-2. Taps **"Get Started"** (first-timers) or **"🛒 Book Now"** in the menu
-3. Fills out the booking form, submits
+2. Sends any message or taps **"Get Started"** — the bot automatically shows the welcome menu with **Book Now**, **My Orders**, and **FAQs**
+3. Taps **"Book Now"**, fills out the booking form, and submits
 4. Order appears on your Kanban board and you receive an email notification
 
 ### Via Your Booking Link
@@ -369,7 +369,8 @@ DNS propagation typically takes 5–30 minutes. Once live, your custom URL loads
 
 **Customers don't see the Get Started button**
 - The button only appears for users who have never messaged your Page
-- Existing followers tap **☰** to open the menu
+- Existing followers tap **☰** to open the persistent menu
+- New customers who skip Get Started and send any message will still see the welcome menu automatically
 
 **Open days not saving / still showing wrong days**
 - Make sure you click **"Save Settings"** after toggling the day buttons — they don't auto-save
