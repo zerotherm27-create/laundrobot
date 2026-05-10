@@ -36,9 +36,14 @@ router.post('/blast', auth, async (req, res) => {
       const text = message
         .replace('{name}', c.name || 'Customer')
         .replace('{order_id}', c.order_id || '')
-        .replace('{status}', c.status || '');
-      await sendMessage(tenant.fb_page_access_token, c.fb_id, text);
-      sent++;
+        .replace('{status}', c.status || '')
+        .replace('{pickup_time}', c.pickup_time || '');
+      try {
+        await sendMessage(tenant.fb_page_access_token, c.fb_id, text);
+        sent++;
+      } catch (e) {
+        console.warn(`[blast] failed to send to ${c.fb_id}:`, e.response?.data?.error?.message || e.message);
+      }
     }
     await db.query(
       'INSERT INTO blast_logs (tenant_id, message, filter_status, sent_count) VALUES ($1,$2,$3,$4)',
