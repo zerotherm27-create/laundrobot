@@ -33,12 +33,11 @@ export default function Overview() {
   const [replyMsg,    setReplyMsg]   = useState({});
   const [customDomain, setCustomDomain] = useState('');
   const [tenantPlan,   setTenantPlan]   = useState('');
+  const [fbPageId,     setFbPageId]     = useState('');
 
-  const bookingUrl = user?.tenant_id
-    ? (tenantPlan === 'pro' && customDomain
-        ? `https://${customDomain}`
-        : `${window.location.origin}/book/${user.tenant_id}`)
-    : null;
+  const bookingUrl = fbPageId
+    ? `https://m.me/${fbPageId}`
+    : (user?.tenant_id ? `${window.location.origin}/book/${user.tenant_id}` : null);
 
   function copyLink() {
     navigator.clipboard.writeText(bookingUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
@@ -53,6 +52,7 @@ export default function Overview() {
     getMyTenantSettings().then(r => {
       setCustomDomain(r.data.custom_domain || '');
       setTenantPlan(r.data.plan || '');
+      setFbPageId(r.data.fb_page_id || '');
     }).catch(() => {});
   }, []);
 
