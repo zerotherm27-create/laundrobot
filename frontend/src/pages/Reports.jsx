@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getMyTenantSettings } from '../api.js';
+import { getOrders, getArchivedOrders, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
@@ -22,7 +22,12 @@ export default function Reports() {
   const { openUpgradeModal } = useUpgrade();
 
   useEffect(() => {
-    getOrders().then(r => { setOrders(r.data); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([getOrders(), getArchivedOrders()])
+      .then(([active, archived]) => {
+        setOrders([...active.data, ...archived.data]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
     getMyTenantSettings().then(r => setTenantPlan(r.data.plan || 'starter')).catch(() => {});
   }, []);
 
@@ -48,7 +53,7 @@ export default function Reports() {
   // Group by source (booking channel)
   const sourceMap = { walk_in: 0, web: 0, messenger: 0, other: 0 };
   for (const o of filtered) {
-    const src = o.source || 'messenger';
+    const src = o.source || 'web';
     if (src === 'walk_in') sourceMap.walk_in++;
     else if (src === 'web') sourceMap.web++;
     else if (src === 'messenger') sourceMap.messenger++;
@@ -56,7 +61,7 @@ export default function Reports() {
   }
   const sourceRevenue = { walk_in: 0, web: 0, messenger: 0, other: 0 };
   for (const o of filtered.filter(o => o.paid)) {
-    const src = o.source || 'messenger';
+    const src = o.source || 'web';
     const key = src === 'walk_in' ? 'walk_in' : src === 'web' ? 'web' : src === 'messenger' ? 'messenger' : 'other';
     sourceRevenue[key] += Number(o.price);
   }
