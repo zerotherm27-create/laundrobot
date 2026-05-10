@@ -73,7 +73,7 @@ export default function Messaging() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, alignItems: 'start' }}>
         <div>
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 10 }}>Send blast message</div>
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
@@ -110,11 +110,13 @@ export default function Messaging() {
               {STATUSES.map(s => <option key={s} value={s}>Orders: {s}</option>)}
             </select>
             <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>Message</label>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5}
+            <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4}
               placeholder="Hi {name}, your order {order_id} is now {status}."
               style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', resize: 'vertical', marginBottom: 8, fontFamily: 'inherit' }} />
-            <div style={{ fontSize: 11, color: '#374151', marginBottom: 14 }}>
-              Variables: {'{name}'} {'{order_id}'} {'{status}'} {'{pickup_time}'}
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {['{name}', '{order_id}', '{status}', '{pickup_time}'].map(v => (
+                <span key={v} style={{ background: '#F3F4F6', borderRadius: 4, padding: '1px 6px', fontFamily: 'monospace' }}>{v}</span>
+              ))}
             </div>
             <button onClick={handleBlast} disabled={sending}
               style={{ width: '100%', padding: '9px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: sending ? '#6B8EAD' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
