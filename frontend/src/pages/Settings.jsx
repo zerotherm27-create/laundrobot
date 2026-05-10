@@ -1229,7 +1229,7 @@ export default function Settings() {
                   </thead>
                   <tbody>
                     {referrals.map(r => {
-                      const conv = r.click_count > 0 ? ((Number(r.paid_order_count) / r.click_count) * 100).toFixed(1) : '—';
+                      const conv = r.click_count > 0 ? ((Number(r.order_count) / r.click_count) * 100).toFixed(1) : '—';
                       const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
                       return (
                         <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
@@ -1244,7 +1244,7 @@ export default function Settings() {
                             </button>
                           </td>
                           <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
-                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.paid_order_count}</td>
+                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.order_count}</td>
                           <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
                           <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
                           <td style={{ padding: '10px 10px' }}>
