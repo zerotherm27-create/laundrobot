@@ -257,13 +257,16 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
     const page = payload.pages.find(p => p.id === pageId);
     if (!page) return res.status(400).json({ error: 'Selected page not found in session' });
 
+    const { rows: [existing] } = await db.query(
+      `SELECT custom_domain, ig_user_id FROM tenants WHERE id=$1`, [req.user.tenant_id]
+    );
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants SET fb_page_id=$1, fb_page_access_token=$2 WHERE id=$3 RETURNING id, name`,
       [page.id, page.access_token, req.user.tenant_id]
     );
 
     try {
-      await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL);
+      await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
     } catch (e) {
       console.warn('[facebook-connect] messenger profile setup failed:', e.message);
     }
@@ -385,6 +388,9 @@ router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
 router.put('/:id', auth, superadminOnly, async (req, res) => {
   const { name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, ai_daily_cap } = req.body;
   try {
+    const { rows: [before] } = await db.query(
+      `SELECT fb_page_access_token, ig_user_id, custom_domain FROM tenants WHERE id=$1`, [req.params.id]
+    );
     const { rows } = await db.query(
       `UPDATE tenants SET name=$1, fb_page_id=$2, fb_page_access_token=$3,
                           xendit_api_key=$4, logo_url=$5, active=$6,
@@ -396,6 +402,12 @@ router.put('/:id', auth, superadminOnly, async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Tenant not found' });
     res.json(rows[0]);
+
+    // Re-setup Messenger profile when the token changes
+    if (fb_page_access_token && fb_page_access_token !== before?.fb_page_access_token) {
+      setupMessengerProfile(fb_page_access_token, rows[0].name, req.params.id, process.env.APP_URL, before?.ig_user_id, before?.custom_domain)
+        .catch(e => console.warn('[tenant-update] messenger profile setup failed:', e.message));
+    }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
