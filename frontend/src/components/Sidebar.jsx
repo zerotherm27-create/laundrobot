@@ -20,48 +20,48 @@ const NAV = [
 
 const GUIDE_STEPS = [
   {
-    num: '1', title: 'Sign Up & Start Trial',
-    body: 'Go to laundrobot.app → "Start Free Trial". Your 14-day free trial starts immediately — no credit card needed.',
+    num: '1', title: 'Configure Your Shop',
+    body: 'Settings → fill in your logo, contact number, shop address, store hours, open days, and minimum order amount. Click "Save Settings".',
   },
   {
-    num: '2', title: 'Configure Your Shop',
-    body: 'Settings → fill in your logo, contact number, shop address, store hours, and minimum order amount. Click "Save Settings".',
+    num: '2', title: 'Connect Your Facebook Page',
+    body: 'Settings → "Connect Facebook Page" → click the blue button → log in → select your Page → "Save & Connect". The Messenger bot and menu are set up automatically.',
   },
   {
     num: '3', title: 'Add Services & Pricing',
     body: 'Services → create categories (e.g. Wash & Dry) then add each service with its name, price, and unit (per kg / per piece).',
   },
   {
-    num: '4', title: 'Set Up Delivery Zones',
-    body: 'Delivery Zones → add flat-fee zones by barangay or set distance brackets (0–5 km = ₱50, 5–10 km = ₱100, etc.).',
+    num: '4', title: 'Enable Online Payments',
+    body: 'Settings → Online Payment Method → choose Xendit (automated) or QR Code (manual). For Xendit, paste your API key from xendit.co → Developers → API Keys.',
   },
   {
-    num: '5', title: 'Connect Facebook Page',
-    body: 'Settings → "Connect Facebook Page" → click the blue button → log in with Facebook → select your Page → "Save & Connect". The bot and Messenger menu are set up automatically.',
+    num: '5', title: 'Set Up Delivery Zones',
+    body: 'Delivery Zones → add flat-fee zones by barangay, or set distance brackets (0–5 km = ₱50, 5–10 km = ₱100, etc.). You can use both together.',
   },
   {
-    num: '6', title: 'Connect Instagram DMs',
-    body: 'Settings → "Instagram Messaging" → paste your Instagram Business Account ID → Save. (Requires Meta App Review — contact hello@laundrobot.app if not working.)',
+    num: '6', title: 'Enable the AI Chatbot',
+    body: 'Settings → "AI Messenger Replies" → toggle ON. The AI answers customer questions 24/7 in Tagalog, English, and Taglish using your FAQs and service list.',
   },
   {
-    num: '7', title: 'Enable Online Payments',
-    body: 'Get your Xendit API key from xendit.co → Developers → API Keys. Email it to hello@laundrobot.app and we\'ll activate it for your account.',
-  },
-  {
-    num: '8', title: 'Enable AI Chatbot',
-    body: 'Settings → "AI Messenger Replies" → toggle ON. The AI answers customer questions 24/7 in Tagalog, English, and Taglish using your FAQs.',
-  },
-  {
-    num: '9', title: 'Add FAQs',
+    num: '7', title: 'Add FAQs',
     body: 'FAQs → add common questions and answers. Click "AI Suggest" to auto-generate FAQs from past conversations.',
   },
   {
-    num: '10', title: 'Invite Your Staff',
-    body: 'Users → "+ Invite Staff" → enter their email. They can log in and manage orders on the Kanban board right away.',
+    num: '8', title: 'Invite Your Staff',
+    body: 'Users → "+ Invite Staff" → enter their email. Staff can manage orders on the Kanban board right away.',
   },
   {
-    num: '11', title: 'Test the Bot',
-    body: 'Go to your Facebook Page → "Send Message" → tap "Get Started". You should see the greeting and "Book Now" button. Try placing a test order.',
+    num: '9', title: 'Test the Bot',
+    body: 'Go to your Facebook Page → "Send Message" → tap "Get Started" or send any message. You should see the welcome menu with Book Now, My Orders, and FAQs. Try placing a test order.',
+  },
+  {
+    num: '10', title: 'Connect Instagram DMs (Optional)',
+    body: 'Settings → "Instagram Messaging" → paste your Instagram Business Account ID → Save. Requires Meta App Review — contact hello@laundrobot.app if not working.',
+  },
+  {
+    num: '11', title: 'Custom Domain & White Label (Pro)',
+    body: 'Settings → "Custom Domain & White Label" → enter your domain (e.g. book.yourshop.com) → add a CNAME record pointing to cname.vercel-dns.com → email hello@laundrobot.app to activate.',
   },
 ];
 
