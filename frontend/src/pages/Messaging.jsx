@@ -73,7 +73,7 @@ export default function Messaging() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'start' }}>
         <div>
           <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 10 }}>Send blast message</div>
           <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' }}>
