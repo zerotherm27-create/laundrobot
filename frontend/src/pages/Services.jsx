@@ -3,6 +3,51 @@ import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
+
+const LAUNDRY_ICONS = [
+  { id: 'washing-machine', label: 'Washing machine', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="4"/><circle cx="24" cy="28" r="10"/><circle cx="24" cy="28" r="5"/><circle cx="13" cy="11" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="11" r="2" fill="currentColor" stroke="none"/><line x1="28" y1="11" x2="36" y2="11"/></svg>` },
+  { id: 'dryer', label: 'Dryer', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="4"/><circle cx="24" cy="28" r="10"/><path d="M18 28 Q21 22 24 28 Q27 34 30 28"/><circle cx="13" cy="11" r="2" fill="currentColor" stroke="none"/><line x1="20" y1="11" x2="36" y2="11"/></svg>` },
+  { id: 'tshirt', label: 'T-shirt', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6 Q18 12 24 12 Q30 12 32 6L42 14L36 20V42H12V20L6 14Z"/></svg>` },
+  { id: 'dress', label: 'Dress', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 4 Q18 10 24 10 Q30 10 30 4"/><path d="M18 4L8 20H18L12 44H36L30 20H40L30 4"/></svg>` },
+  { id: 'pants', label: 'Pants', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6H40V18L28 44H22L18 26L14 44H8L10 18"/><line x1="8" y1="6" x2="40" y2="6"/><line x1="18" y1="26" x2="28" y2="26"/></svg>` },
+  { id: 'jacket', label: 'Jacket / Coat', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 4L8 12V22H14V42H34V22H40V12L31 4"/><path d="M17 4 Q20 10 24 10 Q28 10 31 4"/><path d="M17 4L14 18"/><path d="M31 4L34 18"/><line x1="24" y1="10" x2="24" y2="42"/></svg>` },
+  { id: 'socks', label: 'Socks', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4H28V26L38 34A6 6 0 0 1 30 44H20A8 8 0 0 1 12 36V4"/><line x1="12" y1="12" x2="28" y2="12"/><line x1="12" y1="18" x2="28" y2="18"/></svg>` },
+  { id: 'underwear', label: 'Underwear', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8H42L36 28H30 Q24 18 18 28H12Z"/><line x1="6" y1="8" x2="42" y2="8"/></svg>` },
+  { id: 'towel', label: 'Towel', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="32" height="26" rx="3"/><path d="M16 14V10A8 4 0 0 1 32 10V14"/><line x1="8" y1="22" x2="40" y2="22"/><line x1="8" y1="30" x2="40" y2="30"/></svg>` },
+  { id: 'bed-sheet', label: 'Bed sheet', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="10" width="36" height="28" rx="3"/><path d="M6 18H42"/><path d="M14 18V38"/><path d="M6 26H14"/></svg>` },
+  { id: 'pillow', label: 'Pillow / Pillowcase', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="12" width="36" height="24" rx="12"/><ellipse cx="24" cy="24" rx="10" ry="7"/></svg>` },
+  { id: 'blanket', label: 'Blanket / Duvet', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="8" width="36" height="32" rx="3"/><line x1="6" y1="16" x2="42" y2="16"/><path d="M18 8V16"/><path d="M30 8V16"/><path d="M14 22 Q18 26 22 22 Q26 18 30 22 Q34 26 38 22"/><path d="M14 30 Q18 34 22 30 Q26 26 30 30 Q34 34 38 30"/></svg>` },
+  { id: 'curtains', label: 'Curtains', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="44" y2="8"/><path d="M10 8 Q8 24 14 44"/><path d="M38 8 Q40 24 34 44"/><path d="M10 8 Q16 14 24 10 Q32 14 38 8"/><line x1="22" y1="10" x2="22" y2="44"/><line x1="26" y1="10" x2="26" y2="44"/></svg>` },
+  { id: 'iron', label: 'Iron', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 28H36 Q44 28 44 22V18H28 Q20 18 16 24L6 28Z"/><rect x="28" y="14" width="8" height="4" rx="1"/><circle cx="16" cy="36" r="1.5" fill="currentColor" stroke="none"/><circle cx="24" cy="36" r="1.5" fill="currentColor" stroke="none"/><circle cx="32" cy="36" r="1.5" fill="currentColor" stroke="none"/><line x1="6" y1="28" x2="6" y2="40"/></svg>` },
+  { id: 'hanger', label: 'Dry cleaning / Hanger', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8 A4 4 0 0 1 28 12 Q28 16 24 18 L8 30 Q4 32 6 36 Q8 40 12 40H36 Q40 40 42 36 Q44 32 40 30L24 18"/><circle cx="24" cy="6" r="2"/></svg>` },
+  { id: 'laundry-bag', label: 'Laundry bag', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14 Q10 16 10 22V38 Q10 44 16 44H32 Q38 44 38 38V22 Q38 16 34 14"/><path d="M18 14 Q18 8 24 8 Q30 8 30 14"/><path d="M14 14H34"/><path d="M16 28 Q20 24 24 28 Q28 32 32 28"/></svg>` },
+  { id: 'basket', label: 'Laundry basket', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 22H40L36 42H12Z"/><path d="M4 22H44"/><path d="M16 22L20 10"/><path d="M24 22V10"/><path d="M32 22L28 10"/><path d="M14 30H34"/><path d="M13 36H35"/></svg>` },
+  { id: 'handwash', label: 'Hand wash', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 30 Q8 22 14 18L20 16V8 A2 2 0 0 1 24 8V20"/><path d="M24 20 L28 18 A2 2 0 0 1 30 22V24"/><path d="M30 24 L32 22 A2 2 0 0 1 34 26V28"/><path d="M34 28 L36 26 A2 2 0 0 1 38 30L36 36 Q32 42 24 42H18 Q12 42 10 36V30"/></svg>` },
+  { id: 'shoes', label: 'Shoes', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 32 Q4 26 12 24L22 22 Q28 20 32 14L36 8 Q40 8 42 14 Q44 20 40 24L36 26H42 Q44 32 40 36H8 Q4 36 4 32Z"/><path d="M22 22 Q24 28 20 30"/></svg>` },
+  { id: 'sneakers', label: 'Sneakers', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 30 Q4 24 10 22H20L28 12 Q30 10 34 12L30 22H42 Q46 26 44 32H8 Q4 34 4 30Z"/><path d="M20 22L18 30"/><path d="M26 20L24 30"/><line x1="4" y1="34" x2="44" y2="34"/></svg>` },
+  { id: 'detergent', label: 'Detergent', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="16" width="24" height="28" rx="3"/><path d="M16 16V12 Q16 8 20 8H24 Q26 8 26 10V16"/><path d="M26 10H32 Q34 10 34 12V16"/><circle cx="24" cy="30" r="5"/><path d="M22 28 Q24 26 26 28"/></svg>` },
+  { id: 'softener', label: 'Fabric softener', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 10 Q14 6 24 6 Q34 6 32 10"/><path d="M16 10 Q12 12 12 18V38 Q12 44 24 44 Q36 44 36 38V18 Q36 12 32 10"/><path d="M18 24 Q21 20 24 24 Q27 28 30 24"/><path d="M18 32 Q21 28 24 32 Q27 36 30 32"/></svg>` },
+  { id: 'folded', label: 'Folded clothes', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="28" width="32" height="8" rx="2"/><rect x="10" y="20" width="28" height="8" rx="2"/><rect x="12" y="12" width="24" height="8" rx="2"/><rect x="6" y="36" width="36" height="6" rx="2"/></svg>` },
+  { id: 'clothesline', label: 'Clothesline', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="12" x2="46" y2="12"/><path d="M14 12L14 14 Q10 16 10 20V30 Q10 32 14 32H20 Q24 32 24 28V14"/><circle cx="13" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M34 12V14 Q34 18 32 22 Q30 26 32 30 Q33 32 36 32"/><path d="M40 12V14 Q40 18 42 22 Q44 26 42 30 Q41 32 38 32"/><circle cx="33" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="41" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>` },
+  { id: 'stain', label: 'Stain removal', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="28" r="14"/><path d="M24 14 Q24 8 24 6"/><path d="M20 10 Q22 6 24 6 Q26 6 28 10"/><path d="M16 32 Q20 28 24 32 Q28 36 32 32"/><path d="M18 26 Q21 23 24 26"/></svg>` },
+  { id: 'gloves', label: 'Gloves', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 42V20 A4 4 0 0 1 18 20V26"/><path d="M18 26V16 A3 3 0 0 1 24 16V22"/><path d="M24 22V18 A3 3 0 0 1 30 18V24"/><path d="M30 24V20 A3 3 0 0 1 36 20V30 Q36 40 28 42H14 Q10 42 10 38"/></svg>` },
+  { id: 'baby', label: 'Baby clothes', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 Q18 12 24 12 Q30 12 30 6"/><path d="M18 6L10 14V20H16V38H32V20H38V14L30 6"/><path d="M22 24 Q24 22 26 24"/><path d="M22 28 Q24 30 26 28"/></svg>` },
+  { id: 'suit', label: 'Suit / Formal wear', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 4L8 14V42H40V14L31 4"/><path d="M17 4L20 14L24 10L28 14L31 4"/><path d="M20 14L24 42"/><path d="M28 14L24 42"/><path d="M24 18V22"/><path d="M24 26V30"/></svg>` },
+  { id: 'helmet', label: 'Helmet', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 26 Q8 10 24 10 Q40 10 40 26V30H34 Q32 36 28 38H20 Q16 36 14 30H8Z"/><path d="M8 30 Q6 32 6 34 Q6 38 10 38H14"/><path d="M15 22 Q18 18 24 18 Q30 18 33 22"/><line x1="8" y1="30" x2="40" y2="30"/></svg>` },
+  { id: 'motorcycle-jacket', label: 'Biker jacket', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4L6 10V20H14V42H34V20H42V10L32 4"/><path d="M16 4 Q18 12 24 12 Q30 12 32 4"/><path d="M14 20 Q10 22 8 28"/><path d="M34 20 Q38 22 40 28"/><path d="M18 20 Q20 16 24 16 Q28 16 30 20"/><line x1="24" y1="12" x2="24" y2="42"/></svg>` },
+  { id: 'school-uniform', label: 'School uniform', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 4L8 12V20H16V42H32V20H40V12L31 4"/><path d="M17 4 Q18 10 24 10 Q30 10 31 4"/><path d="M21 10L24 42"/><path d="M27 10L24 42"/><circle cx="24" cy="16" r="1.5" fill="currentColor" stroke="none"/><circle cx="24" cy="22" r="1.5" fill="currentColor" stroke="none"/><circle cx="24" cy="28" r="1.5" fill="currentColor" stroke="none"/></svg>` },
+  { id: 'scrubs', label: 'Medical scrubs', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4L8 12V20H14V42H34V20H40V12L32 4"/><path d="M16 4 Q18 10 24 10 Q30 10 32 4"/><rect x="20" y="18" width="8" height="6" rx="1"/><line x1="24" y1="18" x2="24" y2="24"/><line x1="20" y1="21" x2="28" y2="21"/></svg>` },
+  { id: 'cap', label: 'Cap / Hat', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 26 Q10 14 24 14 Q38 14 38 26"/><path d="M6 30 Q6 26 10 26H38 Q42 26 42 30 Q42 32 38 32H10 Q6 32 6 30Z"/><path d="M38 32 Q42 32 44 34"/><line x1="24" y1="14" x2="24" y2="8"/><circle cx="24" cy="7" r="2"/></svg>` },
+  { id: 'tie', label: 'Necktie', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 6H29L26 18L30 42L24 46L18 42L22 18Z"/><path d="M19 6 Q20 10 22 10H26 Q28 10 29 6"/></svg>` },
+  { id: 'scarf', label: 'Scarf', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10 Q16 6 24 10 Q32 14 40 10"/><path d="M40 10 Q36 16 40 22 Q44 28 40 34 Q36 40 30 40L28 44"/><path d="M8 10 Q10 16 8 22 Q6 28 10 34 Q14 38 18 38 Q20 38 22 36"/><line x1="8" y1="18" x2="40" y2="18"/></svg>` },
+  { id: 'bag', label: 'Bag / Purse', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="18" width="32" height="24" rx="3"/><path d="M16 18V14 Q16 8 24 8 Q32 8 32 14V18"/><line x1="8" y1="28" x2="40" y2="28"/><circle cx="24" cy="23" r="2"/></svg>` },
+  { id: 'apron', label: 'Apron', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6H32"/><path d="M20 6 Q18 10 14 12V42H34V12 Q30 10 28 6"/><path d="M14 22H34"/><rect x="20" y="28" width="8" height="8" rx="1"/><line x1="16" y1="6" x2="10" y2="4"/><line x1="32" y1="6" x2="38" y2="4"/></svg>` },
+  { id: 'sportswear', label: 'Sportswear', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4L8 14V20H14V42H34V20H40V14L32 4"/><path d="M16 4 Q18 10 24 10 Q30 10 32 4"/><path d="M8 17 Q12 15 14 20"/><path d="M40 17 Q36 15 34 20"/><line x1="14" y1="26" x2="34" y2="26"/><line x1="14" y1="32" x2="34" y2="32"/></svg>` },
+];
+
+function svgToDataUri(svg) {
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
 const emptyCategory = { name: '', sort_order: 0, active: true };
 const emptyField = { label: '', field_type: 'text', placeholder: '', required: false, allow_own: false, sync_qty: false, linked_to_field_label: '', linked_to_value: '', options: [], min_value: '', max_value: '', unit_price: '', _newOption: '', _newOptionPrice: '', _newOptionPriceType: 'fixed', _newOptionTurnaround: '' };
 
@@ -22,6 +67,7 @@ export default function Services() {
   const [catForm,     setCatForm]     = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [preview,     setPreview]     = useState(null);
+  const [imgTab,      setImgTab]      = useState('icon'); // 'icon' | 'upload'
   const [fields,      setFields]      = useState([]);   // custom fields for open service
   const fileRef = useRef();
 
@@ -47,6 +93,7 @@ export default function Services() {
   function openSvc(svc) {
     setSvcForm({ ...svc, isNew: false });
     setPreview(svc.image_url || null);
+    setImgTab(svc.image_url && !svc.image_url.startsWith('data:image/svg') ? 'upload' : 'icon');
     setFields((svc.custom_fields || []).map(f => ({
       ...f,
       options:    Array.isArray(f.options) ? f.options.map(o => typeof o === 'object' && o !== null ? { price_type: 'fixed', ...o } : { label: String(o), price: 0, price_type: 'fixed' }) : [],
@@ -63,6 +110,7 @@ export default function Services() {
   function openNewSvc(overrides = {}) {
     setSvcForm({ ...emptyService, isNew: true, ...overrides });
     setPreview(null);
+    setImgTab('icon');
     setFields([]);
   }
 
@@ -147,6 +195,7 @@ export default function Services() {
   function duplicateSvc(svc) {
     setSvcForm({ ...svc, name: svc.name + ' (Copy)', isNew: true, id: undefined });
     setPreview(svc.image_url || null);
+    setImgTab(svc.image_url && !svc.image_url.startsWith('data:image/svg') ? 'upload' : 'icon');
     setFields((svc.custom_fields || []).map(f => ({
       ...f,
       _key: Date.now() + Math.random(),
@@ -346,15 +395,53 @@ export default function Services() {
             {/* Image */}
             <div style={{ marginBottom: 14 }}>
               <label style={S.label}>Service image</label>
-              <div onClick={() => fileRef.current.click()}
-                style={{ width: '100%', height: 120, borderRadius: 8, border: '1px dashed #ccc', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
-                {preview
-                  ? <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <div style={{ textAlign: 'center', color: '#374151' }}><div style={{ fontSize: 24, marginBottom: 4 }}>📷</div><div style={{ fontSize: 11 }}>Click to upload</div></div>}
+
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: 0, marginBottom: 10, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                {[['icon', 'Choose icon'], ['upload', 'Upload photo']].map(([tab, lbl]) => (
+                  <button key={tab} onClick={() => setImgTab(tab)}
+                    style={{ flex: 1, padding: '6px 0', fontSize: 12, fontWeight: imgTab === tab ? 600 : 400, background: imgTab === tab ? '#111' : '#fff', color: imgTab === tab ? '#fff' : '#374151', border: 'none', cursor: 'pointer', transition: 'all .15s' }}>
+                    {lbl}
+                  </button>
+                ))}
               </div>
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-              {preview && <button onClick={() => { setPreview(null); setSvcForm(p => ({ ...p, image_url: '' })); }}
-                style={{ marginTop: 4, fontSize: 11, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Remove image</button>}
+
+              {imgTab === 'icon' ? (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
+                    {LAUNDRY_ICONS.map(icon => {
+                      const uri = svgToDataUri(icon.svg);
+                      const selected = preview === uri;
+                      return (
+                        <button key={icon.id} title={icon.label}
+                          onClick={() => { setPreview(uri); setSvcForm(p => ({ ...p, image_url: uri })); }}
+                          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '8px 4px', borderRadius: 8, border: selected ? '2px solid #111' : '1.5px solid #e5e7eb', background: selected ? '#f4f4f0' : '#fafafa', cursor: 'pointer', transition: 'all .12s' }}>
+                          <img src={uri} alt={icon.label} style={{ width: 28, height: 28 }} />
+                          <span style={{ fontSize: 9, color: '#6B7280', textAlign: 'center', lineHeight: 1.2 }}>{icon.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {preview && preview.startsWith('data:image/svg') && (
+                    <button onClick={() => { setPreview(null); setSvcForm(p => ({ ...p, image_url: '' })); }}
+                      style={{ marginTop: 6, fontSize: 11, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Clear selection</button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <div onClick={() => fileRef.current.click()}
+                    style={{ width: '100%', height: 110, borderRadius: 8, border: '1px dashed #ccc', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
+                    {preview && !preview.startsWith('data:image/svg')
+                      ? <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <div style={{ textAlign: 'center', color: '#374151' }}><div style={{ fontSize: 24, marginBottom: 4 }}>📷</div><div style={{ fontSize: 11 }}>Click to upload</div></div>}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                  {preview && !preview.startsWith('data:image/svg') && (
+                    <button onClick={() => { setPreview(null); setSvcForm(p => ({ ...p, image_url: '' })); }}
+                      style={{ marginTop: 4, fontSize: 11, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer' }}>Remove image</button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Category */}
