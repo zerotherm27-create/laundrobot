@@ -33,6 +33,22 @@ const RESPONSIVE_CSS = `
     .l-showcase   { flex-direction: column; align-items: center; }
   }
 
+  .l-mascot-wrap { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; width: 220px; }
+  .l-mascot-img  { width: 220px; height: 220px; object-fit: cover; border-radius: 28px; animation: mascotFloat 3.5s ease-in-out infinite; filter: drop-shadow(0 16px 32px rgba(56,169,194,.25)); }
+
+  @media (max-width: 900px) {
+    .l-mascot-wrap { width: 180px; }
+    .l-mascot-img  { width: 180px; height: 180px; }
+  }
+  @media (max-width: 640px) {
+    .l-mascot-wrap { width: 140px; margin: 0 auto; }
+    .l-mascot-img  { width: 140px; height: 140px; border-radius: 20px; }
+  }
+
+  @keyframes mascotFloat {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-10px); }
+  }
   @keyframes typingDot {
     0%,60%,100% { opacity:.3; transform:translateY(0); }
     30%         { opacity:1;  transform:translateY(-4px); }
@@ -261,26 +277,56 @@ function MessengerMockup() {
 
   return (
     <div className="l-phone-wrap">
-      <div style={{ width: 270, flexShrink: 0 }}>
-        {/* iPhone frame — black matching real device */}
-        <div style={{ background: 'linear-gradient(180deg,#2a2a2a,#1a1a1a)', borderRadius: 44, padding: '3px', boxShadow: '0 32px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1)' }}>
-          <div style={{ background: '#111', borderRadius: 42, padding: '14px 8px 18px' }}>
-            {/* Notch */}
-            <div style={{ width: 90, height: 24, background: '#111', borderRadius: 12, margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'relative', zIndex: 2 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2a2a2a' }} />
-              <div style={{ width: 40, height: 6, borderRadius: 3, background: '#2a2a2a' }} />
-            </div>
-            {/* Screen */}
-            <div style={{ background: '#fff', borderRadius: 28, overflow: 'hidden', height: 480, position: 'relative' }}>
-              {/* Status bar — white text on white bg (real Messenger style) */}
-              <div style={{ background: '#fff', padding: '5px 14px 3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#050505' }}>19:53</span>
-                <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                  <span style={{ fontSize: 8, color: '#050505', letterSpacing: 1 }}>· · · ·</span>
-                  <span style={{ fontSize: 9 }}>📶</span>
-                  <span style={{ fontSize: 9 }}>🔋</span>
+      <div style={{ width: 270, flexShrink: 0, position: 'relative' }}>
+        {/* Side buttons — left (volume) */}
+        <div style={{ position: 'absolute', left: -3, top: 100, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 142, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 184, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        {/* Side button — right (power) */}
+        <div style={{ position: 'absolute', right: -3, top: 130, width: 3, height: 56, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '0 2px 2px 0' }} />
+
+        {/* iPhone frame — titanium black */}
+        <div style={{
+          background: 'linear-gradient(160deg,#3a3a3c,#1c1c1e)',
+          borderRadius: 52,
+          padding: '3px',
+          boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12)',
+        }}>
+          {/* Inner bezel */}
+          <div style={{ background: '#000', borderRadius: 50, padding: '10px 8px 12px' }}>
+            {/* Screen — Dynamic Island lives inside the screen */}
+            <div style={{ background: '#fff', borderRadius: 48, overflow: 'hidden', height: 520, position: 'relative' }}>
+
+              {/* Status bar row — time left, Dynamic Island center, icons right */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px 4px', flexShrink: 0, position: 'relative', zIndex: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#050505', letterSpacing: -.3 }}>9:41</span>
+                {/* Dynamic Island — centered absolutely */}
+                <div style={{ position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)', width: 88, height: 26, background: '#000', borderRadius: 20, zIndex: 20 }} />
+                {/* Status icons */}
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                  {/* Signal bars */}
+                  <svg width="14" height="10" viewBox="0 0 14 10" fill="#050505">
+                    <rect x="0" y="6" width="2.5" height="4" rx="0.5"/>
+                    <rect x="3.5" y="4" width="2.5" height="6" rx="0.5"/>
+                    <rect x="7" y="2" width="2.5" height="8" rx="0.5"/>
+                    <rect x="10.5" y="0" width="2.5" height="10" rx="0.5"/>
+                  </svg>
+                  {/* WiFi */}
+                  <svg width="13" height="10" viewBox="0 0 13 10" fill="none" stroke="#050505" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M1 3.5C3.2 1.3 9.8 1.3 12 3.5"/>
+                    <path d="M2.8 5.3C4.2 3.9 8.8 3.9 10.2 5.3"/>
+                    <path d="M4.7 7.1C5.4 6.4 7.6 6.4 8.3 7.1"/>
+                    <circle cx="6.5" cy="9" r="0.8" fill="#050505" stroke="none"/>
+                  </svg>
+                  {/* Battery */}
+                  <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
+                    <rect x="0.5" y="0.5" width="18" height="10" rx="2.5" stroke="#050505" strokeOpacity=".35"/>
+                    <rect x="2" y="2" width="13" height="7" rx="1.5" fill="#050505"/>
+                    <path d="M19.5 3.5v4a1.5 1.5 0 000-4z" fill="#050505" fillOpacity=".4"/>
+                  </svg>
                 </div>
               </div>
+
               {/* Messenger header */}
               <div style={{ background: '#fff', borderBottom: '1px solid #e4e6ea', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
                 <span style={{ fontSize: 15, color: '#0084ff', fontWeight: 300, lineHeight: 1 }}>‹</span>
@@ -298,17 +344,20 @@ function MessengerMockup() {
               </div>
 
               {/* Page info (phase 0–1) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 28, transform: showPageInfo ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
                 {PageInfoScreen}
               </div>
 
               {/* Chat + webview (phase 2+) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 88, bottom: 0, transform: showPageInfo ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 28, transform: showPageInfo ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
                 {ChatScreen}
                 <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: webviewOpen ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 0.38s cubic-bezier(.32,.72,0,1)', borderTop: '2px solid #e5e5e5' }}>
                   {WebviewScreen}
                 </div>
               </div>
+
+              {/* Home indicator */}
+              <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', width: 90, height: 4, background: '#000', borderRadius: 3, opacity: 0.18 }} />
             </div>
           </div>
         </div>
@@ -563,18 +612,74 @@ function Hero() {
 }
 
 // ── Stats strip ───────────────────────────────────────────────────────────────
+const STATS = [
+  {
+    value: '100%',
+    label: 'No app needed for customers',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2"/>
+        <line x1="12" y1="18" x2="12" y2="18.01"/>
+      </svg>
+    ),
+  },
+  {
+    value: '24/7',
+    label: 'AI chatbot in Tagalog & English',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    ),
+  },
+  {
+    value: '1 place',
+    label: 'All channels, all orders',
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    ),
+  },
+];
+
+function StatItem({ icon, value, label }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} style={{ textAlign: 'center', flex: '1 1 180px', transition: 'opacity .5s, transform .5s', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>{icon}</div>
+      <div style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 900, color: '#fdca00', letterSpacing: '-.03em', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 6, maxWidth: 160, margin: '6px auto 0' }}>{label}</div>
+    </div>
+  );
+}
+
 function StatsStrip() {
   return (
-    <div style={{ background: '#38a9c2', padding: '1.5rem 1.25rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '1.25rem' }}>
-        {[
-          { value: '100%', label: 'No app needed for customers' },
-          { value: '24/7', label: 'AI chatbot in Tagalog & English' },
-          { value: '1 place', label: 'All channels, all orders' },
-        ].map((s, i) => (
-          <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 'clamp(1.5rem,4vw,2.2rem)', fontWeight: 900, color: '#fdca00', letterSpacing: '-.03em', lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 4 }}>{s.label}</div>
+    <div style={{ background: 'linear-gradient(135deg,#2a9db5 0%,#38a9c2 50%,#1d8ba0 100%)', padding: '2.5rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
+      {/* Subtle dot pattern */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
+      <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '1.5rem', position: 'relative' }}>
+        {STATS.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px' }}>
+            <StatItem icon={s.icon} value={s.value} label={s.label} />
+            {i < STATS.length - 1 && (
+              <div style={{ width: 1, background: 'rgba(255,255,255,.2)', margin: '0 1.5rem', flexShrink: 0, alignSelf: 'stretch' }} />
+            )}
           </div>
         ))}
       </div>
@@ -587,21 +692,21 @@ const TESTIMONIALS = [
   {
     quote: 'Mas mabilis na ang operations namin. Dati manual lahat — ngayon automated na kahit wala ako sa shop.',
     name: 'Maria Santos',
-    shop: 'Sparkling Clean Laundry · Quezon City',
+    shop: 'Quezon City',
     initial: 'M',
     color: '#38a9c2',
   },
   {
     quote: 'Yung blast messaging feature, sobrang helpful. Na-recover namin yung mga lapsed customers sa isang click.',
     name: 'Carlo Reyes',
-    shop: 'FreshFold Express · Cebu City',
+    shop: 'Cebu City',
     initial: 'C',
     color: '#7F77DD',
   },
   {
     quote: 'Customers think they\'re talking to a real person. Ang chatbot namin in Tagalog is very accurate!',
     name: 'Ana Gonzales',
-    shop: 'LabaLab Laundry · Davao City',
+    shop: 'Davao City',
     initial: 'A',
     color: '#1D9E75',
   },
@@ -816,7 +921,7 @@ function FAQ() {
   return (
     <section style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: FAQ_LD }} />
-      <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto', position: 'relative' }}>
         <div ref={ref} style={{ textAlign: 'center', marginBottom: '2.5rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FDF3E3', color: '#BA7517', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>FAQ</div>
           <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Common questions</h2>
@@ -1001,33 +1106,42 @@ function Pricing() {
         </div>
 
         {/* Before / After comparison */}
-        <div style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 16, overflow: 'hidden', marginBottom: '2.5rem', maxWidth: 760, margin: '0 auto 2.5rem' }}>
-          <div className="l-compare-grid">
-            <div style={{ background: '#FFF5F5', padding: '1rem 1.25rem', borderRight: '1px solid #EBEBEB' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: '#EF4444', marginBottom: '.75rem' }}>❌ Without LaundroBot</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {COMPARE.map((c, i) => (
-                  <div key={i} style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <span style={{ color: '#FCA5A5', flexShrink: 0, marginTop: 1 }}>✕</span>{c.before}
-                  </div>
-                ))}
+        <div style={{ maxWidth: 780, margin: '0 auto 2.5rem', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,.08)', border: '1px solid #EBEBEB' }}>
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            <div style={{ background: '#FFF1F1', padding: '1.25rem 1.5rem', borderRight: '1px solid #FECACA' }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#EF4444', marginBottom: 8 }}>❌ Part-time staff</div>
+              <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#EF4444', letterSpacing: '-.03em', lineHeight: 1 }}>₱7,000</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 8am–5pm only</div>
+            </div>
+            <div style={{ background: '#E6F7FB', padding: '1.25rem 1.5rem' }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: 8 }}>✅ LaundroBot</div>
+              <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#38a9c2', letterSpacing: '-.03em', lineHeight: 1 }}>₱1,999</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 24/7 in Tagalog</div>
+            </div>
+          </div>
+          {/* Row-by-row comparison */}
+          {COMPARE.map((c, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #F0F0F0' }}>
+              <div style={{ background: i % 2 === 0 ? '#FFFAFA' : '#FFF5F5', padding: '.85rem 1.5rem', display: 'flex', alignItems: 'center', gap: 10, borderRight: '1px solid #F0F0F0' }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: '#EF4444', fontWeight: 900 }}>✕</span>
+                <span style={{ fontSize: 12.5, color: '#9CA3AF', lineHeight: 1.4, textDecoration: 'line-through', textDecorationColor: '#FECACA' }}>{c.before}</span>
+              </div>
+              <div style={{ background: i % 2 === 0 ? '#F5FCFE' : '#EEF9FD', padding: '.85rem 1.5rem', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#CCEEF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: '#38a9c2', fontWeight: 900 }}>✓</span>
+                <span style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.4, fontWeight: 600 }}>{c.after}</span>
               </div>
             </div>
-            <div style={{ background: '#F0FAFE', padding: '1rem 1.25rem' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: '.75rem' }}>✅ With LaundroBot</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {COMPARE.map((c, i) => (
-                  <div key={i} style={{ fontSize: 13, color: '#374151', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 8, fontWeight: 500 }}>
-                    <span style={{ color: '#38a9c2', flexShrink: 0, marginTop: 1 }}>✓</span>{c.after}
-                  </div>
-                ))}
-              </div>
-            </div>
+          ))}
+          {/* Savings callout */}
+          <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>💰</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>You save <span style={{ color: '#fdca00', fontSize: 17 }}>₱5,001/month</span> vs hiring a part-time encoder</span>
           </div>
         </div>
 
         {/* Monthly / Annual toggle */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', marginTop: '2.5rem' }}>
           <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
             {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
@@ -1065,9 +1179,7 @@ function CtaBand() {
   return (
     <section style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6rem) 1.25rem' }}>
       <div ref={ref} style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', margin: '0 auto 1.75rem', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 30px rgba(56,169,194,.35)' }}>
-          <img src="/logo-dark.png" alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain' }} />
-        </div>
+        <img src="/mascot.png" alt="" aria-hidden="true" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 24, margin: '0 auto 1.75rem', display: 'block', animation: 'mascotFloat 3.5s ease-in-out infinite', filter: 'drop-shadow(0 12px 28px rgba(56,169,194,.3))' }} />
         <h2 style={{ fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', marginBottom: '1rem', lineHeight: 1.1 }}>
           Ready to grow your laundry business?
         </h2>
