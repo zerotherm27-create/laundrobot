@@ -31,6 +31,7 @@ const RESPONSIVE_CSS = `
     .l-step-inner { flex-direction: row !important; text-align: left !important; align-items: flex-start !important; padding: 0 !important; }
     .l-step-icon  { margin-bottom: 0 !important; }
     .l-showcase   { flex-direction: column; align-items: center; }
+    .l-stat-divider { display: none !important; }
   }
 
   .l-mascot-wrap { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; width: 220px; }
@@ -678,7 +679,7 @@ function StatsStrip() {
           <div key={i} style={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px' }}>
             <StatItem icon={s.icon} value={s.value} label={s.label} />
             {i < STATS.length - 1 && (
-              <div style={{ width: 1, background: 'rgba(255,255,255,.2)', margin: '0 1.5rem', flexShrink: 0, alignSelf: 'stretch' }} />
+              <div className="l-stat-divider" style={{ width: 1, background: 'rgba(255,255,255,.2)', margin: '0 1.5rem', flexShrink: 0, alignSelf: 'stretch' }} />
             )}
           </div>
         ))}
