@@ -5,6 +5,7 @@ const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
+const { sendPushToTenant } = require('../utils/push');
 const { haversine } = require('./deliveryBrackets');
 
 // Look up a tenant by custom domain — used by the booking form on white-label domains
@@ -638,6 +639,13 @@ router.post('/:tenantId/orders', async (req, res) => {
         console.warn('[public order] messenger confirmation failed:', e.response?.data?.error?.message || e.message);
       }
     }
+
+    // Tenant push notification — new order
+    sendPushToTenant(req.params.tenantId, {
+      title: 'New Order',
+      body: `${name.trim()} — ${pricedItems.map(i => i.service.name).join(', ')}`,
+      url: '/orders',
+    }).catch(() => {});
 
     // Tenant new order notification
     sendNewOrderEmail(req.params.tenantId, {

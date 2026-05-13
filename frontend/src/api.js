@@ -153,4 +153,9 @@ export const createReferralLink = data       => api.post('/referrals', data);
 export const updateReferralLink = (id, data) => api.patch(`/referrals/${id}`, data);
 export const deleteReferralLink = id         => api.delete(`/referrals/${id}`);
 
+// Push notifications
+export const getVapidPublicKey   = ()   => api.get('/push/vapid-public-key');
+export const subscribePush       = sub  => api.post('/push/subscribe', sub);
+export const unsubscribePush     = endpoint => api.delete('/push/subscribe', { data: { endpoint } });
+
 export default api;

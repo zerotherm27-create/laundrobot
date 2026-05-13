@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       manifest: {
         name: 'Laundrobot',
         short_name: 'Laundrobot',
@@ -20,9 +23,7 @@ export default defineConfig({
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
-        navigateFallback: '/index.html',
-        runtimeCaching: [],
+      injectManifest: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
     }),

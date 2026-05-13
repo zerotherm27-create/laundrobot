@@ -26,6 +26,7 @@ import PaywallScreen from './pages/PaywallScreen.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
 import { getSubscription, getPublicTenantByDomain } from './api.js';
+import { usePushNotifications } from './hooks/usePushNotifications.js';
 
 const PLATFORM_HOSTS = ['laundrobot.app', 'www.laundrobot.app', 'localhost', '127.0.0.1'];
 const isCustomDomain = !PLATFORM_HOSTS.some(h => window.location.hostname === h || window.location.hostname.endsWith('.vercel.app'));
@@ -75,6 +76,7 @@ const PAGE_TITLES = {
 function Dashboard({ initialPage }) {
   const { user } = useAuth();
   const [page, setPage] = useState(initialPage || 'Kanban');
+  usePushNotifications();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
   const Page = PAGES[page] || Overview;

@@ -6,6 +6,7 @@ const { sendTaggedMessage } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendButtons } = require('../utils/messenger');
+const { sendPushToTenant } = require('../utils/push');
 
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
 
@@ -74,6 +75,13 @@ router.post('/walk-in', auth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    sendPushToTenant(req.user.tenant_id, {
+      title: 'New Walk-in Order',
+      body: `${name.trim()} — ${cart.map(i => i.service_name || 'item').join(', ')}`,
+      url: '/orders',
+    }).catch(() => {});
+
     res.json({ ok: true, booking_ref: bookingRef });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
@@ -258,7 +266,7 @@ router.patch('/:id', auth, async (req, res) => {
   try {
     const fields = [];
     const params = [];
-    if (status        !== undefined) { fields.push(`status = $${params.length + 1}`);        params.push(status); }
+    if (status        !== undefined) { fields.push(`status = $${params.length + 1}`);        params.push(status); fields.push(`overdue_notified = FALSE`); }
     if (notes         !== undefined) { fields.push(`notes = $${params.length + 1}`);         params.push(notes); }
     if (paid          !== undefined) { fields.push(`paid = $${params.length + 1}`);          params.push(paid); }
     if (service_id    !== undefined) { fields.push(`service_id = $${params.length + 1}`);    params.push(service_id); }

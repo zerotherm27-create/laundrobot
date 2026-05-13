@@ -3,8 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const path = require('path');
-const runFollowUp    = require('./jobs/followup');
-const runCartReminder = require('./jobs/cartReminder');
+const runFollowUp      = require('./jobs/followup');
+const runCartReminder  = require('./jobs/cartReminder');
+const runOverdueNotify = require('./jobs/overdueNotify');
 const app = express();
 
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
@@ -30,6 +31,7 @@ const routes = [
   ['/public',          './routes/public'],
   ['/conversations',   './routes/conversations'],
   ['/faq-suggestions', './routes/faqSuggestions'],
+  ['/push',            './routes/push'],
 ];
 
 for (const [path, file] of routes) {
@@ -48,7 +50,7 @@ try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));
 // SPA catch-all: all non-API GET requests serve index.html
-app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/faq-suggestions|\/delivery-zones|\/delivery-brackets|\/blocked-dates|\/promo-codes|\/public|\/webhook|\/conversations).*/, (req, res) => {
+app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/faq-suggestions|\/delivery-zones|\/delivery-brackets|\/blocked-dates|\/promo-codes|\/public|\/webhook|\/conversations|\/push).*/, (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
 
@@ -92,6 +94,12 @@ app.listen(PORT, '0.0.0.0', async () => {
     runCartReminder().catch(err => console.error('[cart-reminder] unhandled error:', err.message));
   });
   console.log('✓ cart reminder cron scheduled (every hour)');
+
+  // Overdue order push notifications — runs every hour
+  cron.schedule('0 * * * *', () => {
+    runOverdueNotify().catch(err => console.error('[overdue-notify] unhandled error:', err.message));
+  });
+  console.log('✓ overdue notify cron scheduled (every hour)');
 
   // Archive completed orders monthly — runs at midnight on the 1st of each month
   cron.schedule('0 0 1 * *', async () => {
