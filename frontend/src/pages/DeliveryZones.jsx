@@ -57,7 +57,7 @@ export default function DeliveryZones() {
       setDeliveryNote(r.data.delivery_note || '');
       setDeliveryRadius(r.data.delivery_radius || 15);
       setEditRows(r.data.brackets?.length ? r.data.brackets.map(b => ({ ...b })) : DEFAULT_BRACKETS.map(b => ({ ...b })));
-      if (r.data.shop_lat && r.data.shop_lng) initMap(Number(r.data.shop_lat), Number(r.data.shop_lng));
+      if (r.data.shop_lat && r.data.shop_lng) waitForLeaflet(Number(r.data.shop_lat), Number(r.data.shop_lng));
       setZones(z.data || []);
     } catch {}
     finally { setLoading(false); }
@@ -96,6 +96,12 @@ export default function DeliveryZones() {
     } catch {}
   }
 
+  function waitForLeaflet(lat, lng, attempts = 0) {
+    if (window.L) { initMap(lat, lng); return; }
+    if (attempts > 30) return; // give up after 3s
+    setTimeout(() => waitForLeaflet(lat, lng, attempts + 1), 100);
+  }
+
   function initMap(lat, lng) {
     if (!window.L) return;
     if (!mapRef.current) return;
@@ -126,7 +132,7 @@ export default function DeliveryZones() {
       const { data } = await geocodeAddress(shopAddress.trim());
       if (!data) return setLocErr('Address not found. Try a more specific address.');
       setShopLat(data.lat); setShopLng(data.lng);
-      setTimeout(() => initMap(data.lat, data.lng), 100);
+      setTimeout(() => waitForLeaflet(data.lat, data.lng), 100);
     } catch (e) { setLocErr('Geocoding failed: ' + (e.response?.data?.error || e.message)); }
     finally { setGeocoding(false); }
   }
