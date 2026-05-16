@@ -413,7 +413,6 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               <div className="modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
                 <Field label="Pickup Date" required>
                   <input style={INP} type="date" value={pickupDate}
-                    min={new Date().toISOString().slice(0,10)}
                     onChange={e => setPickupDate(e.target.value)} />
                 </Field>
                 <Field label="Pickup Time">
