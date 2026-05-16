@@ -360,7 +360,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff, source } = req.body;
   const isDropoff = is_dropoff === true || is_dropoff === 'true';
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
@@ -373,7 +373,7 @@ router.post('/:tenantId/orders', async (req, res) => {
 
   const pickupDay = new Date(pickup_date.trim());
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  if (isNaN(pickupDay.getTime()) || pickupDay < today) {
+  if (source !== 'admin' && (isNaN(pickupDay.getTime()) || pickupDay < today)) {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
