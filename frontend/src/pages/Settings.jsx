@@ -80,8 +80,10 @@ export default function Settings() {
   const [xenditKeyHint,  setXenditKeyHint]  = useState('');
   const [xenditKeyInput, setXenditKeyInput] = useState('');
   const [xenditKeyEditing, setXenditKeyEditing] = useState(false);
-  const [notifEmail,     setNotifEmail]     = useState('');
-  const [contactNumber,  setContactNumber]  = useState('');
+  const [notifEmail,         setNotifEmail]         = useState('');
+  const [contactNumber,      setContactNumber]      = useState('');
+  const [googleReviewLink,   setGoogleReviewLink]   = useState('');
+  const [reviewCooldownDays, setReviewCooldownDays] = useState('30');
   const [shopAddress,    setShopAddress]    = useState('');
   const [minimumOrder,   setMinimumOrder]   = useState('');
   const [aiEnabled,      setAiEnabled]      = useState(false);
@@ -164,6 +166,8 @@ export default function Settings() {
       setXenditKeyHint(s.data.xendit_key_hint || '');
       setNotifEmail(s.data.notification_email || '');
       setContactNumber(s.data.contact_number || '');
+      setGoogleReviewLink(s.data.google_review_link || '');
+      setReviewCooldownDays(s.data.review_cooldown_days != null ? String(s.data.review_cooldown_days) : '30');
       setShopAddress(s.data.shop_address || '');
       setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
       setAiEnabled(!!s.data.ai_enabled);
@@ -208,6 +212,8 @@ export default function Settings() {
         white_label: whiteLabel,
         logo_url: logoUrl || null,
         xendit_api_key: xenditKeyInput.trim() || undefined,
+        google_review_link: googleReviewLink.trim() || null,
+        review_cooldown_days: reviewCooldownDays !== '' ? Number(reviewCooldownDays) : null,
       });
       // Update key state from response
       setXenditKeySet(!!data.has_xendit_key);
@@ -541,6 +547,17 @@ export default function Settings() {
               <input type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)}
                 placeholder="e.g. myshop@gmail.com" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
               <div style={{ fontSize: 11, color: '#374151', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="inbox" size={11} color="#374151" />New order alert · <Icon name="check-circle" size={11} color="#374151" />Payment confirmed alert</div>
+            </SectionCard>
+
+            <SectionCard icon={<Icon name="star" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Google Review Request"
+              subtitle="Sent automatically via Messenger when an order is marked Completed">
+              <label style={LABEL}>Google Review Link</label>
+              <input type="url" value={googleReviewLink} onChange={e => setGoogleReviewLink(e.target.value)}
+                placeholder="https://g.page/r/your-review-link/review" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
+              <label style={{ ...LABEL, marginTop: 12 }}>Re-ask after (days)</label>
+              <input type="number" min="1" max="365" value={reviewCooldownDays} onChange={e => setReviewCooldownDays(e.target.value)}
+                placeholder="30" style={{ ...INPUT, width: 100 }} onFocus={FOCUS} onBlur={BLUR} />
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 5 }}>Leave blank to use 30-day default. Set "Has Reviewed" per customer to suppress permanently.</div>
             </SectionCard>
 
             {/* ── ONLINE PAYMENTS ── */}
