@@ -788,11 +788,17 @@ export default function Orders() {
                     {bookingRef ? (
                       <>
                         {editItems.map((item, idx) => (
-                          <div key={idx} style={{ marginBottom: 10, padding: '10px 12px', background: '#F7F9FC', borderRadius: 8, border: '0.5px solid #E2E8F0' }}>
-                            <div style={{ marginBottom: 7 }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: '#374151' }}>
-                                Item {idx + 1} — {item.id}
+                          <div key={idx} style={{ marginBottom: 10, padding: '10px 12px', background: item.id ? '#F7F9FC' : '#F0FDF4', borderRadius: 8, border: item.id ? '0.5px solid #E2E8F0' : '1px solid #86EFAC' }}>
+                            <div style={{ marginBottom: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: item.id ? '#374151' : '#16A34A' }}>
+                                {item.id ? `Item ${idx + 1} — ${item.id}` : `New Item ${idx + 1}`}
                               </span>
+                              {!item.id && (
+                                <button onClick={() => setEditItems(prev => prev.filter((_, i) => i !== idx))}
+                                  style={{ fontSize: 11, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: 4, fontFamily: 'inherit' }}>
+                                  Remove
+                                </button>
+                              )}
                             </div>
                             <select value={item.service_id}
                               onChange={e => {
@@ -817,6 +823,12 @@ export default function Orders() {
                               style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
                           </div>
                         ))}
+
+                        <button
+                          onClick={() => setEditItems(prev => [...prev, { id: null, service_id: '', price: 0, notes: '' }])}
+                          style={{ width: '100%', padding: '8px 12px', fontSize: 13, fontWeight: 600, color: '#16A34A', background: '#F0FDF4', border: '1px dashed #86EFAC', borderRadius: 7, cursor: 'pointer', marginBottom: 10, fontFamily: 'inherit' }}>
+                          + Add Service
+                        </button>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F0F6FF', borderRadius: 8, marginBottom: 8 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>New Total</span>

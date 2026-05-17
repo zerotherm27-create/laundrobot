@@ -159,13 +159,29 @@ router.put('/booking/:ref', auth, async (req, res) => {
     const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
     const editStamp = `[Edited by admin — ${new Date().toLocaleDateString('en-PH', { dateStyle: 'short' })}]`;
 
-    // Only update existing orders — no inserts, no deletes
     for (const item of items.filter(i => i.id)) {
       const cleanNotes = (item.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim();
       const notesWithStamp = cleanNotes ? `${cleanNotes}\n${editStamp}` : editStamp;
       await client.query(
         `UPDATE orders SET service_id=$1, price=$2, notes=$3 WHERE id=$4 AND tenant_id=$5`,
         [item.service_id || null, Number(item.price), notesWithStamp, item.id, req.user.tenant_id]
+      );
+    }
+
+    for (const item of items.filter(i => !i.id)) {
+      const cleanNotes = (item.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim();
+      const notesWithStamp = cleanNotes ? `${cleanNotes}\n${editStamp}` : editStamp;
+      await client.query(
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref,
+                             custom_selections, paid, delivery_date, source,
+                             promo_code, promo_discount, referral_ref, is_dropoff)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+        [randomUUID(), first.tenant_id, first.customer_id, item.service_id || null,
+         null, Number(item.price), first.pickup_date,
+         first.address, 0, null, notesWithStamp, first.status, first.booking_ref,
+         null, false, first.delivery_date, 'admin',
+         null, 0, null, first.is_dropoff || false]
       );
     }
 
