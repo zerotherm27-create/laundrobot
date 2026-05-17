@@ -41,12 +41,19 @@ router.get('/:id', auth, async (req, res) => {
 
 // PATCH update customer info
 router.patch('/:id', auth, async (req, res) => {
-  const { name, phone, address } = req.body;
+  const { name, phone, address, has_reviewed } = req.body;
   try {
+    const fields = [];
+    const params = [];
+    if (name         !== undefined) { fields.push(`name=$${params.length+1}`);         params.push(name); }
+    if (phone        !== undefined) { fields.push(`phone=$${params.length+1}`);        params.push(phone); }
+    if (address      !== undefined) { fields.push(`address=$${params.length+1}`);      params.push(address); }
+    if (has_reviewed !== undefined) { fields.push(`has_reviewed=$${params.length+1}`); params.push(!!has_reviewed); }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
+    params.push(req.params.id, req.user.tenant_id);
     const { rows } = await db.query(
-      `UPDATE customers SET name=$1, phone=$2, address=$3
-       WHERE id=$4 AND tenant_id=$5 RETURNING *`,
-      [name, phone, address, req.params.id, req.user.tenant_id]
+      `UPDATE customers SET ${fields.join(', ')} WHERE id=$${params.length-1} AND tenant_id=$${params.length} RETURNING *`,
+      params
     );
     if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
     res.json(rows[0]);

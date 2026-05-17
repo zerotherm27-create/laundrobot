@@ -19,6 +19,7 @@ router.get('/settings', auth, async (req, res) => {
       `SELECT id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
               ig_user_id, ai_pause_hours, shop_address, fb_page_id, qr_image_url,
               custom_domain, white_label, plan, payment_mode, open_days,
+              google_review_link, review_cooldown_days,
               (xendit_api_key IS NOT NULL AND xendit_api_key != '') AS has_xendit_key,
               CASE WHEN xendit_api_key IS NOT NULL AND length(xendit_api_key) >= 4
                    THEN right(xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
@@ -35,7 +36,7 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key, google_review_link, review_cooldown_days } = req.body;
   try {
     // Only Pro tenants can set custom domain / white label
     const { rows: [current] } = await db.query(
@@ -74,11 +75,13 @@ router.put('/settings', auth, async (req, res) => {
            logo_url      = COALESCE($17, logo_url),
            payment_mode  = COALESCE($18, payment_mode),
            xendit_api_key = COALESCE($19, xendit_api_key),
-           open_days     = COALESCE($20, open_days)
+           open_days     = COALESCE($20, open_days),
+           google_review_link = COALESCE($21, google_review_link),
+           review_cooldown_days = COALESCE($22, review_cooldown_days)
        WHERE id=$16
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
                  ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, plan, payment_mode,
-                 open_days,
+                 open_days, google_review_link, review_cooldown_days,
                  (xendit_api_key IS NOT NULL AND xendit_api_key != '') AS has_xendit_key,
                  CASE WHEN xendit_api_key IS NOT NULL AND length(xendit_api_key) >= 4
                       THEN right(xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
@@ -106,6 +109,8 @@ router.put('/settings', auth, async (req, res) => {
         safePaymentMode,                               // $18
         newXenditKey,                                  // $19
         Array.isArray(open_days) ? open_days : null,  // $20
+        google_review_link?.trim() || null,            // $21
+        review_cooldown_days != null && review_cooldown_days !== '' ? Number(review_cooldown_days) : null, // $22
       ]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });

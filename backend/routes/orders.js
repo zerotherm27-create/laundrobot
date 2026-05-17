@@ -298,8 +298,81 @@ router.patch('/:id', auth, async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
+
+    // Fire completion Messenger notification (fire-and-forget)
+    if (status === 'COMPLETED') {
+      sendCompletionNotification(rows[0], req.user.tenant_id).catch(e =>
+        console.warn('[completion-notify]', e.message)
+      );
+    }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+async function sendCompletionNotification(updatedOrder, tenantId) {
+  const bookingRef = updatedOrder.booking_ref;
+  if (!bookingRef) return;
+
+  // Load all sibling orders with service names
+  const { rows: siblings } = await db.query(
+    `SELECT o.weight, o.price, s.name AS service_name
+     FROM orders o LEFT JOIN services s ON s.id = o.service_id
+     WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
+    [bookingRef, tenantId]
+  );
+
+  // Load customer fb_id and review state
+  const { rows: [orderWithCustomer] } = await db.query(
+    `SELECT c.fb_id, c.id AS customer_id, c.has_reviewed, c.review_last_requested_at
+     FROM orders o JOIN customers c ON c.id = o.customer_id
+     WHERE o.id=$1`,
+    [updatedOrder.id]
+  );
+  if (!orderWithCustomer?.fb_id) return;
+
+  // Load tenant details
+  const { rows: [tenant] } = await db.query(
+    `SELECT name, fb_page_access_token, google_review_link,
+            COALESCE(review_cooldown_days, 30) AS review_cooldown_days
+     FROM tenants WHERE id=$1`,
+    [tenantId]
+  );
+  if (!tenant?.fb_page_access_token) return;
+
+  // Determine if we should include the review link
+  const { has_reviewed, review_last_requested_at, customer_id } = orderWithCustomer;
+  let includeReview = false;
+  if (tenant.google_review_link && !has_reviewed) {
+    if (!review_last_requested_at) {
+      includeReview = true;
+    } else {
+      const daysSince = (Date.now() - new Date(review_last_requested_at).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSince >= tenant.review_cooldown_days) includeReview = true;
+    }
+  }
+
+  // Build service summary line (combine all siblings)
+  const totalWeight = siblings.reduce((s, o) => s + Number(o.weight || 0), 0);
+  const serviceNames = [...new Set(siblings.map(o => o.service_name).filter(Boolean))].join(' & ');
+  const weightLine = totalWeight > 0 ? `${totalWeight} kg ` : '';
+
+  const lines = [
+    `✅ Your order from ${tenant.name} has been delivered! 🧺✨`,
+    ``,
+    `Order #${bookingRef} — ${weightLine}${serviceNames}`,
+    ``,
+    `Hope everything is fresh and perfect! ${includeReview ? `If you had a great experience, a quick Google review means the world to us 🙏\n👉 ${tenant.google_review_link}\n\n` : ''}Reply anytime to book your next pickup! 😊`,
+  ];
+
+  await sendTaggedMessage(tenant.fb_page_access_token, orderWithCustomer.fb_id, lines.join('\n'));
+
+  // Update review timestamp if we sent the link
+  if (includeReview) {
+    await db.query(
+      `UPDATE customers SET review_last_requested_at=NOW() WHERE id=$1`,
+      [customer_id]
+    );
+  }
+}
 
 // POST generate (or regenerate) a Xendit payment link for an existing order
 router.post('/:id/payment-link', auth, async (req, res) => {

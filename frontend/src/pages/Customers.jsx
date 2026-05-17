@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCustomers, deleteCustomer } from '../api.js';
+import { getCustomers, updateCustomer, deleteCustomer } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
 
 export default function Customers() {
@@ -151,6 +151,24 @@ export default function Customers() {
                 <span style={{ fontWeight: 500 }}>{v}</span>
               </div>
             ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
+              <span style={{ color: '#374151' }}>Has reviewed</span>
+              <button onClick={async () => {
+                const next = !selected.has_reviewed;
+                try {
+                  await updateCustomer(selected.id, { has_reviewed: next });
+                  setSelected(s => ({ ...s, has_reviewed: next }));
+                  setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, has_reviewed: next } : c));
+                } catch { alert('Failed to update.'); }
+              }} style={{
+                padding: '3px 12px', fontSize: 12, borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit',
+                border: selected.has_reviewed ? '0.5px solid #3B6D11' : '0.5px solid #ccc',
+                background: selected.has_reviewed ? '#EAF3DE' : '#f5f5f3',
+                color: selected.has_reviewed ? '#3B6D11' : '#374151',
+              }}>
+                {selected.has_reviewed ? '✓ Reviewed' : 'Mark as reviewed'}
+              </button>
+            </div>
           </div>
         )}
       </div>
