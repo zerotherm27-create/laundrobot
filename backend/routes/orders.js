@@ -180,7 +180,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
         [randomUUID(), first.tenant_id, first.customer_id, item.service_id || null,
          null, Number(item.price), first.pickup_date,
          first.address, 0, null, notesWithStamp, first.status, first.booking_ref,
-         null, false, first.delivery_date, 'admin',
+         item.custom_fields?.length ? JSON.stringify(item.custom_fields) : null,
+         false, first.delivery_date, 'admin',
          null, 0, null, first.is_dropoff || false]
       );
     }
