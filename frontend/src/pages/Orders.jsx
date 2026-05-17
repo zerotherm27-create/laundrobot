@@ -6,72 +6,11 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
+import ServicePickerPanel from '../components/ServicePickerPanel.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function normalizeOpts(options) {
-  if (!Array.isArray(options)) return [];
-  return options.map(o => typeof o === 'object' && o !== null
-    ? { price_type: 'fixed', ...o }
-    : { label: String(o), price: 0, price_type: 'fixed' });
-}
-
-function calcNewItemPrice(svc, fieldValues, addonQty) {
-  if (!svc) return 0;
-  const customFields = svc.custom_fields || [];
-  const selectFields = customFields.filter(f => f.field_type === 'select');
-  const firstNumField = customFields.find(f => f.field_type === 'number');
-  const qty = firstNumField ? parseFloat(fieldValues[firstNumField.id] || 0) : 0;
-  const hasVariationPricing = selectFields.some(f => normalizeOpts(f.options).some(o => Number(o.price || 0) > 0));
-  const baseVariationPrice = (() => {
-    for (const f of selectFields) {
-      const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-      if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) return Number(sel.price);
-    }
-    return 0;
-  })();
-  const primarySelectId = (() => {
-    for (const f of selectFields) {
-      const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-      if (sel && (sel.price_type || 'fixed') !== 'copy_base' && Number(sel.price || 0) > 0) return f.id;
-    }
-    return null;
-  })();
-  const qtyScaledIds = hasVariationPricing && qty > 0
-    ? new Set(selectFields.filter(f => {
-        const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-        return sel && (f.id === primarySelectId || (sel.price_type || 'fixed') === 'copy_base');
-      }).map(f => f.id))
-    : new Set();
-  const subtotal = hasVariationPricing
-    ? selectFields.reduce((sum, f) => {
-        const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-        if (!sel) return sum;
-        const p = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
-        return sum + p * (qtyScaledIds.has(f.id) ? qty : 1);
-      }, 0)
-    : qty > 0 ? Number(svc.price) * qty : Number(svc.price);
-  const addonTotal = customFields
-    .filter(f => f.field_type === 'addon')
-    .reduce((s, f) => s + Number(f.unit_price || 0) * (addonQty[f.id] || 0), 0);
-  return subtotal + addonTotal;
-}
-
-function buildCustomFieldsPayload(svc, fieldValues, addonQty, addonOwn) {
-  const result = [];
-  for (const f of (svc?.custom_fields || [])) {
-    if (f.field_type === 'addon') {
-      const aqty = addonQty[f.id] || 0;
-      if (aqty > 0) result.push({ label: f.label, value: String(aqty), unit_price: f.unit_price });
-      else if (f.allow_own && addonOwn[f.id]) result.push({ label: f.label, value: 'Customer provides own' });
-    } else if (fieldValues[f.id] !== undefined && fieldValues[f.id] !== '') {
-      result.push({ label: f.label, value: fieldValues[f.id] });
-    }
-  }
-  return result;
-}
 
 function groupByBookingRef(orders) {
   const map = new Map();
@@ -131,6 +70,7 @@ export default function Orders() {
   const [editCustomPrice, setEditCustomPrice] = useState('');
   const [editSaving, setEditSaving]   = useState(false);
   const [editErr, setEditErr]         = useState('');
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [savedDiff, setSavedDiff]     = useState(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -228,16 +168,12 @@ export default function Orders() {
     setEditSaving(true); setEditErr('');
     try {
       if (bookingRef) {
-        const processedItems = editItems.map(item => {
-          if (item.id) return item;
-          const svc = services.find(s => s.id === Number(item.service_id));
-          return {
-            id: null,
-            service_id: item.service_id,
-            price: item.price,
-            notes: item.notes,
-            custom_fields: buildCustomFieldsPayload(svc, item.fieldValues || {}, item.addonQty || {}, item.addonOwn || {}),
-          };
+        const processedItems = editItems.map(item => item.id ? item : {
+          id: null,
+          service_id: item.service_id,
+          price: item.price,
+          notes: item.notes,
+          custom_fields: item.custom_fields || [],
         });
         const { data } = await updateBooking(bookingRef, processedItems, editCustomNote, editCustomPrice);
         loadActive();
@@ -864,7 +800,7 @@ export default function Orders() {
                           <div key={idx} style={{ marginBottom: 10, padding: '10px 12px', background: item.id ? '#F7F9FC' : '#F0FDF4', borderRadius: 8, border: item.id ? '0.5px solid #E2E8F0' : '1px solid #86EFAC' }}>
                             <div style={{ marginBottom: 7, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: item.id ? '#374151' : '#16A34A' }}>
-                                {item.id ? `Item ${idx + 1} — ${item.id}` : `New Item ${idx + 1}`}
+                                {item.id ? `Item ${idx + 1} — ${item.id}` : `New — ${services.find(s => s.id === Number(item.service_id))?.name || 'Service'}`}
                               </span>
                               {!item.id && (
                                 <button onClick={() => setEditItems(prev => prev.filter((_, i) => i !== idx))}
@@ -873,104 +809,31 @@ export default function Orders() {
                                 </button>
                               )}
                             </div>
-                            <select value={item.service_id}
-                              onChange={e => {
-                                const svc = services.find(s => s.id === Number(e.target.value));
-                                setEditItems(prev => prev.map((it, i) => {
-                                  if (i !== idx) return it;
-                                  const updated = { ...it, service_id: e.target.value, fieldValues: {}, addonQty: {}, addonOwn: {} };
-                                  updated.price = svc ? calcNewItemPrice(svc, {}, {}) : it.price;
-                                  return updated;
-                                }));
-                              }}
-                              style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 6, outline: 'none' }}>
-                              <option value="">— Select service —</option>
-                              {services.filter(s => s.active !== false).map(s => (
-                                <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
-                              ))}
-                            </select>
-
-                            {/* Custom fields for new items */}
-                            {!item.id && (() => {
-                              const svc = services.find(s => s.id === Number(item.service_id));
-                              if (!svc?.custom_fields?.length) return null;
-                              const fv = item.fieldValues || {};
-                              const aq = item.addonQty || {};
-                              const ao = item.addonOwn || {};
-                              const updateItem = (patch) => setEditItems(prev => prev.map((it, i) => {
-                                if (i !== idx) return it;
-                                const merged = { ...it, ...patch };
-                                merged.price = calcNewItemPrice(svc, merged.fieldValues || {}, merged.addonQty || {});
-                                return merged;
-                              }));
-                              return (
-                                <div style={{ marginBottom: 6, padding: '8px 10px', background: '#F0FDF4', borderRadius: 6, border: '1px solid #BBF7D0' }}>
-                                  {svc.custom_fields.map(f => {
-                                    if (f.field_type === 'select') {
-                                      const opts = normalizeOpts(f.options);
-                                      return (
-                                        <div key={f.id} style={{ marginBottom: 8 }}>
-                                          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-                                            {f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}
-                                          </div>
-                                          <select value={fv[f.id] || ''}
-                                            onChange={e => updateItem({ fieldValues: { ...fv, [f.id]: e.target.value } })}
-                                            style={{ width: '100%', padding: '6px 8px', fontSize: 12, borderRadius: 5, border: '1px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }}>
-                                            <option value="">— Choose —</option>
-                                            {opts.map(o => (
-                                              <option key={o.label} value={o.label}>
-                                                {o.label}{Number(o.price || 0) > 0 ? ` (+₱${Number(o.price).toLocaleString()})` : ''}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-                                      );
-                                    }
-                                    if (f.field_type === 'addon') {
-                                      const qty = aq[f.id] || 0;
-                                      const isOwn = !!(f.allow_own && ao[f.id]);
-                                      return (
-                                        <div key={f.id} style={{ marginBottom: 8 }}>
-                                          <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-                                            {f.label} <span style={{ color: '#16A34A', fontWeight: 400 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</span>
-                                          </div>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <button type="button" disabled={isOwn}
-                                              onClick={() => updateItem({ addonQty: { ...aq, [f.id]: Math.max(0, qty - 1) } })}
-                                              style={{ width: 28, height: 28, borderRadius: '6px 0 0 6px', border: '1px solid #E2E8F0', background: '#fff', fontSize: 14, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>−</button>
-                                            <div style={{ width: 36, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 13, fontWeight: 700, background: qty > 0 ? '#DCFCE7' : '#fff' }}>{qty}</div>
-                                            <button type="button" disabled={isOwn}
-                                              onClick={() => updateItem({ addonQty: { ...aq, [f.id]: qty + 1 } })}
-                                              style={{ width: 28, height: 28, borderRadius: '0 6px 6px 0', border: '1px solid #16A34A', background: '#16A34A', fontSize: 14, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', color: '#fff' }}>+</button>
-                                            {f.allow_own && (
-                                              <label style={{ fontSize: 11, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
-                                                <input type="checkbox" checked={!!ao[f.id]}
-                                                  onChange={e => {
-                                                    const next = e.target.checked;
-                                                    updateItem({ addonOwn: { ...ao, [f.id]: next }, addonQty: next ? { ...aq, [f.id]: 0 } : aq });
-                                                  }} />
-                                                Own
-                                              </label>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-                                    return (
-                                      <div key={f.id} style={{ marginBottom: 8 }}>
-                                        <div style={{ fontSize: 11, fontWeight: 600, color: '#374151', marginBottom: 4 }}>{f.label}</div>
-                                        <input type={f.field_type === 'number' ? 'number' : 'text'}
-                                          value={fv[f.id] || ''}
-                                          onChange={e => updateItem({ fieldValues: { ...fv, [f.id]: e.target.value } })}
-                                          placeholder={f.placeholder || ''}
-                                          style={{ width: '100%', boxSizing: 'border-box', padding: '6px 8px', fontSize: 12, borderRadius: 5, border: '1px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })()}
-
+                            {item.id && (
+                              <select value={item.service_id}
+                                onChange={e => {
+                                  const svc = services.find(s => s.id === Number(e.target.value));
+                                  setEditItems(prev => prev.map((it, i) => i === idx
+                                    ? { ...it, service_id: e.target.value, price: svc ? Number(svc.price) : it.price }
+                                    : it));
+                                }}
+                                style={{ width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '1px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 6, outline: 'none' }}>
+                                <option value="">— Select service —</option>
+                                {services.filter(s => s.active !== false).map(s => (
+                                  <option key={s.id} value={s.id}>{s.name} — ₱{Number(s.price).toLocaleString()} / {s.unit || 'flat'}</option>
+                                ))}
+                              </select>
+                            )}
+                            {!item.id && (item.custom_fields || []).length > 0 && (
+                              <div style={{ marginBottom: 6 }}>
+                                {(item.custom_fields || []).map((cf, ci) => cf.value ? (
+                                  <div key={ci} style={{ fontSize: 11, color: '#374151', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{cf.label}: {cf.value}</span>
+                                    {cf.unit_price > 0 && <span style={{ color: '#16A34A', fontWeight: 600 }}>+₱{Number(cf.unit_price).toLocaleString()}</span>}
+                                  </div>
+                                ) : null)}
+                              </div>
+                            )}
                             <input type="number" min="0" step="1" value={item.price}
                               onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, price: e.target.value } : it))}
                               placeholder="Price (₱)"
@@ -983,7 +846,7 @@ export default function Orders() {
                         ))}
 
                         <button
-                          onClick={() => setEditItems(prev => [...prev, { id: null, service_id: '', price: 0, notes: '' }])}
+                          onClick={() => setAddServiceOpen(true)}
                           style={{ width: '100%', padding: '8px 12px', fontSize: 13, fontWeight: 600, color: '#16A34A', background: '#F0FDF4', border: '1px dashed #86EFAC', borderRadius: 7, cursor: 'pointer', marginBottom: 10, fontFamily: 'inherit' }}>
                           + Add Service
                         </button>
@@ -1250,6 +1113,33 @@ export default function Orders() {
           onClose={() => setShowCreateModal(false)}
           onCreated={() => { loadActive(); }}
         />
+      )}
+
+      {/* ── Add Service Modal ── */}
+      {addServiceOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 520, padding: 24, boxShadow: '0 8px 40px rgba(0,0,0,.18)', position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Add Service to Booking</div>
+              <button onClick={() => setAddServiceOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#374151', lineHeight: 1, padding: '0 4px' }}>×</button>
+            </div>
+            <ServicePickerPanel
+              services={services}
+              onAdd={item => {
+                setEditItems(prev => [...prev, {
+                  id: null,
+                  service_id: item.service_id,
+                  price: item.itemTotal,
+                  notes: '',
+                  custom_fields: item.custom_fields,
+                }]);
+                setAddServiceOpen(false);
+              }}
+              buttonLabel="Add to Booking"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

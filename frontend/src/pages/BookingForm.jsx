@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import ServicePickerPanel from '../components/ServicePickerPanel.jsx';
 import {
   getPublicBootstrap, getPublicGeocode,
   getPublicAddressSuggest,
@@ -819,239 +820,18 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
             <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Choose a Service</div>
             <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Select the laundry service you need.</div>
 
-            {/* Category tabs */}
-            {categories.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                <button onClick={() => setActiveCat(null)}
-                  style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                    background: activeCat === null ? '#38a9c2' : '#F0F0EC', color: activeCat === null ? '#fff' : '#374151', border: 'none' }}>
-                  All
-                </button>
-                {categories.map(c => (
-                  <button key={c.id} onClick={() => setActiveCat(c.id)}
-                    style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                      background: activeCat === c.id ? '#38a9c2' : '#F0F0EC', color: activeCat === c.id ? '#fff' : '#374151', border: 'none' }}>
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Service cards */}
-            {visibleServices.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No services available in this category.</div>
-            ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
-                {visibleServices.map(svc => {
-                  const selected = selectedSvc?.id === svc.id;
-                  return (
-                    <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setTried1(false); }}
-                      style={{
-                        padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
-                        border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
-                        background: selected ? '#EBF8FA' : '#fff',
-                        transition: 'all .15s',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
-                      }}>
-                      {svc.image_url && (
-                        <img src={svc.image_url} alt={svc.name}
-                          style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border: '1px solid #E2E8F0' }} />
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3, color: '#111827' }}>{svc.name}</div>
-                        {svc.description && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>{svc.description}</div>}
-                        {svc.category_name && !activeCat && (
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#E2F5F8', color: '#1a7d94', fontWeight: 600, marginTop: 5, display: 'inline-block' }}>
-                            {svc.category_name}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        {(() => { const sa = getStartsAt(svc); return sa != null ? (
-                          <>
-                            <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>Starts at</div>
-                            <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>₱{sa.toLocaleString()}</div>
-                          </>
-                        ) : (
-                          <div style={{ fontWeight: 700, fontSize: 15, color: '#38a9c2' }}>₱{Number(svc.price).toLocaleString()}</div>
-                        ); })()}
-                        <div style={{ fontSize: 11, color: '#374151' }}>{svc.unit || 'flat'}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Custom fields / weight for selected service */}
-            {selectedSvc && (
-              <div style={{ marginTop: 20, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8' }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Icon name="clipboard" size={13} color="#1a7d94" /> Service Details — {selectedSvc.name}
-                </div>
-
-                {/* Custom fields */}
-                {(selectedSvc.custom_fields || []).map(f => {
-                  // Add-on field: stepper UI
-                  if (f.field_type === 'addon') {
-                    if (!isAddonVisible(f)) return null;
-                    const aqty = addonQty[f.id] || 0;
-                    const isOwn = !!(f.allow_own && addonOwn[f.id]);
-                    const lineTotal = Number(f.unit_price || 0) * aqty;
-                    const unsatisfied = tried1 && f.required && aqty === 0 && !isOwn;
-                    return (
-                      <div key={f.id} style={{ marginBottom: 14, background: '#fff', border: `1.5px solid ${unsatisfied ? '#F09595' : '#E2E8F0'}`, borderRadius: 10, padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>
-                              {f.label}
-                              {f.required && <span style={{ color: '#E53E3E', marginLeft: 4, fontSize: 11 }}>*</span>}
-                            </div>
-                            <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 1 }}>+₱{Number(f.unit_price || 0).toLocaleString()} each</div>
-                            {f.placeholder && <div style={{ fontSize: 11, color: '#374151', marginTop: 1 }}>{f.placeholder}</div>}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 0, opacity: isOwn ? 0.4 : 1 }}>
-                            <button type="button" disabled={isOwn}
-                              onClick={() => setAddonQty(p => ({ ...p, [f.id]: Math.max(0, (p[f.id] || 0) - 1) }))}
-                              style={{ width: 32, height: 32, borderRadius: '8px 0 0 8px', border: '1.5px solid #E2E8F0', background: '#F7F9FD', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151' }}>−</button>
-                            <div style={{ width: 40, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #E2E8F0', borderLeft: 'none', borderRight: 'none', fontSize: 14, fontWeight: 700, background: aqty > 0 ? '#E2F5F8' : '#fff', color: aqty > 0 ? '#1a7d94' : '#374151' }}>{aqty}</div>
-                            <button type="button" disabled={isOwn}
-                              onClick={() => setAddonQty(p => ({ ...p, [f.id]: (p[f.id] || 0) + 1 }))}
-                              style={{ width: 32, height: 32, borderRadius: '0 8px 8px 0', border: '1.5px solid #38a9c2', background: '#38a9c2', fontSize: 16, cursor: isOwn ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>+</button>
-                          </div>
-                          {lineTotal > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: '#1a7d94', minWidth: 60, textAlign: 'right' }}>₱{lineTotal.toLocaleString()}</div>}
-                        </div>
-                        {f.allow_own && (
-                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #E2E8F0' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: isOwn ? '#1a7d94' : '#374151', fontWeight: isOwn ? 600 : 400 }}>
-                              <div onClick={() => {
-                                const next = !isOwn;
-                                setAddonOwn(p => ({ ...p, [f.id]: next }));
-                                if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
-                              }} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? '#38a9c2' : '#CBD5E0'}`, background: isOwn ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
-                                {isOwn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
-                              </div>
-                              I'll provide my own {f.label.toLowerCase()}
-                            </label>
-                          </div>
-                        )}
-                        {unsatisfied && (
-                          <div style={{ marginTop: 8, fontSize: 11, color: '#A32D2D', fontWeight: 600 }}>
-                            Please select a quantity or choose to provide your own.
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  // Variation select: e-commerce button group
-                  if (f.field_type === 'select') {
-                    const opts = normalizeOpts(f.options);
-                    const selectedVal = fieldValues[f.id];
-                    const selectErr = tried1 && f.required && !selectedVal;
-                    return (
-                      <div key={f.id} style={{ marginBottom: 16 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
-                          {f.label}{f.required && <span style={{ color: '#E53E3E', marginLeft: 2 }}>*</span>}
-                        </label>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, ...(selectErr ? { padding: 8, borderRadius: 8, border: '1.5px solid #F87171', background: '#FFF5F5' } : {}) }}>
-                          {opts.map(opt => {
-                            const isSel = selectedVal === opt.label;
-                            return (
-                              <button key={opt.label} type="button"
-                                onClick={() => setFieldValues(p => ({ ...p, [f.id]: opt.label }))}
-                                style={{
-                                  padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-                                  border: isSel ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
-                                  background: isSel ? '#E2F5F8' : '#fff',
-                                  color: isSel ? '#1a7d94' : '#374151',
-                                  fontSize: 13, fontWeight: isSel ? 700 : 500,
-                                  transition: 'all .15s', textAlign: 'center', minWidth: 80,
-                                }}>
-                                <div>{opt.label}</div>
-                                {(opt.price_type === 'copy_base' || opt.price > 0) && (
-                                  <div style={{ fontSize: 11, color: isSel ? '#38a9c2' : '#7C3AED', marginTop: 2, fontWeight: 600 }}>
-                                    {opt.price_type === 'copy_base'
-                                      ? (baseVariationPrice > 0 ? `+₱${Number(baseVariationPrice).toLocaleString()}` : '= base')
-                                      : `+₱${Number(opt.price).toLocaleString()}`}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        {selectErr && (
-                          <div style={{ marginTop: 5, fontSize: 11, color: '#A32D2D', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Icon name="warning" size={11} color="#A32D2D" /> Please select an option.
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  // Regular fields (text, number, textarea)
-                  const fieldErr = tried1 && f.required && !fieldValues[f.id];
-                  return (
-                    <Field key={f.id} label={f.label + (f.field_type === 'number' ? ' (× price)' : '')} required={f.required} error={fieldErr ? 'This field is required.' : ''}>
-                      {f.field_type === 'textarea' ? (
-                        <textarea
-                          style={{ ...INPUT, ...(fieldErr ? { borderColor: '#F87171', background: '#FFF5F5', boxShadow: '0 0 0 3px rgba(248,113,113,.12)' } : {}), resize: 'vertical', minHeight: 80 }}
-                          value={fieldValues[f.id] || ''}
-                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                          placeholder={f.placeholder || 'Enter your notes here…'}
-                          onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                          onBlur={e => { e.target.style.borderColor = fieldErr ? '#F87171' : '#B8C4CE'; e.target.style.boxShadow = fieldErr ? '0 0 0 3px rgba(248,113,113,.12)' : 'none'; }}
-                        />
-                      ) : (
-                        <input style={fieldErr ? INPUT_ERR : INPUT}
-                          type={f.field_type === 'number' ? 'number' : 'text'}
-                          min={f.field_type === 'number' && f.min_value != null ? f.min_value : undefined}
-                          max={f.field_type === 'number' && f.max_value != null ? f.max_value : undefined}
-                          value={fieldValues[f.id] || ''}
-                          onChange={e => setFieldValues(p => ({ ...p, [f.id]: e.target.value }))}
-                          placeholder={f.placeholder || ''}
-                          onFocus={e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxShadow = '0 0 0 3px rgba(56,169,194,.18)'; }}
-                          onBlur={e => { e.target.style.borderColor = '#B8C4CE'; e.target.style.boxShadow = 'none'; }}
-                        />
-                      )}
-                    </Field>
-                  );
-                })}
-
-                {/* Live price breakdown */}
-                {selectedSvc && (subtotal > 0 || addonTotal > 0) && (
-                  <div style={{ marginTop: 12, background: '#E6F5F8', borderRadius: 10, padding: '10px 14px', border: '1px solid #9ED3DC' }}>
-                    {baseSubtotal > 0 && !hasVariationPricing && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#1a7d94', marginBottom: 4 }}>
-                        <span>{selectedSvc.name}{qty > 0 ? ` × ${qty}` : ''}</span>
-                        <span style={{ fontWeight: 600 }}>₱{baseSubtotal.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {selectFields.map(f => {
-                      const sel = normalizeOpts(f.options).find(o => o.label === fieldValues[f.id]);
-                      if (!sel) return null;
-                      const resolvedPrice = (sel.price_type || 'fixed') === 'copy_base' ? baseVariationPrice : Number(sel.price || 0);
-                      const scaledByQty = qtyScaledIds.has(f.id);
-                      const displayPrice = scaledByQty ? resolvedPrice * qty : resolvedPrice;
-                      return (
-                        <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                          <span>{f.label}: <strong>{sel.label}</strong>{scaledByQty && qty > 1 ? ` × ${qty}` : ''}</span>
-                          <span style={{ fontWeight: 600 }}>{displayPrice > 0 ? `₱${displayPrice.toLocaleString()}` : '—'}</span>
-                        </div>
-                      );
-                    })}
-                    {addonFields.filter(f => (addonQty[f.id] || 0) > 0).map(f => (
-                      <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                        <span>{f.label} × {addonQty[f.id]}</span>
-                        <span style={{ fontWeight: 600 }}>₱{(Number(f.unit_price || 0) * addonQty[f.id]).toLocaleString()}</span>
-                      </div>
-                    ))}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: '#1a7d94', borderTop: '1px solid #9ED3DC', paddingTop: 6, marginTop: 2 }}>
-                      <span>Subtotal</span>
-                      <span>₱{(subtotal + addonTotal).toLocaleString()}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <ServicePickerPanel
+              services={services}
+              categories={categories}
+              onAdd={item => {
+                setCart(prev => {
+                  const updated = [...prev, { _id: Date.now(), ...item }];
+                  persistCart(updated, 1);
+                  return updated;
+                });
+              }}
+              buttonLabel="+ Add to Cart"
+            />
 
             {/* Cart items list */}
             {cart.length > 0 && (
@@ -1081,28 +861,19 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => { if (!selectedSvc) return; if (!step1Valid()) { setTried1(true); return; } addToCart(); }}
-                disabled={!selectedSvc}
-                style={{ flex: 1, padding: 13, borderRadius: 10, border: selectedSvc ? '2px solid #38a9c2' : '1.5px solid #E2E8F0', fontSize: 14, fontWeight: 700, cursor: selectedSvc ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                  background: selectedSvc ? '#fff' : '#E2E8F0', color: selectedSvc ? '#38a9c2' : '#374151', transition: 'all .15s' }}>
-                + Add to Cart
-              </button>
-              {cart.length > 0 && (
-                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <button onClick={() => meetsMinOrder && setStep(2)} disabled={!meetsMinOrder}
-                    style={{ width: '100%', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: meetsMinOrder ? 'pointer' : 'not-allowed', fontFamily: 'inherit', background: meetsMinOrder ? '#fdca00' : '#E2E8F0', color: meetsMinOrder ? '#1F2937' : '#374151', transition: 'all .15s' }}>
-                    Checkout ({cart.length}) · ₱{cartTotal.toLocaleString()} →
-                  </button>
-                  {!meetsMinOrder && (
-                    <div style={{ fontSize: 11, color: '#A32D2D', textAlign: 'center', fontWeight: 600 }}>
-                      Minimum order is ₱{minOrder.toLocaleString()} — add ₱{(minOrder - cartTotal).toLocaleString()} more
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            {cart.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <button onClick={() => meetsMinOrder && setStep(2)} disabled={!meetsMinOrder}
+                  style={{ width: '100%', padding: 13, borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700, cursor: meetsMinOrder ? 'pointer' : 'not-allowed', fontFamily: 'inherit', background: meetsMinOrder ? '#fdca00' : '#E2E8F0', color: meetsMinOrder ? '#1F2937' : '#374151', transition: 'all .15s' }}>
+                  Checkout ({cart.length}) · ₱{cartTotal.toLocaleString()} →
+                </button>
+                {!meetsMinOrder && (
+                  <div style={{ fontSize: 11, color: '#A32D2D', textAlign: 'center', fontWeight: 600, marginTop: 4 }}>
+                    Minimum order is ₱{minOrder.toLocaleString()} — add ₱{(minOrder - cartTotal).toLocaleString()} more
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
