@@ -173,4 +173,16 @@ export const getFinanceBreakeven      = (year, month)    => api.get('/finance/br
 export const getFinanceProjections    = (year, month)    => api.get('/finance/projections', { params: { year, month } });
 export const getFinanceInsights       = context          => api.post('/finance/insights', { context });
 
+// Inventory
+export const getInventoryItems        = ()               => api.get('/inventory/items');
+export const createInventoryItem      = data             => api.post('/inventory/items', data);
+export const updateInventoryItem      = (id, data)       => api.put(`/inventory/items/${id}`, data);
+export const deleteInventoryItem      = id               => api.delete(`/inventory/items/${id}`);
+export const stockIn                  = data             => api.post('/inventory/stock-in', data);
+export const stockOut                 = data             => api.post('/inventory/stock-out', data);
+export const getInventoryTransactions = (params)         => api.get('/inventory/transactions', { params });
+export const getInventoryFormulas     = ()               => api.get('/inventory/formulas');
+export const upsertFormula            = data             => api.put('/inventory/formulas', data);
+export const deleteFormula            = id               => api.delete(`/inventory/formulas/${id}`);
+
 export default api;

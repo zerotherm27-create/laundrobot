@@ -17,6 +17,7 @@ import Messaging from './pages/Messaging.jsx';
 import SuperAdmin from './pages/SuperAdmin.jsx';
 import Reports from './pages/Reports.jsx';
 import Finance from './pages/Finance.jsx';
+import Inventory from './pages/Inventory.jsx';
 import FAQs from './pages/FAQs.jsx';
 import Users from './pages/Users.jsx';
 import DeliveryZones from './pages/DeliveryZones.jsx';
@@ -55,7 +56,7 @@ function CustomDomainApp() {
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
-  Messaging, FAQs, Users, Reports, Finance, SuperAdmin, DeliveryZones, Settings, WalkIn,
+  Messaging, FAQs, Users, Reports, Finance, Inventory, SuperAdmin, DeliveryZones, Settings, WalkIn,
 };
 
 const PAGE_TITLES = {
@@ -69,6 +70,7 @@ const PAGE_TITLES = {
   Users:      'User Management',
   Reports:    'Reports',
   Finance:    'Finance',
+  Inventory:  'Inventory',
   SuperAdmin:     'Super Admin',
   DeliveryZones:  'Delivery Zones',
   Settings:       'Settings',

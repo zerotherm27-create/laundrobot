@@ -8,6 +8,7 @@ const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = requi
 const { sendButtons } = require('../utils/messenger');
 const { sendPushToTenant } = require('../utils/push');
 
+const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
 
 // POST walk-in order (staff POS — paid in cash/QR, no Xendit)
@@ -303,6 +304,9 @@ router.patch('/:id', auth, async (req, res) => {
     if (status === 'COMPLETED') {
       sendCompletionNotification(rows[0], req.user.tenant_id).catch(e =>
         console.warn('[completion-notify]', e.message)
+      );
+      deductInventory(rows[0], req.user.tenant_id).catch(e =>
+        console.warn('[inventory-deduct]', e.message)
       );
     }
   } catch (err) { res.status(500).json({ error: err.message }); }

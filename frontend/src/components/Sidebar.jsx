@@ -15,6 +15,7 @@ const NAV = [
   { key: 'DeliveryZones', iconName: 'delivery',   label: 'Delivery Zones' },
   { key: 'Reports',       iconName: 'reports',    label: 'Reports' },
   { key: 'Finance',       iconName: 'finance',    label: 'Finance', adminOnly: true },
+  { key: 'Inventory',     iconName: 'inventory',  label: 'Inventory', adminOnly: true },
   { key: 'Users',         iconName: 'users',      label: 'Users', adminOnly: true },
   { key: 'Settings',      iconName: 'settings',   label: 'Settings' },
 ];
