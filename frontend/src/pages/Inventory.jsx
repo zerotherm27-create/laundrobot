@@ -118,6 +118,9 @@ function Stock({ items, setItems }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ background:'#F0F9FF', border:'0.5px solid #BAE6FD', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#0369A1', lineHeight:1.7 }}>
+        💡 <strong>How to use:</strong> Add each supply you buy — liquid detergent, fabric conditioner, LPG gas, plastic bags, etc. Set the <strong>unit</strong> to how you measure it (mL, L, kg, tank, sachet…). Set <strong>Cost/Unit</strong> to the price per unit (e.g. if a 20L carboy of detergent costs ₱2,000, cost per mL = ₱0.10). Set a <strong>Reorder At</strong> threshold so you get a low-stock warning before you run out.
+      </div>
       <div style={{ display:'flex', justifyContent:'flex-end' }}>
         <button onClick={() => { setShowAdd(p=>!p); setErr(''); }}
           style={{ padding:'7px 16px', fontSize:13, borderRadius:8, cursor:'pointer', background:'#38a9c2', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
@@ -377,6 +380,11 @@ function FormulasTab({ items, services }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ background:'#F0F9FF', border:'0.5px solid #BAE6FD', borderRadius:8, padding:'10px 14px', marginBottom:8, fontSize:12, color:'#0369A1', lineHeight:1.7 }}>
+        💡 <strong>How formulas work:</strong> A formula tells the system how much of a supply is used each time a specific service order is completed. When an order is marked <strong>Completed</strong> in the Kanban board, the stock is automatically deducted.<br/>
+        Example: <em>Wash Dry Fold → Liquid Detergent: 80 mL per order, Fabric Conditioner: 60 mL per order.</em><br/>
+        <span style={{ color:'#0284C7' }}>LPG and electricity are better logged manually in Stock-In / Use since one dryer run covers multiple orders.</span>
+      </div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <p style={{ fontSize:13, color:'#6B7280', margin:0 }}>
           Set how much of each supply is consumed when an order of that service is marked <strong>Completed</strong>. Stock deducts automatically.

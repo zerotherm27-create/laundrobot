@@ -48,7 +48,7 @@ function Dashboard() {
     { label: 'MTD Expenses',         val: PESO(data.expenses),           color: '#EF4444' },
     { label: 'Net Profit',           val: PESO(data.netProfit),          color: data.netProfit >= 0 ? '#059669' : '#EF4444' },
     { label: 'Profit Margin',        val: PCT(data.profitMargin),        color: data.profitMargin >= 0 ? '#059669' : '#EF4444' },
-    { label: 'Total Loads',          val: Number(data.loadCount ?? 0).toLocaleString(), color: '#7F77DD' },
+    { label: 'Total Orders',          val: Number(data.loadCount ?? 0).toLocaleString(), color: '#7F77DD' },
     { label: 'Avg Revenue / Load',   val: PESO(data.avgRevenuePerLoad),  color: '#BA7517' },
   ] : [];
 
@@ -124,6 +124,10 @@ function PricingGuide() {
       <div style={{ fontSize: 13, color: '#6B7280', marginBottom: '0.75rem' }}>
         Set the cost per unit for each service. Gross margin and margin % are auto-calculated.
         Click any <strong>Cost/Unit</strong> cell to edit.
+      </div>
+      <div style={{ background: '#F0F9FF', border: '0.5px solid #BAE6FD', borderRadius: 8, padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: '#0369A1', lineHeight: 1.7 }}>
+        💡 <strong>How to set Cost / Unit:</strong> Add up everything it costs you to complete one order — detergent, fabric conditioner, gas (dryer), electricity, and water. For example: if your total operating cost per load is <strong>₱60</strong>, enter <strong>60</strong> in the Cost/Unit column for that service. The system will then show you your gross margin automatically.<br/>
+        <span style={{ color: '#0284C7' }}>Tip: Check your own costing sheet for the current cost per load. Update this whenever your supply prices change.</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
