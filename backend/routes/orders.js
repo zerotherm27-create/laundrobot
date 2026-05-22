@@ -406,10 +406,12 @@ router.post('/:id/payment-link', auth, async (req, res) => {
       return res.status(400).json({ error: 'Xendit is not configured for this branch. Add your API key in Settings.' });
     }
 
-    // Total = all service prices + delivery fee on first order
-    const servicesTotal = relatedOrders.reduce((s, o) => s + Number(o.price || 0), 0);
-    const deliveryFee   = Number(order.delivery_fee || 0);
-    const total = servicesTotal + deliveryFee;
+    // Total = only unpaid items (avoid double-charging already-paid services)
+    const unpaidOrders = relatedOrders.filter(o => !o.paid);
+    if (unpaidOrders.length === 0) {
+      return res.status(400).json({ error: 'This booking is already fully paid.' });
+    }
+    const total = unpaidOrders.reduce((s, o) => s + Number(o.price || 0) + Number(o.delivery_fee || 0), 0);
     if (total <= 0) return res.status(400).json({ error: 'Order total is ₱0 — cannot generate a payment link.' });
 
     const ref = order.booking_ref || order.id;
@@ -421,8 +423,8 @@ router.post('/:id/payment-link', auth, async (req, res) => {
       description:       `${tenant.name} — ${ref}`,
     });
 
-    // Persist on all related orders
-    const ids = relatedOrders.map(o => o.id);
+    // Persist on unpaid orders only
+    const ids = unpaidOrders.map(o => o.id);
     await db.query(
       `UPDATE orders SET xendit_invoice_id = $1, xendit_invoice_url = $2
        WHERE id = ANY($3::text[]) AND tenant_id = $4`,
@@ -578,7 +580,7 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
 
     // Confirmed paid — update all orders in the same booking
     await db.query(
-      `UPDATE orders SET paid=TRUE WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2`,
+      `UPDATE orders SET paid=TRUE, reminder_count=99 WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2`,
       [req.params.id, req.user.tenant_id]
     );
     res.json({ ok: true });
@@ -650,7 +652,7 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
 
     // Mark all orders in booking as paid
     const { rows: allOrders } = await db.query(
-      `UPDATE orders SET paid=TRUE
+      `UPDATE orders SET paid=TRUE, reminder_count=99
        WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2
        RETURNING id, price, booking_ref`,
       [req.params.id, req.user.tenant_id]
