@@ -159,4 +159,18 @@ export const getVapidPublicKey   = ()   => api.get('/push/vapid-public-key');
 export const subscribePush       = sub  => api.post('/push/subscribe', sub);
 export const unsubscribePush     = endpoint => api.delete('/push/subscribe', { data: { endpoint } });
 
+// Finance
+export const getFinanceDashboard    = (year, month) => api.get('/finance/dashboard', { params: { year, month } });
+export const getFinancePricingGuide = ()             => api.get('/finance/pricing-guide');
+export const updateServiceCost      = (id, cost)    => api.put(`/finance/pricing-guide/${id}`, { cost_per_unit: cost });
+export const getFinanceDailySales   = date           => api.get('/finance/daily-sales', { params: { date } });
+export const getFinanceExpenses     = year           => api.get('/finance/expenses', { params: { year } });
+export const upsertExpense          = data           => api.put('/finance/expenses', data);
+export const getFinanceMonthlySummary = year         => api.get('/finance/monthly-summary', { params: { year } });
+export const getFinanceTargets        = year             => api.get('/finance/targets', { params: { year } });
+export const upsertTarget             = data             => api.put('/finance/targets', data);
+export const getFinanceBreakeven      = (year, month)    => api.get('/finance/breakeven', { params: { year, month } });
+export const getFinanceProjections    = (year, month)    => api.get('/finance/projections', { params: { year, month } });
+export const getFinanceInsights       = context          => api.post('/finance/insights', { context });
+
 export default api;
