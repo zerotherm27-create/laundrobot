@@ -62,6 +62,23 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ── Email normalization (Gmail dot/alias dedup + general +alias stripping) ───
+function normalizeEmail(raw) {
+  const lower = raw.trim().toLowerCase();
+  const at = lower.lastIndexOf('@');
+  if (at === -1) return lower;
+  let local  = lower.slice(0, at);
+  let domain = lower.slice(at + 1);
+  // Strip +alias for all providers
+  local = local.split('+')[0];
+  // Gmail-specific: strip dots, normalize googlemail → gmail
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    local  = local.replace(/\./g, '');
+    domain = 'gmail.com';
+  }
+  return `${local}@${domain}`;
+}
+
 // Self-service signup — creates a new tenant + admin user with a 14-day trial
 router.post('/signup', async (req, res) => {
   const { business_name, email, password } = req.body;
@@ -72,34 +89,60 @@ router.post('/signup', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
+  const normalizedEmail = normalizeEmail(email);
+  // Extract real client IP (Railway sets X-Forwarded-For; trust proxy is enabled in server.js)
+  const signupIp = req.ip || req.socket?.remoteAddress || 'unknown';
+
   let client;
   try {
     client = await db.pool.connect();
     await client.query('BEGIN');
 
-    // Check email not already registered
+    // Check exact email not already registered
     const { rows: existing } = await client.query(
       `SELECT id FROM users WHERE email = $1`, [email.trim().toLowerCase()]
     );
     if (existing.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'An account with that email already exists' });
+      return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+
+    // Check normalized email (catches Gmail +alias / dot tricks)
+    const { rows: normExisting } = await client.query(
+      `SELECT id FROM users WHERE normalized_email = $1`, [normalizedEmail]
+    );
+    if (normExisting.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+
+    // IP trial limit — max 2 trial accounts per IP (allows legitimate shared-office cases)
+    if (signupIp && signupIp !== 'unknown') {
+      const { rows: ipTrials } = await client.query(
+        `SELECT COUNT(*) AS cnt FROM tenants WHERE signup_ip = $1`, [signupIp]
+      );
+      if (parseInt(ipTrials[0]?.cnt || 0) >= 2) {
+        await client.query('ROLLBACK');
+        return res.status(429).json({
+          error: 'A trial account has already been created from your network. Please contact support if you need assistance.',
+        });
+      }
     }
 
     // Create tenant with 14-day trial
     const { rows: [tenant] } = await client.query(
-      `INSERT INTO tenants (name, trial_ends_at, subscription_status)
-       VALUES ($1, NOW() + INTERVAL '14 days', 'trial')
+      `INSERT INTO tenants (name, trial_ends_at, subscription_status, signup_ip)
+       VALUES ($1, NOW() + INTERVAL '14 days', 'trial', $2)
        RETURNING id, name, trial_ends_at, subscription_status`,
-      [business_name.trim()]
+      [business_name.trim(), signupIp]
     );
 
     // Create admin user
     const hash = await bcrypt.hash(password, 10);
     await client.query(
-      `INSERT INTO users (email, password_hash, role, tenant_id)
-       VALUES ($1, $2, 'admin', $3)`,
-      [email.trim().toLowerCase(), hash, tenant.id]
+      `INSERT INTO users (email, password_hash, role, tenant_id, normalized_email)
+       VALUES ($1, $2, 'admin', $3, $4)`,
+      [email.trim().toLowerCase(), hash, tenant.id, normalizedEmail]
     );
 
     await client.query('COMMIT');
