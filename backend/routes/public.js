@@ -516,8 +516,12 @@ router.post('/:tenantId/orders', async (req, res) => {
       const { service, effectiveSubtotal, addonTotal, weight } = pricedItems[i];
       // Delivery fee only on first order; others are ₱0
       const itemDeliveryFee = i === 0 ? deliveryFee : 0;
-      // price stores service-only cost; delivery_fee is stored separately in its own column
-      const itemTotal = effectiveSubtotal + addonTotal;
+
+      // ⚠️  INVARIANT: orders.price = service subtotal ONLY.
+      // orders.delivery_fee is its own column — never add itemDeliveryFee here.
+      // Grand total shown to the customer = price + delivery_fee (- promo_discount on row 0).
+      // Xendit invoice uses `grandTotal` (computed above), which already includes delivery_fee.
+      const itemServicePrice = effectiveSubtotal + addonTotal;
 
       const orderId = randomUUID();
 
@@ -543,13 +547,13 @@ router.post('/:tenantId/orders', async (req, res) => {
                              promo_code, promo_discount, referral_ref, is_dropoff)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
         [orderId, req.params.tenantId, customerId, service.id,
-         weight, itemTotal, pickup_date.trim(), address.trim(),
+         weight, itemServicePrice, pickup_date.trim(), address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
          cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource,
          i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0,
          i === 0 ? (referralRef || null) : null, isDropoff]
       );
-      createdOrders.push({ order_id: orderId, service_name: service.name, price: itemTotal });
+      createdOrders.push({ order_id: orderId, service_name: service.name, price: itemServicePrice });
     }
 
     await client.query('COMMIT');
