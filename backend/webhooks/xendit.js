@@ -73,12 +73,12 @@ router.post('/', async (req, res) => {
 
     if (isBkgRef) {
       await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1 WHERE booking_ref=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99 WHERE booking_ref=$2`,
         [xenditInvoiceId, refId]
       );
     } else {
       await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1 WHERE id=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99 WHERE id=$2`,
         [xenditInvoiceId, refId]
       );
     }
