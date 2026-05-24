@@ -83,6 +83,7 @@ function Dashboard({ initialPage }) {
   usePushNotifications();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
+  const [subPlan,   setSubPlan]   = useState('starter');
   const Page = PAGES[page] || Overview;
 
   useEffect(() => {
@@ -92,10 +93,13 @@ function Dashboard({ initialPage }) {
 
   // Check subscription on mount; superadmin is always exempt
   useEffect(() => {
-    if (user.role === 'superadmin') { setSubStatus('active'); return; }
+    if (user.role === 'superadmin') { setSubStatus('active'); setSubPlan('pro'); return; }
     getSubscription()
-      .then(r => setSubStatus(r.data.subscription_status || 'active'))
-      .catch(() => setSubStatus('active')); // fail open
+      .then(r => {
+        setSubStatus(r.data.subscription_status || 'active');
+        setSubPlan(r.data.subscription_plan   || 'starter');
+      })
+      .catch(() => { setSubStatus('active'); setSubPlan('starter'); }); // fail open
   }, [user.role]);
 
   // While checking, show nothing (or you could show a spinner)
@@ -110,7 +114,7 @@ function Dashboard({ initialPage }) {
   }
 
   return (
-    <UpgradeProvider>
+    <UpgradeProvider plan={subStatus === 'trial' ? 'pro' : subPlan}>
     <UpgradeModal />
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
       {/* Trial banner — only shown for trial tenants */}
