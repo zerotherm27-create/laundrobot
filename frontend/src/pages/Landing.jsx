@@ -797,6 +797,8 @@ const FEATURES = [
   { icon: 'walkin',    bg: '#7F77DD', iconColor: '#fff',    label: 'POS',       title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
   { icon: 'delivery',  bg: '#38a9c2', iconColor: '#fff',    label: 'Zones',     title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
   { icon: 'star',      bg: '#fdca00', iconColor: '#7a5800', label: 'Blasts',    title: 'Blast Messaging',       desc: 'Send promos to all customers or a targeted segment with a single tap.' },
+  { icon: 'inventory', bg: '#1D9E75', iconColor: '#fff',    label: 'Inventory', title: 'Inventory Tracking',    desc: 'Track detergent, conditioner, and LPG stock. Formulas auto-deduct supplies per order so you never run out mid-shift.' },
+  { icon: 'finance',   bg: '#7F77DD', iconColor: '#fff',    label: 'Finance',   title: 'P&L & Finance Reports', desc: 'Full profit & loss view — gross sales, expenses, net margin, and break-even analysis across all branches in one place.' },
 ];
 
 function FeatureCard({ icon, bg, iconColor, label, title, desc }) {
@@ -979,6 +981,7 @@ const PLANS = [
       'Auto payment reminders (4-stage follow-up)',
       'Auto-cancel unpaid orders after 24 hours',
       'Revenue reports & analytics',
+      'Inventory tracking + auto-deduct formulas',
       'Up to 1,000 orders/month',
     ],
   },
@@ -996,7 +999,8 @@ const PLANS = [
     cta: 'Contact us',
     features: [
       'Everything in Growth',
-      'Up to 10 branches · 10  staff accounts',
+      'Up to 10 branches · 10 staff accounts',
+      'Finance module — P&L, expenses & margin analysis',
       'Custom AI instructions per branch',
       'White-label booking form (your domain)',
       'Unlimited orders',
