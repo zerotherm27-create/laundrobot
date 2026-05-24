@@ -516,7 +516,8 @@ router.post('/:tenantId/orders', async (req, res) => {
       const { service, effectiveSubtotal, addonTotal, weight } = pricedItems[i];
       // Delivery fee only on first order; others are ₱0
       const itemDeliveryFee = i === 0 ? deliveryFee : 0;
-      const itemTotal = effectiveSubtotal + addonTotal + itemDeliveryFee;
+      // price stores service-only cost; delivery_fee is stored separately in its own column
+      const itemTotal = effectiveSubtotal + addonTotal;
 
       const orderId = randomUUID();
 
