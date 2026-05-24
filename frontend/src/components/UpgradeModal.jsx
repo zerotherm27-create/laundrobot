@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createSubscriptionInvoice } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 
@@ -24,10 +24,17 @@ const PLANS = [
 ];
 
 export default function UpgradeModal() {
-  const { upgradeModalOpen, setUpgradeModalOpen } = useUpgrade();
+  const { upgradeModalOpen, setUpgradeModalOpen, defaultUpgradeTier } = useUpgrade();
   const [upgradeAnnual, setUpgradeAnnual] = useState(true);
   const [upgradeTier,   setUpgradeTier]   = useState('growth');
   const [upgrading,     setUpgrading]     = useState(false);
+
+  // When modal opens, sync to the requested tier (e.g. Finance requests 'pro')
+  useEffect(() => {
+    if (upgradeModalOpen && defaultUpgradeTier) {
+      setUpgradeTier(defaultUpgradeTier);
+    }
+  }, [upgradeModalOpen, defaultUpgradeTier]);
 
   if (!upgradeModalOpen) return null;
 
