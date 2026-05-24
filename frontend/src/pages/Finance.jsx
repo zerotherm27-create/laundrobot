@@ -4,10 +4,32 @@ import {
   getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
 } from '../api.js';
+import { usePlan } from '../context/UpgradeContext.jsx';
 
 const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ─── Pro upgrade wall ─────────────────────────────────────────────────────────
+
+function ProWall() {
+  const { openUpgradeModal } = usePlan();
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4rem 2rem', textAlign:'center', gap:16 }}>
+      <div style={{ fontSize:48, lineHeight:1 }}>📊</div>
+      <div style={{ fontSize:20, fontWeight:700, color:'#111827' }}>Finance is a Pro feature</div>
+      <div style={{ fontSize:14, color:'#6B7280', maxWidth:420, lineHeight:1.7 }}>
+        Full P&amp;L reports, break-even analysis, expense tracking, pricing margin guide, and AI-powered financial insights — everything you need to run a profitable laundry shop.
+      </div>
+      <button
+        onClick={() => openUpgradeModal('pro')}
+        style={{ marginTop:8, padding:'12px 32px', borderRadius:10, background:'#7C3AED', color:'#fff', fontWeight:700, fontSize:14, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(124,58,237,.35)' }}>
+        Upgrade to Pro →
+      </button>
+      <div style={{ fontSize:12, color:'#9CA3AF' }}>₱5,499/month · 10 branches · Priority support · Cancel anytime</div>
+    </div>
+  );
+}
 
 const EXPENSE_CATEGORIES = [
   { category: 'Utilities',            labels: ['Electricity', 'Water', 'LPG Gas'] },
@@ -1420,7 +1442,17 @@ function Insights() {
 // ─── Main Finance Page ────────────────────────────────────────────────────────
 
 export default function Finance() {
+  const { isPro } = usePlan();
   const [tab, setTab] = useState('Dashboard');
+
+  if (!isPro) return (
+    <div>
+      <h2 style={{ fontSize:18, fontWeight:500, marginBottom:'1.25rem' }}>Finance</h2>
+      <div style={{ background:'#fff', border:'0.5px solid #e8e8e0', borderRadius:12 }}>
+        <ProWall />
+      </div>
+    </div>
+  );
 
   return (
     <div>
