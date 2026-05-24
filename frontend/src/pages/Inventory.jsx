@@ -277,12 +277,18 @@ function StockInUse({ items, setItems }) {
         <div style={{ fontSize:14, fontWeight:600, marginBottom:16, color:'#111827' }}>
           {mode === 'in' ? 'Log Purchase / Restock' : 'Log Manual Consumption'}
         </div>
+        {items.length === 0 && (
+          <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'8px 12px', marginBottom:8 }}>
+            No inventory items yet. Go to the <strong>Stock</strong> tab and add items first.
+          </div>
+        )}
         <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
           <div>
             <label style={{ fontSize:12, color:'#6B7280', display:'block', marginBottom:4 }}>Item</label>
             <select required value={form.item_id} onChange={e => setForm(p=>({...p,item_id:e.target.value}))}
-              style={{ width:'100%', padding:'8px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor:'pointer' }}>
-              <option value="">Select item…</option>
+              disabled={items.length === 0}
+              style={{ width:'100%', padding:'8px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: items.length ? 'pointer' : 'not-allowed', opacity: items.length ? 1 : 0.6 }}>
+              <option value="">{items.length ? 'Select item…' : 'No items — add in Stock tab first'}</option>
               {items.map(i => (
                 <option key={i.id} value={i.id}>
                   {i.name} ({i.unit}) — stock: {Number(i.current_stock).toLocaleString('en-PH')} {i.unit}
@@ -398,20 +404,32 @@ function FormulasTab({ items, services }) {
       {showAdd && (
         <div style={cardStyle}>
           <div style={{ fontSize:13, fontWeight:600, marginBottom:12, color:'#111827' }}>New Consumption Formula</div>
+          {services.length === 0 && (
+            <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'8px 12px', marginBottom:12 }}>
+              No services found. Add services in <strong>Services &amp; Pricing</strong> first, then come back here.
+            </div>
+          )}
+          {items.length === 0 && (
+            <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'8px 12px', marginBottom:12 }}>
+              No inventory items yet. Add items in the <strong>Stock</strong> tab first.
+            </div>
+          )}
           <form onSubmit={addFormula} style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
             <div>
               <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Service</div>
               <select required value={form.service_id} onChange={e => setForm(p=>({...p,service_id:e.target.value}))}
-                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor:'pointer', minWidth:160 }}>
-                <option value="">Select service…</option>
+                disabled={services.length === 0}
+                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: services.length ? 'pointer' : 'not-allowed', minWidth:160, opacity: services.length ? 1 : 0.6 }}>
+                <option value="">{services.length ? 'Select service…' : 'No services available'}</option>
                 {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
               <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Raw Material</div>
               <select required value={form.item_id} onChange={e => setForm(p=>({...p,item_id:e.target.value}))}
-                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor:'pointer', minWidth:160 }}>
-                <option value="">Select item…</option>
+                disabled={items.length === 0}
+                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: items.length ? 'pointer' : 'not-allowed', minWidth:160, opacity: items.length ? 1 : 0.6 }}>
+                <option value="">{items.length ? 'Select item…' : 'No items yet — add in Stock tab'}</option>
                 {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
               </select>
             </div>
@@ -562,29 +580,65 @@ export default function Inventory() {
   const [items,    setItems]    = useState([]);
   const [services, setServices] = useState([]);
   const [loading,  setLoading]  = useState(true);
+  const [svcErr,   setSvcErr]   = useState(false);
+  const [itemsErr, setItemsErr] = useState(false);
 
-  useEffect(() => {
-    Promise.all([getInventoryItems(), getServices()])
+  function loadData() {
+    setLoading(true);
+    setSvcErr(false);
+    setItemsErr(false);
+    // allSettled so one failure never blocks the other
+    Promise.allSettled([getInventoryItems(), getServices()])
       .then(([itemsRes, svcRes]) => {
-        setItems(Array.isArray(itemsRes.data) ? itemsRes.data : []);
-        setServices(Array.isArray(svcRes.data) ? svcRes.data : []);
+        if (itemsRes.status === 'fulfilled') {
+          setItems(Array.isArray(itemsRes.value.data) ? itemsRes.value.data : []);
+        } else {
+          console.error('[inventory] items:', itemsRes.reason);
+          setItemsErr(true);
+        }
+        if (svcRes.status === 'fulfilled') {
+          setServices(Array.isArray(svcRes.value.data) ? svcRes.value.data : []);
+        } else {
+          console.error('[inventory] services:', svcRes.reason);
+          setSvcErr(true);
+        }
       })
-      .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadData(); }, []);
 
   const lowCount = items.filter(i => i.reorder_threshold > 0 && i.current_stock <= i.reorder_threshold).length;
 
   return (
     <div>
-      <h2 style={{ fontSize:18, fontWeight:500, marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:10 }}>
-        Inventory
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:'1.25rem', flexWrap:'wrap' }}>
+        <h2 style={{ fontSize:18, fontWeight:500, margin:0 }}>Inventory</h2>
         {lowCount > 0 && (
           <span style={{ fontSize:12, fontWeight:700, background:'#FEF3C7', color:'#B45309', padding:'2px 10px', borderRadius:20 }}>
             ⚠️ {lowCount} low stock
           </span>
         )}
-      </h2>
+        {(itemsErr || svcErr) && (
+          <button onClick={loadData}
+            style={{ marginLeft:'auto', fontSize:12, padding:'4px 12px', borderRadius:6, cursor:'pointer', background:'#FEE2E2', color:'#EF4444', border:'0.5px solid #FCA5A5', fontWeight:600, fontFamily:'inherit' }}>
+            ↺ Retry loading
+          </button>
+        )}
+      </div>
+
+      {/* Error banners */}
+      {itemsErr && (
+        <div style={{ fontSize:13, color:'#EF4444', background:'#FEE2E2', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
+          Could not load inventory items. Check your connection and click <strong>Retry loading</strong>.
+        </div>
+      )}
+      {svcErr && (
+        <div style={{ fontSize:13, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
+          Could not load services — the <strong>Service</strong> dropdown in Formulas may be empty.
+          Make sure you have services set up in <strong>Services &amp; Pricing</strong>, then click <strong>Retry loading</strong>.
+        </div>
+      )}
 
       <div style={{ display:'flex', gap:4, marginBottom:'1.25rem', borderBottom:'0.5px solid #e8e8e0', flexWrap:'wrap' }}>
         {TABS.map(t => (
