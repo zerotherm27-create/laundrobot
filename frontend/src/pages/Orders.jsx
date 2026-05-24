@@ -162,6 +162,9 @@ export default function Orders() {
   const [invoiceSending,  setInvoiceSending]  = useState(false);
   const [invoiceResult,   setInvoiceResult]   = useState(''); // 'ok' | 'err:...'
 
+  // Paid toggle
+  const [paidToggling, setPaidToggling] = useState(false);
+
   const loadActive = useCallback(() => {
     setLoading(true);
     getOrders().then(r => setOrders(r.data)).finally(() => setLoading(false));
@@ -478,10 +481,25 @@ export default function Orders() {
                         </td>
                         <td style={{ padding: '9px 12px' }}><StatusBadge status={g.status} /></td>
                         <td style={{ padding: '9px 12px' }}>
-                          <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4,
-                            background: g.paid ? '#EAF3DE' : '#FCEBEB', color: g.paid ? '#3B6D11' : '#A32D2D' }}>
+                          <button type="button"
+                            title={g.paid ? 'Click to mark as Unpaid' : 'Click to mark as Paid'}
+                            onClick={async e => {
+                              e.stopPropagation();
+                              const newPaid = !g.paid;
+                              setOrders(prev => prev.map(o => g.orderIds.includes(o.id) ? { ...o, paid: newPaid } : o));
+                              if (selected?.booking_ref === g.booking_ref) setSelected(prev => prev ? { ...prev, paid: newPaid } : prev);
+                              try {
+                                await Promise.all(g.orderIds.map(id => updateOrder(id, { paid: newPaid })));
+                              } catch {
+                                setOrders(prev => prev.map(o => g.orderIds.includes(o.id) ? { ...o, paid: !newPaid } : o));
+                                if (selected?.booking_ref === g.booking_ref) setSelected(prev => prev ? { ...prev, paid: !newPaid } : prev);
+                              }
+                            }}
+                            style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
+                              border: 'none', fontFamily: 'inherit', fontWeight: 600, transition: 'opacity .15s',
+                              background: g.paid ? '#EAF3DE' : '#FCEBEB', color: g.paid ? '#3B6D11' : '#A32D2D' }}>
                             {g.paid ? 'Paid' : 'Unpaid'}
-                          </span>
+                          </button>
                         </td>
                       </tr>
                       );
@@ -612,6 +630,30 @@ export default function Orders() {
                           </div>
                         );
                       })()}
+
+                      {/* ── Paid / Unpaid toggle ── */}
+                      <button type="button" disabled={paidToggling}
+                        onClick={async () => {
+                          if (paidToggling) return;
+                          const newPaid = !selected.paid;
+                          setPaidToggling(true);
+                          setSelected(prev => prev ? { ...prev, paid: newPaid } : prev);
+                          setOrders(prev => prev.map(o => selected.orderIds.includes(o.id) ? { ...o, paid: newPaid } : o));
+                          try {
+                            await Promise.all(selected.orderIds.map(id => updateOrder(id, { paid: newPaid })));
+                          } catch {
+                            setSelected(prev => prev ? { ...prev, paid: !newPaid } : prev);
+                            setOrders(prev => prev.map(o => selected.orderIds.includes(o.id) ? { ...o, paid: !newPaid } : o));
+                          }
+                          setPaidToggling(false);
+                        }}
+                        style={{ marginTop: 10, width: '100%', padding: '8px', borderRadius: 8, border: 'none',
+                          fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: paidToggling ? 'not-allowed' : 'pointer',
+                          transition: 'all .15s',
+                          background: selected.paid ? '#FCEBEB' : '#EAF3DE',
+                          color:      selected.paid ? '#A32D2D'  : '#3B6D11' }}>
+                        {paidToggling ? 'Saving…' : selected.paid ? 'Paid — Mark as Unpaid' : 'Unpaid — Mark as Paid'}
+                      </button>
                     </div>
 
                     {selected.xendit_invoice_url && (
