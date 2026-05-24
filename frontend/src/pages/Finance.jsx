@@ -10,7 +10,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 const EXPENSE_CATEGORIES = [
-  { category: 'Utilities',            labels: ['Electricity', 'Water'] },
+  { category: 'Utilities',            labels: ['Electricity', 'Water', 'LPG Gas'] },
   { category: 'Supplies',             labels: ['Detergent', 'Fabric Conditioner', 'Plastic Bags', 'Hangers'] },
   { category: 'Personnel',            labels: ['Wages', 'SSS', 'PhilHealth', 'Pag-IBIG'] },
   { category: 'Facility & Equipment', labels: ['Rent', 'Washer Maintenance', 'Dryer Maintenance', 'Equipment Depreciation'] },
