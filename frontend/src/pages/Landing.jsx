@@ -617,17 +617,17 @@ function Hero() {
 const STATS = [
   {
     value: '₱5,001',
-    label: 'saved per month vs. hiring a part-time Messenger encoder',
+    label: 'saved monthly vs. part-time staff',
     icon: <Icon name="reports" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
   {
     value: '24/7',
-    label: 'AI chatbot answers in Tagalog — even while you sleep',
+    label: 'AI replies in Tagalog & English',
     icon: <Icon name="clock" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
   {
-    value: '0',
-    label: 'App downloads needed — customers order on Messenger or the web',
+    value: 'Zero',
+    label: 'app downloads needed to order',
     icon: <Icon name="smartphone" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
 ];
@@ -648,7 +648,7 @@ function StatItem({ icon, value, label }) {
     <div ref={ref} style={{ textAlign: 'center', flex: '1 1 180px', transition: 'opacity .5s, transform .5s', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)' }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>{icon}</div>
       <div style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 900, color: '#fdca00', letterSpacing: '-.03em', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.85)', marginTop: 6, maxWidth: 160, margin: '6px auto 0' }}>{label}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.75)', marginTop: 6, maxWidth: 200, margin: '6px auto 0', lineHeight: 1.4 }}>{label}</div>
     </div>
   );
 }
