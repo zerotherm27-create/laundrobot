@@ -1200,7 +1200,7 @@ function Footer() {
               <span style={{ fontSize: 14, fontWeight: 800, color: '#0D1117' }}>LaundroBot</span>
             </div>
             <p style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 1.6, margin: 0 }}>
-              Laundry shop management software built for the Philippines.
+              Laundry shop management software built by a laundry shop owner, for laundry shop owners.
             </p>
           </div>
           {/* Product links */}
