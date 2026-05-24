@@ -3,14 +3,18 @@ import { getUsers, createUser, updateUser, deleteUser, changePassword, getTenant
 import { useAuth } from '../context/AuthContext.jsx';
 
 const FEATURES = [
-  { key: 'Overview',  icon: '▦',  label: 'Overview' },
-  { key: 'Kanban',    icon: '⊞',  label: 'Kanban Board' },
-  { key: 'Orders',    icon: '📋', label: 'Orders' },
-  { key: 'Customers', icon: '👤', label: 'Customers' },
-  { key: 'Services',  icon: '✦',  label: 'Services' },
-  { key: 'Messaging', icon: '✉',  label: 'Messaging' },
-  { key: 'FAQs',      icon: '❓', label: 'FAQs' },
-  { key: 'Reports',   icon: '📊', label: 'Reports' },
+  { key: 'Overview',      icon: '▦',  label: 'Overview' },
+  { key: 'Kanban',        icon: '⊞',  label: 'Kanban Board' },
+  { key: 'Orders',        icon: '📋', label: 'Orders' },
+  { key: 'Customers',     icon: '👤', label: 'Customers' },
+  { key: 'Services',      icon: '✦',  label: 'Services' },
+  { key: 'Messaging',     icon: '✉',  label: 'Messaging' },
+  { key: 'FAQs',          icon: '❓', label: 'FAQs' },
+  { key: 'WalkIn',        icon: '🏪', label: 'Walk-in POS' },
+  { key: 'DeliveryZones', icon: '🚚', label: 'Delivery Zones' },
+  { key: 'Reports',       icon: '📊', label: 'Reports' },
+  { key: 'Finance',       icon: '💰', label: 'Finance' },
+  { key: 'Inventory',     icon: '📦', label: 'Inventory' },
 ];
 
 const ALL_KEYS = FEATURES.map(f => f.key);

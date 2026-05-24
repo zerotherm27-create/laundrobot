@@ -94,7 +94,10 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
   }
 
   const visibleNav = NAV.filter(n => {
-    if (n.adminOnly && role === 'staff') return false;
+    // Users page is always admin-only — never grant to staff
+    if (n.key === 'Users' && role === 'staff') return false;
+    // Other adminOnly items can be explicitly granted via permissions
+    if (n.adminOnly && role === 'staff' && !(user?.permissions || []).includes(n.key)) return false;
     if (role === 'staff' && user?.permissions?.length > 0) return user.permissions.includes(n.key);
     return true;
   });
