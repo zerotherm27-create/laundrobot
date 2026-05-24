@@ -333,11 +333,26 @@ function StockInUse({ items, setItems }) {
 
 // ─── Formulas tab ─────────────────────────────────────────────────────────────
 
+// Build variant options from a service's custom_fields (select type only)
+function buildVariantOptions(service) {
+  if (!service?.custom_fields) return [];
+  const opts = [{ value:'', label:'All variations (default)' }];
+  for (const field of service.custom_fields) {
+    if (field.field_type !== 'select') continue;
+    const fieldOpts = Array.isArray(field.options) ? field.options : [];
+    for (const opt of fieldOpts) {
+      const val = typeof opt === 'object' ? (opt.label || opt.value || String(opt)) : String(opt);
+      opts.push({ value:`${field.label}::${val}`, label:`${field.label}: ${val}` });
+    }
+  }
+  return opts;
+}
+
 function FormulasTab({ items, services }) {
   const [formulas, setFormulas] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [showAdd,  setShowAdd]  = useState(false);
-  const [form,     setForm]     = useState({ service_id:'', item_id:'', quantity_per_order:'' });
+  const [form,     setForm]     = useState({ service_id:'', item_id:'', quantity_per_order:'', variant:'' });
   const [saving,   setSaving]   = useState(false);
 
   useEffect(() => {
@@ -347,25 +362,51 @@ function FormulasTab({ items, services }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // When service changes, reset variant
+  function onServiceChange(svcId) {
+    setForm(p => ({ ...p, service_id: svcId, variant: '' }));
+  }
+
+  const selectedService = services.find(s => s.id === parseInt(form.service_id));
+  const variantOptions  = buildVariantOptions(selectedService);
+  const hasVariants     = variantOptions.length > 1; // more than just "All variations"
+
   async function addFormula(e) {
     e.preventDefault();
     if (!form.service_id || !form.item_id || !form.quantity_per_order) return;
     setSaving(true);
     try {
+      // Parse variant string "label::value" or "" for all
+      const [vLabel = '', vValue = ''] = form.variant ? form.variant.split('::') : ['', ''];
       const r = await upsertFormula({
-        service_id:        parseInt(form.service_id),
-        item_id:           parseInt(form.item_id),
+        service_id:         parseInt(form.service_id),
+        item_id:            parseInt(form.item_id),
         quantity_per_order: parseFloat(form.quantity_per_order),
+        variant_label:      vLabel,
+        variant_value:      vValue,
       });
       const svc  = services.find(s => s.id === parseInt(form.service_id));
       const item = items.find(i => i.id === parseInt(form.item_id));
       setFormulas(p => {
-        const filtered = p.filter(f => !(f.service_id === parseInt(form.service_id) && f.item_id === parseInt(form.item_id)));
-        return [...filtered, { ...r.data, service_name: svc?.name, item_name: item?.name, unit: item?.unit }];
+        // Replace if same service+item+variant combo
+        const filtered = p.filter(f =>
+          !(f.service_id  === parseInt(form.service_id) &&
+            f.item_id     === parseInt(form.item_id)    &&
+            (f.variant_label||'') === vLabel            &&
+            (f.variant_value||'') === vValue)
+        );
+        return [...filtered, {
+          ...r.data,
+          service_name: svc?.name,
+          item_name:    item?.name,
+          unit:         item?.unit,
+        }];
       });
-      setForm(p => ({ ...p, item_id:'', quantity_per_order:'' }));
+      setForm(p => ({ ...p, item_id:'', quantity_per_order:'', variant:'' }));
       setShowAdd(false);
-    } catch { alert('Failed to save formula.'); }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save formula.');
+    }
     setSaving(false);
   }
 
@@ -376,9 +417,15 @@ function FormulasTab({ items, services }) {
     } catch { alert('Failed to delete.'); }
   }
 
+  // Group: service_id → { service_name, subgroups: { variant_key → rows[] } }
   const grouped = formulas.reduce((acc, f) => {
-    if (!acc[f.service_id]) acc[f.service_id] = { service_name: f.service_name, rows: [] };
-    acc[f.service_id].rows.push(f);
+    const sid = f.service_id;
+    if (!acc[sid]) acc[sid] = { service_name: f.service_name, subgroups: {} };
+    const vKey = f.variant_label && f.variant_value
+      ? `${f.variant_label}: ${f.variant_value}`
+      : 'All variations (default)';
+    if (!acc[sid].subgroups[vKey]) acc[sid].subgroups[vKey] = [];
+    acc[sid].subgroups[vKey].push(f);
     return acc;
   }, {});
 
@@ -388,12 +435,12 @@ function FormulasTab({ items, services }) {
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       <div style={{ background:'#F0F9FF', border:'0.5px solid #BAE6FD', borderRadius:8, padding:'10px 14px', marginBottom:8, fontSize:12, color:'#0369A1', lineHeight:1.7 }}>
         💡 <strong>How formulas work:</strong> A formula tells the system how much of a supply is used each time a specific service order is completed. When an order is marked <strong>Completed</strong> in the Kanban board, the stock is automatically deducted.<br/>
-        Example: <em>Wash Dry Fold → Liquid Detergent: 80 mL per order, Fabric Conditioner: 60 mL per order.</em><br/>
-        <span style={{ color:'#0284C7' }}>LPG and electricity are better logged manually in Stock-In / Use since one dryer run covers multiple orders.</span>
+        Example: <em>Machine Wash → Detergent: 80 mL (all sizes). Or set per-variation: Small Bag → 60 mL, Large Bag → 120 mL.</em><br/>
+        <span style={{ color:'#0284C7' }}>Variation-specific rules override the "All variations" default for matched orders. LPG/electricity are better logged manually.</span>
       </div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <p style={{ fontSize:13, color:'#6B7280', margin:0 }}>
-          Set how much of each supply is consumed when an order of that service is marked <strong>Completed</strong>. Stock deducts automatically.
+          Set how much of each supply is consumed when an order is marked <strong>Completed</strong>. Supports per-variation amounts (e.g. different bag sizes).
         </p>
         <button onClick={() => setShowAdd(p=>!p)}
           style={{ padding:'7px 16px', fontSize:13, borderRadius:8, cursor:'pointer', background:'#38a9c2', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit', flexShrink:0, marginLeft:12 }}>
@@ -417,13 +464,27 @@ function FormulasTab({ items, services }) {
           <form onSubmit={addFormula} style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
             <div>
               <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Service</div>
-              <select required value={form.service_id} onChange={e => setForm(p=>({...p,service_id:e.target.value}))}
+              <select required value={form.service_id} onChange={e => onServiceChange(e.target.value)}
                 disabled={services.length === 0}
                 style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: services.length ? 'pointer' : 'not-allowed', minWidth:160, opacity: services.length ? 1 : 0.6 }}>
                 <option value="">{services.length ? 'Select service…' : 'No services available'}</option>
                 {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
+
+            {/* Variation picker — only shown when service has select-type custom fields */}
+            {form.service_id && hasVariants && (
+              <div>
+                <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Variation</div>
+                <select value={form.variant} onChange={e => setForm(p=>({...p,variant:e.target.value}))}
+                  style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #38a9c2', fontSize:13, fontFamily:'inherit', cursor:'pointer', minWidth:200, background:'#F0F9FF' }}>
+                  {variantOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Raw Material</div>
               <select required value={form.item_id} onChange={e => setForm(p=>({...p,item_id:e.target.value}))}
@@ -462,28 +523,40 @@ function FormulasTab({ items, services }) {
         Object.entries(grouped).map(([svcId, g]) => (
           <div key={svcId} style={cardStyle}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:'#111827' }}>{g.service_name}</div>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
-              <thead>
-                <tr style={{ background:'#f9f9f7' }}>
-                  {['Raw Material','Unit','Qty per Order',''].map(h => <th key={h} style={thStyle}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {g.rows.map(f => (
-                  <tr key={f.id}>
-                    <td style={tdStyle}>{f.item_name}</td>
-                    <td style={{ ...tdStyle, color:'#6B7280' }}>{f.unit}</td>
-                    <td style={tdNum}>{Number(f.quantity_per_order).toLocaleString('en-PH')}</td>
-                    <td style={tdStyle}>
-                      <button onClick={() => removeFormula(f.id)}
-                        style={{ fontSize:12, color:'#EF4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {Object.entries(g.subgroups).map(([vKey, rows]) => (
+              <div key={vKey} style={{ marginBottom:16 }}>
+                {/* Variation sub-header */}
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                  <span style={{
+                    fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:20,
+                    background: vKey === 'All variations (default)' ? '#E5E7EB' : '#EDE9FE',
+                    color:      vKey === 'All variations (default)' ? '#6B7280'  : '#7C3AED',
+                  }}>{vKey}</span>
+                </div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr style={{ background:'#f9f9f7' }}>
+                      {['Raw Material','Unit','Qty per Order',''].map(h => <th key={h} style={thStyle}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(f => (
+                      <tr key={f.id}>
+                        <td style={tdStyle}>{f.item_name}</td>
+                        <td style={{ ...tdStyle, color:'#6B7280' }}>{f.unit}</td>
+                        <td style={tdNum}>{Number(f.quantity_per_order).toLocaleString('en-PH')}</td>
+                        <td style={tdStyle}>
+                          <button onClick={() => removeFormula(f.id)}
+                            style={{ fontSize:12, color:'#EF4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         ))
       )}

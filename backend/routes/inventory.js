@@ -134,32 +134,33 @@ router.get('/formulas', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT sf.id, sf.service_id, sf.item_id, sf.quantity_per_order,
+              sf.variant_label, sf.variant_value,
               s.name AS service_name, ii.name AS item_name, ii.unit
        FROM service_formulas sf
        JOIN services s ON s.id = sf.service_id
        JOIN inventory_items ii ON ii.id = sf.item_id
        WHERE sf.tenant_id=$1
-       ORDER BY s.name, ii.name`,
+       ORDER BY s.name, sf.variant_label, sf.variant_value, ii.name`,
       [req.user.tenant_id]
     );
     res.json(rows);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// PUT /inventory/formulas  { service_id, item_id, quantity_per_order }
+// PUT /inventory/formulas  { service_id, item_id, quantity_per_order, variant_label?, variant_value? }
 router.put('/formulas', auth, async (req, res) => {
   try {
-    const { service_id, item_id, quantity_per_order } = req.body;
+    const { service_id, item_id, quantity_per_order, variant_label = '', variant_value = '' } = req.body;
     if (!service_id || !item_id || quantity_per_order == null) {
       return res.status(400).json({ error: 'service_id, item_id, quantity_per_order required' });
     }
     const { rows } = await db.query(
-      `INSERT INTO service_formulas (tenant_id, service_id, item_id, quantity_per_order)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT (tenant_id, service_id, item_id)
+      `INSERT INTO service_formulas (tenant_id, service_id, item_id, quantity_per_order, variant_label, variant_value)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT ON CONSTRAINT service_formulas_unique_variant
        DO UPDATE SET quantity_per_order = EXCLUDED.quantity_per_order
        RETURNING *`,
-      [req.user.tenant_id, service_id, item_id, parseFloat(quantity_per_order)||0]
+      [req.user.tenant_id, service_id, item_id, parseFloat(quantity_per_order)||0, variant_label.trim(), variant_value.trim()]
     );
     res.json(rows[0]);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -179,24 +180,54 @@ router.delete('/formulas/:id', auth, async (req, res) => {
 // Internal: called from orders.js on COMPLETED — fire-and-forget
 async function deductInventory(order, tenantId) {
   if (!order.service_id) return;
+  const selections = Array.isArray(order.custom_selections) ? order.custom_selections : [];
+
+  // Quantity multiplier — look for a "Quantity" field in selections
+  const qtySelection = selections.find(s => s.label === 'Quantity');
+  const orderQty = Math.max(1, parseInt(qtySelection?.value) || 1);
+
   const { rows: formulas } = await db.query(
-    `SELECT item_id, quantity_per_order FROM service_formulas
-     WHERE tenant_id=$1 AND service_id=$2`,
+    `SELECT item_id, quantity_per_order, variant_label, variant_value
+     FROM service_formulas WHERE tenant_id=$1 AND service_id=$2`,
     [tenantId, order.service_id]
   );
   if (!formulas.length) return;
+
+  // Two-pass: collect defaults (all-variants), then override with specific variant matches
+  const itemQty = {};
+  // Pass 1: "all variants" rows (both variant fields are empty string)
   for (const f of formulas) {
-    const qty = parseFloat(f.quantity_per_order) || 0;
-    if (qty <= 0) continue;
+    if (!f.variant_label && !f.variant_value) {
+      itemQty[f.item_id] = parseFloat(f.quantity_per_order) || 0;
+    }
+  }
+  // Pass 2: exact variant match overrides the default
+  for (const f of formulas) {
+    if (f.variant_label && f.variant_value) {
+      const matched = selections.some(
+        s => s.label === f.variant_label && s.value === f.variant_value
+      );
+      if (matched) {
+        itemQty[f.item_id] = parseFloat(f.quantity_per_order) || 0;
+      }
+    }
+  }
+
+  const ref = order.booking_ref || order.id;
+  for (const [item_id, qty] of Object.entries(itemQty)) {
+    const totalQty = qty * orderQty;
+    if (totalQty <= 0) continue;
     await db.query(
       `UPDATE inventory_items SET current_stock = GREATEST(0, current_stock - $1)
        WHERE id=$2 AND tenant_id=$3`,
-      [qty, f.item_id, tenantId]
+      [totalQty, item_id, tenantId]
     );
     await db.query(
       `INSERT INTO inventory_transactions (tenant_id, item_id, type, quantity, note, order_id)
        VALUES ($1,$2,'out',$3,$4,$5)`,
-      [tenantId, f.item_id, qty, `Auto-deducted: order ${order.booking_ref || order.id}`, order.id]
+      [tenantId, item_id, totalQty,
+       `Auto-deducted: order ${ref}${orderQty > 1 ? ` (qty×${orderQty})` : ''}`,
+       order.id]
     );
   }
 }
