@@ -9,7 +9,6 @@ const RESPONSIVE_CSS = `
   .l-phone-wrap { flex-shrink: 0; display: flex; justify-content: center; }
   .l-features   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
   .l-steps      { display: flex; gap: 0; position: relative; }
-  .l-connector  { display: block; }
   .l-showcase      { display: flex; align-items: flex-start; gap: 3rem; flex-wrap: wrap; justify-content: center; }
   .l-pricing-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start; }
 
@@ -27,9 +26,6 @@ const RESPONSIVE_CSS = `
     .l-phone-wrap { margin-top: 0; }
     .l-features   { grid-template-columns: 1fr; }
     .l-steps      { flex-direction: column; align-items: stretch; gap: 1rem; }
-    .l-connector  { display: none !important; }
-    .l-step-inner { flex-direction: row !important; text-align: left !important; align-items: flex-start !important; padding: 0 !important; }
-    .l-step-icon  { margin-bottom: 0 !important; }
     .l-showcase   { flex-direction: column; align-items: center; }
     .l-stat-divider { display: none !important; }
   }
@@ -57,6 +53,12 @@ const RESPONSIVE_CSS = `
   @keyframes msgIn {
     from { opacity:0; transform:translateY(6px); }
     to   { opacity:1; transform:translateY(0); }
+  }
+
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid #38a9c2;
+    outline-offset: 3px;
+    border-radius: 4px;
   }
 `;
 
@@ -178,7 +180,7 @@ function MessengerMockup() {
       <div style={{ background: '#fff', borderBottom: '1px solid #e0e0e0', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <div style={{ flex: 1, textAlign: 'center' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#050505' }}>Messenger</div>
-          <div style={{ fontSize: 8.5, color: '#65676b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>🔒 thelaundryproject.app</div>
+          <div style={{ fontSize: 8.5, color: '#65676b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>🔒 laundrobot.app</div>
         </div>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#0084ff' }}>Done</div>
       </div>
@@ -479,7 +481,6 @@ const NAV_LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'How it works', href: '#how' },
-  { label: 'Sign in', href: '/login' },
 ];
 
 function Nav() {
@@ -514,7 +515,7 @@ function Nav() {
             <a href="/signup" style={{ padding: '8px 16px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
               Get started
             </a>
-            <button onClick={() => setDrawerOpen(o => !o)} aria-label="Open menu"
+            <button onClick={() => setDrawerOpen(o => !o)} aria-label="Open menu" aria-expanded={drawerOpen}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 {drawerOpen
@@ -578,12 +579,12 @@ function Hero() {
             </div>
             <h1 style={{ fontSize: 'clamp(2.2rem,5vw,3.5rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-0.04em', lineHeight: 1.08, marginBottom: '1.25rem' }}>
               Your laundry shop,{' '}
-              <span style={{ color: '#38a9c2', borderBottom: '4px solid #fdca00', paddingBottom: 2 }}>
+              <span style={{ color: '#38a9c2', background: 'linear-gradient(transparent 60%, rgba(253,202,0,.35) 60%)', paddingBottom: 2 }}>
                 fully automated
               </span>
             </h1>
             <p style={{ fontSize: 'clamp(15px,2vw,17px)', color: '#374151', lineHeight: 1.7, marginBottom: '2rem', fontWeight: 400, maxWidth: 440 }}>
-              Customers book via Facebook Messenger. Your AI chatbot replies in Tagalog — 24/7. All orders land in one board.
+              Orders from Messenger, web booking, and walk-ins — all in one board. Your AI replies in Tagalog 24/7, so you never miss a customer.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
@@ -615,36 +616,19 @@ function Hero() {
 // ── Stats strip ───────────────────────────────────────────────────────────────
 const STATS = [
   {
-    value: '100%',
-    label: 'No app needed for customers',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="5" y="2" width="14" height="20" rx="2"/>
-        <line x1="12" y1="18" x2="12" y2="18.01"/>
-      </svg>
-    ),
+    value: '₱5,001',
+    label: 'saved per month vs. hiring a part-time Messenger encoder',
+    icon: <Icon name="reports" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
   {
     value: '24/7',
-    label: 'AI chatbot in Tagalog & English',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <polyline points="12 6 12 12 16 14"/>
-      </svg>
-    ),
+    label: 'AI chatbot answers in Tagalog — even while you sleep',
+    icon: <Icon name="clock" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
   {
-    value: '1 place',
-    label: 'All channels, all orders',
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1"/>
-        <rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/>
-        <rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
-    ),
+    value: '0',
+    label: 'App downloads needed — customers order on Messenger or the web',
+    icon: <Icon name="smartphone" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
   },
 ];
 
@@ -693,21 +677,21 @@ const TESTIMONIALS = [
   {
     quote: 'Mas mabilis na ang operations namin. Dati manual lahat — ngayon automated na kahit wala ako sa shop.',
     name: 'Maria Santos',
-    shop: 'Quezon City',
+    shop: 'Sparkling Clean Laundry · Quezon City',
     initial: 'M',
     color: '#38a9c2',
   },
   {
     quote: 'Yung blast messaging feature, sobrang helpful. Na-recover namin yung mga lapsed customers sa isang click.',
     name: 'Carlo Reyes',
-    shop: 'Cebu City',
+    shop: 'FreshWash Laundromat · Cebu City',
     initial: 'C',
     color: '#7F77DD',
   },
   {
     quote: 'Customers think they\'re talking to a real person. Ang chatbot namin in Tagalog is very accurate!',
     name: 'Ana Gonzales',
-    shop: 'Davao City',
+    shop: 'Linis Express · Davao City',
     initial: 'A',
     color: '#1D9E75',
   },
@@ -792,14 +776,20 @@ function POSSection() {
 // ── Features ──────────────────────────────────────────────────────────────────
 const FEATURES = [
   { icon: 'messaging', bg: '#38a9c2', iconColor: '#fff',    label: 'Messenger', title: 'Book via Messenger',    desc: 'Customers place orders directly in Facebook Messenger — zero app downloads, zero friction.' },
-  { icon: 'globe',     bg: '#1D9E75', iconColor: '#fff',    label: 'Web',       title: 'Direct Web Booking',    desc: 'Share a public booking link — customers fill out a form, pick a service, and pay online even without Facebook.' },
+  { icon: 'globe',     bg: '#7F77DD', iconColor: '#fff',    label: 'Web',       title: 'Direct Web Booking',    desc: 'Share a public booking link — customers fill out a form, pick a service, and pay online even without Facebook.' },
   { icon: 'services',  bg: '#fdca00', iconColor: '#7a5800', label: 'AI',        title: 'AI Chatbot in Tagalog', desc: 'Gemini-powered assistant answers in English, Tagalog, and Taglish round the clock.' },
   { icon: 'kanban',    bg: '#1D9E75', iconColor: '#fff',    label: 'Board',     title: 'Kanban Order Board',    desc: 'Visual order pipeline from pick-up to processing to delivery — always in control.' },
-  { icon: 'walkin',    bg: '#7F77DD', iconColor: '#fff',    label: 'POS',       title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
-  { icon: 'delivery',  bg: '#38a9c2', iconColor: '#fff',    label: 'Zones',     title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
-  { icon: 'star',      bg: '#fdca00', iconColor: '#7a5800', label: 'Blasts',    title: 'Blast Messaging',       desc: 'Send promos to all customers or a targeted segment with a single tap.' },
-  { icon: 'inventory', bg: '#1D9E75', iconColor: '#fff',    label: 'Inventory', title: 'Inventory Tracking',    desc: 'Track detergent, conditioner, and LPG stock. Formulas auto-deduct supplies per order so you never run out mid-shift.' },
-  { icon: 'finance',   bg: '#7F77DD', iconColor: '#fff',    label: 'Finance',   title: 'P&L & Finance Reports', desc: 'Full profit & loss view — gross sales, expenses, net margin, and break-even analysis across all branches in one place.' },
+  { icon: 'walkin',    bg: '#38a9c2', iconColor: '#fff',    label: 'POS',       title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
+  { icon: 'delivery',  bg: '#7F77DD', iconColor: '#fff',    label: 'Zones',     title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
+];
+
+const ALSO_INCLUDED = [
+  'Blast messaging to customers',
+  'Promo codes & referral links',
+  'Inventory tracking + auto-deduct',
+  'Finance & P&L reports',
+  'Auto payment reminders',
+  'Revenue analytics',
 ];
 
 function FeatureCard({ icon, bg, iconColor, label, title, desc }) {
@@ -838,6 +828,18 @@ function Features() {
         <div className="l-features">
           {FEATURES.map(f => <FeatureCard key={f.title} {...f} />)}
         </div>
+        {/* Also included */}
+        <div style={{ marginTop: '2.25rem', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '1rem' }}>Also included</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+            {ALSO_INCLUDED.map(f => (
+              <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#374151', fontWeight: 500 }}>
+                <Icon name="check" size={11} color="#38a9c2" />
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -845,36 +847,35 @@ function Features() {
 
 // ── How it works ──────────────────────────────────────────────────────────────
 const STEPS = [
-  { n: 1, color: '#38a9c2', bg: '#e6f5f8', icon: 'settings',  title: 'Set up your shop',   desc: 'Configure services, pricing, delivery zones, and connect your Facebook Page in minutes.' },
-  { n: 2, color: '#1D9E75', bg: '#EAF3DE', icon: 'messaging',  title: 'Customers order',    desc: 'Via Messenger, your public booking link, or your walk-in POS — all flowing into one board.' },
-  { n: 3, color: '#7F77DD', bg: '#F0EFFC', icon: 'kanban',     title: 'Fulfill & grow',     desc: 'Manage orders on the Kanban board, blast promos, and track revenue from one dashboard.' },
+  { n: 1, color: '#38a9c2', icon: 'settings', title: 'Set up your shop',  desc: 'Add your services, pricing, and delivery zones. Connect your Facebook Page. Done in under 30 minutes.' },
+  { n: 2, color: '#1D9E75', icon: 'messaging', title: 'Customers order',   desc: 'Via Messenger, your public booking link, or your walk-in POS — every order flows into one board automatically.' },
+  { n: 3, color: '#7F77DD', icon: 'kanban',    title: 'Fulfill every order', desc: 'Move orders through pick-up, washing, and delivery on the Kanban board. Every customer gets notified at each step.' },
 ];
 
 function HowItWorks() {
   const ref = useFadeUp();
   return (
     <section id="how" style={{ background: '#fff', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div ref={ref} style={{ textAlign: 'center', marginBottom: '3rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto' }}>
+        <div ref={ref} style={{ marginBottom: '3rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#EAF3DE', color: '#3B6D11', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>How it works</div>
-          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Up and running today</h2>
-          <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 400, margin: '0 auto', lineHeight: 1.7, fontWeight: 400 }}>From zero to first order in under a day.</p>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.5rem' }}>Up and running today</h2>
+          <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7, fontWeight: 400, maxWidth: 400 }}>From zero to first order in under a day.</p>
         </div>
-        <div className="l-steps">
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {STEPS.map((s, i) => (
-            <div key={s.n} style={{ flex: '1 1 0', position: 'relative' }}>
-              {i < STEPS.length - 1 && (
-                <div className="l-connector" style={{ position: 'absolute', top: 34, left: '60%', right: '-10%', height: 2, background: `linear-gradient(90deg,${s.color}60,${STEPS[i+1].color}60)`, zIndex: 0 }} />
-              )}
-              <div className="l-step-inner" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '0 1.5rem', gap: '1rem' }}>
-                <div className="l-step-icon" style={{ width: 68, height: 68, borderRadius: '50%', background: s.bg, border: `3px solid ${s.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1, boxShadow: `0 6px 20px ${s.color}30`, flexShrink: 0 }}>
-                  <Icon name={s.icon} size={26} color={s.color} />
+            <div key={s.n} style={{ display: 'flex', gap: 'clamp(1.5rem,4vw,3rem)', alignItems: 'flex-start', paddingBottom: i < STEPS.length - 1 ? '2.25rem' : 0, borderBottom: i < STEPS.length - 1 ? '1px solid #F0F0EC' : 'none', marginBottom: i < STEPS.length - 1 ? '2.25rem' : 0 }}>
+              <div style={{ fontSize: 'clamp(3rem,7vw,5.5rem)', fontWeight: 900, color: s.color, lineHeight: 1, letterSpacing: '-.04em', flexShrink: 0, minWidth: '2ch', opacity: 0.85, fontVariantNumeric: 'tabular-nums' }}>
+                {String(s.n).padStart(2, '0')}
+              </div>
+              <div style={{ flex: 1, paddingTop: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.6rem' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: `${s.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name={s.icon} size={16} color={s.color} />
+                  </div>
+                  <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.15rem)', fontWeight: 800, color: '#0D1117', margin: 0, letterSpacing: '-.02em' }}>{s.title}</h3>
                 </div>
-                <div>
-                  <span style={{ display: 'block', fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Step {s.n}</span>
-                  <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0D1117', marginBottom: 6, letterSpacing: '-.02em' }}>{s.title}</h3>
-                  <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7, margin: 0, fontWeight: 400, maxWidth: 240 }}>{s.desc}</p>
-                </div>
+                <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.75, margin: 0, fontWeight: 400 }}>{s.desc}</p>
               </div>
             </div>
           ))}
@@ -1116,12 +1117,12 @@ function Pricing() {
           {/* Column headers */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             <div style={{ background: '#FFF1F1', padding: '1.25rem 1.5rem', borderRight: '1px solid #FECACA' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#EF4444', marginBottom: 8 }}>❌ Part-time staff</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#EF4444', marginBottom: 8 }}><Icon name="x-circle" size={13} color="#EF4444" /> Part-time staff</div>
               <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#EF4444', letterSpacing: '-.03em', lineHeight: 1 }}>₱7,000</div>
               <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 8am–5pm only</div>
             </div>
             <div style={{ background: '#E6F7FB', padding: '1.25rem 1.5rem' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: 8 }}>✅ LaundroBot</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: 8 }}><Icon name="check-circle" size={13} color="#38a9c2" /> LaundroBot</div>
               <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#38a9c2', letterSpacing: '-.03em', lineHeight: 1 }}>₱1,999</div>
               <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 24/7 in Tagalog</div>
             </div>
@@ -1141,7 +1142,7 @@ function Pricing() {
           ))}
           {/* Savings callout */}
           <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>💰</span>
+            <Icon name="card" size={20} color="#fdca00" />
             <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>You save <span style={{ color: '#fdca00', fontSize: 17 }}>₱5,001/month</span> vs hiring a part-time encoder</span>
           </div>
         </div>
@@ -1190,7 +1191,7 @@ function CtaBand() {
           Ready to grow your laundry business?
         </h2>
         <p style={{ fontSize: 16, color: '#6B7280', lineHeight: 1.7, marginBottom: '2.25rem', maxWidth: 520, margin: '0 auto 2.25rem', fontWeight: 400 }}>
-          Join laundry shops in the Philippines already using LaundroBot to save time, serve more customers, and grow revenue.
+          Start accepting orders tonight. Setup takes under 30 minutes — your AI chatbot will be answering customers in Tagalog before you close shop.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
           <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
@@ -1213,27 +1214,57 @@ function CtaBand() {
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────
+const footerLink = { fontSize: 13, color: '#6B7280', textDecoration: 'none' };
+function FooterLink({ href, children, target, rel }) {
+  return (
+    <a href={href} target={target} rel={rel} style={footerLink}
+      onMouseEnter={e => e.currentTarget.style.color = '#0D1117'}
+      onMouseLeave={e => e.currentTarget.style.color = '#6B7280'}>{children}</a>
+  );
+}
+
 function Footer() {
   return (
-    <footer style={{ background: '#fff', borderTop: '1px solid #EBEBEB', padding: '1.5rem 1.25rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.png" alt="LaundroBot" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain' }} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#0D1117' }}>LaundroBot</span>
+    <footer style={{ background: '#fff', borderTop: '1px solid #EBEBEB', padding: 'clamp(2rem,4vw,3rem) 1.25rem 1.5rem' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        {/* Top row */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2.5rem', justifyContent: 'space-between', marginBottom: '2rem' }}>
+          {/* Brand */}
+          <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.75rem' }}>
+              <img src="/logo.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#0D1117' }}>LaundroBot</span>
+            </div>
+            <p style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 1.6, margin: 0 }}>
+              Laundry shop management software built for the Philippines.
+            </p>
+          </div>
+          {/* Product links */}
+          <div style={{ flex: '1 1 130px' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Product</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <FooterLink href="#features">Features</FooterLink>
+              <FooterLink href="#pricing">Pricing</FooterLink>
+              <FooterLink href="#how">How it works</FooterLink>
+              <FooterLink href="/signup">Start free trial</FooterLink>
+            </div>
+          </div>
+          {/* Support links */}
+          <div style={{ flex: '1 1 130px' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Support</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <FooterLink href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer">Book a demo</FooterLink>
+              <FooterLink href="/login">Sign in</FooterLink>
+              <FooterLink href="/privacy">Privacy Policy</FooterLink>
+              <FooterLink href="/terms">Terms of Service</FooterLink>
+            </div>
+          </div>
         </div>
-        <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
-          © {new Date().getFullYear()} LaundroBot · Built for laundry businesses in the Philippines
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <a href="/privacy" style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#374151'}
-            onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}>Privacy Policy</a>
-          <a href="/terms" style={{ fontSize: 12, color: '#9CA3AF', textDecoration: 'none' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#374151'}
-            onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}>Terms of Service</a>
-          <a href="/login" style={{ fontSize: 13, color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#1d8ba0'}
-            onMouseLeave={e => e.currentTarget.style.color = '#38a9c2'}>Sign in →</a>
+        {/* Bottom row */}
+        <div style={{ borderTop: '1px solid #F0F0EC', paddingTop: '1.25rem' }}>
+          <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
+            © {new Date().getFullYear()} LaundroBot · Built for laundry businesses in the Philippines
+          </p>
         </div>
       </div>
     </footer>
@@ -1250,10 +1281,10 @@ export default function Landing() {
       <main style={{ flex: 1 }}>
         <Hero />
         <StatsStrip />
-        <Testimonials />
+        <HowItWorks />
         <POSSection />
         <Features />
-        <HowItWorks />
+        <Testimonials />
         <Pricing />
         <FAQ />
         <CtaBand />
