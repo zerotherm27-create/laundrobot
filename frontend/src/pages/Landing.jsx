@@ -27,7 +27,6 @@ const RESPONSIVE_CSS = `
     .l-features   { grid-template-columns: 1fr; }
     .l-steps      { flex-direction: column; align-items: stretch; gap: 1rem; }
     .l-showcase   { flex-direction: column; align-items: center; }
-    .l-stat-divider { display: none !important; }
   }
 
   .l-mascot-wrap { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; width: 220px; }
@@ -613,59 +612,23 @@ function Hero() {
   );
 }
 
-// ── Stats strip ───────────────────────────────────────────────────────────────
-const STATS = [
-  {
-    value: '₱5,001',
-    label: 'saved monthly vs. part-time staff',
-    icon: <Icon name="reports" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
-  },
-  {
-    value: '24/7',
-    label: 'AI replies in Tagalog & English',
-    icon: <Icon name="clock" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
-  },
-  {
-    value: 'Zero',
-    label: 'app downloads needed to order',
-    icon: <Icon name="smartphone" size={28} color="rgba(255,255,255,.9)" strokeWidth={1.8} />,
-  },
+// ── Trust bar ─────────────────────────────────────────────────────────────────
+const TRUST_PILLS = [
+  { icon: 'check-circle', text: '14-day free trial · no credit card required' },
+  { icon: 'messaging',    text: 'Works on Messenger, web & walk-in' },
+  { icon: 'services',     text: 'AI chatbot in Tagalog & English, 24/7' },
+  { icon: 'delivery',     text: 'Built for laundry shops in the Philippines' },
 ];
 
-function StatItem({ icon, value, label }) {
-  const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.5 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
+function TrustBar() {
   return (
-    <div ref={ref} style={{ textAlign: 'center', flex: '1 1 180px', transition: 'opacity .5s, transform .5s', opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>{icon}</div>
-      <div style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', fontWeight: 900, color: '#fdca00', letterSpacing: '-.03em', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'rgba(255,255,255,.75)', marginTop: 6, maxWidth: 200, margin: '6px auto 0', lineHeight: 1.4 }}>{label}</div>
-    </div>
-  );
-}
-
-function StatsStrip() {
-  return (
-    <div style={{ background: 'linear-gradient(135deg,#2a9db5 0%,#38a9c2 50%,#1d8ba0 100%)', padding: '2.5rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
-      {/* Subtle dot pattern */}
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px)', backgroundSize: '24px 24px', pointerEvents: 'none' }} />
-      <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '1.5rem', position: 'relative' }}>
-        {STATS.map((s, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px' }}>
-            <StatItem icon={s.icon} value={s.value} label={s.label} />
-            {i < STATS.length - 1 && (
-              <div className="l-stat-divider" style={{ width: 1, background: 'rgba(255,255,255,.2)', margin: '0 1.5rem', flexShrink: 0, alignSelf: 'stretch' }} />
-            )}
-          </div>
+    <div style={{ background: '#F8F8F6', borderTop: '1px solid #EBEBEB', borderBottom: '1px solid #EBEBEB', padding: '1rem 1.25rem' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
+        {TRUST_PILLS.map((p, i) => (
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '7px 15px', fontSize: 13, color: '#374151', fontWeight: 500, whiteSpace: 'nowrap' }}>
+            <Icon name={p.icon} size={13} color="#38a9c2" />
+            {p.text}
+          </span>
         ))}
       </div>
     </div>
@@ -1280,7 +1243,7 @@ export default function Landing() {
       <Nav />
       <main style={{ flex: 1 }}>
         <Hero />
-        <StatsStrip />
+        <TrustBar />
         <HowItWorks />
         <POSSection />
         <Features />
