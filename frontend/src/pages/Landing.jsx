@@ -792,6 +792,7 @@ function POSSection() {
 // ── Features ──────────────────────────────────────────────────────────────────
 const FEATURES = [
   { icon: 'messaging', bg: '#38a9c2', iconColor: '#fff',    label: 'Messenger', title: 'Book via Messenger',    desc: 'Customers place orders directly in Facebook Messenger — zero app downloads, zero friction.' },
+  { icon: 'globe',     bg: '#1D9E75', iconColor: '#fff',    label: 'Web',       title: 'Direct Web Booking',    desc: 'Share a public booking link — customers fill out a form, pick a service, and pay online even without Facebook.' },
   { icon: 'services',  bg: '#fdca00', iconColor: '#7a5800', label: 'AI',        title: 'AI Chatbot in Tagalog', desc: 'Gemini-powered assistant answers in English, Tagalog, and Taglish round the clock.' },
   { icon: 'kanban',    bg: '#1D9E75', iconColor: '#fff',    label: 'Board',     title: 'Kanban Order Board',    desc: 'Visual order pipeline from pick-up to processing to delivery — always in control.' },
   { icon: 'walkin',    bg: '#7F77DD', iconColor: '#fff',    label: 'POS',       title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
