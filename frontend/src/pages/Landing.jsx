@@ -614,19 +614,20 @@ function Hero() {
 
 // ── Trust bar ─────────────────────────────────────────────────────────────────
 const TRUST_PILLS = [
-  { icon: 'check-circle', text: '14-day free trial · no credit card required' },
-  { icon: 'messaging',    text: 'Works on Messenger, web & walk-in' },
+  { icon: 'check-circle', text: '14-day free trial · no credit card' },
+  { icon: 'messaging',    text: 'Messenger, web & walk-in — one board' },
   { icon: 'services',     text: 'AI chatbot in Tagalog & English, 24/7' },
-  { icon: 'delivery',     text: 'Built for laundry shops in the Philippines' },
+  { icon: 'star',         text: 'Built by a laundry shop owner, for laundry shop owners' },
 ];
 
 function TrustBar() {
   return (
-    <div style={{ background: '#F8F8F6', borderTop: '1px solid #EBEBEB', borderBottom: '1px solid #EBEBEB', padding: '1rem 1.25rem' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
+    <div style={{ background: 'linear-gradient(135deg,#2a9db5 0%,#38a9c2 60%,#1d8ba0 100%)', padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px)', backgroundSize: '20px 20px', pointerEvents: 'none' }} />
+      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', position: 'relative' }}>
         {TRUST_PILLS.map((p, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '7px 15px', fontSize: 13, color: '#374151', fontWeight: 500, whiteSpace: 'nowrap' }}>
-            <Icon name={p.icon} size={13} color="#38a9c2" />
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.25)', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', backdropFilter: 'blur(4px)' }}>
+            <Icon name={p.icon} size={13} color="rgba(255,255,255,.9)" />
             {p.text}
           </span>
         ))}
