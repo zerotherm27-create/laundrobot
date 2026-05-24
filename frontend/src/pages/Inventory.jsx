@@ -4,6 +4,7 @@ import {
   stockIn, stockOut, getInventoryTransactions, getInventoryFormulas, upsertFormula,
   deleteFormula, getServices,
 } from '../api.js';
+import { usePlan } from '../context/UpgradeContext.jsx';
 
 const TABS = ['Stock', 'Stock-In / Use', 'Formulas', 'Transactions'];
 
@@ -348,7 +349,29 @@ function buildVariantOptions(service) {
   return opts;
 }
 
+// ─── Growth upgrade wall (shown inside FormulasTab) ───────────────────────────
+
+function FormulasWall() {
+  const { openUpgradeModal } = usePlan();
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'3rem 2rem', textAlign:'center', gap:14 }}>
+      <div style={{ fontSize:40, lineHeight:1 }}>⚗️</div>
+      <div style={{ fontSize:17, fontWeight:700, color:'#111827' }}>Inventory Formulas — Growth feature</div>
+      <div style={{ fontSize:13, color:'#6B7280', maxWidth:400, lineHeight:1.7 }}>
+        Set how much detergent, fabric conditioner, or LPG is used per service — stock deducts automatically when an order is marked Completed. Supports per-variation amounts (Small vs Large bag).
+      </div>
+      <button
+        onClick={() => openUpgradeModal('growth')}
+        style={{ marginTop:6, padding:'11px 28px', borderRadius:10, background:'#059669', color:'#fff', fontWeight:700, fontSize:13, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(5,150,105,.3)' }}>
+        Upgrade to Growth →
+      </button>
+      <div style={{ fontSize:11, color:'#9CA3AF' }}>₱1,999/month · 5 staff accounts · Auto payment reminders · Cancel anytime</div>
+    </div>
+  );
+}
+
 function FormulasTab({ items, services }) {
+  const { isGrowthOrAbove } = usePlan();
   const [formulas, setFormulas] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [showAdd,  setShowAdd]  = useState(false);
@@ -361,6 +384,12 @@ function FormulasTab({ items, services }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  if (!isGrowthOrAbove) return (
+    <div style={{ background:'#fff', border:'0.5px solid #e8e8e0', borderRadius:12 }}>
+      <FormulasWall />
+    </div>
+  );
 
   // When service changes, reset variant
   function onServiceChange(svcId) {
