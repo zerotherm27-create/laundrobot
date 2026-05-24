@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { changeMyPassword } from '../api.js';
 import { Icon } from './Icons.jsx';
+import { usePlan } from '../context/UpgradeContext.jsx';
 
 const NAV = [
   { key: 'Overview',      iconName: 'overview',   label: 'Overview' },
@@ -68,6 +69,7 @@ const GUIDE_STEPS = [
 ];
 
 export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
+  const { isPro } = usePlan();
   const { user, logout } = useAuth();
   const [pwOpen,    setPwOpen]    = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -144,7 +146,12 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
               className={`nav-item${current === n.key ? ' active' : ''}`}
             >
               <Icon name={n.iconName} size={15} color={current === n.key ? '#38a9c2' : '#6B7280'} style={{ width: 18, flexShrink: 0 }} />
-              {n.label}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {n.label}
+                {n.key === 'Finance' && !isPro && role !== 'superadmin' && (
+                  <span style={{ fontSize: 10, opacity: 0.55 }}>🔒</span>
+                )}
+              </span>
             </button>
           ))}
 
