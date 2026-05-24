@@ -480,6 +480,7 @@ const NAV_LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'How it works', href: '#how' },
+  { label: 'Sign in', href: '/login' },
 ];
 
 function Nav() {
