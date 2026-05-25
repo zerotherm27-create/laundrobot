@@ -73,6 +73,43 @@ function buildCustomFieldsPayload(svc, fieldValues, addonQty, addonOwn) {
   return result;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER PRICE MODEL — single source of truth for all display calculations
+//
+//   orders.price        = service subtotal ONLY (variants + add-ons, no delivery)
+//   orders.delivery_fee = zone/custom delivery charge (separate column)
+//   orders.promo_discount = discount applied to row 0 of the booking
+//
+//   Grand total = price + delivery_fee − promo_discount
+//
+// ⚠️  Never subtract delivery_fee from price for display — price is already
+//     service-only. If this invariant changes, update ONLY these helpers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Service subtotal for one order row (no delivery, no promo) */
+function orderServicePrice(order) {
+  return Number(order.price || 0);
+}
+
+/** Grand total for one order row */
+function orderRowTotal(order) {
+  return orderServicePrice(order)
+    + Number(order.delivery_fee || 0)
+    - Number(order.promo_discount || 0);
+}
+
+/** Grand total for a booking group (all rows summed) */
+function bookingGrandTotal(group) {
+  // services array comes from groupByBookingRef; delivery_fee and promo_discount
+  // sit on the first row (already spread onto the group object)
+  const servicesTotal = (group.services?.length > 0
+    ? group.services.reduce((s, o) => s + Number(o.price || 0), 0)
+    : Number(group.price || 0));
+  return servicesTotal
+    + Number(group.delivery_fee || 0)
+    - Number(group.promo_discount || 0);
+}
+
 function groupByBookingRef(orders) {
   const map = new Map();
   for (const o of orders) {
@@ -475,7 +512,7 @@ export default function Orders() {
                             ? g.services.map(s => s.service_name).join(', ')
                             : g.services[0]?.service_name}
                         </td>
-                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827' }}>₱{Number(g.price).toLocaleString()}</td>
+                        <td style={{ padding: '9px 12px', fontWeight: 600, color: '#111827' }}>₱{bookingGrandTotal(g).toLocaleString()}</td>
                         <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
                           {g.pickup_date ? new Date(g.pickup_date).toLocaleString() : '—'}
                         </td>
@@ -562,7 +599,7 @@ export default function Orders() {
                           <div key={i} style={{ marginBottom: 8 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
                               <span>{s.service_name}</span>
-                              <span>₱{Number(s.price).toLocaleString()}</span>
+                              <span>₱{orderServicePrice(s).toLocaleString()}</span>
                             </div>
                             {s.weight > 0 && s.service_unit_price > 0 && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -583,7 +620,7 @@ export default function Orders() {
                         <div style={{ marginBottom: 4 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600 }}>
                             <span>{selected.services?.[0]?.service_name || selected.service_name || '—'}</span>
-                            <span>₱{Number(selected.price).toLocaleString()}</span>
+                            <span>₱{orderServicePrice(selected).toLocaleString()}</span>
                           </div>
                           {selected.weight > 0 && selected.service_unit_price > 0 && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -620,10 +657,7 @@ export default function Orders() {
                       {/* Total */}
                       {(() => {
                         // price is service-only (delivery_fee lives in its own column)
-                        const servicesTotal = selected.services?.length > 1
-                          ? selected.services.reduce((s, o) => s + Number(o.price), 0)
-                          : Number(selected.price);
-                        const grandTotal = servicesTotal + Number(selected.delivery_fee || 0) - Number(selected.promo_discount || 0);
+                        const grandTotal = bookingGrandTotal(selected);
                         return (
                           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>
                             <span style={{ fontWeight: 700 }}>Total</span>
