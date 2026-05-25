@@ -102,13 +102,13 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
         `SELECT s.id, s.name, s.price, s.unit, s.description, s.image_url, s.category_id,
                 c.name AS category_name
          FROM services s LEFT JOIN service_categories c ON c.id=s.category_id
-         WHERE s.tenant_id=$1 AND s.active=TRUE ORDER BY s.sort_order, s.id`, [id]
+         WHERE s.tenant_id=$1 AND s.active=TRUE AND s.available_online=TRUE ORDER BY s.sort_order, s.id`, [id]
       ),
       db.query(
         `SELECT id, service_id, label, field_type, placeholder, required, options,
                 min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty
          FROM service_custom_fields
-         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE)
+         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE AND available_online=TRUE)
          ORDER BY sort_order`, [id]
       ),
       db.query(`SELECT id, name, fee, custom_note FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order, id`, [id]),
@@ -183,7 +183,7 @@ router.get('/:tenantId/services', async (req, res) => {
                 c.name AS category_name
          FROM services s
          LEFT JOIN service_categories c ON c.id = s.category_id
-         WHERE s.tenant_id=$1 AND s.active=TRUE
+         WHERE s.tenant_id=$1 AND s.active=TRUE AND s.available_online=TRUE
          ORDER BY s.sort_order, s.id`,
         [req.params.tenantId]
       ),
@@ -191,7 +191,7 @@ router.get('/:tenantId/services', async (req, res) => {
         `SELECT id, service_id, label, field_type, placeholder, required, options,
                 min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty
          FROM service_custom_fields
-         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE)
+         WHERE service_id IN (SELECT id FROM services WHERE tenant_id=$1 AND active=TRUE AND available_online=TRUE)
          ORDER BY sort_order`,
         [req.params.tenantId]
       ),

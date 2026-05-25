@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
 
-const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2 };
+const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
 const LAUNDRY_ICONS = [
   { id: 'washing-machine', label: 'Washing machine', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="4"/><circle cx="24" cy="28" r="10"/><circle cx="24" cy="28" r="5"/><circle cx="13" cy="11" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="11" r="2" fill="currentColor" stroke="none"/><line x1="28" y1="11" x2="36" y2="11"/></svg>` },
@@ -339,7 +339,10 @@ export default function Services() {
                         <div style={{ padding: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 4 }}>
                             <div style={{ fontWeight: 500, fontSize: 13 }}>{s.name}</div>
-                            {!s.active && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#f0f0ec', color: '#374151' }}>Off</span>}
+                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                              {!s.active && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#f0f0ec', color: '#374151' }}>Off</span>}
+                              {s.active && s.available_online === false && <span style={{ fontSize: 10, padding: '2px 5px', borderRadius: 3, background: '#FEF3C7', color: '#92400E', fontWeight: 600 }}>Walk-in only</span>}
+                            </div>
                           </div>
                           {(() => {
                             const hasVarPricing = (s.custom_fields || []).some(f =>
@@ -479,9 +482,23 @@ export default function Services() {
               <input type="number" value={svcForm.sort_order} onChange={e => setSvcForm(p => ({ ...p, sort_order: +e.target.value }))} style={S.input} />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <input type="checkbox" id="svcActive" checked={svcForm.active} onChange={e => setSvcForm(p => ({ ...p, active: e.target.checked }))} />
               <label htmlFor="svcActive" style={{ fontSize: 13, cursor: 'pointer' }}>Active (visible to customers)</label>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: '10px 12px', borderRadius: 8, background: (svcForm.available_online ?? true) ? '#F7F9FD' : '#FFF7ED', border: `1px solid ${(svcForm.available_online ?? true) ? '#E2E8F0' : '#FCD34D'}` }}>
+              <input type="checkbox" id="svcOnline" checked={svcForm.available_online ?? true} onChange={e => setSvcForm(p => ({ ...p, available_online: e.target.checked }))} />
+              <div>
+                <label htmlFor="svcOnline" style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer', color: (svcForm.available_online ?? true) ? '#111827' : '#92400E' }}>
+                  {(svcForm.available_online ?? true) ? 'Available for online booking' : 'Walk-in POS only'}
+                </label>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>
+                  {(svcForm.available_online ?? true)
+                    ? 'Customers can book this via Messenger, web, or walk-in'
+                    : 'Only visible in the Walk-in POS and New Order modal — hidden from public booking'}
+                </div>
+              </div>
             </div>
 
             {/* ── Custom Fields ──────────────────────────────────────── */}
