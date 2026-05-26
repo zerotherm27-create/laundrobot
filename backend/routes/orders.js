@@ -182,7 +182,7 @@ router.put('/booking/:ref', auth, async (req, res) => {
          null, Number(item.price), first.pickup_date,
          first.address, 0, null, notesWithStamp, first.status, first.booking_ref,
          item.custom_fields?.length ? JSON.stringify(item.custom_fields) : null,
-         false, first.delivery_date, 'admin',
+         first.paid, first.delivery_date, 'admin',
          null, 0, null, first.is_dropoff || false]
       );
     }
