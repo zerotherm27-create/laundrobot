@@ -4,7 +4,7 @@ import {
   getPublicAddressSuggest,
   lookupPublicCustomer, createPublicOrder, validatePublicPromo,
   savePublicCart, updatePublicCart, uploadPaymentScreenshot,
-  getPublicReorderData,
+  getPublicReorderData, savePublicCustomerCoords,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -577,8 +577,8 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         setCustomerCoords({ lat, lng });
         computeBracketFee(lat, lng);
       } else {
-        // Legacy fallback: geocode the address text
-        geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address), 600);
+        // Legacy fallback: geocode the address text, then save coords so it's instant next time
+        geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address, savedCustomer.phone), 600);
       }
     } else if (addressMode === 'new') {
       // Reset when switching to new address mode
@@ -607,7 +607,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     finally { setAddrSuggestLoading(false); }
   }
 
-  async function triggerGeocode(q) {
+  async function triggerGeocode(q, phoneToSave) {
     if (!bracketInfo) return;
     setGeocoding(true); setBracketError('');
     try {
@@ -616,6 +616,8 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
       const lat = Number(data.lat), lng = Number(data.lng);
       setCustomerCoords({ lat, lng });
       computeBracketFee(lat, lng);
+      // Save coords back so this customer never needs geocoding again
+      if (phoneToSave) savePublicCustomerCoords(tenantId, phoneToSave, lat, lng).catch(() => {});
     } catch { setBracketError('Could not locate address. Please check and try again.'); }
     finally { setGeocoding(false); }
   }

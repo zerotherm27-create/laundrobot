@@ -206,6 +206,20 @@ router.get('/:tenantId/services', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PATCH customer coords — called after geocoding succeeds for old customers with no stored coords
+router.patch('/:tenantId/customer/coords', async (req, res) => {
+  const { phone, addr_lat, addr_lng } = req.body;
+  if (!phone?.trim() || !addr_lat || !addr_lng) return res.json({ ok: false });
+  try {
+    await db.query(
+      `UPDATE customers SET addr_lat=$1, addr_lng=$2
+       WHERE tenant_id=$3 AND phone=$4 AND (addr_lat IS NULL OR addr_lng IS NULL)`,
+      [Number(addr_lat), Number(addr_lng), req.params.tenantId, phone.trim()]
+    );
+    res.json({ ok: true });
+  } catch { res.json({ ok: false }); }
+});
+
 // GET customer by phone — repeat customer lookup
 router.get('/:tenantId/customer', async (req, res) => {
   const { phone } = req.query;

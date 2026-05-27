@@ -143,7 +143,8 @@ export const getPublicGeocode          = q         => axios.get(`${PUBLIC_BASE}/
 export const getPublicAddressSuggest   = q         => axios.get(`${PUBLIC_BASE}/public/geocode/suggest`, { params: { q } });
 export const getPublicBlockedDates   = id                  => pub(`/public/${id}/blocked-dates`);
 export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLIC_BASE}/public/${id}/promo`, { params: { code, total } });
-export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });
+export const lookupPublicCustomer      = (id, phone)           => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });
+export const savePublicCustomerCoords  = (id, phone, lat, lng) => axios.patch(`${PUBLIC_BASE}/public/${id}/customer/coords`, { phone, addr_lat: lat, addr_lng: lng });
 export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
 export const savePublicCart          = (id, data)          => pubPost(`/public/${id}/cart`, data);
 export const updatePublicCart        = (id, cartId, data)  => axios.patch(`${PUBLIC_BASE}/public/${id}/cart/${cartId}`, data);
