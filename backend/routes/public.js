@@ -212,14 +212,17 @@ router.get('/:tenantId/customer', async (req, res) => {
   if (!phone?.trim()) return res.json(null);
   try {
     const { rows: [customer] } = await db.query(
-      `SELECT c.name, c.phone, c.email,
-              (SELECT o.address FROM orders o WHERE o.customer_id=c.id AND o.address IS NOT NULL ORDER BY o.created_at DESC LIMIT 1) AS address
+      `SELECT c.name, c.phone, c.email, c.address, c.addr_lat, c.addr_lng
        FROM customers c
        WHERE c.tenant_id=$1 AND c.phone=$2`,
       [req.params.tenantId, phone.trim()]
     );
     if (!customer || !customer.address) return res.json(null);
-    res.json({ name: customer.name, phone: customer.phone, email: customer.email, address: customer.address });
+    res.json({
+      name: customer.name, phone: customer.phone, email: customer.email, address: customer.address,
+      addr_lat: customer.addr_lat ? Number(customer.addr_lat) : null,
+      addr_lng: customer.addr_lng ? Number(customer.addr_lng) : null,
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -437,16 +440,20 @@ router.post('/:tenantId/orders', async (req, res) => {
     // If fb_id present: atomic upsert on the (tenant_id, fb_id) unique constraint — no race condition possible.
     // If no fb_id: fall back to phone lookup then insert.
     let customerId;
+    const coordLat = customer_lat ? Number(customer_lat) : null;
+    const coordLng = customer_lng ? Number(customer_lng) : null;
     if (fb_id) {
       const { rows: [c] } = await client.query(
-        `INSERT INTO customers (tenant_id, name, phone, email, address, fb_id)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO customers (tenant_id, name, phone, email, address, fb_id, addr_lat, addr_lng)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
          ON CONFLICT (tenant_id, fb_id) DO UPDATE
            SET name=$2, phone=$3,
                email=COALESCE($4, customers.email),
-               address=$5
+               address=$5,
+               addr_lat=COALESCE($7, customers.addr_lat),
+               addr_lng=COALESCE($8, customers.addr_lng)
          RETURNING id`,
-        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id]
+        [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), fb_id, coordLat, coordLng]
       );
       customerId = c.id;
     } else {
@@ -456,14 +463,15 @@ router.post('/:tenantId/orders', async (req, res) => {
       );
       if (existing) {
         await client.query(
-          'UPDATE customers SET name=$1, email=COALESCE($2, email), address=$3 WHERE id=$4',
-          [name.trim(), email?.trim() || null, address.trim(), existing.id]
+          `UPDATE customers SET name=$1, email=COALESCE($2, email), address=$3,
+           addr_lat=COALESCE($4, addr_lat), addr_lng=COALESCE($5, addr_lng) WHERE id=$6`,
+          [name.trim(), email?.trim() || null, address.trim(), coordLat, coordLng, existing.id]
         );
         customerId = existing.id;
       } else {
         const { rows: [newC] } = await client.query(
-          'INSERT INTO customers (tenant_id, name, phone, email, address) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-          [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim()]
+          'INSERT INTO customers (tenant_id, name, phone, email, address, addr_lat, addr_lng) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+          [req.params.tenantId, name.trim(), phone.trim(), email?.trim() || null, address.trim(), coordLat, coordLng]
         );
         customerId = newC.id;
       }

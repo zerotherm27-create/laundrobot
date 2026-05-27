@@ -564,13 +564,22 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     } finally { setSubmitting(false); }
   }
 
-  // Geocode saved address when bracket system is active
-  // (New addresses use autocomplete — coords set directly on suggestion select)
+  // Resolve coords for saved address when bracket system is active.
+  // Prefer stored coords (addr_lat/addr_lng saved at booking time) — avoids Nominatim re-geocoding
+  // which often fails for addresses typed in local formats. Fall back to geocoding only if no coords.
   useEffect(() => {
     if (!bracketInfo) return;
     if (addressMode === 'saved' && savedCustomer?.address) {
       clearTimeout(geocodeTimer.current);
-      geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address), 600);
+      if (savedCustomer.addr_lat && savedCustomer.addr_lng) {
+        // Use stored coords directly — no geocoding needed
+        const lat = Number(savedCustomer.addr_lat), lng = Number(savedCustomer.addr_lng);
+        setCustomerCoords({ lat, lng });
+        computeBracketFee(lat, lng);
+      } else {
+        // Legacy fallback: geocode the address text
+        geocodeTimer.current = setTimeout(() => triggerGeocode(savedCustomer.address), 600);
+      }
     } else if (addressMode === 'new') {
       // Reset when switching to new address mode
       setCustomerCoords(null); setBracketFee(null); setBracketDistKm(null); setBracketError('');
