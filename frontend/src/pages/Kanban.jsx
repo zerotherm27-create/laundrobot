@@ -108,7 +108,7 @@ export default function Kanban() {
   const [dragOver,   setDragOver]   = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [expanded,   setExpanded]   = useState(new Set());
-  const [modalOrder, setModalOrder] = useState(null);
+  const [modalOrderKey, setModalOrderKey] = useState(null);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   const [cancelResult,  setCancelResult]  = useState(null);
@@ -196,7 +196,7 @@ export default function Kanban() {
 
   function openModal(g, e) {
     e.stopPropagation();
-    setModalOrder(g);
+    setModalOrderKey(g.booking_ref || g.id);
     setEditingDelivery(false);
     setDeliveryInput(g.delivery_date ? g.delivery_date.slice(0, 10) : '');
     setCancelResult(null);
@@ -212,14 +212,17 @@ export default function Kanban() {
       setOrders(prev => prev.map(o =>
         modalOrder.orderIds.includes(o.id) ? { ...o, delivery_date: iso } : o
       ));
-      setModalOrder(prev => ({ ...prev, delivery_date: iso }));
       setEditingDelivery(false);
     } catch { alert('Failed to update delivery date'); }
     setDeliverySaving(false);
   }
 
-  // ── Urgency summary counts (all non-completed, non-new-order) ──
+  // ── Groups derived from orders — drives modal + urgency counts ──
   const allGroups = groupByBookingRef(orders);
+  // modalOrder is always live — re-derived whenever orders change
+  const modalOrder = modalOrderKey
+    ? allGroups.find(g => (g.booking_ref || g.id) === modalOrderKey) ?? null
+    : null;
   const urgencyCounts = allGroups.reduce((acc, g) => {
     const u = getUrgency(g);
     if (u !== 'normal') acc[u] = (acc[u] || 0) + 1;
@@ -467,7 +470,7 @@ export default function Kanban() {
 
       {/* ── Order Detail Modal ── */}
       {modalOrder && (
-        <div className="modal-overlay" onClick={() => setModalOrder(null)}>
+        <div className="modal-overlay" onClick={() => setModalOrderKey(null)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}
             style={{ width: 420, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
 
@@ -486,7 +489,7 @@ export default function Kanban() {
                   </div>
                 );
               })()}
-              <button onClick={() => setModalOrder(null)}
+              <button onClick={() => setModalOrderKey(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', lineHeight: 1, padding: '8px', margin: '-8px' }}>×</button>
             </div>
 
@@ -664,7 +667,7 @@ export default function Kanban() {
             </div>
 
             {/* ── Close (mobile) ── */}
-            <button onClick={() => setModalOrder(null)}
+            <button onClick={() => setModalOrderKey(null)}
               style={{ display: 'none', width: '100%', marginTop: 16, padding: '12px', fontSize: 14, fontWeight: 600, borderRadius: 10, border: '0.5px solid #E8E8E0', background: '#F7F7F5', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}
               className="modal-close-mobile">
               Close
