@@ -33,8 +33,14 @@ router.put('/shop-location', auth, async (req, res) => {
   const { shop_address, shop_lat, shop_lng, delivery_note, delivery_radius } = req.body;
   try {
     await db.query(
-      `UPDATE tenants SET shop_address=$1, shop_lat=$2, shop_lng=$3, delivery_note=$4, delivery_radius=$5 WHERE id=$6`,
-      [shop_address || null, shop_lat || null, shop_lng || null, delivery_note || null, delivery_radius || 15, req.user.tenant_id]
+      `UPDATE tenants SET
+         shop_address  = COALESCE($1, shop_address),
+         shop_lat      = COALESCE($2, shop_lat),
+         shop_lng      = COALESCE($3, shop_lng),
+         delivery_note = COALESCE($4, delivery_note),
+         delivery_radius = COALESCE($5, delivery_radius)
+       WHERE id=$6`,
+      [shop_address || null, shop_lat || null, shop_lng || null, delivery_note || null, delivery_radius || null, req.user.tenant_id]
     );
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

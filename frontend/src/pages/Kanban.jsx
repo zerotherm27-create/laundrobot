@@ -5,6 +5,7 @@ import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
+import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -520,7 +521,7 @@ export default function Kanban() {
                     <div key={i} style={{ marginBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 500 }}>
                         <span>{s.service_name || 'Service'}</span>
-                        <span>₱{(Number(s.price) - (i === 0 ? Number(modalOrder.delivery_fee || 0) : 0)).toLocaleString()}</span>
+                        <span>₱{Number(s.price).toLocaleString()}</span>
                       </div>
                       {s.weight > 0 && s.service_unit_price > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -539,7 +540,7 @@ export default function Kanban() {
                     <div style={{ marginBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 500 }}>
                         <span>{modalOrder.services?.[0]?.service_name || modalOrder.service_name || 'Service'}</span>
-                        <span>₱{(Number(modalOrder.price) - Number(modalOrder.delivery_fee || 0)).toLocaleString()}</span>
+                        <span>₱{Number(modalOrder.price).toLocaleString()}</span>
                       </div>
                       {modalOrder.weight > 0 && modalOrder.services?.[0]?.service_unit_price > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
@@ -573,16 +574,10 @@ export default function Kanban() {
               )}
 
               {/* Grand total */}
-              {(() => {
-                const servicesTotal = (modalOrder.services?.reduce((s, o) => s + Number(o.price), 0) ?? Number(modalOrder.price)) - Number(modalOrder.delivery_fee || 0);
-                const grandTotal = servicesTotal + Number(modalOrder.delivery_fee || 0) - Number(modalOrder.promo_discount || 0);
-                return (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>
-                    <span style={{ fontWeight: 700 }}>Total</span>
-                    <span style={{ fontWeight: 700, color: '#111827' }}>₱{grandTotal.toLocaleString()}</span>
-                  </div>
-                );
-              })()}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '0.5px solid #e8e8e0', marginTop: 4, fontSize: 14 }}>
+                <span style={{ fontWeight: 700 }}>Total</span>
+                <span style={{ fontWeight: 700, color: '#111827' }}>₱{bookingGrandTotal(modalOrder).toLocaleString()}</span>
+              </div>
 
               {/* Paid status */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>

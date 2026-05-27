@@ -48,19 +48,31 @@ router.post('/', async (req, res) => {
     if (object === 'instagram') {
       for (const e of entry) {
         const igId = e.id;
+        console.log('[ig-webhook] entry id:', igId, '| messaging events:', e.messaging?.length ?? 0);
         const { rows: [tenant] } = await db.query(
           'SELECT * FROM tenants WHERE ig_user_id = $1 AND active = TRUE', [igId]
         );
-        if (!tenant) { console.log('[ig-webhook] no tenant for ig_user_id:', igId); continue; }
+        if (!tenant) {
+          console.log('[ig-webhook] NO TENANT MATCHED for ig_user_id:', igId, '— check that this matches the ig_user_id in your tenant settings');
+          continue;
+        }
+        console.log('[ig-webhook] matched tenant:', tenant.name);
         for (const event of (e.messaging || [])) {
-          // Admin replied from Instagram — sender is the IG business account
+          console.log('[ig-webhook] event — sender:', event.sender?.id, '| has_message:', !!event.message, '| has_postback:', !!event.postback, '| is_echo:', !!event.message?.is_echo);
+          // Admin replied from Instagram — sender is the IG business account.
+          // Skip pause if it was the bot itself sending (check app_id to distinguish human vs bot).
           if (event.message && event.sender.id === String(tenant.ig_user_id)) {
-            try { await pauseAiForCustomer(tenant, event.recipient.id); }
-            catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+            const echoAppId = String(event.message.app_id || '');
+            const ownAppId  = String(process.env.FB_APP_ID || '');
+            const isBotEcho = ownAppId && echoAppId === ownAppId;
+            if (!isBotEcho) {
+              try { await pauseAiForCustomer(tenant, event.recipient.id); }
+              catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+            }
           } else if (event.message || event.postback) {
-            console.log('[ig-webhook] msg from:', event.sender.id);
+            console.log('[ig-webhook] handling message from:', event.sender.id);
             try { await handleMessage(tenant, event.sender.id, event, 'instagram'); }
-            catch (err) { console.error('[ig-webhook] error:', err.response?.data || err.message); }
+            catch (err) { console.error('[ig-webhook] handleMessage error:', err.response?.data || err.message); }
           }
         }
       }
@@ -84,9 +96,15 @@ router.post('/', async (req, res) => {
           try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
           catch (err) { console.error('[webhook] referral error:', err.message); }
         } else if (event.message?.is_echo) {
-          // Admin replied from Facebook Page Inbox — pause AI for this customer
-          try { await pauseAiForCustomer(tenant, event.recipient.id); }
-          catch (err) { console.error('[webhook] echo-pause error:', err.message); }
+          // Only pause AI when a human staff member replies — NOT when the bot itself sends a message.
+          // Bot-sent messages have app_id matching our own FB app; human Page Inbox replies have a different app_id.
+          const echoAppId = String(event.message.app_id || '');
+          const ownAppId  = String(process.env.FB_APP_ID || '');
+          const isBotEcho = ownAppId && echoAppId === ownAppId;
+          if (!isBotEcho) {
+            try { await pauseAiForCustomer(tenant, event.recipient.id); }
+            catch (err) { console.error('[webhook] echo-pause error:', err.message); }
+          }
         } else if (event.message || event.postback) {
           console.log('[webhook] msg from:', event.sender.id);
           // Handle GET_STARTED postback that carries an m.me ref param
