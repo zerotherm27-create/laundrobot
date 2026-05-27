@@ -1,10 +1,8 @@
 const router = require('express').Router();
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { Resend } = require('resend');
+const { sendEmail } = require('../utils/email');
 const db = require('../db');
-
-const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
 // POST /auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
@@ -36,9 +34,7 @@ router.post('/forgot-password', async (req, res) => {
     const appUrl = process.env.APP_URL || 'https://laundrobot.app';
     const resetUrl = `${appUrl}?reset_token=${token}`;
 
-    const resend = getResend();
-    const { error: emailError } = await resend.emails.send({
-      from: 'LaundroBot <onboarding@resend.dev>',
+    await sendEmail({
       to: user.email,
       subject: 'LaundroBot — Reset Your Password',
       html: `
@@ -58,11 +54,6 @@ router.post('/forgot-password', async (req, res) => {
         </div>
       `,
     });
-
-    if (emailError) {
-      console.error('[forgot-password] Resend error:', emailError);
-      return res.status(500).json({ error: 'Failed to send email: ' + emailError.message });
-    }
 
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (err) {
