@@ -69,21 +69,25 @@ router.put('/settings', auth, async (req, res) => {
       }
     }
 
-    // Snapshot current settings before overwriting
-    const { rows: [snap] } = await db.query(
-      `SELECT notification_email, contact_number, store_open, store_close, booking_cutoff,
-              minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours,
-              shop_address, qr_image_url, custom_domain, white_label, logo_url,
-              payment_mode, open_days, google_review_link, review_cooldown_days
-       FROM tenants WHERE id=$1`,
-      [req.user.tenant_id]
-    );
-    if (snap) {
-      await db.query(
-        `INSERT INTO tenant_settings_history (tenant_id, changed_by, snapshot)
-         VALUES ($1, $2, $3)`,
-        [req.user.tenant_id, req.user.email, JSON.stringify(snap)]
+    // Snapshot current settings before overwriting (non-blocking — never fails the save)
+    try {
+      const { rows: [snap] } = await db.query(
+        `SELECT notification_email, contact_number, store_open, store_close, booking_cutoff,
+                minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours,
+                shop_address, qr_image_url, custom_domain, white_label, logo_url,
+                payment_mode, open_days, google_review_link, review_cooldown_days
+         FROM tenants WHERE id=$1`,
+        [req.user.tenant_id]
       );
+      if (snap) {
+        await db.query(
+          `INSERT INTO tenant_settings_history (tenant_id, changed_by, snapshot)
+           VALUES ($1, $2, $3)`,
+          [req.user.tenant_id, req.user.email, JSON.stringify(snap)]
+        );
+      }
+    } catch (snapErr) {
+      console.warn('[settings] snapshot failed (non-fatal):', snapErr.message);
     }
 
     const { rows: [tenant] } = await db.query(
@@ -626,9 +630,18 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
       );
       await client.query(
         `UPDATE tenants SET
-           store_open=$1, store_close=$2, booking_cutoff=$3, minimum_order=$4,
-           ai_enabled=$5, ai_instructions=$6, contact_number=$7,
-           delivery_note=$8, delivery_radius=$9, shop_address=$10, shop_lat=$11, shop_lng=$12
+           store_open      = COALESCE($1, store_open),
+           store_close     = COALESCE($2, store_close),
+           booking_cutoff  = COALESCE($3, booking_cutoff),
+           minimum_order   = COALESCE($4, minimum_order),
+           ai_enabled      = $5,
+           ai_instructions = COALESCE($6, ai_instructions),
+           contact_number  = COALESCE($7, contact_number),
+           delivery_note   = COALESCE($8, delivery_note),
+           delivery_radius = COALESCE($9, delivery_radius),
+           shop_address    = COALESCE($10, shop_address),
+           shop_lat        = COALESCE($11, shop_lat),
+           shop_lng        = COALESCE($12, shop_lng)
          WHERE id=$13`,
         [src.store_open, src.store_close, src.booking_cutoff, src.minimum_order,
          src.ai_enabled, src.ai_instructions, src.contact_number,
