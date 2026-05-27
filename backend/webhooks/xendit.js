@@ -17,7 +17,10 @@ router.post('/', async (req, res) => {
   try {
     // Subscription payment for a LaundroBot tenant (external_id starts with "sub-")
     if (String(external_id).startsWith('sub-')) {
-      const tenantId = String(external_id).split('-')[1];
+      // external_id format: sub-<UUID>-<timestamp>
+      // UUID contains 4 hyphens (8-4-4-4-12), so segments 1..5 reconstruct it
+      const _parts = String(external_id).split('-');
+      const tenantId = _parts.slice(1, 6).join('-');
       const desc = req.body.description || '';
       const isAnnual  = desc.includes('Annual');
       const isPro     = desc.includes('Pro');

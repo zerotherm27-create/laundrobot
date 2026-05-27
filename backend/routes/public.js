@@ -697,6 +697,55 @@ router.post('/:tenantId/orders', async (req, res) => {
   }
 });
 
+// GET reorder data — returns a previous order's details for prefilling the booking form
+router.get('/:tenantId/reorder/:orderId', async (req, res) => {
+  const { psid, phone } = req.query;
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT o.id, o.booking_ref, o.service_id, o.address, o.delivery_zone, o.notes,
+              o.custom_selections, o.is_dropoff, o.customer_id, o.weight,
+              s.name AS service_name,
+              dz.id AS delivery_zone_id
+       FROM orders o
+       LEFT JOIN services s ON s.id = o.service_id
+       LEFT JOIN delivery_zones dz ON dz.name = o.delivery_zone AND dz.tenant_id = o.tenant_id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
+      [req.params.orderId, req.params.tenantId]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    let authorized = false;
+    if (psid) {
+      const { rows: [c] } = await db.query(
+        `SELECT id FROM customers WHERE id=$1 AND fb_id=$2`,
+        [order.customer_id, psid]
+      );
+      authorized = !!c;
+    }
+    if (!authorized && phone) {
+      const { rows: [c] } = await db.query(
+        `SELECT id FROM customers WHERE id=$1 AND phone=$2`,
+        [order.customer_id, phone.trim()]
+      );
+      authorized = !!c;
+    }
+    if (!authorized) return res.status(403).json({ error: 'Not authorized to access this order' });
+
+    res.json({
+      booking_ref: order.booking_ref,
+      service_id: order.service_id,
+      service_name: order.service_name,
+      address: order.address,
+      delivery_zone_id: order.delivery_zone_id,
+      delivery_zone: order.delivery_zone,
+      notes: order.notes,
+      custom_selections: order.custom_selections,
+      is_dropoff: order.is_dropoff,
+      weight: order.weight ? Number(order.weight) : null,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST save/update an in-progress cart (called by BookingForm on first item add)
 router.post('/:tenantId/cart', async (req, res) => {
   const { fb_user_id, items, step } = req.body;

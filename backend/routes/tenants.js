@@ -37,6 +37,11 @@ router.get('/settings', auth, async (req, res) => {
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
   const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key, google_review_link, review_cooldown_days } = req.body;
+
+  if (ai_instructions && ai_instructions.length > 3000) {
+    return res.status(400).json({ error: 'AI instructions must be 3000 characters or less.' });
+  }
+
   try {
     // Only Pro tenants can set custom domain / white label
     const { rows: [current] } = await db.query(
@@ -64,12 +69,37 @@ router.put('/settings', auth, async (req, res) => {
       }
     }
 
+    // Snapshot current settings before overwriting
+    const { rows: [snap] } = await db.query(
+      `SELECT notification_email, contact_number, store_open, store_close, booking_cutoff,
+              minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours,
+              shop_address, qr_image_url, custom_domain, white_label, logo_url,
+              payment_mode, open_days, google_review_link, review_cooldown_days
+       FROM tenants WHERE id=$1`,
+      [req.user.tenant_id]
+    );
+    if (snap) {
+      await db.query(
+        `INSERT INTO tenant_settings_history (tenant_id, changed_by, snapshot)
+         VALUES ($1, $2, $3)`,
+        [req.user.tenant_id, req.user.email, JSON.stringify(snap)]
+      );
+    }
+
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants
-       SET notification_email=$1, contact_number=$2,
-           store_open=$3, store_close=$4, booking_cutoff=$5, minimum_order=$6, ai_enabled=$7,
+       SET notification_email = COALESCE($1, notification_email),
+           contact_number     = COALESCE($2, contact_number),
+           store_open         = COALESCE($3, store_open),
+           store_close        = COALESCE($4, store_close),
+           booking_cutoff     = COALESCE($5, booking_cutoff),
+           minimum_order      = COALESCE($6, minimum_order),
+           ai_enabled=$7,
            ai_instructions = CASE WHEN $14 THEN $8 ELSE ai_instructions END,
-           ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
+           ig_user_id    = COALESCE($9, ig_user_id),
+           ai_pause_hours=$10,
+           shop_address  = COALESCE($11, shop_address),
+           qr_image_url  = COALESCE($12, qr_image_url),
            custom_domain = CASE WHEN $14 THEN $13 ELSE custom_domain END,
            white_label   = CASE WHEN $14 THEN $15 ELSE white_label   END,
            logo_url      = COALESCE($17, logo_url),
@@ -124,6 +154,51 @@ router.put('/settings', auth, async (req, res) => {
         process.env.APP_URL, current.ig_user_id, newDomain
       ).catch(e => console.warn('[auto-whitelist] messenger profile update failed:', e.message));
     }
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET settings history for own tenant (last 20 snapshots)
+router.get('/settings/history', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, changed_at, changed_by, snapshot
+       FROM tenant_settings_history
+       WHERE tenant_id=$1
+       ORDER BY changed_at DESC
+       LIMIT 20`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST restore a specific snapshot (admin)
+router.post('/settings/history/:snapshotId/restore', auth, async (req, res) => {
+  try {
+    const { rows: [entry] } = await db.query(
+      `SELECT snapshot FROM tenant_settings_history WHERE id=$1 AND tenant_id=$2`,
+      [req.params.snapshotId, req.user.tenant_id]
+    );
+    if (!entry) return res.status(404).json({ error: 'Snapshot not found' });
+    const s = entry.snapshot;
+    await db.query(
+      `UPDATE tenants SET
+         notification_email=$1, contact_number=$2, store_open=$3, store_close=$4,
+         booking_cutoff=$5, minimum_order=$6, ai_enabled=$7, ai_instructions=$8,
+         ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
+         custom_domain=$13, white_label=$14, logo_url=$15, payment_mode=$16,
+         open_days=$17, google_review_link=$18, review_cooldown_days=$19
+       WHERE id=$20`,
+      [
+        s.notification_email, s.contact_number, s.store_open, s.store_close,
+        s.booking_cutoff, s.minimum_order, s.ai_enabled, s.ai_instructions,
+        s.ig_user_id, s.ai_pause_hours, s.shop_address, s.qr_image_url,
+        s.custom_domain, s.white_label, s.logo_url, s.payment_mode,
+        s.open_days, s.google_review_link, s.review_cooldown_days,
+        req.user.tenant_id,
+      ]
+    );
+    res.json({ message: 'Settings restored successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -365,7 +440,7 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
   }
 });
 
-const PLAN_AI_CAPS = { starter: 100, growth: 500, pro: 9999 };
+const PLAN_AI_CAPS = { starter: 300, growth: 1500, pro: 9999 };
 
 // PATCH update tenant plan (superadmin)
 router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {

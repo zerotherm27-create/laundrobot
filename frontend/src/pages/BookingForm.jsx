@@ -4,6 +4,7 @@ import {
   getPublicAddressSuggest,
   lookupPublicCustomer, createPublicOrder, validatePublicPromo,
   savePublicCart, updatePublicCart, uploadPaymentScreenshot,
+  getPublicReorderData,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -218,6 +219,9 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   // Server-side cart ID for abandonment tracking
   const [serverCartId, setServerCartId] = useState(null);
 
+  // Reorder prefill banner
+  const [reorderBanner, setReorderBanner] = useState(null); // { ref: 'BKG-000001' } | null
+
   async function persistCart(updatedCart, currentStep) {
     try {
       const items = updatedCart.map(i => ({ service_id: i.service_id, service_name: i.service_name }));
@@ -271,6 +275,42 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
       if (e.response?.status === 404) setNotFound(true);
     }).finally(() => setLoading(false));
   }, [tenantId]);
+
+  // Reorder prefill — runs once after services load
+  useEffect(() => {
+    if (!services.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const reorderId = params.get('reorder');
+    if (!reorderId) return;
+    const psid = params.get('psid');
+    getPublicReorderData(tenantId, reorderId, psid ? { psid } : {})
+      .then(({ data: r }) => {
+        const svc = services.find(s => s.id === r.service_id);
+        if (svc) {
+          setSelectedSvc(svc);
+          if (r.custom_selections?.length) {
+            const fvNext = {}, aqNext = {};
+            for (const sel of r.custom_selections) {
+              const field = (svc.custom_fields || []).find(f => f.label === sel.label);
+              if (!field) continue;
+              if (field.field_type === 'addon') aqNext[field.id] = parseInt(sel.value) || 0;
+              else fvNext[field.id] = sel.value;
+            }
+            setFieldValues(fvNext);
+            setAddonQty(aqNext);
+          }
+          if (r.weight) setWeight(String(r.weight));
+        }
+        setForm(prev => ({
+          ...prev,
+          addr_text: r.address || prev.addr_text,
+          delivery_zone_id: r.delivery_zone_id || prev.delivery_zone_id,
+          notes: r.notes || prev.notes,
+        }));
+        if (r.booking_ref) setReorderBanner({ ref: r.booking_ref });
+      })
+      .catch(() => {}); // silent — form just stays blank if order not found
+  }, [services]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleServices = activeCat
     ? services.filter(s => s.category_id === activeCat)
@@ -810,6 +850,16 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
           </div>
         ))}
       </div>
+
+      {/* ── Reorder banner ── */}
+      {reorderBanner && (
+        <div style={{ maxWidth: 620, margin: '0 auto 16px', background: '#e8f8fb', border: '1px solid #b2e4ef', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ fontSize: 13, color: '#0e6b82' }}>
+            <strong>Pre-filled from order #{reorderBanner.ref}</strong> — review and update anything before confirming.
+          </div>
+          <button onClick={() => setReorderBanner(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0e6b82', fontSize: 16, lineHeight: 1, padding: 0 }}>✕</button>
+        </div>
+      )}
 
       <div style={cardStyle}>
 

@@ -246,9 +246,9 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
   // Messenger: "Book Now" opens webform. Instagram: "Book This" starts bot flow.
   const appUrl = process.env.APP_URL;
   const backendUrl = process.env.BACKEND_URL;
-  const useWebform = channel === 'messenger' && baseUrl;
   // Use custom domain for Pro tenants; fall back to APP_URL
   const baseUrl = customDomain ? `https://${customDomain}` : appUrl;
+  const useWebform = channel === 'messenger' && !!baseUrl;
   const bookUrl = baseUrl ? `${baseUrl}/book/${tenantId}?psid=${senderId}` : null;
 
   const elements = services.map(s => {
@@ -538,18 +538,58 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     const { rows: orders } = await db.query(
       `SELECT o.id, o.booking_ref, o.status, o.price, o.created_at, s.name as service_name
        FROM orders o LEFT JOIN services s ON s.id=o.service_id
-       WHERE o.customer_id=$1 ORDER BY o.created_at DESC LIMIT 5`,
+       WHERE o.customer_id=$1 ORDER BY o.created_at DESC LIMIT 3`,
       [customer.id]
     );
     if (!orders.length) {
       await sendMessage(token, senderId, "You don't have any orders yet. Type \"book\" to get started!");
     } else {
-      const list = orders.map(o =>
-        `📦 ${o.booking_ref || o.id.slice(-8).toUpperCase()}\n   ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString()}\n   Status: ${o.status}`
-      ).join('\n\n');
-      await sendMessage(token, senderId, `Your recent orders:\n\n${list}\n\nType "book" to place a new order.`);
+      await sendMessage(token, senderId, `Here are your recent orders:`);
+      for (const o of orders) {
+        const ref = o.booking_ref || o.id.slice(-8).toUpperCase();
+        const label = `📦 ${ref}\n${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString()}\nStatus: ${o.status}`;
+        await sendButtons(token, senderId, label, [
+          { type: 'postback', title: '🔄 Reorder', payload: `REORDER:${o.id}` },
+        ]);
+      }
     }
     await showSubscribePrompt(sends, token, senderId, customer);
+    return;
+  }
+
+  // ── Reorder — prefill booking form from a previous order ────────────────
+  if (text.startsWith('REORDER:')) {
+    const orderId = text.split(':')[1];
+    const { rows: [order] } = await db.query(
+      `SELECT o.id, o.booking_ref, o.address, o.notes, s.name as service_name
+       FROM orders o LEFT JOIN services s ON s.id=o.service_id
+       WHERE o.id=$1 AND o.tenant_id=$2`,
+      [orderId, tenant.id]
+    );
+    if (!order) {
+      await sendMessage(token, senderId, "Sorry, we couldn't find that order. Type \"book\" to start a new one.");
+      return;
+    }
+    const summary = [
+      `Here's your previous order:`,
+      `🧺 ${order.service_name || 'Service'}`,
+      `📍 ${order.address}`,
+      order.notes ? `📝 ${order.notes}` : null,
+      `\nWant to book again with these details?`,
+    ].filter(Boolean).join('\n');
+
+    const base = tenant.custom_domain ? `https://${tenant.custom_domain}` : process.env.APP_URL;
+    const reorderUrl = `${base}/book/${tenant.id}?psid=${senderId}&reorder=${orderId}`;
+    const freshUrl   = `${base}/book/${tenant.id}?psid=${senderId}`;
+
+    if (base) {
+      await sendButtons(token, senderId, summary, [
+        { type: 'web_url', title: '✅ Book Again', url: reorderUrl, webview_height_ratio: 'full', messenger_extensions: true },
+        { type: 'web_url', title: '✏️ Change Details', url: freshUrl, webview_height_ratio: 'full', messenger_extensions: true },
+      ]);
+    } else {
+      await sendMessage(token, senderId, `${summary}\n\nType "book" to proceed.`);
+    }
     return;
   }
 
@@ -879,7 +919,7 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     const { rows: [capRow] } = await db.query(
       `SELECT ai_daily_cap, ai_daily_used, ai_daily_reset FROM tenants WHERE id=$1`, [tenant.id]
     );
-    const cap = capRow?.ai_daily_cap ?? 200;
+    const cap = capRow?.ai_daily_cap ?? 500;
     let used = capRow?.ai_daily_used ?? 0;
     const resetDate = capRow?.ai_daily_reset ? String(capRow.ai_daily_reset).slice(0, 10) : null;
     if (resetDate !== today) {

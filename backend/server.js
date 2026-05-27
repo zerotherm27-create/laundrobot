@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 const runFollowUp      = require('./jobs/followup');
 const runCartReminder  = require('./jobs/cartReminder');
 const runOverdueNotify = require('./jobs/overdueNotify');
@@ -15,9 +16,17 @@ app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIO
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+});
+
 const routes = [
-  ['/auth',       './routes/auth'],
-  ['/auth',       './routes/resetPassword'],
+  ['/auth',       './routes/auth',         authLimiter],
+  ['/auth',       './routes/resetPassword', authLimiter],
   ['/orders',     './routes/orders'],
   ['/services',   './routes/services'],
   ['/categories', './routes/categories'],
@@ -36,36 +45,32 @@ const routes = [
   ['/faq-suggestions', './routes/faqSuggestions'],
   ['/push',            './routes/push'],
   ['/finance',         './routes/finance'],
+  ['/inventory',       './routes/inventory'],
 ];
 
-for (const [path, file] of routes) {
+for (const [routePath, file, middleware] of routes) {
   try {
-    app.use(path, require(file));
-    console.log('✓ loaded ' + path);
+    middleware
+      ? app.use(routePath, middleware, require(file))
+      : app.use(routePath, require(file));
+    console.log('✓ loaded ' + routePath);
   } catch(e) {
-    console.error('✗ FAILED ' + path + ': ' + e.message);
+    console.error('✗ FAILED ' + routePath + ': ' + e.message);
   }
 }
 
 try { app.use('/webhook/messenger', require('./webhooks/messenger')); console.log('✓ webhook messenger'); } catch(e) { console.error('✗ webhook messenger: ' + e.message); }
 try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓ webhook xendit'); } catch(e) { console.error('✗ webhook xendit: ' + e.message); }
 
+app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
+
 // Serve React SPA (frontend build output in /public)
 const publicDir = path.join(__dirname, '..', 'public');
 app.use(express.static(publicDir));
 // SPA catch-all: all non-API GET requests serve index.html
-app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/faq-suggestions|\/delivery-zones|\/delivery-brackets|\/blocked-dates|\/promo-codes|\/public|\/webhook|\/conversations|\/push|\/finance|\/inventory).*/, (req, res) => {
+app.get(/^(?!\/auth|\/orders|\/services|\/categories|\/customers|\/tenants|\/messaging|\/users|\/faqs|\/faq-suggestions|\/delivery-zones|\/delivery-brackets|\/blocked-dates|\/promo-codes|\/referrals|\/public|\/webhook|\/conversations|\/push|\/finance|\/inventory|\/healthz).*/, (req, res) => {
   res.sendFile(path.join(publicDir, 'index.html'));
 });
-
-app.get('/healthz', (req, res) => res.json({
-  status: 'LaundroBot API running',
-  env: {
-    has_db: !!process.env.DATABASE_URL,
-    has_jwt: !!process.env.JWT_SECRET,
-    has_fb_token: !!process.env.FB_VERIFY_TOKEN,
-  }
-}));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', async () => {

@@ -139,9 +139,9 @@ router.post('/signup', async (req, res) => {
 
     // Create admin user
     const hash = await bcrypt.hash(password, 10);
-    await client.query(
+    const { rows: [newUser] } = await client.query(
       `INSERT INTO users (email, password_hash, role, tenant_id, normalized_email)
-       VALUES ($1, $2, 'admin', $3, $4)`,
+       VALUES ($1, $2, 'admin', $3, $4) RETURNING id`,
       [email.trim().toLowerCase(), hash, tenant.id, normalizedEmail]
     );
 
@@ -149,7 +149,7 @@ router.post('/signup', async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: tenant.id,
+        id: newUser.id,
         role: 'admin',
         tenant_id: tenant.id,
         tenant_name: tenant.name,

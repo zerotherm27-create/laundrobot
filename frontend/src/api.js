@@ -147,6 +147,7 @@ export const lookupPublicCustomer    = (id, phone)         => axios.get(`${PUBLI
 export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
 export const savePublicCart          = (id, data)          => pubPost(`/public/${id}/cart`, data);
 export const updatePublicCart        = (id, cartId, data)  => axios.patch(`${PUBLIC_BASE}/public/${id}/cart/${cartId}`, data);
+export const getPublicReorderData    = (id, orderId, params) => axios.get(`${PUBLIC_BASE}/public/${id}/reorder/${orderId}`, { params });
 
 // Referral links (authenticated)
 export const getReferralLinks   = ()         => api.get('/referrals');

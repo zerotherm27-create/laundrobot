@@ -85,22 +85,7 @@ router.put('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PATCH change password for a specific user (admin/superadmin only)
-router.patch('/:id/password', auth, async (req, res) => {
-  const { password } = req.body;
-  if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
-  try {
-    const hash = await bcrypt.hash(password, 10);
-    const { rows } = await db.query(
-      `UPDATE users SET password_hash=$1 WHERE id=$2 AND (tenant_id=$3 OR $4 = 'superadmin') RETURNING id, email`,
-      [hash, req.params.id, req.user.tenant_id, req.user.role]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json({ message: 'Password updated successfully' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// PATCH change own password (any logged-in user)
+// PATCH change own password (any logged-in user) — must be before /:id/password
 router.patch('/me/password', auth, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both current and new password are required' });
@@ -112,6 +97,21 @@ router.patch('/me/password', auth, async (req, res) => {
     if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
     const hash = await bcrypt.hash(newPassword, 10);
     await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.user.id]);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH change password for a specific user (admin/superadmin only)
+router.patch('/:id/password', auth, async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rows } = await db.query(
+      `UPDATE users SET password_hash=$1 WHERE id=$2 AND (tenant_id=$3 OR $4 = 'superadmin') RETURNING id, email`,
+      [hash, req.params.id, req.user.tenant_id, req.user.role]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'Password updated successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
