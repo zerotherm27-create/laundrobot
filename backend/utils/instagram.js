@@ -9,11 +9,32 @@ async function post(token, igUserId, body) {
   await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
 }
 
+// Split long text at paragraph/sentence boundaries (IG limit: 1000 chars)
+function chunkText(text, maxLen = 990) {
+  if (text.length <= maxLen) return [text];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > maxLen) {
+    let cut = remaining.lastIndexOf('\n\n', maxLen);
+    if (cut < 200) cut = remaining.lastIndexOf('\n', maxLen);
+    if (cut < 200) cut = remaining.lastIndexOf('. ', maxLen);
+    if (cut < 200) cut = maxLen;
+    else cut = cut + (remaining[cut] === '.' ? 2 : 1);
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length) chunks.push(remaining);
+  return chunks;
+}
+
 async function sendMessage(token, igUserId, recipientId, text) {
-  await post(token, igUserId, {
-    recipient: { id: recipientId },
-    message: { text },
-  });
+  const chunks = chunkText(text);
+  for (const chunk of chunks) {
+    await post(token, igUserId, {
+      recipient: { id: recipientId },
+      message: { text: chunk },
+    });
+  }
 }
 
 // Instagram supports button template with postback buttons (same format as Messenger)
