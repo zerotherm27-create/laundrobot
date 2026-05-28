@@ -209,8 +209,10 @@ Return format:
       { timeout: 15000 }
     );
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    const json = raw.replace(/^```json\n?|\n?```$/g, '').replace(/^```\n?|\n?```$/g, '');
-    const suggestions = JSON.parse(json);
+    // Extract the JSON array from anywhere in the response (handles preamble / markdown)
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('no JSON array in response');
+    const suggestions = JSON.parse(match[0]);
     if (!Array.isArray(suggestions)) throw new Error('not an array');
     res.json(suggestions);
   } catch (e) {
