@@ -20,6 +20,18 @@ const UNIT_FACTORS = {
   'g->lb':   1/453.592,   'lb->g':   453.592,
   'kg->lb':  1/0.453592,  'lb->kg':  0.453592,
 };
+
+// Returns all units that can be converted TO itemUnit (including itemUnit itself)
+function compatibleUnits(itemUnit) {
+  if (!itemUnit) return [];
+  const units = [itemUnit]; // stock unit always first
+  for (const key of Object.keys(UNIT_FACTORS)) {
+    const [from, to] = key.split('->');
+    if (to === itemUnit && !units.includes(from)) units.push(from);
+  }
+  return units;
+}
+
 function convertPreview(qty, fromUnit, toUnit) {
   if (!qty || !fromUnit || !toUnit || fromUnit === toUnit) return null;
   const factor = UNIT_FACTORS[`${fromUnit}->${toUnit}`];
@@ -615,13 +627,20 @@ function FormulasTab({ items, services }) {
                           style={{ padding:'5px 8px', borderRadius:5, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', width:80 }} />
                       </td>
                       <td style={tdStyle}>
-                        {/* Unit selector — defaults to item's unit, can be changed for conversion */}
-                        <input
-                          list="unit-suggestions"
-                          value={row.consumptionUnit || selItem?.unit || ''}
-                          onChange={e => updateRow(row.tempId, 'consumptionUnit', e.target.value)}
-                          placeholder={selItem?.unit || 'unit'}
-                          style={{ ...inputSm, width:60, borderColor: isIncompat ? '#EF4444' : '#38a9c2' }} />
+                        {selItem ? (
+                          <select
+                            value={row.consumptionUnit || selItem.unit}
+                            onChange={e => updateRow(row.tempId, 'consumptionUnit', e.target.value)}
+                            style={{ padding:'4px 6px', borderRadius:5, border:`1px solid ${isIncompat ? '#EF4444' : '#38a9c2'}`, fontSize:13, fontFamily:'inherit', cursor:'pointer' }}>
+                            {compatibleUnits(selItem.unit).map(u => (
+                              <option key={u} value={u}>
+                                {u}{u === selItem.unit ? ' (stock)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span style={{ color:'#9CA3AF', fontSize:12 }}>—</span>
+                        )}
                       </td>
                       <td style={{ ...tdStyle, fontSize:11, color: isIncompat ? '#EF4444' : '#059669', whiteSpace:'nowrap' }}>
                         {preview || (selItem && effectiveUnit === selItem.unit ? <span style={{ color:'#9CA3AF' }}>same unit</span> : null)}
