@@ -10,6 +10,24 @@ const TABS = ['Stock', 'Stock-In / Use', 'Formulas', 'Transactions'];
 
 const UNIT_SUGGESTIONS = ['mL', 'L', 'g', 'kg', 'pcs', 'tank', 'gal', 'sachet', 'pack', 'bottle', 'box', 'bar', 'roll'];
 
+// Mirror of backend conversion table
+const UNIT_FACTORS = {
+  'mL->L':   0.001,        'L->mL':   1000,
+  'mL->gal': 1/3785.41,   'gal->mL': 3785.41,
+  'mL->fl oz': 1/29.5735, 'fl oz->mL': 29.5735,
+  'L->gal':  1/3.78541,   'gal->L':  3.78541,
+  'g->kg':   0.001,        'kg->g':   1000,
+  'g->lb':   1/453.592,   'lb->g':   453.592,
+  'kg->lb':  1/0.453592,  'lb->kg':  0.453592,
+};
+function convertPreview(qty, fromUnit, toUnit) {
+  if (!qty || !fromUnit || !toUnit || fromUnit === toUnit) return null;
+  const factor = UNIT_FACTORS[`${fromUnit}->${toUnit}`];
+  if (!factor) return '⚠️ incompatible units';
+  const result = Number((parseFloat(qty) * factor).toPrecision(4));
+  return `≈ ${result.toLocaleString('en-PH')} ${toUnit} deducted`;
+}
+
 const PESO     = n => `₱${Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const cardStyle = { background:'#fff', border:'0.5px solid #e8e8e0', borderRadius:12, padding:'1rem' };
 const thStyle   = { textAlign:'left', fontSize:12, color:'#6B7280', fontWeight:600, padding:'8px 12px', whiteSpace:'nowrap' };
@@ -377,8 +395,8 @@ function FormulasTab({ items, services }) {
   const [showAdd,    setShowAdd]    = useState(false);
   const [serviceId,  setServiceId]  = useState('');
   const [variant,    setVariant]    = useState('');
-  // rows = [{tempId, item_id, quantity}]
-  const [rows,       setRows]       = useState([{ tempId: 1, item_id: '', quantity: '' }]);
+  // rows = [{tempId, item_id, quantity, consumptionUnit, reason?}]
+  const [rows,       setRows]       = useState([{ tempId: 1, item_id: '', quantity: '', consumptionUnit: '' }]);
   const [saving,     setSaving]     = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [aiError,    setAiError]    = useState('');
@@ -400,11 +418,11 @@ function FormulasTab({ items, services }) {
   const variantOptions  = buildVariantOptions(selectedService);
   const hasVariants     = variantOptions.length > 1;
 
-  function openAdd() { setShowAdd(true); setServiceId(''); setVariant(''); setRows([{ tempId: 1, item_id: '', quantity: '' }]); setAiError(''); }
+  function openAdd() { setShowAdd(true); setServiceId(''); setVariant(''); setRows([{ tempId: 1, item_id: '', quantity: '', consumptionUnit: '' }]); setAiError(''); }
   function closeAdd() { setShowAdd(false); }
 
   function addRow() {
-    setRows(p => [...p, { tempId: Date.now(), item_id: '', quantity: '' }]);
+    setRows(p => [...p, { tempId: Date.now(), item_id: '', quantity: '', consumptionUnit: '' }]);
   }
   function removeRow(tempId) {
     setRows(p => p.filter(r => r.tempId !== tempId));
@@ -426,12 +444,18 @@ function FormulasTab({ items, services }) {
         items: items.map(i => ({ id: i.id, name: i.name, unit: i.unit })),
       });
       if (!suggestions.length) { setAiError('AI found no matching materials for this service.'); return; }
-      setRows(suggestions.map((s, idx) => ({
-        tempId:   idx + 1,
-        item_id:  String(s.item_id),
-        quantity: String(s.quantity_per_order),
-        reason:   s.reason || '',
-      })));
+      setRows(suggestions.map((s, idx) => {
+        const invItem = items.find(i => i.id === s.item_id);
+        // If AI-suggested unit differs from item's stock unit, pre-fill consumptionUnit
+        const consumptionUnit = (s.unit && invItem && s.unit !== invItem.unit) ? s.unit : '';
+        return {
+          tempId:          idx + 1,
+          item_id:         String(s.item_id),
+          quantity:        String(s.quantity_per_order),
+          consumptionUnit,
+          reason:          s.reason || '',
+        };
+      }));
     } catch (e) {
       setAiError(e.response?.data?.error || 'AI suggestion failed — add rows manually.');
     }
@@ -454,6 +478,7 @@ function FormulasTab({ items, services }) {
           quantity_per_order: parseFloat(r.quantity),
           variant_label:      vLabel,
           variant_value:      vValue,
+          consumption_unit:   r.consumptionUnit || null,
         });
         const item = items.find(i => i.id === parseInt(r.item_id));
         saved.push({ ...res.data, service_name: svc?.name, item_name: item?.name, unit: item?.unit });
@@ -556,7 +581,8 @@ function FormulasTab({ items, services }) {
                 <tr style={{ background:'#f9f9f7' }}>
                   <th style={thStyle}>Raw Material</th>
                   <th style={thStyle}>Qty per Order</th>
-                  <th style={thStyle}>Unit</th>
+                  <th style={thStyle}>Consume in</th>
+                  <th style={thStyle}>Conversion</th>
                   {rows[0]?.reason && <th style={thStyle}>AI note</th>}
                   <th style={thStyle}></th>
                 </tr>
@@ -564,10 +590,19 @@ function FormulasTab({ items, services }) {
               <tbody>
                 {rows.map((row) => {
                   const selItem = items.find(i => i.id === parseInt(row.item_id));
+                  const effectiveUnit = row.consumptionUnit || selItem?.unit || '';
+                  const preview = selItem ? convertPreview(row.quantity, effectiveUnit, selItem.unit) : null;
+                  const isIncompat = preview?.startsWith('⚠️');
                   return (
                     <tr key={row.tempId} style={{ borderTop:'0.5px solid #f0f0ec' }}>
                       <td style={tdStyle}>
-                        <select required value={row.item_id} onChange={e => updateRow(row.tempId, 'item_id', e.target.value)}
+                        <select required value={row.item_id}
+                          onChange={e => {
+                            const newItem = items.find(i => i.id === parseInt(e.target.value));
+                            updateRow(row.tempId, 'item_id', e.target.value);
+                            // reset consumptionUnit to item unit on item change
+                            updateRow(row.tempId, 'consumptionUnit', newItem?.unit || '');
+                          }}
                           style={{ padding:'5px 8px', borderRadius:5, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', minWidth:160 }}>
                           <option value="">Select item…</option>
                           {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
@@ -579,7 +614,18 @@ function FormulasTab({ items, services }) {
                           placeholder="e.g. 80"
                           style={{ padding:'5px 8px', borderRadius:5, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', width:80 }} />
                       </td>
-                      <td style={{ ...tdStyle, color:'#6B7280' }}>{selItem?.unit || '—'}</td>
+                      <td style={tdStyle}>
+                        {/* Unit selector — defaults to item's unit, can be changed for conversion */}
+                        <input
+                          list="unit-suggestions"
+                          value={row.consumptionUnit || selItem?.unit || ''}
+                          onChange={e => updateRow(row.tempId, 'consumptionUnit', e.target.value)}
+                          placeholder={selItem?.unit || 'unit'}
+                          style={{ ...inputSm, width:60, borderColor: isIncompat ? '#EF4444' : '#38a9c2' }} />
+                      </td>
+                      <td style={{ ...tdStyle, fontSize:11, color: isIncompat ? '#EF4444' : '#059669', whiteSpace:'nowrap' }}>
+                        {preview || (selItem && effectiveUnit === selItem.unit ? <span style={{ color:'#9CA3AF' }}>same unit</span> : null)}
+                      </td>
                       {rows[0]?.reason && (
                         <td style={{ ...tdStyle, fontSize:11, color:'#7C3AED', maxWidth:200 }}>{row.reason || ''}</td>
                       )}
@@ -642,8 +688,12 @@ function FormulasTab({ items, services }) {
                     {rows.map(f => (
                       <tr key={f.id}>
                         <td style={tdStyle}>{f.item_name}</td>
-                        <td style={{ ...tdStyle, color:'#6B7280' }}>{f.unit}</td>
-                        <td style={tdNum}>{Number(f.quantity_per_order).toLocaleString('en-PH')}</td>
+                        <td style={{ ...tdStyle, color:'#6B7280' }}>
+                          {f.consumption_unit && f.consumption_unit !== f.unit
+                            ? <><strong>{f.consumption_unit}</strong> <span style={{ color:'#9CA3AF' }}>→ {f.unit}</span></>
+                            : f.unit}
+                        </td>
+                        <td style={tdNum}>{Number(f.quantity_per_order).toLocaleString('en-PH')} {f.consumption_unit || f.unit}</td>
                         <td style={tdStyle}>
                           <button onClick={() => removeFormula(f.id)}
                             style={{ fontSize:12, color:'#EF4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>

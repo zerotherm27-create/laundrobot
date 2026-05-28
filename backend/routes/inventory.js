@@ -2,6 +2,30 @@ const router = require('express').Router();
 const auth   = require('../middleware/auth');
 const db     = require('../db');
 
+// Unit conversion table — quantity in fromUnit × factor = quantity in toUnit
+const UNIT_FACTORS = {
+  'mL->L':   0.001,        'L->mL':   1000,
+  'mL->gal': 1/3785.41,   'gal->mL': 3785.41,
+  'mL->fl oz': 1/29.5735, 'fl oz->mL': 29.5735,
+  'L->gal':  1/3.78541,   'gal->L':  3.78541,
+  'g->kg':   0.001,        'kg->g':   1000,
+  'g->lb':   1/453.592,   'lb->g':   453.592,
+  'kg->lb':  1/0.453592,  'lb->kg':  0.453592,
+};
+
+/**
+ * Convert qty from consumptionUnit to itemUnit for stock deduction.
+ * Returns qty unchanged if units are the same or no conversion is needed.
+ * Throws if the unit pair is unknown (incompatible types).
+ */
+function toItemUnit(qty, consumptionUnit, itemUnit) {
+  if (!consumptionUnit || consumptionUnit === itemUnit) return qty;
+  const key = `${consumptionUnit}->${itemUnit}`;
+  const factor = UNIT_FACTORS[key];
+  if (factor == null) throw new Error(`No conversion from ${consumptionUnit} to ${itemUnit}`);
+  return qty * factor;
+}
+
 // GET /inventory/items
 router.get('/items', auth, async (req, res) => {
   try {
@@ -134,7 +158,7 @@ router.get('/formulas', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT sf.id, sf.service_id, sf.item_id, sf.quantity_per_order,
-              sf.variant_label, sf.variant_value,
+              sf.variant_label, sf.variant_value, sf.consumption_unit,
               s.name AS service_name, ii.name AS item_name, ii.unit
        FROM service_formulas sf
        JOIN services s ON s.id = sf.service_id
@@ -150,17 +174,19 @@ router.get('/formulas', auth, async (req, res) => {
 // PUT /inventory/formulas  { service_id, item_id, quantity_per_order, variant_label?, variant_value? }
 router.put('/formulas', auth, async (req, res) => {
   try {
-    const { service_id, item_id, quantity_per_order, variant_label = '', variant_value = '' } = req.body;
+    const { service_id, item_id, quantity_per_order, variant_label = '', variant_value = '', consumption_unit = null } = req.body;
     if (!service_id || !item_id || quantity_per_order == null) {
       return res.status(400).json({ error: 'service_id, item_id, quantity_per_order required' });
     }
     const { rows } = await db.query(
-      `INSERT INTO service_formulas (tenant_id, service_id, item_id, quantity_per_order, variant_label, variant_value)
-       VALUES ($1,$2,$3,$4,$5,$6)
+      `INSERT INTO service_formulas (tenant_id, service_id, item_id, quantity_per_order, variant_label, variant_value, consumption_unit)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT ON CONSTRAINT service_formulas_unique_variant
-       DO UPDATE SET quantity_per_order = EXCLUDED.quantity_per_order
+       DO UPDATE SET quantity_per_order = EXCLUDED.quantity_per_order,
+                     consumption_unit   = EXCLUDED.consumption_unit
        RETURNING *`,
-      [req.user.tenant_id, service_id, item_id, parseFloat(quantity_per_order)||0, variant_label.trim(), variant_value.trim()]
+      [req.user.tenant_id, service_id, item_id, parseFloat(quantity_per_order)||0,
+       variant_label.trim(), variant_value.trim(), consumption_unit?.trim() || null]
     );
     res.json(rows[0]);
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -242,18 +268,26 @@ async function deductInventory(order, tenantId) {
   const orderQty = Math.max(1, parseInt(qtySelection?.value) || 1);
 
   const { rows: formulas } = await db.query(
-    `SELECT item_id, quantity_per_order, variant_label, variant_value
-     FROM service_formulas WHERE tenant_id=$1 AND service_id=$2`,
+    `SELECT sf.item_id, sf.quantity_per_order, sf.variant_label, sf.variant_value,
+            sf.consumption_unit, ii.unit AS item_unit
+     FROM service_formulas sf
+     JOIN inventory_items ii ON ii.id = sf.item_id
+     WHERE sf.tenant_id=$1 AND sf.service_id=$2`,
     [tenantId, order.service_id]
   );
   if (!formulas.length) return;
 
   // Two-pass: collect defaults (all-variants), then override with specific variant matches
+  // itemQty[item_id] = { qty, consumptionUnit, itemUnit }
   const itemQty = {};
   // Pass 1: "all variants" rows (both variant fields are empty string)
   for (const f of formulas) {
     if (!f.variant_label && !f.variant_value) {
-      itemQty[f.item_id] = parseFloat(f.quantity_per_order) || 0;
+      itemQty[f.item_id] = {
+        qty:             parseFloat(f.quantity_per_order) || 0,
+        consumptionUnit: f.consumption_unit || null,
+        itemUnit:        f.item_unit,
+      };
     }
   }
   // Pass 2: exact variant match overrides the default
@@ -263,14 +297,24 @@ async function deductInventory(order, tenantId) {
         s => s.label === f.variant_label && s.value === f.variant_value
       );
       if (matched) {
-        itemQty[f.item_id] = parseFloat(f.quantity_per_order) || 0;
+        itemQty[f.item_id] = {
+          qty:             parseFloat(f.quantity_per_order) || 0,
+          consumptionUnit: f.consumption_unit || null,
+          itemUnit:        f.item_unit,
+        };
       }
     }
   }
 
   const ref = order.booking_ref || order.id;
-  for (const [item_id, qty] of Object.entries(itemQty)) {
-    const totalQty = qty * orderQty;
+  for (const [item_id, { qty, consumptionUnit, itemUnit }] of Object.entries(itemQty)) {
+    let totalQty;
+    try {
+      totalQty = toItemUnit(qty * orderQty, consumptionUnit, itemUnit);
+    } catch (convErr) {
+      console.warn(`[deductInventory] unit conversion skipped for item ${item_id}: ${convErr.message}`);
+      continue;
+    }
     if (totalQty <= 0) continue;
     await db.query(
       `UPDATE inventory_items SET current_stock = GREATEST(0, current_stock - $1)
