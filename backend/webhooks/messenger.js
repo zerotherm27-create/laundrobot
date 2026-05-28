@@ -458,32 +458,18 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
-  // ── Messenger: auto-show welcome menu on first message ──────────────
-  if (channel === 'messenger' && step === 'START' && !event.postback) {
+  // ── Welcome menu on first message — only shown when AI is OFF ───────
+  // When AI is enabled, the AI handles the first message naturally and
+  // recommends typing "book" when the customer is ready. The menu still
+  // appears if the customer explicitly types "hi", "menu", etc. (below).
+  if (step === 'START' && !event.postback && !tenant.ai_enabled) {
     const greeting = customer.name
       ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome to ${tenant.name}!`
       : `👋 Hi! Welcome to ${tenant.name}!`;
     await sendButtons(token, senderId,
       `${greeting}\n\nWhat would you like to do?`,
       [
-        bookBtn(tenant.id, senderId, tenant.custom_domain),
-        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
-      ]
-    );
-    await setState('MENU', {}, {});
-    return;
-  }
-
-  // ── Instagram: auto-show welcome menu on first message ───────────────
-  if (channel === 'instagram' && step === 'START' && !event.postback) {
-    const greeting = customer.name
-      ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome to ${tenant.name}!`
-      : `👋 Hi! Welcome to ${tenant.name}!`;
-    await sendButtons(token, senderId,
-      `${greeting}\n\nWhat would you like to do?`,
-      [
-        bookBtn(tenant.id, null, tenant.custom_domain),
+        bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
         { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
         { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
       ]
