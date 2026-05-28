@@ -409,7 +409,7 @@ export default function Kanban() {
                     {/* Price + paid */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_COLORS[status] }}>
-                        ₱{Number(g.price).toLocaleString()}
+                        ₱{bookingGrandTotal(g).toLocaleString()}
                       </span>
                       <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, fontWeight: 600, background: g.paid ? '#EAF3DE' : '#FCEBEB', color: g.paid ? '#3B6D11' : '#A32D2D' }}>
                         {g.paid ? 'Paid' : 'Unpaid'}
