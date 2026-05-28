@@ -61,15 +61,19 @@ function qtyDisplay(weight, customSelections) {
 export default function InvoiceDocument({ order, shop }) {
   const deliveryFee    = Number(order.delivery_fee || 0);
   const promoDiscount  = Number(order.promo_discount || 0);
-  const grandTotal     = Number(order.price || 0);
-  const servicesSubtotal = grandTotal - deliveryFee + promoDiscount;
 
+  // order.price is service subtotal only — grand total = price + delivery_fee - promo_discount
   const isMulti = order.services && order.services.length > 1;
+  const servicesSubtotal = isMulti
+    ? order.services.reduce((s, sv) => s + Number(sv.price || 0), 0)
+    : Number(order.price || 0);
+  const grandTotal = servicesSubtotal + deliveryFee - promoDiscount;
+
   const serviceRows = isMulti
-    ? order.services.map((sv, i) => ({
+    ? order.services.map((sv) => ({
         name:  sv.service_name || '—',
         unit:  qtyDisplay(sv.weight, sv.custom_selections),
-        price: i === 0 ? Number(sv.price) - deliveryFee : Number(sv.price),
+        price: Number(sv.price),
       }))
     : [{
         name:  order.service_name || '—',
