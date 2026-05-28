@@ -424,7 +424,22 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
         'UPDATE conversations SET needs_human=FALSE, needs_human_at=NULL, step=$1, data=$2 WHERE tenant_id=$3 AND fb_user_id=$4',
         ['START', '{}', tenant.id, senderId]
       );
-      // Fall through to normal START handling below
+      // Show welcome menu and return — do NOT fall through.
+      // (step is already read as a const above and still holds the old value,
+      //  so falling through would skip the welcome check and hit the AI fallback.)
+      const greeting = customer.name
+        ? `👋 Hi, ${customer.name.split(' ')[0]}! Welcome back to ${tenant.name}!`
+        : `👋 Hi! Welcome to ${tenant.name}!`;
+      await sendButtons(token, senderId,
+        `${greeting}\n\nWhat would you like to do?`,
+        [
+          bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain),
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+        ]
+      );
+      await setState('MENU', {}, {});
+      return;
     } else {
       // Still waiting for human — stay silent
       return;
@@ -924,13 +939,14 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Fallback — try AI first, then default menu ───────────────────────
   console.log('[ai-check] ai_enabled:', tenant.ai_enabled, '| has text:', !!event.message?.text, '| step:', step, '| text:', text);
   if (tenant.ai_enabled && event.message?.text) {
-    // Skip AI if human replied recently (pause window active)
+    // Skip AI if human is engaged or replied recently
     const { rows: [pauseRow] } = await db.query(
-      `SELECT ai_paused_until FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+      `SELECT ai_paused_until, needs_human FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
       [tenant.id, senderId]
     );
+    if (pauseRow?.needs_human) return; // human takeover — stay silent
     if (pauseRow?.ai_paused_until && new Date(pauseRow.ai_paused_until) > new Date()) {
-      return; // human takeover active — stay silent
+      return; // human replied recently — stay silent
     }
     // Check daily cap — reset counter if day has changed
     const today = new Date().toISOString().slice(0, 10);

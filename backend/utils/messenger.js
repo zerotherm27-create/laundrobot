@@ -11,9 +11,30 @@ async function sendTyping(token, recipientId, on = true) {
   await post(token, { recipient: { id: recipientId }, sender_action: on ? 'typing_on' : 'typing_off' });
 }
 
-// Plain text message
+// Split long text at paragraph/sentence boundaries (FB limit: 2000 chars)
+function chunkText(text, maxLen = 1990) {
+  if (text.length <= maxLen) return [text];
+  const chunks = [];
+  let remaining = text;
+  while (remaining.length > maxLen) {
+    let cut = remaining.lastIndexOf('\n\n', maxLen);
+    if (cut < 500) cut = remaining.lastIndexOf('\n', maxLen);
+    if (cut < 500) cut = remaining.lastIndexOf('. ', maxLen);
+    if (cut < 500) cut = maxLen;
+    else cut = cut + (remaining[cut] === '.' ? 2 : 1); // include the period/newline
+    chunks.push(remaining.slice(0, cut).trimEnd());
+    remaining = remaining.slice(cut).trimStart();
+  }
+  if (remaining.length) chunks.push(remaining);
+  return chunks;
+}
+
+// Plain text message — auto-chunks if over FB's 2000-char limit
 async function sendMessage(token, recipientId, text) {
-  await post(token, { recipient: { id: recipientId }, message: { text } });
+  const chunks = chunkText(text);
+  for (const chunk of chunks) {
+    await post(token, { recipient: { id: recipientId }, message: { text: chunk } });
+  }
 }
 
 // POST_PURCHASE_UPDATE tag — Meta-approved for order/payment updates outside 24-hr window
