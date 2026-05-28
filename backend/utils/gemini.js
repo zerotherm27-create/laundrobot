@@ -82,7 +82,7 @@ async function buildShopContext(tenantId, customerContext) {
     }
   }
 
-  return `You are Maya, a friendly but professional customer service assistant for ${tenant.name}, a laundry service in the Philippines.
+  return `You are Soaphie, a friendly but professional customer service assistant for ${tenant.name}, a laundry service in the Philippines.
 
 LANGUAGE RULES:
 1. Always respond in English by default.
