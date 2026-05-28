@@ -166,6 +166,59 @@ router.put('/formulas', auth, async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// POST /inventory/formulas/suggest — AI suggests raw materials for a service
+router.post('/formulas/suggest', auth, async (req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'AI not configured' });
+
+  const { service_name, service_description, items } = req.body;
+  if (!service_name || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'service_name and items required' });
+  }
+
+  const itemList = items.map(i => `- ${i.name} (${i.unit}, id:${i.id})`).join('\n');
+  const prompt = `You are helping a laundry shop set up consumption formulas for inventory tracking.
+
+Service: ${service_name}${service_description ? `\nDescription: ${service_description}` : ''}
+
+Available inventory items:
+${itemList}
+
+Task: Suggest which of the above inventory items would realistically be consumed when completing ONE order of this laundry service, and estimate reasonable quantities per order.
+
+Rules:
+- Only suggest items from the list above (use the exact id and name).
+- Be practical — a typical laundry load uses 60–100 mL detergent, 30–60 mL fabric conditioner, etc.
+- If an item clearly doesn't apply to this service, don't include it.
+- For dry cleaning: suggest dry-cleaning solvent if available, skip detergent/water items.
+- For ironing/press: skip wash-related supplies.
+- Return JSON array only. No explanation outside the JSON.
+
+Return format:
+[{"item_id": <number>, "item_name": "<string>", "unit": "<string>", "quantity_per_order": <number>, "reason": "<brief reason>"}]`;
+
+  try {
+    const axios = require('axios');
+    const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    const { data } = await axios.post(
+      `${GEMINI_URL}?key=${apiKey}`,
+      {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 600, temperature: 0.3 },
+      },
+      { timeout: 15000 }
+    );
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const json = raw.replace(/^```json\n?|\n?```$/g, '').replace(/^```\n?|\n?```$/g, '');
+    const suggestions = JSON.parse(json);
+    if (!Array.isArray(suggestions)) throw new Error('not an array');
+    res.json(suggestions);
+  } catch (e) {
+    console.error('[formula-suggest]', e.message);
+    res.status(500).json({ error: 'AI suggestion failed — try again or add manually.' });
+  }
+});
+
 // DELETE /inventory/formulas/:id
 router.delete('/formulas/:id', auth, async (req, res) => {
   try {

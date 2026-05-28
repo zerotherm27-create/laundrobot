@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   getInventoryItems, createInventoryItem, updateInventoryItem, deleteInventoryItem,
   stockIn, stockOut, getInventoryTransactions, getInventoryFormulas, upsertFormula,
-  deleteFormula, getServices,
+  deleteFormula, suggestFormula, getServices,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 
@@ -372,11 +372,16 @@ function FormulasWall() {
 
 function FormulasTab({ items, services }) {
   const { isGrowthOrAbove } = usePlan();
-  const [formulas, setFormulas] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [showAdd,  setShowAdd]  = useState(false);
-  const [form,     setForm]     = useState({ service_id:'', item_id:'', quantity_per_order:'', variant:'' });
-  const [saving,   setSaving]   = useState(false);
+  const [formulas,   setFormulas]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [showAdd,    setShowAdd]    = useState(false);
+  const [serviceId,  setServiceId]  = useState('');
+  const [variant,    setVariant]    = useState('');
+  // rows = [{tempId, item_id, quantity}]
+  const [rows,       setRows]       = useState([{ tempId: 1, item_id: '', quantity: '' }]);
+  const [saving,     setSaving]     = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [aiError,    setAiError]    = useState('');
 
   useEffect(() => {
     getInventoryFormulas()
@@ -391,48 +396,80 @@ function FormulasTab({ items, services }) {
     </div>
   );
 
-  // When service changes, reset variant
-  function onServiceChange(svcId) {
-    setForm(p => ({ ...p, service_id: svcId, variant: '' }));
+  const selectedService = services.find(s => s.id === parseInt(serviceId));
+  const variantOptions  = buildVariantOptions(selectedService);
+  const hasVariants     = variantOptions.length > 1;
+
+  function openAdd() { setShowAdd(true); setServiceId(''); setVariant(''); setRows([{ tempId: 1, item_id: '', quantity: '' }]); setAiError(''); }
+  function closeAdd() { setShowAdd(false); }
+
+  function addRow() {
+    setRows(p => [...p, { tempId: Date.now(), item_id: '', quantity: '' }]);
+  }
+  function removeRow(tempId) {
+    setRows(p => p.filter(r => r.tempId !== tempId));
+  }
+  function updateRow(tempId, field, val) {
+    setRows(p => p.map(r => r.tempId === tempId ? { ...r, [field]: val } : r));
   }
 
-  const selectedService = services.find(s => s.id === parseInt(form.service_id));
-  const variantOptions  = buildVariantOptions(selectedService);
-  const hasVariants     = variantOptions.length > 1; // more than just "All variations"
-
-  async function addFormula(e) {
-    e.preventDefault();
-    if (!form.service_id || !form.item_id || !form.quantity_per_order) return;
-    setSaving(true);
+  async function handleAiSuggest() {
+    if (!serviceId) { setAiError('Select a service first.'); return; }
+    if (!items.length) { setAiError('Add inventory items first.'); return; }
+    setAiError('');
+    setSuggesting(true);
     try {
-      // Parse variant string "label::value" or "" for all
-      const [vLabel = '', vValue = ''] = form.variant ? form.variant.split('::') : ['', ''];
-      const r = await upsertFormula({
-        service_id:         parseInt(form.service_id),
-        item_id:            parseInt(form.item_id),
-        quantity_per_order: parseFloat(form.quantity_per_order),
-        variant_label:      vLabel,
-        variant_value:      vValue,
+      const svc = services.find(s => s.id === parseInt(serviceId));
+      const { data: suggestions } = await suggestFormula({
+        service_name:        svc?.name || '',
+        service_description: svc?.description || '',
+        items: items.map(i => ({ id: i.id, name: i.name, unit: i.unit })),
       });
-      const svc  = services.find(s => s.id === parseInt(form.service_id));
-      const item = items.find(i => i.id === parseInt(form.item_id));
-      setFormulas(p => {
-        // Replace if same service+item+variant combo
-        const filtered = p.filter(f =>
-          !(f.service_id  === parseInt(form.service_id) &&
-            f.item_id     === parseInt(form.item_id)    &&
-            (f.variant_label||'') === vLabel            &&
-            (f.variant_value||'') === vValue)
-        );
-        return [...filtered, {
-          ...r.data,
-          service_name: svc?.name,
-          item_name:    item?.name,
-          unit:         item?.unit,
-        }];
+      if (!suggestions.length) { setAiError('AI found no matching materials for this service.'); return; }
+      setRows(suggestions.map((s, idx) => ({
+        tempId:   idx + 1,
+        item_id:  String(s.item_id),
+        quantity: String(s.quantity_per_order),
+        reason:   s.reason || '',
+      })));
+    } catch (e) {
+      setAiError(e.response?.data?.error || 'AI suggestion failed — add rows manually.');
+    }
+    setSuggesting(false);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    const validRows = rows.filter(r => r.item_id && r.quantity);
+    if (!serviceId || !validRows.length) return;
+    setSaving(true);
+    const [vLabel = '', vValue = ''] = variant ? variant.split('::') : ['', ''];
+    const svc = services.find(s => s.id === parseInt(serviceId));
+    try {
+      const saved = [];
+      for (const r of validRows) {
+        const res = await upsertFormula({
+          service_id:         parseInt(serviceId),
+          item_id:            parseInt(r.item_id),
+          quantity_per_order: parseFloat(r.quantity),
+          variant_label:      vLabel,
+          variant_value:      vValue,
+        });
+        const item = items.find(i => i.id === parseInt(r.item_id));
+        saved.push({ ...res.data, service_name: svc?.name, item_name: item?.name, unit: item?.unit });
+      }
+      setFormulas(prev => {
+        let updated = [...prev];
+        for (const s of saved) {
+          updated = updated.filter(f =>
+            !(f.service_id === s.service_id && f.item_id === s.item_id &&
+              (f.variant_label||'') === vLabel && (f.variant_value||'') === vValue)
+          );
+          updated.push(s);
+        }
+        return updated;
       });
-      setForm(p => ({ ...p, item_id:'', quantity_per_order:'', variant:'' }));
-      setShowAdd(false);
+      closeAdd();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save formula.');
     }
@@ -463,15 +500,14 @@ function FormulasTab({ items, services }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       <div style={{ background:'#F0F9FF', border:'0.5px solid #BAE6FD', borderRadius:8, padding:'10px 14px', marginBottom:8, fontSize:12, color:'#0369A1', lineHeight:1.7 }}>
-        💡 <strong>How formulas work:</strong> A formula tells the system how much of a supply is used each time a specific service order is completed. When an order is marked <strong>Completed</strong> in the Kanban board, the stock is automatically deducted.<br/>
-        Example: <em>Machine Wash → Detergent: 80 mL (all sizes). Or set per-variation: Small Bag → 60 mL, Large Bag → 120 mL.</em><br/>
-        <span style={{ color:'#0284C7' }}>Variation-specific rules override the "All variations" default for matched orders. LPG/electricity are better logged manually.</span>
+        💡 <strong>How formulas work:</strong> Set which supplies are consumed when an order is completed — stock deducts automatically. Supports multiple materials per service and per-variation amounts.<br/>
+        Example: <em>Machine Wash → Detergent 80 mL + Fabric Con 30 mL. Or per-variation: Small Bag → 60 mL, Large Bag → 120 mL.</em>
       </div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <p style={{ fontSize:13, color:'#6B7280', margin:0 }}>
-          Set how much of each supply is consumed when an order is marked <strong>Completed</strong>. Supports per-variation amounts (e.g. different bag sizes).
+          Set how much of each supply is consumed when an order is marked <strong>Completed</strong>.
         </p>
-        <button onClick={() => setShowAdd(p=>!p)}
+        <button onClick={openAdd}
           style={{ padding:'7px 16px', fontSize:13, borderRadius:8, cursor:'pointer', background:'#38a9c2', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit', flexShrink:0, marginLeft:12 }}>
           + Add Formula
         </button>
@@ -479,67 +515,102 @@ function FormulasTab({ items, services }) {
 
       {showAdd && (
         <div style={cardStyle}>
-          <div style={{ fontSize:13, fontWeight:600, marginBottom:12, color:'#111827' }}>New Consumption Formula</div>
-          {services.length === 0 && (
-            <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'8px 12px', marginBottom:12 }}>
-              No services found. Add services in <strong>Services &amp; Pricing</strong> first, then come back here.
-            </div>
-          )}
-          {items.length === 0 && (
-            <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:8, padding:'8px 12px', marginBottom:12 }}>
-              No inventory items yet. Add items in the <strong>Stock</strong> tab first.
-            </div>
-          )}
-          <form onSubmit={addFormula} style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'flex-end' }}>
+          <div style={{ fontSize:13, fontWeight:700, marginBottom:14, color:'#111827' }}>New Consumption Formula</div>
+
+          {/* Service + Variation selectors */}
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginBottom:14 }}>
             <div>
               <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Service</div>
-              <select required value={form.service_id} onChange={e => onServiceChange(e.target.value)}
-                disabled={services.length === 0}
-                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: services.length ? 'pointer' : 'not-allowed', minWidth:160, opacity: services.length ? 1 : 0.6 }}>
-                <option value="">{services.length ? 'Select service…' : 'No services available'}</option>
+              <select required value={serviceId} onChange={e => { setServiceId(e.target.value); setVariant(''); setAiError(''); }}
+                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', minWidth:180 }}>
+                <option value="">Select service…</option>
                 {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
-
-            {/* Variation picker — only shown when service has select-type custom fields */}
-            {form.service_id && hasVariants && (
+            {serviceId && hasVariants && (
               <div>
                 <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Variation</div>
-                <select value={form.variant} onChange={e => setForm(p=>({...p,variant:e.target.value}))}
-                  style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #38a9c2', fontSize:13, fontFamily:'inherit', cursor:'pointer', minWidth:200, background:'#F0F9FF' }}>
-                  {variantOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
+                <select value={variant} onChange={e => setVariant(e.target.value)}
+                  style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #38a9c2', fontSize:13, fontFamily:'inherit', minWidth:200, background:'#F0F9FF' }}>
+                  {variantOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
             )}
+            {/* AI suggest button */}
+            <div style={{ display:'flex', alignItems:'flex-end' }}>
+              <button type="button" onClick={handleAiSuggest} disabled={suggesting || !serviceId}
+                style={{ padding:'6px 14px', fontSize:13, borderRadius:6, cursor: serviceId ? 'pointer' : 'not-allowed', background: serviceId ? '#7C3AED' : '#E5E7EB', color: serviceId ? '#fff' : '#9CA3AF', border:'none', fontWeight:600, fontFamily:'inherit', display:'flex', alignItems:'center', gap:5, opacity: suggesting ? 0.7 : 1 }}>
+                {suggesting ? '✨ Thinking…' : '✨ AI Suggest'}
+              </button>
+            </div>
+          </div>
 
-            <div>
-              <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>Raw Material</div>
-              <select required value={form.item_id} onChange={e => setForm(p=>({...p,item_id:e.target.value}))}
-                disabled={items.length === 0}
-                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', cursor: items.length ? 'pointer' : 'not-allowed', minWidth:160, opacity: items.length ? 1 : 0.6 }}>
-                <option value="">{items.length ? 'Select item…' : 'No items yet — add in Stock tab'}</option>
-                {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize:11, color:'#6B7280', marginBottom:3 }}>
-                Qty per order ({items.find(i=>i.id===parseInt(form.item_id))?.unit || 'unit'})
+          {aiError && (
+            <div style={{ fontSize:12, color:'#B45309', background:'#FEF3C7', borderRadius:6, padding:'7px 12px', marginBottom:12 }}>{aiError}</div>
+          )}
+
+          {/* Multi-row material table */}
+          <form onSubmit={handleSave}>
+            <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:10 }}>
+              <thead>
+                <tr style={{ background:'#f9f9f7' }}>
+                  <th style={thStyle}>Raw Material</th>
+                  <th style={thStyle}>Qty per Order</th>
+                  <th style={thStyle}>Unit</th>
+                  {rows[0]?.reason && <th style={thStyle}>AI note</th>}
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const selItem = items.find(i => i.id === parseInt(row.item_id));
+                  return (
+                    <tr key={row.tempId} style={{ borderTop:'0.5px solid #f0f0ec' }}>
+                      <td style={tdStyle}>
+                        <select required value={row.item_id} onChange={e => updateRow(row.tempId, 'item_id', e.target.value)}
+                          style={{ padding:'5px 8px', borderRadius:5, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', minWidth:160 }}>
+                          <option value="">Select item…</option>
+                          {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
+                        </select>
+                      </td>
+                      <td style={tdStyle}>
+                        <input required type="number" min="0.001" step="any" value={row.quantity}
+                          onChange={e => updateRow(row.tempId, 'quantity', e.target.value)}
+                          placeholder="e.g. 80"
+                          style={{ padding:'5px 8px', borderRadius:5, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', width:80 }} />
+                      </td>
+                      <td style={{ ...tdStyle, color:'#6B7280' }}>{selItem?.unit || '—'}</td>
+                      {rows[0]?.reason && (
+                        <td style={{ ...tdStyle, fontSize:11, color:'#7C3AED', maxWidth:200 }}>{row.reason || ''}</td>
+                      )}
+                      <td style={tdStyle}>
+                        {rows.length > 1 && (
+                          <button type="button" onClick={() => removeRow(row.tempId)}
+                            style={{ fontSize:12, color:'#EF4444', background:'none', border:'none', cursor:'pointer', padding:0 }}>✕</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8 }}>
+              <button type="button" onClick={addRow}
+                style={{ fontSize:12, color:'#38a9c2', background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:600 }}>
+                + Add another material
+              </button>
+              <div style={{ display:'flex', gap:8 }}>
+                <button type="submit" disabled={saving || !serviceId || !rows.some(r => r.item_id && r.quantity)}
+                  style={{ padding:'7px 18px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#059669', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
+                  {saving ? 'Saving…' : `Save ${rows.filter(r=>r.item_id&&r.quantity).length} material${rows.filter(r=>r.item_id&&r.quantity).length===1?'':'s'}`}
+                </button>
+                <button type="button" onClick={closeAdd}
+                  style={{ padding:'7px 12px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#F3F4F6', color:'#374151', border:'none', fontFamily:'inherit' }}>
+                  Cancel
+                </button>
               </div>
-              <input required type="number" min="0.001" step="any" value={form.quantity_per_order}
-                onChange={e => setForm(p=>({...p,quantity_per_order:e.target.value}))}
-                placeholder="e.g. 80"
-                style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', width:90 }} />
             </div>
-            <button type="submit" disabled={saving}
-              style={{ padding:'7px 16px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#059669', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" onClick={() => setShowAdd(false)}
-              style={{ padding:'7px 12px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#F3F4F6', color:'#374151', border:'none', fontFamily:'inherit' }}>
-              Cancel
-            </button>
           </form>
         </div>
       )}
@@ -554,7 +625,6 @@ function FormulasTab({ items, services }) {
             <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:'#111827' }}>{g.service_name}</div>
             {Object.entries(g.subgroups).map(([vKey, rows]) => (
               <div key={vKey} style={{ marginBottom:16 }}>
-                {/* Variation sub-header */}
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                   <span style={{
                     fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:20,

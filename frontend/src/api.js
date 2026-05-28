@@ -186,5 +186,6 @@ export const getInventoryTransactions = (params)         => api.get('/inventory/
 export const getInventoryFormulas     = ()               => api.get('/inventory/formulas');
 export const upsertFormula            = data             => api.put('/inventory/formulas', data);
 export const deleteFormula            = id               => api.delete(`/inventory/formulas/${id}`);
+export const suggestFormula           = data             => api.post('/inventory/formulas/suggest', data);
 
 export default api;
