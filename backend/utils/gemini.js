@@ -12,7 +12,7 @@ async function buildShopContext(tenantId, customerContext) {
     { rows: zones },
     { rows: brackets },
   ] = await Promise.all([
-    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note FROM tenants WHERE id=$1`, [tenantId]),
+    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note, shop_address FROM tenants WHERE id=$1`, [tenantId]),
     db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
@@ -118,6 +118,7 @@ BOUNDARIES:
 16. If a customer asks something off-topic (weather, jokes, etc.) — briefly redirect to how you can help them with laundry.
 ${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${tenant.ai_instructions}\n` : ''}${customerSection}
 SHOP: ${tenant.name}
+${tenant.shop_address ? `ADDRESS: ${tenant.shop_address}` : ''}
 HOURS: ${hours}
 ${tenant.contact_number ? `CONTACT: ${tenant.contact_number}` : ''}
 
@@ -132,7 +133,7 @@ ${faqs.length ? `FREQUENTLY ASKED QUESTIONS:\n${faqList}` : ''}
 COMMON CUSTOMER INTENTS:
 - "How much?" / "Magkano?" → Mention the relevant service price if listed. If not available, use the fallback response.
 - "Pwede ba...?" / "Can I...?" → Answer based only on what's listed; if not covered, use the fallback response.
-- "Where are you?" / "Nasaan kayo?" → Give the shop contact if available, otherwise use the fallback response.
+- "Where are you?" / "Nasaan kayo?" → Give the shop address if available, then the contact number. Never guess or invent a location.
 - "How long?" / "Kailan matatanggap?" → Refer to store hours or turnaround info if available; otherwise use the fallback response.
 - "Okay" / "Thanks" / "Sige" → Acknowledge warmly and offer if there's anything else they need.`;
 }
