@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings } from '../api.js';
+import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings, getFinanceDailySales, getFinanceCustomerRetention } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
@@ -14,6 +14,76 @@ const STAT_META = [
   { label: 'Orders Today',   iconName: 'calendar',  color: '#1D9E75', bg: '#EAF3DE', border: '#1D9E75' },
 ];
 
+// Mini grouped bar chart for new vs repeat customers (12 months)
+function MiniRetentionChart({ months }) {
+  const [hov, setHov] = useState(null);
+  if (!months || !months.some(m => m.total > 0)) return null;
+
+  const VW = 560, VH = 130;
+  const PL = 28, PR = 8, PT = 10, PB = 24;
+  const plotW = VW - PL - PR, plotH = VH - PT - PB;
+  const maxVal = Math.max(...months.map(m => (m.newCustomers || 0) + (m.repeatCustomers || 0)), 1);
+  const bSlot  = plotW / 12;
+  const gW     = bSlot * 0.70;
+  const bW     = (gW - 2) / 2;
+  const ys     = v => PT + plotH - Math.max(0, Math.min(v, maxVal) / maxVal * plotH);
+  const MO     = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+
+  return (
+    <div style={{ position: 'relative', userSelect: 'none' }}>
+      <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
+        onMouseLeave={() => setHov(null)}>
+        <line x1={PL} y1={PT + plotH} x2={VW - PR} y2={PT + plotH} stroke="#E5E7EB" strokeWidth="1" />
+        {months.map((m, i) => {
+          const nc  = m.newCustomers    || 0;
+          const rc  = m.repeatCustomers || 0;
+          const cx  = PL + i * bSlot + bSlot / 2;
+          const bx  = cx - gW / 2;
+          const isH = hov === i;
+          return (
+            <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
+              {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH} fill="#38a9c2" fillOpacity="0.06" rx="2" />}
+              <rect x={bx}          y={ys(nc)} width={bW} height={Math.max(0, (nc / maxVal) * plotH)} fill="#059669" rx="1" opacity={isH ? 1 : 0.80} />
+              <rect x={bx + bW + 2} y={ys(rc)} width={bW} height={Math.max(0, (rc / maxVal) * plotH)} fill="#38a9c2" rx="1" opacity={isH ? 1 : 0.80} />
+              <text x={cx} y={VH - 4} textAnchor="middle" fontSize="7.5" fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '700' : '400'}>
+                {MO[m.month - 1]}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {hov !== null && (() => {
+        const m   = months[hov];
+        const ret = m.total > 0 ? Math.round((m.repeatCustomers / m.total) * 100) : 0;
+        const lp  = ((hov + 0.5) / 12) * 100;
+        const MO2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return (
+          <div style={{
+            position: 'absolute', top: 6, left: `${lp}%`,
+            transform: hov >= 9 ? 'translateX(calc(-100% - 4px))' : 'translateX(4px)',
+            background: '#1F2937', color: '#F9FAFB', borderRadius: 7, padding: '6px 10px',
+            fontSize: 10, lineHeight: 1.8, whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+          }}>
+            <div style={{ fontWeight: 700, marginBottom: 1 }}>{MO2[m.month - 1]}</div>
+            <div style={{ color: '#6EE7B7' }}>New: {m.newCustomers || 0}</div>
+            <div style={{ color: '#93C5FD' }}>Repeat: {m.repeatCustomers || 0}</div>
+            <div style={{ color: '#9CA3AF' }}>Retention: {ret}%</div>
+          </div>
+        );
+      })()}
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 6 }}>
+        {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
+          <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#6B7280' }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
+            {x.l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = (Date.now() - new Date(dateStr)) / 1000;
@@ -25,15 +95,22 @@ function timeAgo(dateStr) {
 
 export default function Overview() {
   const { user } = useAuth();
-  const [orders,      setOrders]     = useState([]);
-  const [loading,     setLoading]    = useState(true);
-  const [copied,      setCopied]     = useState(false);
-  const [humanConvs,  setHumanConvs] = useState([]);
-  const [releasing,   setReleasing]  = useState(null);
-  const [replyMsg,    setReplyMsg]   = useState({});
+  const now      = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const curYear  = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
+
+  const [orders,       setOrders]       = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [copied,       setCopied]       = useState(false);
+  const [humanConvs,   setHumanConvs]   = useState([]);
+  const [releasing,    setReleasing]    = useState(null);
+  const [replyMsg,     setReplyMsg]     = useState({});
   const [customDomain, setCustomDomain] = useState('');
   const [tenantPlan,   setTenantPlan]   = useState('');
   const [fbPageId,     setFbPageId]     = useState('');
+  const [todaySales,   setTodaySales]   = useState([]);
+  const [retention,    setRetention]    = useState(null);
 
   const bookingUrl = fbPageId
     ? `https://m.me/${fbPageId}`
@@ -54,6 +131,12 @@ export default function Overview() {
       setTenantPlan(r.data.plan || '');
       setFbPageId(r.data.fb_page_id || '');
     }).catch(() => {});
+    getFinanceDailySales(todayStr)
+      .then(r => setTodaySales(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+    getFinanceCustomerRetention(curYear, curMonth)
+      .then(r => setRetention(r.data && typeof r.data === 'object' ? r.data : null))
+      .catch(() => {});
   }, []);
 
   async function handleRelease(fbUserId) {
@@ -66,10 +149,11 @@ export default function Overview() {
     finally { setReleasing(null); }
   }
 
-  const revenue     = orders.filter(o => o.paid && o.status !== 'CANCELLED').reduce((s, o) => s + Number(o.price), 0);
-  const active      = orders.filter(o => !['COMPLETED','CANCELLED'].includes(o.status)).length;
-  const today       = new Date().toISOString().slice(0, 10);
-  const todayOrders = orders.filter(o => o.created_at?.slice(0, 10) === today).length;
+  const revenue      = orders.filter(o => o.paid && o.status !== 'CANCELLED').reduce((s, o) => s + Number(o.price), 0);
+  const active       = orders.filter(o => !['COMPLETED','CANCELLED'].includes(o.status)).length;
+  const today        = new Date().toISOString().slice(0, 10);
+  const todayOrders  = orders.filter(o => o.created_at?.slice(0, 10) === today).length;
+  const todayRevenue = todaySales.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
 
   const stats = [
     { label: 'Total Revenue', val: '₱' + revenue.toLocaleString('en-PH'), sub: `${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
@@ -198,6 +282,68 @@ export default function Overview() {
             </div>
           );
         })}
+      </div>
+
+      {/* ── Today's Revenue banner ── */}
+      <div style={{
+        background: 'linear-gradient(135deg,#1D9E75,#15795B)',
+        borderRadius: 14, padding: '1rem 1.4rem', marginBottom: '1.75rem',
+        display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+      }}>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Today's Revenue</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1 }}>
+            ₱{todayRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Transactions', val: todaySales.length },
+            { label: 'Paid',         val: todaySales.filter(r => r.paid).length },
+            { label: 'Unpaid',       val: todaySales.filter(r => !r.paid).length },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Customer Retention ── */}
+      <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)', marginBottom: '1.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Customer Retention</div>
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+            {new Date().toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}
+          </span>
+        </div>
+
+        {/* Tiles */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginBottom: 16 }}>
+          {[
+            { label: 'Total Customers', val: retention?.total           ?? '—', color: '#374151', bg: '#F9FAFB', border: '#E5E7EB' },
+            { label: 'New Customers',   val: retention?.newCustomers    ?? '—', color: '#059669', bg: '#F0FDF4', border: '#BBF7D0' },
+            { label: 'Repeat Customers',val: retention?.repeatCustomers ?? '—', color: '#38a9c2', bg: '#F0F9FF', border: '#BAE6FD' },
+            { label: 'All-Time Total',  val: retention?.allTimeTotal    ?? '—', color: '#7F77DD', bg: '#F5F3FF', border: '#DDD6FE' },
+            { label: 'Retention Rate',  val: retention?.total > 0 ? `${Math.round(retention.retentionRate)}%` : '—',
+              color: retention?.retentionRate >= 50 ? '#059669' : '#BA7517',
+              bg: '#FFFBEB', border: '#FDE68A' },
+          ].map(s => (
+            <div key={s.label} style={{ background: s.bg, border: `0.5px solid ${s.border}`, borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Chart */}
+        {retention?.months && <MiniRetentionChart months={retention.months} />}
       </div>
 
       {/* ── Bottom grid ── */}

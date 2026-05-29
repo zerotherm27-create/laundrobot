@@ -72,6 +72,25 @@ export default function Reports() {
     count: filtered.filter(o => o.status === s).length,
   }));
 
+  // Customer retention — within the filtered period
+  // "New" = customer whose first ever order (across all orders) falls within the period
+  // "Repeat" = had at least one order before the period start
+  const periodStart = start;
+  const customerFirstOrder = {};
+  for (const o of orders) {
+    if (!o.customer_id) continue;
+    const d = new Date(o.created_at);
+    if (!customerFirstOrder[o.customer_id] || d < customerFirstOrder[o.customer_id]) {
+      customerFirstOrder[o.customer_id] = d;
+    }
+  }
+  const periodCustomerIds = [...new Set(filtered.filter(o => o.customer_id).map(o => o.customer_id))];
+  const retentionNewCount    = periodCustomerIds.filter(id => customerFirstOrder[id] >= periodStart).length;
+  const retentionRepeatCount = periodCustomerIds.filter(id => customerFirstOrder[id] <  periodStart).length;
+  const retentionTotal       = periodCustomerIds.length;
+  const retentionRate        = retentionTotal > 0 ? (retentionRepeatCount / retentionTotal) * 100 : 0;
+  const allTimeCustomers     = Object.keys(customerFirstOrder).length;
+
   // Group orders by day for chart
   const byDay = filtered.reduce((acc, o) => {
     const day = new Date(o.created_at).toLocaleDateString();
@@ -222,6 +241,54 @@ export default function Reports() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Customer Retention */}
+          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Customer Retention</div>
+            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 10, marginBottom: 16 }}>
+              {[
+                { label: 'Active Customers',  val: retentionTotal,       color: '#374151', bg: '#F9FAFB' },
+                { label: 'New Customers',      val: retentionNewCount,    color: '#059669', bg: '#F0FDF4' },
+                { label: 'Repeat Customers',   val: retentionRepeatCount, color: '#38a9c2', bg: '#F0F9FF' },
+                { label: 'Retention Rate',     val: retentionTotal > 0 ? `${retentionRate.toFixed(0)}%` : '—',
+                  color: retentionRate >= 50 ? '#059669' : '#BA7517', bg: '#FFFBEB' },
+                { label: 'All-Time Customers', val: allTimeCustomers,     color: '#7F77DD', bg: '#F5F3FF' },
+              ].map(s => (
+                <div key={s.label} style={{ background: s.bg, borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Horizontal split bar: new vs repeat */}
+            {retentionTotal > 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 5 }}>
+                  <span>New <strong style={{ color: '#059669' }}>{retentionNewCount}</strong></span>
+                  <span>Repeat <strong style={{ color: '#38a9c2' }}>{retentionRepeatCount}</strong></span>
+                </div>
+                <div style={{ height: 10, background: '#F3F4F6', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ height: '100%', width: `${(retentionNewCount / retentionTotal) * 100}%`, background: '#059669', transition: 'width .5s' }} />
+                  <div style={{ height: '100%', width: `${(retentionRepeatCount / retentionTotal) * 100}%`, background: '#38a9c2', transition: 'width .5s' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+                  {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
+                    <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
+                      {x.l}
+                    </span>
+                  ))}
+                  <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 'auto' }}>
+                    {retentionRate.toFixed(0)}% return rate
+                  </span>
+                </div>
+              </div>
+            )}
+            {retentionTotal === 0 && (
+              <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, padding: '1rem 0' }}>No customer data for this period.</div>
+            )}
           </div>
 
           <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
