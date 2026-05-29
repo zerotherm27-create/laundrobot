@@ -279,26 +279,29 @@ function MessengerMockup() {
 
   return (
     <div className="l-phone-wrap">
-      <div style={{ width: 270, flexShrink: 0, position: 'relative' }}>
+      {/* Phone width 276px → screen 268px wide → height 268*(920/430)=574px */}
+      <div style={{ width: 276, flexShrink: 0, position: 'relative' }}>
         {/* Side buttons — left (volume) */}
-        <div style={{ position: 'absolute', left: -3, top: 100, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
-        <div style={{ position: 'absolute', left: -3, top: 142, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
-        <div style={{ position: 'absolute', left: -3, top: 184, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -2.5, top: 108, width: 2.5, height: 28, background: 'linear-gradient(180deg,#5a5a5c,#3a3a3c)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -2.5, top: 148, width: 2.5, height: 28, background: 'linear-gradient(180deg,#5a5a5c,#3a3a3c)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -2.5, top: 188, width: 2.5, height: 28, background: 'linear-gradient(180deg,#5a5a5c,#3a3a3c)', borderRadius: '2px 0 0 2px' }} />
         {/* Side button — right (power) */}
-        <div style={{ position: 'absolute', right: -3, top: 130, width: 3, height: 56, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '0 2px 2px 0' }} />
+        <div style={{ position: 'absolute', right: -2.5, top: 140, width: 2.5, height: 52, background: 'linear-gradient(180deg,#5a5a5c,#3a3a3c)', borderRadius: '0 2px 2px 0' }} />
 
-        {/* iPhone frame */}
+        {/* iPhone frame — thin titanium ring */}
         <div style={{
-          background: 'linear-gradient(160deg,#3a3a3c,#1c1c1e)',
-          borderRadius: 52,
-          padding: '3px',
-          boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12)',
+          background: 'linear-gradient(160deg,#4a4a4c,#1c1c1e)',
+          borderRadius: 46,
+          padding: '2px',
+          boxShadow: '0 32px 80px rgba(0,0,0,.5), 0 0 0 0.5px rgba(255,255,255,.1), inset 0 1px 0 rgba(255,255,255,.15)',
         }}>
-          <div style={{ background: '#000', borderRadius: 50, padding: '10px 8px 12px' }}>
-            <div style={{ borderRadius: 48, overflow: 'hidden', height: 520, position: 'relative', background: '#000' }}>
+          {/* Thin inner black bezel */}
+          <div style={{ background: '#000', borderRadius: 44, padding: '4px 3px 5px' }}>
+            {/* Screen — 270×574 matches 430:920 ratio */}
+            <div style={{ borderRadius: 42, overflow: 'hidden', height: 574, position: 'relative', background: '#000' }}>
               {/* Dynamic Island */}
-              <div style={{ position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)', width: 88, height: 26, background: '#000', borderRadius: 20, zIndex: 20, pointerEvents: 'none' }} />
-              {/* Video inside screen */}
+              <div style={{ position: 'absolute', left: '50%', top: 8, transform: 'translateX(-50%)', width: 80, height: 22, background: '#000', borderRadius: 18, zIndex: 20, pointerEvents: 'none' }} />
+              {/* Video */}
               <video
                 src="/herovideo.mp4"
                 autoPlay
@@ -308,7 +311,7 @@ function MessengerMockup() {
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
               {/* Home indicator */}
-              <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', width: 90, height: 4, background: '#fff', borderRadius: 3, opacity: 0.25, zIndex: 10, pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', width: 80, height: 3.5, background: '#fff', borderRadius: 3, opacity: 0.25, zIndex: 10, pointerEvents: 'none' }} />
             </div>
           </div>
         </div>
