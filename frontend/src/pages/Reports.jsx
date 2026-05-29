@@ -245,50 +245,108 @@ export default function Reports() {
           </div>
 
           {/* Customer Retention */}
-          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Customer Retention</div>
-            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 10, marginBottom: 16 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
+              Customer Retention —{' '}
+              <span style={{ fontWeight: 400, color: '#6B7280' }}>{period}</span>
+            </div>
+
+            {/* Summary tiles */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
               {[
-                { label: 'Active Customers',  val: retentionTotal,       color: '#374151', bg: '#F9FAFB' },
-                { label: 'New Customers',      val: retentionNewCount,    color: '#059669', bg: '#F0FDF4' },
-                { label: 'Repeat Customers',   val: retentionRepeatCount, color: '#38a9c2', bg: '#F0F9FF' },
-                { label: 'Retention Rate',     val: retentionTotal > 0 ? `${retentionRate.toFixed(0)}%` : '—',
-                  color: retentionRate >= 50 ? '#059669' : '#BA7517', bg: '#FFFBEB' },
-                { label: 'All-Time Customers', val: allTimeCustomers,     color: '#7F77DD', bg: '#F5F3FF' },
+                { label: 'Total Customers',   val: retentionTotal,       color: '#374151' },
+                { label: 'New Customers',      val: retentionNewCount,    color: '#059669' },
+                { label: 'Repeat Customers',   val: retentionRepeatCount, color: '#38a9c2' },
+                { label: 'All-Time Total',     val: allTimeCustomers,     color: '#7F77DD' },
               ].map(s => (
-                <div key={s.label} style={{ background: s.bg, borderRadius: 8, padding: '10px 12px' }}>
+                <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
                   <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
                 </div>
               ))}
+              {retentionTotal > 0 && (
+                <div style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>Retention Rate</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: retentionRate >= 50 ? '#059669' : '#BA7517' }}>
+                    {retentionRate.toFixed(0)}%
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Horizontal split bar: new vs repeat */}
-            {retentionTotal > 0 && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 5 }}>
-                  <span>New <strong style={{ color: '#059669' }}>{retentionNewCount}</strong></span>
-                  <span>Repeat <strong style={{ color: '#38a9c2' }}>{retentionRepeatCount}</strong></span>
+            {/* Donut + split bar */}
+            {retentionTotal > 0 ? (
+              <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                {/* Inline donut chart */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 4 }}>
+                  {(() => {
+                    const segs = [
+                      { value: retentionNewCount,    color: '#059669' },
+                      { value: retentionRepeatCount, color: '#38a9c2' },
+                    ].filter(s => s.value > 0);
+                    const total = segs.reduce((s, x) => s + x.value, 0);
+                    const R = 34, CX = 50, CY = 50, SW = 15, C = 2 * Math.PI * R;
+                    let cum = 0;
+                    const arcs = segs.map(seg => {
+                      const dash = (seg.value / total) * C;
+                      const off  = -cum;
+                      cum += dash;
+                      return { color: seg.color, dash, off };
+                    });
+                    return (
+                      <svg viewBox="0 0 100 100" width={96} height={96} style={{ display: 'block', flexShrink: 0 }}>
+                        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#F3F4F6" strokeWidth={SW} />
+                        {arcs.map((arc, i) => (
+                          <circle key={i} cx={CX} cy={CY} r={R} fill="none"
+                            stroke={arc.color} strokeWidth={SW}
+                            strokeDasharray={`${arc.dash} ${C - arc.dash}`}
+                            strokeDashoffset={arc.off}
+                            transform={`rotate(-90 ${CX} ${CY})`} />
+                        ))}
+                        <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#9CA3AF">Return</text>
+                        <text x={CX} y={CY + 8}  textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#111827">
+                          {retentionRate.toFixed(0)}%
+                        </text>
+                      </svg>
+                    );
+                  })()}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {[{ color: '#059669', label: 'New' }, { color: '#38a9c2', label: 'Repeat' }].map(l => (
+                      <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                        {l.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ height: 10, background: '#F3F4F6', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
-                  <div style={{ height: '100%', width: `${(retentionNewCount / retentionTotal) * 100}%`, background: '#059669', transition: 'width .5s' }} />
-                  <div style={{ height: '100%', width: `${(retentionRepeatCount / retentionTotal) * 100}%`, background: '#38a9c2', transition: 'width .5s' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
-                  {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
-                    <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
-                      {x.l}
+
+                {/* Split bar */}
+                <div style={{ flex: 1, minWidth: 180, paddingTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 6 }}>
+                    <span>New <strong style={{ color: '#059669' }}>{retentionNewCount}</strong></span>
+                    <span>Repeat <strong style={{ color: '#38a9c2' }}>{retentionRepeatCount}</strong></span>
+                  </div>
+                  <div style={{ height: 10, background: '#F3F4F6', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                    <div style={{ height: '100%', width: `${(retentionNewCount / retentionTotal) * 100}%`, background: '#059669', transition: 'width .5s' }} />
+                    <div style={{ height: '100%', width: `${(retentionRepeatCount / retentionTotal) * 100}%`, background: '#38a9c2', transition: 'width .5s' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
+                    {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
+                      <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
+                        {x.l}
+                      </span>
+                    ))}
+                    <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 'auto' }}>
+                      {retentionRate.toFixed(0)}% return rate
                     </span>
-                  ))}
-                  <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 'auto' }}>
-                    {retentionRate.toFixed(0)}% return rate
-                  </span>
+                  </div>
                 </div>
               </div>
-            )}
-            {retentionTotal === 0 && (
-              <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, padding: '1rem 0' }}>No customer data for this period.</div>
+            ) : (
+              <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, padding: '1rem 0' }}>
+                No customer data for this period.
+              </div>
             )}
           </div>
 
