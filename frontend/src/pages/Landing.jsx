@@ -279,11 +279,40 @@ function MessengerMockup() {
 
   return (
     <div className="l-phone-wrap">
-      <img
-        src="/laundrobotmockup.gif"
-        alt="LaundroBot in action"
-        style={{ width: 340, maxWidth: '100%', display: 'block' }}
-      />
+      <div style={{ width: 270, flexShrink: 0, position: 'relative' }}>
+        {/* Side buttons — left (volume) */}
+        <div style={{ position: 'absolute', left: -3, top: 100, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 142, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        <div style={{ position: 'absolute', left: -3, top: 184, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
+        {/* Side button — right (power) */}
+        <div style={{ position: 'absolute', right: -3, top: 130, width: 3, height: 56, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '0 2px 2px 0' }} />
+
+        {/* iPhone frame */}
+        <div style={{
+          background: 'linear-gradient(160deg,#3a3a3c,#1c1c1e)',
+          borderRadius: 52,
+          padding: '3px',
+          boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12)',
+        }}>
+          <div style={{ background: '#000', borderRadius: 50, padding: '10px 8px 12px' }}>
+            <div style={{ borderRadius: 48, overflow: 'hidden', height: 520, position: 'relative', background: '#000' }}>
+              {/* Dynamic Island */}
+              <div style={{ position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)', width: 88, height: 26, background: '#000', borderRadius: 20, zIndex: 20, pointerEvents: 'none' }} />
+              {/* Video inside screen */}
+              <video
+                src="/herovideo.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              {/* Home indicator */}
+              <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', width: 90, height: 4, background: '#fff', borderRadius: 3, opacity: 0.25, zIndex: 10, pointerEvents: 'none' }} />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
