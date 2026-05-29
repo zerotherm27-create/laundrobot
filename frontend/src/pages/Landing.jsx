@@ -279,94 +279,14 @@ function MessengerMockup() {
 
   return (
     <div className="l-phone-wrap">
-      <div style={{ width: 270, flexShrink: 0, position: 'relative' }}>
-        {/* Side buttons — left (volume) */}
-        <div style={{ position: 'absolute', left: -3, top: 100, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
-        <div style={{ position: 'absolute', left: -3, top: 142, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
-        <div style={{ position: 'absolute', left: -3, top: 184, width: 3, height: 32, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '2px 0 0 2px' }} />
-        {/* Side button — right (power) */}
-        <div style={{ position: 'absolute', right: -3, top: 130, width: 3, height: 56, background: 'linear-gradient(180deg,#4a4a4a,#2e2e2e)', borderRadius: '0 2px 2px 0' }} />
-
-        {/* iPhone frame — titanium black */}
-        <div style={{
-          background: 'linear-gradient(160deg,#3a3a3c,#1c1c1e)',
-          borderRadius: 52,
-          padding: '3px',
-          boxShadow: '0 40px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12)',
-        }}>
-          {/* Inner bezel */}
-          <div style={{ background: '#000', borderRadius: 50, padding: '10px 8px 12px' }}>
-            {/* Screen — Dynamic Island lives inside the screen */}
-            <div style={{ background: '#fff', borderRadius: 48, overflow: 'hidden', height: 520, position: 'relative' }}>
-
-              {/* Status bar row — time left, Dynamic Island center, icons right */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px 4px', flexShrink: 0, position: 'relative', zIndex: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#050505', letterSpacing: -.3 }}>9:41</span>
-                {/* Dynamic Island — centered absolutely */}
-                <div style={{ position: 'absolute', left: '50%', top: 10, transform: 'translateX(-50%)', width: 88, height: 26, background: '#000', borderRadius: 20, zIndex: 20 }} />
-                {/* Status icons */}
-                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                  {/* Signal bars */}
-                  <svg width="14" height="10" viewBox="0 0 14 10" fill="#050505">
-                    <rect x="0" y="6" width="2.5" height="4" rx="0.5"/>
-                    <rect x="3.5" y="4" width="2.5" height="6" rx="0.5"/>
-                    <rect x="7" y="2" width="2.5" height="8" rx="0.5"/>
-                    <rect x="10.5" y="0" width="2.5" height="10" rx="0.5"/>
-                  </svg>
-                  {/* WiFi */}
-                  <svg width="13" height="10" viewBox="0 0 13 10" fill="none" stroke="#050505" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M1 3.5C3.2 1.3 9.8 1.3 12 3.5"/>
-                    <path d="M2.8 5.3C4.2 3.9 8.8 3.9 10.2 5.3"/>
-                    <path d="M4.7 7.1C5.4 6.4 7.6 6.4 8.3 7.1"/>
-                    <circle cx="6.5" cy="9" r="0.8" fill="#050505" stroke="none"/>
-                  </svg>
-                  {/* Battery */}
-                  <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
-                    <rect x="0.5" y="0.5" width="18" height="10" rx="2.5" stroke="#050505" strokeOpacity=".35"/>
-                    <rect x="2" y="2" width="13" height="7" rx="1.5" fill="#050505"/>
-                    <path d="M19.5 3.5v4a1.5 1.5 0 000-4z" fill="#050505" fillOpacity=".4"/>
-                  </svg>
-                </div>
-              </div>
-
-              {/* Messenger header */}
-              <div style={{ background: '#fff', borderBottom: '1px solid #e4e6ea', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-                <span style={{ fontSize: 15, color: '#0084ff', fontWeight: 300, lineHeight: 1 }}>‹</span>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src="/logo.png" alt="" style={{ width: 22, height: 22, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
-                  </div>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#31a24c', border: '1.5px solid #fff', position: 'absolute', bottom: 0, right: 0 }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#050505', lineHeight: 1.2 }}>The Laundry Project</div>
-                  <div style={{ fontSize: 9, color: '#65676b' }}>Business chat</div>
-                </div>
-                <span style={{ fontSize: 15, color: '#0084ff' }}>📞</span>
-              </div>
-
-              {/* Page info (phase 0–1) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 28, transform: showPageInfo ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.3s ease', zIndex: 2 }}>
-                {PageInfoScreen}
-              </div>
-
-              {/* Chat + webview (phase 2+) */}
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 28, transform: showPageInfo ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
-                {ChatScreen}
-                <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: webviewOpen ? 'translateY(0)' : 'translateY(100%)', transition: 'transform 0.38s cubic-bezier(.32,.72,0,1)', borderTop: '2px solid #e5e5e5' }}>
-                  {WebviewScreen}
-                </div>
-              </div>
-
-              {/* Home indicator */}
-              <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', width: 90, height: 4, background: '#000', borderRadius: 3, opacity: 0.18 }} />
-            </div>
-          </div>
-        </div>
-        <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#38a9c2', background: '#e6f5f8', padding: '4px 12px', borderRadius: 20 }}>Live Messenger demo</span>
-        </div>
-      </div>
+      <video
+        src="/laundrobotmockup.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{ width: 300, maxWidth: '100%', display: 'block', filter: 'drop-shadow(0 32px 64px rgba(0,0,0,.35))' }}
+      />
     </div>
   );
 }
