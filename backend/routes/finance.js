@@ -16,8 +16,8 @@ router.get('/dashboard', auth, async (req, res) => {
         COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED') AS load_count
        FROM orders
        WHERE tenant_id = $1
-         AND EXTRACT(YEAR FROM created_at) = $2
-         AND EXTRACT(MONTH FROM created_at) = $3
+         AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
+         AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $3
          AND (archived = FALSE OR archived IS NULL)`,
       [tid, year, month]
     );
@@ -178,14 +178,14 @@ router.get('/monthly-summary', auth, async (req, res) => {
     // Revenue per month from orders
     const { rows: revRows } = await db.query(
       `SELECT
-        EXTRACT(MONTH FROM created_at)::int AS month,
+        EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
         COALESCE(SUM(CASE WHEN paid THEN price ELSE 0 END), 0)::numeric AS gross_sales,
         COALESCE(SUM(CASE WHEN paid THEN COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS total_discounts,
         COALESCE(SUM(CASE WHEN paid THEN COALESCE(delivery_fee,0) ELSE 0 END), 0)::numeric AS delivery_revenue,
         COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
        FROM orders
        WHERE tenant_id = $1
-         AND EXTRACT(YEAR FROM created_at) = $2
+         AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
          AND (archived = FALSE OR archived IS NULL)
        GROUP BY 1 ORDER BY 1`,
       [tid, year]
@@ -194,12 +194,12 @@ router.get('/monthly-summary', auth, async (req, res) => {
     // COGS per month: join with services for cost_per_unit
     const { rows: cogsRows } = await db.query(
       `SELECT
-        EXTRACT(MONTH FROM o.created_at)::int AS month,
+        EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
         COALESCE(SUM(CASE WHEN o.paid THEN COALESCE(s.cost_per_unit,0) ELSE 0 END), 0)::numeric AS cogs
        FROM orders o
        LEFT JOIN services s ON s.id = o.service_id
        WHERE o.tenant_id = $1
-         AND EXTRACT(YEAR FROM o.created_at) = $2
+         AND EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
          AND (o.archived = FALSE OR o.archived IS NULL)
        GROUP BY 1 ORDER BY 1`,
       [tid, year]
@@ -298,8 +298,8 @@ router.get('/breakeven', auth, async (req, res) => {
           COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
          FROM orders
          WHERE tenant_id=$1
-           AND EXTRACT(YEAR FROM created_at)=$2
-           AND EXTRACT(MONTH FROM created_at)=$3
+           AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
+           AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
            AND (archived=FALSE OR archived IS NULL)`,
         [tid, year, month]
       ),
@@ -313,8 +313,8 @@ router.get('/breakeven', auth, async (req, res) => {
          FROM orders o
          LEFT JOIN services s ON s.id=o.service_id
          WHERE o.tenant_id=$1
-           AND EXTRACT(YEAR FROM o.created_at)=$2
-           AND EXTRACT(MONTH FROM o.created_at)=$3
+           AND EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
+           AND EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
            AND o.paid=TRUE
            AND (o.archived=FALSE OR o.archived IS NULL)`,
         [tid, year, month]
@@ -364,20 +364,20 @@ router.get('/projections', auth, async (req, res) => {
               COUNT(*) FILTER (WHERE paid AND status!='CANCELLED')::int AS load_count
        FROM orders
        WHERE tenant_id=$1
-         AND EXTRACT(YEAR FROM created_at)=$2
-         AND EXTRACT(MONTH FROM created_at)=$3
+         AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
+         AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
          AND (archived=FALSE OR archived IS NULL)`,
       [tid, year, month]
     );
 
     const { rows: history } = await db.query(
-      `SELECT EXTRACT(MONTH FROM created_at)::int AS month,
-              EXTRACT(YEAR FROM created_at)::int AS yr,
+      `SELECT EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
+              EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS yr,
               SUM(CASE WHEN paid THEN price ELSE 0 END)::numeric AS revenue
        FROM orders
        WHERE tenant_id=$1
-         AND created_at < DATE_TRUNC('month', CURRENT_DATE)
-         AND created_at >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '3 months'
+         AND created_at < DATE_TRUNC('month', (NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')
+         AND created_at >= DATE_TRUNC('month', (NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') - INTERVAL '3 months'
          AND (archived=FALSE OR archived IS NULL)
        GROUP BY 1,2 ORDER BY yr, month`,
       [tid]
@@ -525,7 +525,7 @@ router.get('/customer-retention', auth, async (req, res) => {
        FROM orders o
        WHERE o.tenant_id = $1
          AND EXTRACT(YEAR  FROM o.created_at) = $2
-         AND EXTRACT(MONTH FROM o.created_at) = $3
+         AND EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $3
          AND (o.archived = FALSE OR o.archived IS NULL)`,
       [tid, year, month]
     );
@@ -540,7 +540,7 @@ router.get('/customer-retention', auth, async (req, res) => {
     // ── 12-month monthly breakdown ──────────────────────────────────────────
     const { rows: monthly } = await db.query(
       `SELECT
-         EXTRACT(MONTH FROM o.created_at)::int AS month,
+         EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
          EXTRACT(YEAR  FROM o.created_at)::int AS year,
          COUNT(DISTINCT o.customer_id) FILTER (WHERE o.customer_id IS NOT NULL)::int AS total,
          COUNT(DISTINCT o.customer_id) FILTER (
@@ -550,8 +550,8 @@ router.get('/customer-retention', auth, async (req, res) => {
                WHERE prev.tenant_id   = o.tenant_id
                  AND prev.customer_id = o.customer_id
                  AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
-                       MAKE_DATE(EXTRACT(YEAR FROM o.created_at)::int,
-                                 EXTRACT(MONTH FROM o.created_at)::int, 1)))
+                       MAKE_DATE(EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int,
+                                 EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int, 1)))
                  AND (prev.archived = FALSE OR prev.archived IS NULL)
              )
          )::int AS new_customers,
@@ -562,8 +562,8 @@ router.get('/customer-retention', auth, async (req, res) => {
                WHERE prev.tenant_id   = o.tenant_id
                  AND prev.customer_id = o.customer_id
                  AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
-                       MAKE_DATE(EXTRACT(YEAR FROM o.created_at)::int,
-                                 EXTRACT(MONTH FROM o.created_at)::int, 1)))
+                       MAKE_DATE(EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int,
+                                 EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int, 1)))
                  AND (prev.archived = FALSE OR prev.archived IS NULL)
              )
          )::int AS repeat_customers

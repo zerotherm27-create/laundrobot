@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getArchivedOrders, getMyTenantSettings } from '../api.js';
+import { getOrders, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
@@ -22,9 +22,9 @@ export default function Reports() {
   const { openUpgradeModal } = useUpgrade();
 
   useEffect(() => {
-    Promise.all([getOrders(), getArchivedOrders()])
-      .then(([active, archived]) => {
-        setOrders([...active.data, ...archived.data]);
+    getOrders()
+      .then(r => {
+        setOrders(r.data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
