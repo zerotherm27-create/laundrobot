@@ -451,6 +451,137 @@ function RetentionChart({ months }) {
   );
 }
 
+// ─── Snapshot Chart (Revenue/Expenses bars + Profit line) ────────────────────
+
+function SnapshotChart({ months, net, rev, mrg }) {
+  const [hov, setHov] = useState(null);
+
+  const VW = 640, VH = 220;
+  const PL = 58, PR = 12, PT = 14, PB = 28;
+  const plotW = VW - PL - PR, plotH = VH - PT - PB;
+  const maxVal = Math.max(
+    ...months.flatMap(m => [parseFloat(m.netRevenue) || 0, parseFloat(m.opExpenses) || 0]),
+    100
+  );
+  const bSlot = plotW / 12;
+  const gW    = bSlot * 0.72;
+  const bW    = (gW - 2) / 2;
+  const ys    = v => PT + plotH - Math.max(0, Math.min(parseFloat(v) || 0, maxVal) / maxVal * plotH);
+
+  const profitPts = months.map((m, i) => {
+    const np = parseFloat(m.netProfit) || 0;
+    const cx = PL + i * bSlot + bSlot / 2;
+    const cy = np >= 0 ? ys(np) : PT + plotH;
+    return `${cx},${cy}`;
+  }).join(' ');
+
+  return (
+    <div style={{ position: 'relative', userSelect: 'none' }}>
+      <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
+        onMouseLeave={() => setHov(null)}>
+        {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
+          const v = frac * maxVal, y = ys(v);
+          return (
+            <g key={i}>
+              <line x1={PL} y1={y} x2={VW - PR} y2={y}
+                stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
+                strokeWidth={i === 0 ? '1' : '0.5'} />
+              {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{KPESO(v)}</text>}
+            </g>
+          );
+        })}
+
+        {months.map((m, i) => {
+          const mRev = parseFloat(m.netRevenue) || 0;
+          const mExp = parseFloat(m.opExpenses) || 0;
+          const cx   = PL + i * bSlot + bSlot / 2;
+          const bx   = cx - gW / 2;
+          const isH  = hov === i;
+          return (
+            <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
+              {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH}
+                fill="#6366F1" fillOpacity="0.04" rx="2" />}
+              <rect x={bx}          y={ys(mRev)} width={bW} height={Math.max(0, (mRev / maxVal) * plotH)}
+                fill="#6366F1" rx="3" opacity={isH ? 1 : 0.85} />
+              <rect x={bx + bW + 2} y={ys(mExp)} width={bW} height={Math.max(0, (mExp / maxVal) * plotH)}
+                fill="#22D3EE" rx="3" opacity={isH ? 1 : 0.75} />
+              <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
+                fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '600' : '400'}>
+                {MONTHS[m.month - 1]}
+              </text>
+            </g>
+          );
+        })}
+
+        {months.length > 0 && (
+          <polyline points={profitPts} fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinejoin="round" />
+        )}
+        {months.map((m, i) => {
+          const np = parseFloat(m.netProfit) || 0;
+          const cx = PL + i * bSlot + bSlot / 2;
+          const cy = np >= 0 ? ys(np) : PT + plotH;
+          return <circle key={i} cx={cx} cy={cy} r={hov === i ? 4.5 : 3} fill="#7C3AED" stroke="#fff" strokeWidth="1.5" />;
+        })}
+      </svg>
+
+      {hov !== null && months[hov] && (() => {
+        const m  = months[hov];
+        const np = parseFloat(m.netProfit) || 0;
+        const lp = ((hov + 0.5) / 12) * 100;
+        return (
+          <div style={{
+            position: 'absolute', top: 8, left: `${lp}%`,
+            transform: hov >= 9 ? 'translateX(calc(-100% - 6px))' : 'translateX(6px)',
+            background: '#1F2937', color: '#F9FAFB', borderRadius: 8,
+            padding: '8px 12px', fontSize: 11, lineHeight: 1.9,
+            whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{FULL_MONTHS[m.month - 1]}</div>
+            <div style={{ color: '#A5B4FC' }}>Revenue: {PESO(m.netRevenue)}</div>
+            <div style={{ color: '#67E8F9' }}>Expenses: {PESO(m.opExpenses)}</div>
+            <div style={{ color: np >= 0 ? '#C4B5FD' : '#FCA5A5', fontWeight: 600 }}>Profit: {PESO(np)}</div>
+            <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>
+              {m.loadCount || 0} orders · {PCT(m.marginPct)} margin
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10 }}>
+        {[
+          { color: '#6366F1', shape: 'bar',  label: 'Revenue' },
+          { color: '#22D3EE', shape: 'bar',  label: 'Expenses' },
+          { color: '#7C3AED', shape: 'line', label: 'Profit' },
+        ].map(l => (
+          <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
+            {l.shape === 'bar'
+              ? <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+              : <svg width="16" height="10" viewBox="0 0 16 10" style={{ display: 'block' }}>
+                  <line x1="0" y1="5" x2="16" y2="5" stroke={l.color} strokeWidth="2" />
+                  <circle cx="8" cy="5" r="2.5" fill={l.color} />
+                </svg>
+            }
+            {l.label}
+          </span>
+        ))}
+      </div>
+
+      {rev > 0 && (
+        <div style={{
+          marginTop: 14, padding: '8px 12px', borderRadius: 8,
+          background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
+          fontSize: 12, color: net >= 0 ? '#7C3AED' : '#EF4444',
+        }}>
+          {net >= 0
+            ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned this month`
+            : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -628,154 +759,7 @@ function Dashboard() {
               </div>
 
               {/* Chart */}
-              {React.createElement(() => {
-                const months = monthlyData || [];
-                const [hov, setHov] = useState(null);
-                const VW = 640, VH = 220;
-                const PL = 58, PR = 12, PT = 14, PB = 28;
-                const plotW = VW - PL - PR, plotH = VH - PT - PB;
-                const maxVal = Math.max(
-                  ...months.flatMap(m => [parseFloat(m.netRevenue) || 0, parseFloat(m.opExpenses) || 0]),
-                  100
-                );
-                const bSlot = plotW / 12;
-                const gW    = bSlot * 0.72;
-                const bW    = (gW - 2) / 2;
-                const ys    = v => PT + plotH - Math.max(0, Math.min(parseFloat(v) || 0, maxVal) / maxVal * plotH);
-
-                const profitPts = months.map((m, i) => {
-                  const np = parseFloat(m.netProfit) || 0;
-                  const cx = PL + i * bSlot + bSlot / 2;
-                  const cy = np >= 0 ? ys(np) : PT + plotH;
-                  return `${cx},${cy}`;
-                }).join(' ');
-
-                return (
-                  <div style={{ position: 'relative', userSelect: 'none' }}>
-                    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
-                      onMouseLeave={() => setHov(null)}>
-                      {/* Grid + Y labels */}
-                      {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
-                        const v = frac * maxVal, y = ys(v);
-                        return (
-                          <g key={i}>
-                            <line x1={PL} y1={y} x2={VW - PR} y2={y}
-                              stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
-                              strokeWidth={i === 0 ? '1' : '0.5'} />
-                            {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{KPESO(v)}</text>}
-                          </g>
-                        );
-                      })}
-
-                      {/* Bars */}
-                      {months.map((m, i) => {
-                        const rev  = parseFloat(m.netRevenue)  || 0;
-                        const exp  = parseFloat(m.opExpenses)  || 0;
-                        const cx   = PL + i * bSlot + bSlot / 2;
-                        const bx   = cx - gW / 2;
-                        const isH  = hov === i;
-                        const revH = Math.max(0, (rev / maxVal) * plotH);
-                        const expH = Math.max(0, (exp / maxVal) * plotH);
-                        return (
-                          <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
-                            {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH}
-                              fill="#6366F1" fillOpacity="0.04" rx="2" />}
-                            {/* Revenue bar — indigo */}
-                            <rect x={bx}           y={ys(rev)} width={bW} height={revH}
-                              fill="#6366F1" rx="3" opacity={isH ? 1 : 0.85} />
-                            {/* Expense bar — cyan */}
-                            <rect x={bx + bW + 2}  y={ys(exp)} width={bW} height={expH}
-                              fill="#22D3EE" rx="3" opacity={isH ? 1 : 0.75} />
-                            <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
-                              fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '600' : '400'}>
-                              {MONTHS[m.month - 1]}
-                            </text>
-                          </g>
-                        );
-                      })}
-
-                      {/* Profit trend line — purple */}
-                      {months.length > 0 && (
-                        <polyline points={profitPts} fill="none" stroke="#7C3AED"
-                          strokeWidth="2" strokeLinejoin="round" />
-                      )}
-                      {months.map((m, i) => {
-                        const np = parseFloat(m.netProfit) || 0;
-                        const cx = PL + i * bSlot + bSlot / 2;
-                        const cy = np >= 0 ? ys(np) : PT + plotH;
-                        return (
-                          <circle key={i} cx={cx} cy={cy} r={hov === i ? 4.5 : 3}
-                            fill="#7C3AED" stroke="#fff" strokeWidth="1.5" />
-                        );
-                      })}
-                    </svg>
-
-                    {/* Hover tooltip */}
-                    {hov !== null && (() => {
-                      const m  = months[hov];
-                      if (!m) return null;
-                      const np = parseFloat(m.netProfit) || 0;
-                      const lp = ((hov + 0.5) / 12) * 100;
-                      return (
-                        <div style={{
-                          position: 'absolute', top: 8,
-                          left: `${lp}%`,
-                          transform: hov >= 9 ? 'translateX(calc(-100% - 6px))' : 'translateX(6px)',
-                          background: '#1F2937', color: '#F9FAFB', borderRadius: 8,
-                          padding: '8px 12px', fontSize: 11, lineHeight: 1.9,
-                          whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
-                          boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
-                        }}>
-                          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{FULL_MONTHS[m.month - 1]}</div>
-                          <div style={{ color: '#A5B4FC' }}>Revenue: {PESO(m.netRevenue)}</div>
-                          <div style={{ color: '#67E8F9' }}>Expenses: {PESO(m.opExpenses)}</div>
-                          <div style={{ color: np >= 0 ? '#C4B5FD' : '#FCA5A5', fontWeight: 600 }}>
-                            Profit: {PESO(np)}
-                          </div>
-                          <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>
-                            {m.loadCount || 0} orders · {PCT(m.marginPct)} margin
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Legend */}
-                    <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10 }}>
-                      {[
-                        { color: '#6366F1', shape: 'bar',  label: 'Revenue' },
-                        { color: '#22D3EE', shape: 'bar',  label: 'Expenses' },
-                        { color: '#7C3AED', shape: 'line', label: 'Profit' },
-                      ].map(l => (
-                        <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
-                          {l.shape === 'bar'
-                            ? <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: 'inline-block' }} />
-                            : (
-                              <svg width="16" height="10" viewBox="0 0 16 10" style={{ display: 'block' }}>
-                                <line x1="0" y1="5" x2="16" y2="5" stroke={l.color} strokeWidth="2" />
-                                <circle cx="8" cy="5" r="2.5" fill={l.color} />
-                              </svg>
-                            )
-                          }
-                          {l.label}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Profit callout */}
-                    {rev > 0 && (
-                      <div style={{
-                        marginTop: 14, padding: '8px 12px', borderRadius: 8,
-                        background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
-                        fontSize: 12, color: net >= 0 ? '#7C3AED' : '#EF4444',
-                      }}>
-                        {net >= 0
-                          ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned this month`
-                          : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              <SnapshotChart months={monthlyData || []} net={net} rev={rev} mrg={mrg} />
             </div>
           )}
         </>
