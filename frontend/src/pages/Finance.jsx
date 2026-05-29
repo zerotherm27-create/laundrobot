@@ -325,10 +325,13 @@ function HorizBars({ items, compact = false }) {
 
 function Dashboard() {
   const now = new Date();
-  const [year,    setYear]    = useState(now.getFullYear());
-  const [month,   setMonth]   = useState(now.getMonth() + 1);
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const todayStr = now.toISOString().slice(0, 10);
+  const [year,       setYear]       = useState(now.getFullYear());
+  const [month,      setMonth]      = useState(now.getMonth() + 1);
+  const [data,       setData]       = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [todayRows,  setTodayRows]  = useState([]);
+  const [todayLoad,  setTodayLoad]  = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -339,6 +342,14 @@ function Dashboard() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [year, month]);
+
+  useEffect(() => {
+    setTodayLoad(true);
+    getFinanceDailySales(todayStr)
+      .then(r => setTodayRows(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setTodayRows([]))
+      .finally(() => setTodayLoad(false));
+  }, [todayStr]);
 
   const rev = parseFloat(data?.revenue)          || 0;
   const exp = parseFloat(data?.expenses)         || 0;
@@ -387,6 +398,75 @@ function Dashboard() {
               </div>
             ))}
           </div>
+
+          {/* Today's Sales card */}
+          {(() => {
+            const todayGross = todayRows.reduce((s, r) => s + (r.gross_amount || 0), 0);
+            const todayNet   = todayRows.reduce((s, r) => s + (r.net_amount   || 0), 0);
+            const todayPaid  = todayRows.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
+            return (
+              <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
+                  Today's Sales —{' '}
+                  <span style={{ fontWeight: 400, color: '#6B7280' }}>
+                    {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </span>
+                </div>
+
+                {/* Summary strip */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+                  {[
+                    { label: 'Transactions', val: todayRows.length, color: '#7F77DD' },
+                    { label: 'Gross Sales',  val: PESO(todayGross), color: '#38a9c2' },
+                    { label: 'Net Sales',    val: PESO(todayNet),   color: '#374151' },
+                    { label: 'Collected',    val: PESO(todayPaid),  color: '#059669' },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: s.color }}>{s.val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {todayLoad ? (
+                  <div style={{ fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
+                ) : todayRows.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', padding: '1rem 0' }}>No transactions today yet.</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f9f9f7' }}>
+                          {['Time', 'Customer', 'Service', 'Net Amount', 'Status'].map(h => (
+                            <th key={h} style={thStyle}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {todayRows.map(r => (
+                          <tr key={r.id}>
+                            <td style={{ ...tdStyle, whiteSpace: 'nowrap', color: '#6B7280' }}>
+                              {new Date(r.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td style={tdStyle}>{r.customer_name || '—'}</td>
+                            <td style={{ ...tdStyle, color: '#6B7280' }}>{r.service_name || '—'}</td>
+                            <td style={{ ...tdNum, fontWeight: 600 }}>{PESO(r.net_amount)}</td>
+                            <td style={tdStyle}>
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                                background: r.status === 'COMPLETED' ? '#D1FAE5' : r.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7',
+                                color:      r.status === 'COMPLETED' ? '#059669' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
+                              }}>{r.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Financial Snapshot card */}
           {data && (rev > 0 || exp > 0) && (

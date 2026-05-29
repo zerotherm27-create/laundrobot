@@ -104,7 +104,7 @@ router.get('/daily-sales', auth, async (req, res) => {
        LEFT JOIN customers c ON c.id = o.customer_id
        LEFT JOIN services s ON s.id = o.service_id
        WHERE o.tenant_id = $1
-         AND DATE(o.created_at AT TIME ZONE 'Asia/Manila') = $2::date
+         AND DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2::date
          AND (o.archived = FALSE OR o.archived IS NULL)
        ORDER BY o.created_at DESC`,
       [req.user.tenant_id, date]
