@@ -300,13 +300,23 @@ router.patch('/:id', auth, async (req, res) => {
     if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
 
-    // Fire completion Messenger notification (fire-and-forget)
+    // Fire status-change Messenger notifications (fire-and-forget)
     if (status === 'COMPLETED') {
       sendCompletionNotification(rows[0], req.user.tenant_id).catch(e =>
         console.warn('[completion-notify]', e.message)
       );
       deductInventory(rows[0], req.user.tenant_id).catch(e =>
         console.warn('[inventory-deduct]', e.message)
+      );
+    }
+    if (status === 'PROCESSING') {
+      sendStatusNotification(rows[0], req.user.tenant_id, 'PROCESSING').catch(e =>
+        console.warn('[processing-notify]', e.message)
+      );
+    }
+    if (status === 'FOR DELIVERY') {
+      sendStatusNotification(rows[0], req.user.tenant_id, 'FOR DELIVERY').catch(e =>
+        console.warn('[delivery-notify]', e.message)
       );
     }
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -376,6 +386,56 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
       [customer_id]
     );
   }
+}
+
+async function sendStatusNotification(updatedOrder, tenantId, status) {
+  const bookingRef = updatedOrder.booking_ref;
+  if (!bookingRef) return;
+
+  // Load customer fb_id + service name
+  const { rows: [order] } = await db.query(
+    `SELECT c.fb_id, c.name AS customer_name, s.name AS service_name
+     FROM orders o
+     JOIN customers c ON c.id = o.customer_id
+     LEFT JOIN services s ON s.id = o.service_id
+     WHERE o.id = $1`,
+    [updatedOrder.id]
+  );
+  if (!order?.fb_id) return;
+
+  const { rows: [tenant] } = await db.query(
+    `SELECT name, fb_page_access_token FROM tenants WHERE id=$1`,
+    [tenantId]
+  );
+  if (!tenant?.fb_page_access_token) return;
+
+  const name = order.customer_name || 'there';
+  const svc  = order.service_name  || 'your laundry';
+  let text;
+
+  if (status === 'PROCESSING') {
+    text = [
+      `🧺 Your laundry is now being processed, ${name}!`,
+      ``,
+      `Order #${bookingRef} — ${svc}`,
+      ``,
+      `We're washing, drying, and folding with care. Sit back and relax — we'll notify you when it's ready for delivery! 😊`,
+      ``,
+      `– ${tenant.name}`,
+    ].join('\n');
+  } else if (status === 'FOR DELIVERY') {
+    text = [
+      `Hi ${name}! Your laundry is all set and ready for delivery! 🚚`,
+      ``,
+      `Order #${bookingRef} — ${svc}`,
+      ``,
+      `Our staff will contact you shortly to confirm your delivery. 😊`,
+      ``,
+      `– ${tenant.name}`,
+    ].join('\n');
+  }
+
+  if (text) await sendTaggedMessage(tenant.fb_page_access_token, order.fb_id, text);
 }
 
 // POST generate (or regenerate) a Xendit payment link for an existing order
