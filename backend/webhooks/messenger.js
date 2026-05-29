@@ -960,6 +960,14 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     }
   }
 
+  // Don't send fallback menu if a human is engaged or replied recently
+  const { rows: [fallbackPauseRow] } = await db.query(
+    `SELECT ai_paused_until, needs_human FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
+    [tenant.id, senderId]
+  );
+  if (fallbackPauseRow?.needs_human) return;
+  if (fallbackPauseRow?.ai_paused_until && new Date(fallbackPauseRow.ai_paused_until) > new Date()) return;
+
   await sendButtons(token, senderId,
     `I didn't quite get that. 😊 What would you like to do?`,
     [
