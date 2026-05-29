@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   getFinanceDashboard, getFinancePricingGuide, updateServiceCost,
   getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
@@ -462,15 +462,18 @@ function Dashboard() {
   const [loading,    setLoading]    = useState(true);
   const [todayRows,  setTodayRows]  = useState([]);
   const [todayLoad,  setTodayLoad]  = useState(true);
+  const [monthlyData, setMonthlyData] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    getFinanceDashboard(year, month)
-      .then(r => setData(
-        r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : null
-      ))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      getFinanceDashboard(year, month),
+      getFinanceMonthlySummary(year),
+    ]).then(([dash, monthly]) => {
+      if (dash.data && typeof dash.data === 'object' && !Array.isArray(dash.data))
+        setData(dash.data);
+      if (monthly.data?.months) setMonthlyData(monthly.data.months);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, [year, month]);
 
   useEffect(() => {
@@ -602,73 +605,177 @@ function Dashboard() {
           {/* Financial Snapshot card */}
           {data && (rev > 0 || exp > 0) && (
             <div style={{ ...cardStyle, padding: '1.25rem' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 16 }}>
-                {FULL_MONTHS[month - 1]} Financial Snapshot
-              </div>
-              <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-
-                {/* Comparison bars */}
-                <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Header row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Monthly Performance Summary</div>
+                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{year} · hover a month for details</div>
+                </div>
+                {/* KPI pills */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {[
-                    { label: 'Revenue',    value: rev, color: '#38a9c2', pct: 100 },
-                    { label: 'Expenses',   value: exp, color: '#EF4444', pct: rev > 0 ? (exp / rev) * 100 : 0 },
-                    { label: 'Net Profit', value: net, color: net >= 0 ? '#059669' : '#EF4444',
-                      pct: rev > 0 ? (Math.max(0, net) / rev) * 100 : 0 },
-                  ].map(item => (
-                    <div key={item.label}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                        <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{item.label}</span>
-                        <span style={{ fontSize: 12, color: item.color, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                          {PESO(item.value)}
-                        </span>
-                      </div>
-                      <div style={{ height: 9, background: '#F3F4F6', borderRadius: 5, overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${Math.max(0, Math.min(100, item.pct))}%`,
-                          background: item.color, borderRadius: 5,
-                          transition: 'width 0.55s ease',
-                        }} />
-                      </div>
+                    { label: 'Revenue',  val: PESO(rev), color: '#6366F1' },
+                    { label: 'Expenses', val: PESO(exp), color: '#22D3EE' },
+                    { label: 'Profit',   val: PESO(net), color: net >= 0 ? '#7C3AED' : '#EF4444' },
+                    { label: 'Margin',   val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#EF4444' },
+                  ].map(p => (
+                    <div key={p.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, color: '#9CA3AF' }}>{p.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: p.color }}>{p.val}</div>
                     </div>
                   ))}
-
-                  {/* Expense ratio callout */}
-                  {rev > 0 && (
-                    <div style={{
-                      marginTop: 4, padding: '8px 12px', borderRadius: 8,
-                      background: net >= 0 ? '#F0FDF4' : '#FFF5F5',
-                      fontSize: 12, color: net >= 0 ? '#059669' : '#EF4444',
-                    }}>
-                      {net >= 0
-                        ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned`
-                        : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
-                    </div>
-                  )}
                 </div>
+              </div>
 
-                {/* Donut chart */}
-                {rev > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                    <DonutChart
-                      size={104}
-                      segments={donutSegs}
-                      center={{ top: 'Margin', bottom: PCT(mrg) }}
-                    />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {/* Chart */}
+              {React.createElement(() => {
+                const months = monthlyData || [];
+                const [hov, setHov] = useState(null);
+                const VW = 640, VH = 220;
+                const PL = 58, PR = 12, PT = 14, PB = 28;
+                const plotW = VW - PL - PR, plotH = VH - PT - PB;
+                const maxVal = Math.max(
+                  ...months.flatMap(m => [parseFloat(m.netRevenue) || 0, parseFloat(m.opExpenses) || 0]),
+                  100
+                );
+                const bSlot = plotW / 12;
+                const gW    = bSlot * 0.72;
+                const bW    = (gW - 2) / 2;
+                const ys    = v => PT + plotH - Math.max(0, Math.min(parseFloat(v) || 0, maxVal) / maxVal * plotH);
+
+                const profitPts = months.map((m, i) => {
+                  const np = parseFloat(m.netProfit) || 0;
+                  const cx = PL + i * bSlot + bSlot / 2;
+                  const cy = np >= 0 ? ys(np) : PT + plotH;
+                  return `${cx},${cy}`;
+                }).join(' ');
+
+                return (
+                  <div style={{ position: 'relative', userSelect: 'none' }}>
+                    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
+                      onMouseLeave={() => setHov(null)}>
+                      {/* Grid + Y labels */}
+                      {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
+                        const v = frac * maxVal, y = ys(v);
+                        return (
+                          <g key={i}>
+                            <line x1={PL} y1={y} x2={VW - PR} y2={y}
+                              stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
+                              strokeWidth={i === 0 ? '1' : '0.5'} />
+                            {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{KPESO(v)}</text>}
+                          </g>
+                        );
+                      })}
+
+                      {/* Bars */}
+                      {months.map((m, i) => {
+                        const rev  = parseFloat(m.netRevenue)  || 0;
+                        const exp  = parseFloat(m.opExpenses)  || 0;
+                        const cx   = PL + i * bSlot + bSlot / 2;
+                        const bx   = cx - gW / 2;
+                        const isH  = hov === i;
+                        const revH = Math.max(0, (rev / maxVal) * plotH);
+                        const expH = Math.max(0, (exp / maxVal) * plotH);
+                        return (
+                          <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
+                            {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH}
+                              fill="#6366F1" fillOpacity="0.04" rx="2" />}
+                            {/* Revenue bar — indigo */}
+                            <rect x={bx}           y={ys(rev)} width={bW} height={revH}
+                              fill="#6366F1" rx="3" opacity={isH ? 1 : 0.85} />
+                            {/* Expense bar — cyan */}
+                            <rect x={bx + bW + 2}  y={ys(exp)} width={bW} height={expH}
+                              fill="#22D3EE" rx="3" opacity={isH ? 1 : 0.75} />
+                            <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
+                              fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '600' : '400'}>
+                              {MONTHS[m.month - 1]}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {/* Profit trend line — purple */}
+                      {months.length > 0 && (
+                        <polyline points={profitPts} fill="none" stroke="#7C3AED"
+                          strokeWidth="2" strokeLinejoin="round" />
+                      )}
+                      {months.map((m, i) => {
+                        const np = parseFloat(m.netProfit) || 0;
+                        const cx = PL + i * bSlot + bSlot / 2;
+                        const cy = np >= 0 ? ys(np) : PT + plotH;
+                        return (
+                          <circle key={i} cx={cx} cy={cy} r={hov === i ? 4.5 : 3}
+                            fill="#7C3AED" stroke="#fff" strokeWidth="1.5" />
+                        );
+                      })}
+                    </svg>
+
+                    {/* Hover tooltip */}
+                    {hov !== null && (() => {
+                      const m  = months[hov];
+                      if (!m) return null;
+                      const np = parseFloat(m.netProfit) || 0;
+                      const lp = ((hov + 0.5) / 12) * 100;
+                      return (
+                        <div style={{
+                          position: 'absolute', top: 8,
+                          left: `${lp}%`,
+                          transform: hov >= 9 ? 'translateX(calc(-100% - 6px))' : 'translateX(6px)',
+                          background: '#1F2937', color: '#F9FAFB', borderRadius: 8,
+                          padding: '8px 12px', fontSize: 11, lineHeight: 1.9,
+                          whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+                        }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{FULL_MONTHS[m.month - 1]}</div>
+                          <div style={{ color: '#A5B4FC' }}>Revenue: {PESO(m.netRevenue)}</div>
+                          <div style={{ color: '#67E8F9' }}>Expenses: {PESO(m.opExpenses)}</div>
+                          <div style={{ color: np >= 0 ? '#C4B5FD' : '#FCA5A5', fontWeight: 600 }}>
+                            Profit: {PESO(np)}
+                          </div>
+                          <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>
+                            {m.loadCount || 0} orders · {PCT(m.marginPct)} margin
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Legend */}
+                    <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10 }}>
                       {[
-                        { color: '#059669', label: 'Profit' },
-                        { color: '#EF4444', label: 'Expenses' },
+                        { color: '#6366F1', shape: 'bar',  label: 'Revenue' },
+                        { color: '#22D3EE', shape: 'bar',  label: 'Expenses' },
+                        { color: '#7C3AED', shape: 'line', label: 'Profit' },
                       ].map(l => (
-                        <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                        <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
+                          {l.shape === 'bar'
+                            ? <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                            : (
+                              <svg width="16" height="10" viewBox="0 0 16 10" style={{ display: 'block' }}>
+                                <line x1="0" y1="5" x2="16" y2="5" stroke={l.color} strokeWidth="2" />
+                                <circle cx="8" cy="5" r="2.5" fill={l.color} />
+                              </svg>
+                            )
+                          }
                           {l.label}
                         </span>
                       ))}
                     </div>
+
+                    {/* Profit callout */}
+                    {rev > 0 && (
+                      <div style={{
+                        marginTop: 14, padding: '8px 12px', borderRadius: 8,
+                        background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
+                        fontSize: 12, color: net >= 0 ? '#7C3AED' : '#EF4444',
+                      }}>
+                        {net >= 0
+                          ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned this month`
+                          : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           )}
         </>
