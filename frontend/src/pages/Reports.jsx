@@ -7,10 +7,10 @@ const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 function getRange(period) {
   const now = new Date();
   const start = new Date();
-  if (period === 'Daily') start.setDate(now.getDate() - 1);
-  else if (period === 'Weekly') start.setDate(now.getDate() - 7);
-  else if (period === 'Monthly') start.setMonth(now.getMonth() - 1);
-  else if (period === 'Annually') start.setFullYear(now.getFullYear() - 1);
+  if      (period === 'Daily')    { start.setHours(0, 0, 0, 0); }          // today midnight → now
+  else if (period === 'Weekly')   { start.setDate(now.getDate() - 7); }
+  else if (period === 'Monthly')  { start.setMonth(now.getMonth() - 1); }
+  else if (period === 'Annually') { start.setFullYear(now.getFullYear() - 1); }
   return start;
 }
 
@@ -34,7 +34,8 @@ export default function Reports() {
   const start = getRange(period);
   const filtered = orders.filter(o => new Date(o.created_at) >= start);
 
-  const revenue = filtered.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
+  const revenue = filtered.filter(o => o.paid).reduce((s, o) =>
+    s + Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0), 0);
   const totalOrders = filtered.length;
   const completedOrders = filtered.filter(o => o.status === 'COMPLETED').length;
   const pendingOrders = filtered.filter(o => o.status !== 'COMPLETED').length;
@@ -46,7 +47,7 @@ export default function Reports() {
     const name = o.service_name || 'Unknown';
     if (!acc[name]) acc[name] = { count: 0, revenue: 0 };
     acc[name].count++;
-    if (o.paid) acc[name].revenue += Number(o.price);
+    if (o.paid) acc[name].revenue += Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0);
     return acc;
   }, {});
 
@@ -63,7 +64,7 @@ export default function Reports() {
   for (const o of filtered.filter(o => o.paid)) {
     const src = o.source || 'web';
     const key = src === 'walk_in' ? 'walk_in' : src === 'web' ? 'web' : src === 'messenger' ? 'messenger' : 'other';
-    sourceRevenue[key] += Number(o.price);
+    sourceRevenue[key] += Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0);
   }
 
   // Group by status
