@@ -139,7 +139,10 @@ export default function CreateOrderModal({ onClose, onCreated }) {
         setServices(s.data);
         setCategories(c.data);
         setZones(z.data);
-        if (c.data.length) setActiveCat(c.data[0].id);
+        if (c.data.length) {
+          const machineWash = c.data.find(cat => cat.name?.toLowerCase().includes('machine wash'));
+          setActiveCat((machineWash || c.data[0]).id);
+        }
       })
       .finally(() => setLoadingData(false));
   }, []);
