@@ -279,18 +279,10 @@ function MessengerMockup() {
 
   return (
     <div className="l-phone-wrap">
-      <video
-        src="/laundrobotmockup.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        style={{
-          width: 340,
-          maxWidth: '100%',
-          display: 'block',
-          mixBlendMode: 'multiply',
-        }}
+      <img
+        src="/laundrobotmockup.gif"
+        alt="LaundroBot in action"
+        style={{ width: 340, maxWidth: '100%', display: 'block' }}
       />
     </div>
   );
