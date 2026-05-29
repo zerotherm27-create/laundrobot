@@ -418,7 +418,7 @@ router.post('/:tenantId/orders', async (req, res) => {
   // Rate limit: max 3 pending/active bookings per phone per tenant per day
   if (source !== 'admin') {
     const { rows: [{ count: pendingCount }] } = await db.query(
-      `SELECT COUNT(*) FROM orders
+      `SELECT COUNT(*) FROM orders o
        WHERE tenant_id=$1 AND phone=$2
          AND status NOT IN ('completed','cancelled','archived')
          AND created_at > NOW() - INTERVAL '24 hours'`,
