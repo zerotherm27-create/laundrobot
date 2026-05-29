@@ -173,7 +173,8 @@ export const getFinanceTargets        = year             => api.get('/finance/ta
 export const upsertTarget             = data             => api.put('/finance/targets', data);
 export const getFinanceBreakeven      = (year, month)    => api.get('/finance/breakeven', { params: { year, month } });
 export const getFinanceProjections    = (year, month)    => api.get('/finance/projections', { params: { year, month } });
-export const getFinanceInsights       = context          => api.post('/finance/insights', { context });
+export const getFinanceInsights           = context          => api.post('/finance/insights', { context });
+export const getFinanceCustomerRetention  = (year, month)    => api.get('/finance/customer-retention', { params: { year, month } });
 
 // Inventory
 export const getInventoryItems        = ()               => api.get('/inventory/items');

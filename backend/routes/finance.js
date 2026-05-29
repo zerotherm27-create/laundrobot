@@ -487,4 +487,125 @@ Format each recommendation on its own line starting with "•".`;
   }
 });
 
+// GET /finance/customer-retention?year=YYYY&month=M
+// Returns current-month summary + 12-month monthly breakdown
+router.get('/customer-retention', auth, async (req, res) => {
+  try {
+    const now   = new Date();
+    const year  = parseInt(req.query.year)  || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const tid   = req.user.tenant_id;
+
+    // ── Current month summary ────────────────────────────────────────────────
+    // For each customer active this month, check if they had ANY order before
+    // this month (repeat) or not (new).
+    const { rows: summary } = await db.query(
+      `SELECT
+         COUNT(DISTINCT o.customer_id) FILTER (WHERE o.customer_id IS NOT NULL)::int  AS total,
+         COUNT(DISTINCT o.customer_id) FILTER (
+           WHERE o.customer_id IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM orders prev
+               WHERE prev.tenant_id   = o.tenant_id
+                 AND prev.customer_id = o.customer_id
+                 AND prev.created_at  < DATE_TRUNC('month', MAKE_DATE($2, $3, 1))
+                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+             )
+         )::int AS new_customers,
+         COUNT(DISTINCT o.customer_id) FILTER (
+           WHERE o.customer_id IS NOT NULL
+             AND EXISTS (
+               SELECT 1 FROM orders prev
+               WHERE prev.tenant_id   = o.tenant_id
+                 AND prev.customer_id = o.customer_id
+                 AND prev.created_at  < DATE_TRUNC('month', MAKE_DATE($2, $3, 1))
+                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+             )
+         )::int AS repeat_customers
+       FROM orders o
+       WHERE o.tenant_id = $1
+         AND EXTRACT(YEAR  FROM o.created_at) = $2
+         AND EXTRACT(MONTH FROM o.created_at) = $3
+         AND (o.archived = FALSE OR o.archived IS NULL)`,
+      [tid, year, month]
+    );
+
+    // All-time total unique customers
+    const { rows: [allTime] } = await db.query(
+      `SELECT COUNT(DISTINCT customer_id) FILTER (WHERE customer_id IS NOT NULL)::int AS total
+       FROM orders WHERE tenant_id = $1 AND (archived = FALSE OR archived IS NULL)`,
+      [tid]
+    );
+
+    // ── 12-month monthly breakdown ──────────────────────────────────────────
+    const { rows: monthly } = await db.query(
+      `SELECT
+         EXTRACT(MONTH FROM o.created_at)::int AS month,
+         EXTRACT(YEAR  FROM o.created_at)::int AS year,
+         COUNT(DISTINCT o.customer_id) FILTER (WHERE o.customer_id IS NOT NULL)::int AS total,
+         COUNT(DISTINCT o.customer_id) FILTER (
+           WHERE o.customer_id IS NOT NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM orders prev
+               WHERE prev.tenant_id   = o.tenant_id
+                 AND prev.customer_id = o.customer_id
+                 AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
+                       MAKE_DATE(EXTRACT(YEAR FROM o.created_at)::int,
+                                 EXTRACT(MONTH FROM o.created_at)::int, 1)))
+                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+             )
+         )::int AS new_customers,
+         COUNT(DISTINCT o.customer_id) FILTER (
+           WHERE o.customer_id IS NOT NULL
+             AND EXISTS (
+               SELECT 1 FROM orders prev
+               WHERE prev.tenant_id   = o.tenant_id
+                 AND prev.customer_id = o.customer_id
+                 AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
+                       MAKE_DATE(EXTRACT(YEAR FROM o.created_at)::int,
+                                 EXTRACT(MONTH FROM o.created_at)::int, 1)))
+                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+             )
+         )::int AS repeat_customers
+       FROM orders o
+       WHERE o.tenant_id = $1
+         AND o.created_at >= DATE_TRUNC('year', MAKE_DATE($2, 1, 1))
+         AND o.created_at <  DATE_TRUNC('year', MAKE_DATE($2, 1, 1)) + INTERVAL '1 year'
+         AND (o.archived = FALSE OR o.archived IS NULL)
+       GROUP BY 1, 2
+       ORDER BY 2, 1`,
+      [tid, year]
+    );
+
+    const s = summary[0] || {};
+    const total          = parseInt(s.total)            || 0;
+    const newCustomers   = parseInt(s.new_customers)    || 0;
+    const repeatCustomers= parseInt(s.repeat_customers) || 0;
+    const allTimeTotal   = parseInt(allTime?.total)     || 0;
+    const retentionRate  = total > 0 ? (repeatCustomers / total) * 100 : 0;
+
+    // Build full 12-month array with zeros for missing months
+    const monthlyMap = Object.fromEntries(monthly.map(r => [r.month, r]));
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      const r = monthlyMap[m] || {};
+      return {
+        month: m,
+        total:           parseInt(r.total)            || 0,
+        newCustomers:    parseInt(r.new_customers)    || 0,
+        repeatCustomers: parseInt(r.repeat_customers) || 0,
+      };
+    });
+
+    res.json({
+      year, month,
+      total, newCustomers, repeatCustomers, retentionRate, allTimeTotal,
+      months,
+    });
+  } catch (e) {
+    console.error('[customer-retention]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

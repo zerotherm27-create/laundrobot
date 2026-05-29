@@ -3,6 +3,7 @@ import {
   getFinanceDashboard, getFinancePricingGuide, updateServiceCost,
   getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
+  getFinanceCustomerRetention,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 
@@ -321,6 +322,135 @@ function HorizBars({ items, compact = false }) {
   );
 }
 
+// ─── Retention Chart ──────────────────────────────────────────────────────────
+// Grouped bar chart: new customers (green) + repeat customers (teal) per month
+
+function RetentionChart({ months }) {
+  const [hov, setHov] = useState(null);
+
+  const hasData = months && months.some(m => (m.total || 0) > 0);
+  if (!months || !months.length || !hasData) {
+    return (
+      <div style={{
+        height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#9CA3AF', fontSize: 13, background: '#f9f9f7', borderRadius: 8,
+      }}>
+        No customer data yet for this period.
+      </div>
+    );
+  }
+
+  const VW = 640, VH = 180;
+  const PL = 36, PR = 12, PT = 14, PB = 28;
+  const plotW = VW - PL - PR;
+  const plotH = VH - PT - PB;
+
+  const maxVal = Math.max(...months.map(m => (m.newCustomers || 0) + (m.repeatCustomers || 0)), 1);
+  const bSlot  = plotW / 12;
+  const gW     = bSlot * 0.72;
+  const bW     = (gW - 2) / 2;
+  const ys     = v => PT + plotH - Math.max(0, Math.min(v, maxVal) / maxVal * plotH);
+
+  // Y-axis ticks — at most 5 integer ticks
+  const tickCount = Math.min(maxVal, 5);
+  const tickStep  = Math.ceil(maxVal / tickCount);
+  const ticks     = Array.from({ length: Math.floor(maxVal / tickStep) + 1 }, (_, i) => i * tickStep);
+
+  return (
+    <div style={{ position: 'relative', userSelect: 'none' }}>
+      <svg
+        viewBox={`0 0 ${VW} ${VH}`}
+        style={{ width: '100%', height: VH, display: 'block' }}
+        onMouseLeave={() => setHov(null)}
+      >
+        {/* Grid + Y labels */}
+        {ticks.map((v, i) => {
+          const y = ys(v);
+          return (
+            <g key={i}>
+              <line x1={PL} y1={y} x2={VW - PR} y2={y}
+                stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
+                strokeWidth={i === 0 ? '1' : '0.5'} />
+              {v > 0 && (
+                <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{v}</text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {months.map((m, i) => {
+          const nc  = m.newCustomers    || 0;
+          const rc  = m.repeatCustomers || 0;
+          const cx  = PL + i * bSlot + bSlot / 2;
+          const bx  = cx - gW / 2;
+          const isH = hov === i;
+          const ncH = Math.max(0, (nc / maxVal) * plotH);
+          const rcH = Math.max(0, (rc / maxVal) * plotH);
+
+          return (
+            <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
+              {isH && (
+                <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH}
+                  fill="#38a9c2" fillOpacity="0.05" rx="2" />
+              )}
+              {/* New customers bar */}
+              <rect x={bx}           y={ys(nc)} width={bW} height={ncH}
+                fill="#059669" rx="2" opacity={isH ? 1 : 0.82} />
+              {/* Repeat customers bar */}
+              <rect x={bx + bW + 2}  y={ys(rc)} width={bW} height={rcH}
+                fill="#38a9c2" rx="2" opacity={isH ? 1 : 0.82} />
+              {/* Month label */}
+              <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
+                fill={isH ? '#374151' : '#9CA3AF'}
+                fontWeight={isH ? '600' : '400'}>
+                {MONTHS[m.month - 1]}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Hover tooltip */}
+      {hov !== null && (() => {
+        const m   = months[hov];
+        const ret = m.total > 0 ? ((m.repeatCustomers / m.total) * 100).toFixed(0) : 0;
+        const lp  = ((hov + 0.5) / 12) * 100;
+        return (
+          <div style={{
+            position: 'absolute', top: 8,
+            left: `${lp}%`,
+            transform: hov >= 9 ? 'translateX(calc(-100% - 6px))' : 'translateX(6px)',
+            background: '#1F2937', color: '#F9FAFB', borderRadius: 8,
+            padding: '8px 12px', fontSize: 11, lineHeight: 1.9,
+            whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{FULL_MONTHS[m.month - 1]}</div>
+            <div style={{ color: '#6EE7B7' }}>New: {m.newCustomers || 0}</div>
+            <div style={{ color: '#93C5FD' }}>Repeat: {m.repeatCustomers || 0}</div>
+            <div style={{ color: '#F9FAFB', fontWeight: 600 }}>Total: {m.total || 0}</div>
+            <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>Retention: {ret}%</div>
+          </div>
+        );
+      })()}
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
+        {[
+          { color: '#059669', label: 'New Customers' },
+          { color: '#38a9c2', label: 'Repeat Customers' },
+        ].map(l => (
+          <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+            {l.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard() {
@@ -350,6 +480,17 @@ function Dashboard() {
       .catch(() => setTodayRows([]))
       .finally(() => setTodayLoad(false));
   }, [todayStr]);
+
+  const [retention,     setRetention]     = useState(null);
+  const [retentionLoad, setRetentionLoad] = useState(true);
+
+  useEffect(() => {
+    setRetentionLoad(true);
+    getFinanceCustomerRetention(year, month)
+      .then(r => setRetention(r.data && typeof r.data === 'object' ? r.data : null))
+      .catch(() => setRetention(null))
+      .finally(() => setRetentionLoad(false));
+  }, [year, month]);
 
   const rev = parseFloat(data?.revenue)          || 0;
   const exp = parseFloat(data?.expenses)         || 0;
@@ -467,6 +608,75 @@ function Dashboard() {
               </div>
             );
           })()}
+
+          {/* Customer Retention card */}
+          <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
+              Customer Retention —{' '}
+              <span style={{ fontWeight: 400, color: '#6B7280' }}>{FULL_MONTHS[month - 1]} {year}</span>
+            </div>
+
+            {retentionLoad ? (
+              <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
+            ) : (
+              <>
+                {/* Summary tiles */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                  {[
+                    { label: 'Total Customers',  val: retention?.total          ?? 0, color: '#374151' },
+                    { label: 'New Customers',     val: retention?.newCustomers   ?? 0, color: '#059669' },
+                    { label: 'Repeat Customers',  val: retention?.repeatCustomers ?? 0, color: '#38a9c2' },
+                    { label: 'All-Time Total',    val: retention?.allTimeTotal   ?? 0, color: '#7F77DD' },
+                  ].map(s => (
+                    <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
+                    </div>
+                  ))}
+                  {/* Retention rate pill */}
+                  {retention?.total > 0 && (
+                    <div style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>Retention Rate</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: (retention.retentionRate || 0) >= 50 ? '#059669' : '#BA7517' }}>
+                        {(retention.retentionRate || 0).toFixed(0)}%
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Retention donut + bar chart side by side */}
+                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  {retention?.total > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 4 }}>
+                      <DonutChart
+                        size={96}
+                        segments={[
+                          { value: retention.newCustomers    || 0, color: '#059669' },
+                          { value: retention.repeatCustomers || 0, color: '#38a9c2' },
+                        ].filter(s => s.value > 0)}
+                        center={{ top: 'Return', bottom: `${(retention.retentionRate || 0).toFixed(0)}%` }}
+                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {[
+                          { color: '#059669', label: 'New' },
+                          { color: '#38a9c2', label: 'Repeat' },
+                        ].map(l => (
+                          <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
+                            {l.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6 }}>{year} Monthly Trend</div>
+                    <RetentionChart months={retention?.months || []} />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Financial Snapshot card */}
           {data && (rev > 0 || exp > 0) && (
@@ -1012,12 +1222,17 @@ function MonthlySummary() {
   const [year,    setYear]    = useState(new Date().getFullYear());
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [retData, setRetData] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    getFinanceMonthlySummary(year)
-      .then(r => setData(r.data?.months ? r.data : null))
-      .catch(() => {})
+    Promise.all([
+      getFinanceMonthlySummary(year),
+      getFinanceCustomerRetention(year),
+    ]).then(([plRes, retRes]) => {
+      setData(plRes.data?.months ? plRes.data : null);
+      setRetData(retRes.data?.months ? retRes.data : null);
+    }).catch(() => {})
       .finally(() => setLoading(false));
   }, [year]);
 
@@ -1222,6 +1437,72 @@ function MonthlySummary() {
               </tbody>
             </table>
           </div>
+
+          {/* ── Customer Retention section ── */}
+          {retData && (
+            <div style={{ ...cardStyle, marginTop: 16, padding: '1.25rem' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
+                {year} Customer Retention
+              </div>
+
+              {/* Annual retention KPI pills */}
+              {(() => {
+                const totNew    = retData.months.reduce((s, m) => s + (m.newCustomers    || 0), 0);
+                const totRepeat = retData.months.reduce((s, m) => s + (m.repeatCustomers || 0), 0);
+                const totCust   = retData.months.reduce((s, m) => s + (m.total           || 0), 0);
+                const avgRet    = totCust > 0 ? (totRepeat / totCust) * 100 : 0;
+                return (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                    {[
+                      { label: 'Total Active (YTD)',  val: totCust,            color: '#374151', fmt: v => v },
+                      { label: 'New Customers (YTD)', val: totNew,             color: '#059669', fmt: v => v },
+                      { label: 'Repeat (YTD)',        val: totRepeat,          color: '#38a9c2', fmt: v => v },
+                      { label: 'Avg Retention Rate',  val: avgRet.toFixed(0) + '%', color: avgRet >= 50 ? '#059669' : '#BA7517', fmt: v => v },
+                      { label: 'All-Time Customers',  val: retData.allTimeTotal || 0, color: '#7F77DD', fmt: v => v },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 120 }}>
+                        <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.fmt(s.val)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Chart */}
+              <RetentionChart months={retData.months} />
+
+              {/* Monthly breakdown table */}
+              <div style={{ overflowX: 'auto', marginTop: 16 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f9f9f7' }}>
+                      {['Month', 'Total Customers', 'New', 'Repeat', 'Retention Rate'].map(h => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {retData.months.map(m => {
+                      const retRate = m.total > 0 ? (m.repeatCustomers / m.total) * 100 : 0;
+                      const retColor = retRate >= 50 ? '#059669' : retRate >= 25 ? '#BA7517' : '#6B7280';
+                      return (
+                        <tr key={m.month}>
+                          <td style={{ ...tdStyle, fontWeight: 500 }}>{MONTHS[m.month - 1]}</td>
+                          <td style={{ ...tdNum, fontWeight: 600 }}>{m.total || '—'}</td>
+                          <td style={{ ...tdNum, color: '#059669', fontWeight: 600 }}>{m.newCustomers || '—'}</td>
+                          <td style={{ ...tdNum, color: '#38a9c2', fontWeight: 600 }}>{m.repeatCustomers || '—'}</td>
+                          <td style={{ ...tdNum, color: retColor, fontWeight: 700 }}>
+                            {m.total > 0 ? `${retRate.toFixed(0)}%` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
