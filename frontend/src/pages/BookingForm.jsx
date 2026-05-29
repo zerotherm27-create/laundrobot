@@ -282,7 +282,10 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
       setZones(data.zones);
       if (data.bracketInfo) setBracketInfo(data.bracketInfo);
       setBlockedDates(data.blockedDates);
-      if (data.categories.length > 0) setActiveCat(data.categories[0].id);
+      if (data.categories.length > 0) {
+        const machineWash = data.categories.find(cat => cat.name?.toLowerCase().includes('machine wash'));
+        setActiveCat((machineWash || data.categories[0]).id);
+      }
     }).catch(e => {
       if (e.response?.status === 404) setNotFound(true);
     }).finally(() => setLoading(false));
