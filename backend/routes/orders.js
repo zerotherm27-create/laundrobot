@@ -729,13 +729,33 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
   }
 });
 
-// DELETE order
+// DELETE order — soft delete only, never hard delete
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await db.query(
-      `DELETE FROM orders WHERE id = $1 AND tenant_id = $2`,
+    // Fetch the order snapshot before soft-deleting
+    const { rows: [order] } = await db.query(
+      `SELECT o.*, c.name as customer_name, c.phone as customer_phone
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.id = $1 AND o.tenant_id = $2`,
       [req.params.id, req.user.tenant_id]
     );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Soft-delete: archive + record who deleted it
+    await db.query(
+      `UPDATE orders SET archived = TRUE, archived_at = NOW(), deleted_by = $1
+       WHERE id = $2 AND tenant_id = $3`,
+      [req.user.email, req.params.id, req.user.tenant_id]
+    );
+
+    // Write audit log entry with full order snapshot
+    await db.query(
+      `INSERT INTO order_audit_log (order_id, booking_ref, tenant_id, action, performed_by, order_snapshot)
+       VALUES ($1, $2, $3, 'deleted', $4, $5)`,
+      [order.id, order.booking_ref, order.tenant_id, req.user.email, JSON.stringify(order)]
+    );
+
     res.json({ message: 'Order deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
