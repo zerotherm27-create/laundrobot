@@ -53,14 +53,14 @@ router.post('/walk-in', auth, async (req, res) => {
       customerId = newC.id;
     }
 
-    // Booking ref — advisory lock prevents race conditions between concurrent bookings
-    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [req.user.tenant_id]);
-    const { rows: [{ maxref }] } = await client.query(
-      `SELECT MAX(CAST(REPLACE(booking_ref, 'BKG-', '') AS INTEGER)) as maxref
-       FROM orders WHERE tenant_id=$1 AND booking_ref ~ '^BKG-[0-9]+$'`,
+    // Booking ref — atomic counter, never reuses numbers even if orders are deleted
+    const { rows: [{ last_ref }] } = await client.query(
+      `INSERT INTO booking_ref_counters (tenant_id, last_ref) VALUES ($1, 1)
+       ON CONFLICT (tenant_id) DO UPDATE SET last_ref = booking_ref_counters.last_ref + 1
+       RETURNING last_ref`,
       [req.user.tenant_id]
     );
-    const bookingRef = 'BKG-' + String((Number(maxref) || 0) + 1).padStart(6, '0');
+    const bookingRef = 'BKG-' + String(last_ref).padStart(6, '0');
 
     for (const item of cart) {
       const orderId = randomUUID();
