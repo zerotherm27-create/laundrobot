@@ -417,15 +417,20 @@ router.post('/:tenantId/orders', async (req, res) => {
 
   // Rate limit: max 3 pending/active bookings per phone per tenant per day
   if (source !== 'admin') {
-    const { rows: [{ count: pendingCount }] } = await db.query(
-      `SELECT COUNT(*) FROM orders o
-       WHERE tenant_id=$1 AND phone=$2
-         AND status NOT IN ('completed','cancelled','archived')
-         AND created_at > NOW() - INTERVAL '24 hours'`,
-      [req.params.tenantId, cleanPhone]
-    );
-    if (Number(pendingCount) >= 3) {
-      return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
+    try {
+      const { rows: [{ count: pendingCount }] } = await db.query(
+        `SELECT COUNT(*) FROM orders o
+         JOIN customers c ON c.id = o.customer_id
+         WHERE o.tenant_id=$1 AND c.phone=$2
+           AND o.status NOT IN ('completed','cancelled','archived')
+           AND o.created_at > NOW() - INTERVAL '24 hours'`,
+        [req.params.tenantId, cleanPhone]
+      );
+      if (Number(pendingCount) >= 3) {
+        return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
+      }
+    } catch (rateErr) {
+      console.warn('[rate-limit] check failed (skipping):', rateErr.message);
     }
   }
 
