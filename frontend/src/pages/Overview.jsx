@@ -155,7 +155,7 @@ export default function Overview() {
   const todayRevenue = todaySales.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
 
   const stats = [
-    { label: 'Total Revenue', val: '₱' + revenue.toLocaleString('en-US'), sub: `${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
+    { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), sub: `${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
     { label: 'Total Orders',  val: orders.length,                          sub: `all time` },
     { label: 'Active Orders', val: active,                                 sub: `in progress` },
     { label: 'Orders Today',  val: todayOrders,                            sub: new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) },
@@ -297,7 +297,7 @@ export default function Overview() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Today's Revenue</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1 }}>
-            ₱{todayRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{todayRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
