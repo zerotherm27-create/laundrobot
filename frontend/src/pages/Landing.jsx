@@ -285,7 +285,12 @@ function MessengerMockup() {
         loop
         muted
         playsInline
-        style={{ width: 300, maxWidth: '100%', display: 'block', filter: 'drop-shadow(0 32px 64px rgba(0,0,0,.35))' }}
+        style={{
+          width: 340,
+          maxWidth: '100%',
+          display: 'block',
+          mixBlendMode: 'multiply',
+        }}
       />
     </div>
   );
