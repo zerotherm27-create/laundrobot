@@ -1186,7 +1186,12 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                   onChange={e => {
                     const val = e.target.value;
                     setForm(p => ({ ...p, phone: val }));
-                    if (/^(09|\+639|639)\d{9}$/.test(val.replace(/\s/g, ''))) setIsWhatsApp(false);
+                    const stripped = val.replace(/\s/g, '');
+                    if (/^(09|\+639|639)\d{9}$/.test(stripped)) {
+                      setIsWhatsApp(false); // confirmed PH number
+                    } else if (/^\+(?!63)/.test(stripped)) {
+                      setIsWhatsApp(true); // starts with + but not +63 → international/WhatsApp
+                    }
                     setSavedCustomer(null); setAddressMode('new');
                     clearTimeout(phoneDebounce.current);
                     if (val.trim().length >= 10) {
@@ -1227,7 +1232,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                   return (
                     <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: '#92400e', background: '#FEF3C7', borderRadius: 6, padding: '5px 9px', marginTop: 5, cursor: 'pointer' }}>
                       <input type="checkbox" checked={false} onChange={() => setIsWhatsApp(true)} />
-                      Not a Philippine number? Tick here to use your WhatsApp number instead
+                      Not a Philippine number? Tick here if this is a WhatsApp / international number
                     </label>
                   );
                 })()}
