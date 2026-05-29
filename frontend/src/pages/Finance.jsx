@@ -3,7 +3,7 @@ import {
   getFinanceDashboard, getFinancePricingGuide, updateServiceCost,
   getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
-  getFinanceCustomerRetention,
+  getFinanceCustomerRetention,  // used in MonthlySummary
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 
@@ -481,16 +481,6 @@ function Dashboard() {
       .finally(() => setTodayLoad(false));
   }, [todayStr]);
 
-  const [retention,     setRetention]     = useState(null);
-  const [retentionLoad, setRetentionLoad] = useState(true);
-
-  useEffect(() => {
-    setRetentionLoad(true);
-    getFinanceCustomerRetention(year, month)
-      .then(r => setRetention(r.data && typeof r.data === 'object' ? r.data : null))
-      .catch(() => setRetention(null))
-      .finally(() => setRetentionLoad(false));
-  }, [year, month]);
 
   const rev = parseFloat(data?.revenue)          || 0;
   const exp = parseFloat(data?.expenses)         || 0;
@@ -608,75 +598,6 @@ function Dashboard() {
               </div>
             );
           })()}
-
-          {/* Customer Retention card */}
-          <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
-              Customer Retention —{' '}
-              <span style={{ fontWeight: 400, color: '#6B7280' }}>{FULL_MONTHS[month - 1]} {year}</span>
-            </div>
-
-            {retentionLoad ? (
-              <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</div>
-            ) : (
-              <>
-                {/* Summary tiles */}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-                  {[
-                    { label: 'Total Customers',  val: retention?.total          ?? 0, color: '#374151' },
-                    { label: 'New Customers',     val: retention?.newCustomers   ?? 0, color: '#059669' },
-                    { label: 'Repeat Customers',  val: retention?.repeatCustomers ?? 0, color: '#38a9c2' },
-                    { label: 'All-Time Total',    val: retention?.allTimeTotal   ?? 0, color: '#7F77DD' },
-                  ].map(s => (
-                    <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
-                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
-                    </div>
-                  ))}
-                  {/* Retention rate pill */}
-                  {retention?.total > 0 && (
-                    <div style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
-                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>Retention Rate</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: (retention.retentionRate || 0) >= 50 ? '#059669' : '#BA7517' }}>
-                        {(retention.retentionRate || 0).toFixed(0)}%
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Retention donut + bar chart side by side */}
-                <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                  {retention?.total > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 4 }}>
-                      <DonutChart
-                        size={96}
-                        segments={[
-                          { value: retention.newCustomers    || 0, color: '#059669' },
-                          { value: retention.repeatCustomers || 0, color: '#38a9c2' },
-                        ].filter(s => s.value > 0)}
-                        center={{ top: 'Return', bottom: `${(retention.retentionRate || 0).toFixed(0)}%` }}
-                      />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {[
-                          { color: '#059669', label: 'New' },
-                          { color: '#38a9c2', label: 'Repeat' },
-                        ].map(l => (
-                          <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
-                            {l.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 220 }}>
-                    <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6 }}>{year} Monthly Trend</div>
-                    <RetentionChart months={retention?.months || []} />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
 
           {/* Financial Snapshot card */}
           {data && (rev > 0 || exp > 0) && (
