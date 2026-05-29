@@ -222,6 +222,18 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   // Reorder prefill banner
   const [reorderBanner, setReorderBanner] = useState(null); // { ref: 'BKG-000001' } | null
 
+  // reCAPTCHA v3 — load script once on mount if site key is configured
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  useEffect(() => {
+    if (!RECAPTCHA_SITE_KEY) return;
+    if (document.querySelector('#recaptcha-script')) return;
+    const script = document.createElement('script');
+    script.id = 'recaptcha-script';
+    script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+    script.async = true;
+    document.head.appendChild(script);
+  }, [RECAPTCHA_SITE_KEY]);
+
   async function persistCart(updatedCart, currentStep) {
     try {
       const items = updatedCart.map(i => ({ service_id: i.service_id, service_name: i.service_name }));
@@ -536,6 +548,14 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   async function handleSubmit() {
     setSubmitting(true); setSubmitErr('');
     try {
+      // Get reCAPTCHA v3 token (silent, no user interaction)
+      let captcha_token;
+      if (RECAPTCHA_SITE_KEY && window.grecaptcha) {
+        try {
+          captcha_token = await window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'booking' });
+        } catch (_) { /* skip if captcha fails — backend allows through */ }
+      }
+
       const pickupDatetime = form.pickup_time
         ? `${form.pickup_date}T${form.pickup_time}:00`
         : form.pickup_date;
@@ -555,6 +575,8 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         notes: combinedNotes || undefined,
         promo_code: appliedPromo?.code || undefined,
         fb_id: messengerPsid || undefined,
+        captcha_token: captcha_token || undefined,
+        is_whatsapp: isWhatsApp || undefined,
       });
       setResult(data);
       setStep('success');

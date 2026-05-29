@@ -377,15 +377,56 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff, source } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff, source, captcha_token, is_whatsapp } = req.body;
   const isDropoff = is_dropoff === true || is_dropoff === 'true';
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
     return res.status(400).json({ error: 'Cart, name, phone, address, and pickup date are required.' });
   }
 
-  if (!/^(09|\+639)\d{9}$/.test(phone.trim())) {
-    return res.status(400).json({ error: 'Please enter a valid Philippine mobile number (e.g. 09XXXXXXXXX or +639XXXXXXXXX).' });
+  // Phone validation: accept PH numbers or international numbers flagged as WhatsApp
+  const cleanPhone = phone.trim().replace(/\s/g, '');
+  const isPHNumber = /^(09|\+639|639)\d{9}$/.test(cleanPhone);
+  const isIntlNumber = /^\+(?!63)\d{6,15}$/.test(cleanPhone);
+  if (!isPHNumber && !isIntlNumber && !is_whatsapp) {
+    return res.status(400).json({ error: 'Please enter a valid mobile number (e.g. 09XXXXXXXXX) or a WhatsApp international number (e.g. +1XXXXXXXXXX).' });
+  }
+
+  // reCAPTCHA v3 verification (skip gracefully if secret not configured)
+  const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+  if (recaptchaSecret && source !== 'admin') {
+    if (!captcha_token) {
+      return res.status(400).json({ error: 'Security check failed. Please refresh and try again.' });
+    }
+    try {
+      const axios = require('axios');
+      const { data: captchaRes } = await axios.post(
+        `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captcha_token}`,
+        null, { timeout: 5000 }
+      );
+      // Reject score below 0.3 (likely bot); 1.0 = definitely human, 0.0 = definitely bot
+      if (!captchaRes.success || captchaRes.score < 0.3) {
+        console.warn('[captcha] rejected score:', captchaRes.score, 'action:', captchaRes.action);
+        return res.status(403).json({ error: 'Security check failed. Please refresh the page and try again.' });
+      }
+    } catch (captchaErr) {
+      console.warn('[captcha] verification error (allowing through):', captchaErr.message);
+      // On captcha service error, allow through to not block real customers
+    }
+  }
+
+  // Rate limit: max 3 pending/active bookings per phone per tenant per day
+  if (source !== 'admin') {
+    const { rows: [{ count: pendingCount }] } = await db.query(
+      `SELECT COUNT(*) FROM orders
+       WHERE tenant_id=$1 AND phone=$2
+         AND status NOT IN ('completed','cancelled','archived')
+         AND created_at > NOW() - INTERVAL '24 hours'`,
+      [req.params.tenantId, cleanPhone]
+    );
+    if (Number(pendingCount) >= 3) {
+      return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
+    }
   }
 
   const pickupDay = new Date(pickup_date.trim());
