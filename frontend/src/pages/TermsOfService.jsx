@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const UPDATED = 'April 28, 2026';
+const UPDATED = 'May 30, 2026';
 
 export default function TermsOfService() {
   useEffect(() => { document.title = 'Terms of Service — LaundroBot'; }, []);
@@ -21,7 +21,7 @@ export default function TermsOfService() {
 
         <Section title="1. Acceptance of Terms">
           <p>By registering for or using LaundroBot ("the Service"), you ("Tenant" or "you") agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
-          <p>LaundroBot is operated in the Philippines and these Terms are governed by Philippine law.</p>
+          <p>LaundroBot is a product of <strong>Rinselab Inc.</strong>, a Philippine company engaged in laundry services, parcel delivery, and software-as-a-service (SaaS) products. These Terms are governed by Philippine law.</p>
         </Section>
 
         <Section title="2. Description of Service">
@@ -71,7 +71,8 @@ export default function TermsOfService() {
         </Section>
 
         <Section title="6. Data and Privacy">
-          <p>Your use of the Service is also governed by our <a href="/privacy" style={{ color: '#38a9c2' }}>Privacy Policy</a>. As a Tenant, you act as the data controller for your customers' personal information. You are responsible for obtaining appropriate consent from your customers for data collection and processing.</p>
+          <p>Your use of the Service is also governed by our <a href="/privacy" style={{ color: '#38a9c2' }}>Privacy Policy</a> and <a href="/data-deletion" style={{ color: '#38a9c2' }}>Data Deletion Policy</a>. As a Tenant, you act as the data controller for your customers' personal information. You are responsible for obtaining appropriate consent from your customers for data collection and processing.</p>
+          <p>Rinselab Inc. processes personal data on your behalf as a personal information processor under the Data Privacy Act of 2012 (RA 10173). You acknowledge that you, as the Tenant, remain the personal information controller responsible for your customers' data.</p>
         </Section>
 
         <Section title="7. Uptime and Support">
@@ -111,7 +112,8 @@ export default function TermsOfService() {
 
         <Section title="14. Contact">
           <p>
-            <strong>LaundroBot</strong><br />
+            <strong>Rinselab Inc.</strong><br />
+            Operating LaundroBot<br />
             Philippines<br />
             Email: <a href="mailto:hello@laundrobot.com" style={{ color: '#38a9c2' }}>hello@laundrobot.com</a>
           </p>

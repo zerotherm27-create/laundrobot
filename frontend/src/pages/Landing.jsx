@@ -1171,13 +1171,14 @@ function Footer() {
               <FooterLink href="/login">Sign in</FooterLink>
               <FooterLink href="/privacy">Privacy Policy</FooterLink>
               <FooterLink href="/terms">Terms of Service</FooterLink>
+              <FooterLink href="/data-deletion">Data Deletion</FooterLink>
             </div>
           </div>
         </div>
         {/* Bottom row */}
         <div style={{ borderTop: '1px solid #F0F0EC', paddingTop: '1.25rem' }}>
           <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
-            © {new Date().getFullYear()} LaundroBot · Built for laundry businesses in the Philippines
+            © {new Date().getFullYear()} Rinselab Inc. · LaundroBot · Built for laundry businesses in the Philippines
           </p>
         </div>
       </div>

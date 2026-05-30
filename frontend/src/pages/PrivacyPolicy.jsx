@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const UPDATED = 'April 28, 2026';
+const UPDATED = 'May 30, 2026';
 
 export default function PrivacyPolicy() {
   useEffect(() => { document.title = 'Privacy Policy — LaundroBot'; }, []);
@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
         <p style={{ color: '#6B7280', fontSize: 14, marginBottom: 40 }}>Last updated: {UPDATED}</p>
 
         <Section title="1. Overview">
-          <p>LaundroBot ("we", "our", "us") operates a Software-as-a-Service (SaaS) platform that helps laundry businesses in the Philippines manage orders, communicate with customers via Facebook Messenger and Instagram, and accept payments online.</p>
+          <p>LaundroBot is a product of <strong>Rinselab Inc.</strong> ("we", "our", "us"), a Philippine company engaged in laundry services, parcel delivery, and software-as-a-service (SaaS) products. We operate a SaaS platform that helps laundry businesses manage orders, communicate with customers via Facebook Messenger and Instagram, and accept payments online.</p>
           <p>This Privacy Policy explains how we collect, use, store, and protect personal information in compliance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong> and the regulations of the National Privacy Commission (NPC) of the Philippines.</p>
         </Section>
 
@@ -66,9 +66,11 @@ export default function PrivacyPolicy() {
           </ul>
         </Section>
 
-        <Section title="5. Data Retention">
-          <p>Order records are retained for a minimum of 3 years for business record-keeping purposes. Customer data is retained as long as your account is active. You may request deletion of your data by contacting us at the address below.</p>
+        <Section title="5. Data Retention and Deletion">
+          <p>Order records are retained for a minimum of 3 years for business record-keeping purposes. Customer data is retained as long as your account is active.</p>
           <p>Tenant accounts that are closed will have their data anonymized or deleted within 30 days of account termination, except where retention is required by law.</p>
+          <p>You may request deletion of your personal data at any time. See our <a href="/data-deletion" style={{ color: '#38a9c2' }}>Data Deletion Policy</a> for full details on how to submit a request, what is deleted, and what we are legally required to retain. We process deletion requests within 15 business days of identity verification.</p>
+          <p>If you connected through Facebook Messenger and remove the LaundroBot app from your Facebook account, Meta will send an automatic data deletion callback to our platform, which we honor within 24 hours.</p>
         </Section>
 
         <Section title="6. Data Security">
@@ -109,7 +111,8 @@ export default function PrivacyPolicy() {
         <Section title="11. Contact Us">
           <p>For privacy concerns, data requests, or complaints, contact:</p>
           <p>
-            <strong>LaundroBot</strong><br />
+            <strong>Rinselab Inc.</strong><br />
+            Operating LaundroBot<br />
             Philippines<br />
             Email: <a href="mailto:privacy@laundrobot.com" style={{ color: '#38a9c2' }}>privacy@laundrobot.com</a>
           </p>

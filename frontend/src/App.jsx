@@ -27,6 +27,7 @@ import Landing from './pages/Landing.jsx';
 import PaywallScreen from './pages/PaywallScreen.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
+import DataDeletion from './pages/DataDeletion.jsx';
 import { getSubscription, getPublicTenantByDomain } from './api.js';
 import { usePushNotifications } from './hooks/usePushNotifications.js';
 
@@ -168,8 +169,9 @@ function Inner() {
 
   const path = window.location.pathname;
 
-  if (path === '/privacy') return <PrivacyPolicy />;
-  if (path === '/terms')   return <TermsOfService />;
+  if (path === '/privacy')       return <PrivacyPolicy />;
+  if (path === '/terms')         return <TermsOfService />;
+  if (path === '/data-deletion') return <DataDeletion />;
 
   if (!user) {
     if (path === '/login') {
