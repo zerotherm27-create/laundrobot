@@ -310,11 +310,39 @@ router.post('/settings/facebook-oauth-exchange', auth, async (req, res) => {
     });
     const longLivedToken = exchangeRes.data.access_token;
 
-    // Fetch pages
+    // Fetch personal pages
     const pagesRes = await axios.get(`${GRAPH}/me/accounts`, {
       params: { access_token: longLivedToken, fields: 'id,name,category,access_token' },
     });
-    const pages = pagesRes.data.data || [];
+    const personalPages = pagesRes.data.data || [];
+
+    // Also fetch pages from Business Portfolios
+    let businessPages = [];
+    try {
+      const bizRes = await axios.get(`${GRAPH}/me/businesses`, {
+        params: { access_token: longLivedToken, fields: 'id,name' },
+      });
+      const businesses = bizRes.data.data || [];
+      for (const biz of businesses) {
+        try {
+          const bPagesRes = await axios.get(`${GRAPH}/${biz.id}/owned_pages`, {
+            params: { access_token: longLivedToken, fields: 'id,name,category,access_token' },
+          });
+          businessPages = businessPages.concat(bPagesRes.data.data || []);
+        } catch (e) {
+          console.warn(`[facebook-oauth-exchange] failed to fetch pages for business ${biz.id}:`, e.response?.data?.error?.message || e.message);
+        }
+      }
+    } catch (e) {
+      console.warn('[facebook-oauth-exchange] failed to fetch businesses:', e.response?.data?.error?.message || e.message);
+    }
+
+    // Merge, deduplicate by page id, personal pages take priority (they have tokens)
+    const pageMap = new Map();
+    for (const p of [...businessPages, ...personalPages]) {
+      pageMap.set(p.id, p);
+    }
+    const pages = Array.from(pageMap.values()).filter(p => p.access_token);
     if (pages.length === 0) return res.status(400).json({ error: 'No Facebook Pages found for this account. Make sure you are an Admin of at least one Page.' });
 
     const pageDataToken = jwt.sign(
