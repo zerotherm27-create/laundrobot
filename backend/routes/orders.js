@@ -41,8 +41,8 @@ router.post('/walk-in', auth, async (req, res) => {
     let customerId;
     if (existing) {
       await client.query(
-        'UPDATE customers SET name=$1, email=COALESCE($2, email), address=COALESCE($3, address) WHERE id=$4',
-        [name.trim(), email?.trim() || null, address?.trim() || null, existing.id]
+        'UPDATE customers SET email=COALESCE($1, email), address=COALESCE($2, address) WHERE id=$3',
+        [email?.trim() || null, address?.trim() || null, existing.id]
       );
       customerId = existing.id;
     } else {

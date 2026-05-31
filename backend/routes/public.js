@@ -523,9 +523,9 @@ router.post('/:tenantId/orders', async (req, res) => {
       );
       if (existing) {
         await client.query(
-          `UPDATE customers SET name=$1, email=COALESCE($2, email), address=$3,
-           addr_lat=COALESCE($4, addr_lat), addr_lng=COALESCE($5, addr_lng) WHERE id=$6`,
-          [name.trim(), email?.trim() || null, address.trim(), coordLat, coordLng, existing.id]
+          `UPDATE customers SET email=COALESCE($1, email), address=$2,
+           addr_lat=COALESCE($3, addr_lat), addr_lng=COALESCE($4, addr_lng) WHERE id=$5`,
+          [email?.trim() || null, address.trim(), coordLat, coordLng, existing.id]
         );
         customerId = existing.id;
       } else {
