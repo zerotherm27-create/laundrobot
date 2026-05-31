@@ -363,21 +363,28 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
   const { pageId, pageDataToken } = req.body;
   if (!pageId || !pageDataToken) return res.status(400).json({ error: 'pageId and pageDataToken are required' });
   try {
+    console.log('[facebook-connect] step: jwt.verify');
     const payload = jwt.verify(pageDataToken, process.env.JWT_SECRET);
     if (payload.tid !== req.user.tenant_id) return res.status(403).json({ error: 'Token mismatch' });
 
+    console.log('[facebook-connect] step: find page', pageId, 'in', payload.pages?.map(p => p.id));
     const page = payload.pages.find(p => p.id === pageId);
     if (!page) return res.status(400).json({ error: 'Selected page not found in session' });
+    console.log('[facebook-connect] page found:', page.name, 'has_token:', !!page.access_token);
 
+    console.log('[facebook-connect] step: db SELECT existing');
     const { rows: [existing] } = await db.query(
       `SELECT custom_domain, ig_user_id FROM tenants WHERE id=$1`, [req.user.tenant_id]
     );
+    console.log('[facebook-connect] step: db UPDATE tenant');
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants SET fb_page_id=$1, fb_page_access_token=$2 WHERE id=$3 RETURNING id, name`,
       [page.id, page.access_token, req.user.tenant_id]
     );
+    console.log('[facebook-connect] db updated, tenant:', tenant?.name);
 
     try {
+      console.log('[facebook-connect] step: setupMessengerProfile');
       await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
     } catch (e) {
       console.warn('[facebook-connect] messenger profile setup failed:', e.message);
@@ -388,8 +395,8 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(400).json({ error: 'Session expired — please try connecting again.' });
     }
-    console.error('[facebook-connect]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[facebook-connect] CAUGHT ERROR:', err.name, err.message, err.stack);
+    res.status(500).json({ error: `[${err.name}] ${err.message}` });
   }
 });
 
