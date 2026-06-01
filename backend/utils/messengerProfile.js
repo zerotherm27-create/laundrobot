@@ -15,11 +15,21 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
   try {
     const pageInfo = await axios.get(`${GRAPH}/me?fields=id&access_token=${pageToken}`);
     const pageId = pageInfo.data.id;
-    await axios.post(
-      `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
-      { subscribed_fields: ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals', 'message_echoes', 'instagram_manage_messages'] }
-    );
-    console.log(`[messenger-profile] webhook subscribed for page ${pageId}`);
+    const messengerFields = ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals', 'message_echoes'];
+    // Try with instagram_manage_messages first; fall back to Messenger-only if not yet approved
+    try {
+      await axios.post(
+        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
+        { subscribed_fields: [...messengerFields, 'instagram_manage_messages'] }
+      );
+      console.log(`[messenger-profile] webhook subscribed with Instagram for page ${pageId}`);
+    } catch (igErr) {
+      await axios.post(
+        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
+        { subscribed_fields: messengerFields }
+      );
+      console.log(`[messenger-profile] webhook subscribed (Messenger only) for page ${pageId} — instagram_manage_messages not yet approved`);
+    }
   } catch (e) {
     console.warn(`[messenger-profile] webhook subscription failed for ${name}:`, e.response?.data?.error?.message || e.message);
   }
