@@ -352,9 +352,14 @@ router.post('/settings/facebook-oauth-exchange', auth, async (req, res) => {
     );
     res.json({ pages: pages.map(p => ({ id: p.id, name: p.name, category: p.category })), pageDataToken });
   } catch (err) {
-    const fbMsg = err.response?.data?.error?.message;
-    console.error('[facebook-oauth-exchange]', fbMsg || err.message);
-    res.status(400).json({ error: fbMsg || 'Failed to exchange Facebook code.' });
+    const fbErr = err.response?.data?.error;
+    const fbMsg = fbErr?.message;
+    // Surface FB error code/subcode/trace so the exact cause is visible (diagnostic)
+    const detail = fbErr
+      ? `${fbErr.message} [code ${fbErr.code}${fbErr.error_subcode ? ' subcode ' + fbErr.error_subcode : ''}${fbErr.fbtrace_id ? ' trace ' + fbErr.fbtrace_id : ''}]`
+      : err.message;
+    console.error('[facebook-oauth-exchange]', JSON.stringify(fbErr || { message: err.message }));
+    res.status(400).json({ error: detail || 'Failed to exchange Facebook code.' });
   }
 });
 
