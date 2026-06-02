@@ -73,6 +73,28 @@ function buildCustomFieldsPayload(svc, fieldValues, addonQty, addonOwn) {
   return result;
 }
 
+/** Inverse of buildCustomFieldsPayload — turn a stored custom_selections blob back
+ *  into editor state so an existing item's variation pickers show current values. */
+function parseCustomSelections(svc, customSelections) {
+  const fieldValues = {}, addonQty = {}, addonOwn = {};
+  let sels = customSelections;
+  if (typeof sels === 'string') {
+    try { sels = JSON.parse(sels); } catch { sels = []; }
+  }
+  if (!Array.isArray(sels) || !svc?.custom_fields) return { fieldValues, addonQty, addonOwn };
+  for (const sel of sels) {
+    const f = svc.custom_fields.find(cf => cf.label === sel.label);
+    if (!f) continue;
+    if (f.field_type === 'addon') {
+      if (sel.value === 'Customer provides own') addonOwn[f.id] = true;
+      else addonQty[f.id] = Number(sel.value) || 0;
+    } else {
+      fieldValues[f.id] = sel.value;
+    }
+  }
+  return { fieldValues, addonQty, addonOwn };
+}
+
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 
 function groupByBookingRef(orders) {
@@ -128,6 +150,7 @@ export default function Orders() {
   const [editMode, setEditMode]       = useState(false);
   const [editForm, setEditForm]       = useState({});
   const [editItems, setEditItems]     = useState([]); // booking items [{id?, service_id, price, notes}]
+  const [deletedIds, setDeletedIds]   = useState([]); // existing item ids removed during edit
   const [bookingRef, setBookingRef]   = useState(null);
   const [editCustomNote, setEditCustomNote]   = useState('');
   const [editCustomPrice, setEditCustomPrice] = useState('');
@@ -207,16 +230,22 @@ export default function Orders() {
 
     setEditCustomNote('');
     setEditCustomPrice('');
+    setDeletedIds([]);
 
     if (order.booking_ref) {
       const bookingOrders = orders.filter(o => o.booking_ref === order.booking_ref);
       setBookingRef(order.booking_ref);
-      setEditItems(bookingOrders.map(o => ({
-        id: o.id,
-        service_id: o.service_id ? String(o.service_id) : '',
-        price: Number(o.price),
-        notes: (o.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim(),
-      })));
+      setEditItems(bookingOrders.map(o => {
+        const svc = services.find(s => s.id === Number(o.service_id));
+        const { fieldValues, addonQty, addonOwn } = parseCustomSelections(svc, o.custom_selections);
+        return {
+          id: o.id,
+          service_id: o.service_id ? String(o.service_id) : '',
+          price: Number(o.price),
+          notes: (o.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim(),
+          fieldValues, addonQty, addonOwn,
+        };
+      }));
     } else {
       setBookingRef(null);
       setEditItems([]);
@@ -234,17 +263,16 @@ export default function Orders() {
     try {
       if (bookingRef) {
         const processedItems = editItems.map(item => {
-          if (item.id) return item;
           const svc = services.find(s => s.id === Number(item.service_id));
           return {
-            id: null,
+            id: item.id || null,
             service_id: item.service_id,
             price: item.price,
             notes: item.notes,
             custom_fields: buildCustomFieldsPayload(svc, item.fieldValues || {}, item.addonQty || {}, item.addonOwn || {}),
           };
         });
-        const { data } = await updateBooking(bookingRef, processedItems, editCustomNote, editCustomPrice);
+        const { data } = await updateBooking(bookingRef, processedItems, editCustomNote, editCustomPrice, deletedIds);
         loadActive();
         setEditMode(false);
         setSavedDiff({ isBooking: true, ...data });
@@ -908,12 +936,13 @@ export default function Orders() {
                               <span style={{ fontSize: 11, fontWeight: 600, color: item.id ? '#374151' : '#16A34A' }}>
                                 {item.id ? `Item ${idx + 1} — ${item.id}` : `New Item ${idx + 1}`}
                               </span>
-                              {!item.id && (
-                                <button onClick={() => setEditItems(prev => prev.filter((_, i) => i !== idx))}
-                                  style={{ fontSize: 11, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: 4, fontFamily: 'inherit' }}>
-                                  Remove
-                                </button>
-                              )}
+                              <button onClick={() => {
+                                  if (item.id) setDeletedIds(prev => [...prev, item.id]);
+                                  setEditItems(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                style={{ fontSize: 11, color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: 4, fontFamily: 'inherit' }}>
+                                Remove
+                              </button>
                             </div>
                             <select value={item.service_id}
                               onChange={e => {
@@ -932,8 +961,8 @@ export default function Orders() {
                               ))}
                             </select>
 
-                            {/* Custom fields for new items */}
-                            {!item.id && (() => {
+                            {/* Variation / add-on selectors — for both existing and new items */}
+                            {(() => {
                               const svc = services.find(s => s.id === Number(item.service_id));
                               if (!svc?.custom_fields?.length) return null;
                               const fv = item.fieldValues || {};

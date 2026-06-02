@@ -136,8 +136,9 @@ router.post('/archive-month', auth, async (req, res) => {
 router.put('/booking/:ref', auth, async (req, res) => {
   const { items, custom_note, custom_price } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'items array required' });
+    return res.status(400).json({ error: 'A booking must keep at least one item. To void it entirely, use Cancel Order instead.' });
   }
+  const deletedIds = Array.isArray(req.body.deleted_ids) ? req.body.deleted_ids.filter(Boolean) : [];
   const extraAmount = Number(custom_price) || 0;
 
   let client;
@@ -160,12 +161,21 @@ router.put('/booking/:ref', auth, async (req, res) => {
     const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
     const editStamp = `[Edited by admin — ${new Date().toLocaleDateString('en-PH', { dateStyle: 'short' })}]`;
 
+    // Remove items the admin deleted (scoped to this booking + tenant)
+    for (const delId of deletedIds) {
+      await client.query(
+        `DELETE FROM orders WHERE id=$1 AND booking_ref=$2 AND tenant_id=$3`,
+        [delId, req.params.ref, req.user.tenant_id]
+      );
+    }
+
     for (const item of items.filter(i => i.id)) {
       const cleanNotes = (item.notes || '').replace(/\[Edited by admin[^\]]*\]/g, '').trim();
       const notesWithStamp = cleanNotes ? `${cleanNotes}\n${editStamp}` : editStamp;
+      const customSelections = item.custom_fields?.length ? JSON.stringify(item.custom_fields) : null;
       await client.query(
-        `UPDATE orders SET service_id=$1, price=$2, notes=$3 WHERE id=$4 AND tenant_id=$5`,
-        [item.service_id || null, Number(item.price), notesWithStamp, item.id, req.user.tenant_id]
+        `UPDATE orders SET service_id=$1, price=$2, notes=$3, custom_selections=$4 WHERE id=$5 AND tenant_id=$6`,
+        [item.service_id || null, Number(item.price), notesWithStamp, customSelections, item.id, req.user.tenant_id]
       );
     }
 
