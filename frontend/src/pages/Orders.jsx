@@ -95,6 +95,48 @@ function parseCustomSelections(svc, customSelections) {
   return { fieldValues, addonQty, addonOwn };
 }
 
+/** Short human label for a booking line, e.g. "Wash & Fold (Medium Bag, Express)". */
+function lineLabel(o, services) {
+  const name = o.service_name || services.find(s => s.id === Number(o.service_id))?.name || 'Service';
+  let sels = o.custom_selections;
+  if (typeof sels === 'string') { try { sels = JSON.parse(sels); } catch { sels = []; } }
+  const variation = Array.isArray(sels) && sels.length
+    ? ` (${sels.map(s => s.value).join(', ')})`
+    : '';
+  return name + variation;
+}
+
+/** Diff a booking's items before vs after an edit. Matches lines by id. */
+function computeChanges(before, after) {
+  const afterById = new Map(after.map(a => [a.id, a]));
+  const beforeById = new Map(before.map(b => [b.id, b]));
+  const changes = [];
+  for (const b of before) {
+    if (!afterById.has(b.id)) changes.push({ type: 'removed', label: b.label, oldPrice: b.price });
+  }
+  for (const a of after) {
+    const b = beforeById.get(a.id);
+    if (!b) changes.push({ type: 'added', label: a.label, newPrice: a.price });
+    else if (b.label !== a.label || b.price !== a.price) {
+      changes.push({ type: 'changed', label: a.label, oldLabel: b.label, oldPrice: b.price, newPrice: a.price });
+    }
+  }
+  return changes;
+}
+
+/** Customer-friendly text version of the change list, for the copyable message. */
+function changesToText(changes) {
+  if (!changes?.length) return '';
+  const peso = n => `₱${Number(n).toLocaleString('en-PH')}`;
+  const lines = changes.map(c => {
+    if (c.type === 'removed') return `• Removed: ${c.label} (${peso(c.oldPrice)})`;
+    if (c.type === 'added')   return `• Added: ${c.label} — ${peso(c.newPrice)}`;
+    if (c.label !== c.oldLabel) return `• Changed: ${c.oldLabel} → ${c.label} (${peso(c.newPrice)})`;
+    return `• ${c.label}: ${peso(c.oldPrice)} → ${peso(c.newPrice)}`;
+  });
+  return `What changed:\n${lines.join('\n')}`;
+}
+
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 
 function groupByBookingRef(orders) {
@@ -151,6 +193,7 @@ export default function Orders() {
   const [editForm, setEditForm]       = useState({});
   const [editItems, setEditItems]     = useState([]); // booking items [{id?, service_id, price, notes}]
   const [deletedIds, setDeletedIds]   = useState([]); // existing item ids removed during edit
+  const [editBefore, setEditBefore]   = useState([]); // snapshot of items before edit, for before/after recap
   const [bookingRef, setBookingRef]   = useState(null);
   const [editCustomNote, setEditCustomNote]   = useState('');
   const [editCustomPrice, setEditCustomPrice] = useState('');
@@ -235,6 +278,7 @@ export default function Orders() {
     if (order.booking_ref) {
       const bookingOrders = orders.filter(o => o.booking_ref === order.booking_ref);
       setBookingRef(order.booking_ref);
+      setEditBefore(bookingOrders.map(o => ({ id: o.id, label: lineLabel(o, services), price: Number(o.price) })));
       setEditItems(bookingOrders.map(o => {
         const svc = services.find(s => s.id === Number(o.service_id));
         const { fieldValues, addonQty, addonOwn } = parseCustomSelections(svc, o.custom_selections);
@@ -273,9 +317,13 @@ export default function Orders() {
           };
         });
         const { data } = await updateBooking(bookingRef, processedItems, editCustomNote, editCustomPrice, deletedIds);
+        const after = (data.orders || []).map(o => ({ id: o.id, label: lineLabel(o, services), price: Number(o.price) }));
+        const changes = computeChanges(editBefore, after);
+        const changeBlock = changesToText(changes);
+        const customerText = changeBlock ? `${changeBlock}\n\n${data.summary_text}` : data.summary_text;
         loadActive();
         setEditMode(false);
-        setSavedDiff({ isBooking: true, ...data });
+        setSavedDiff({ isBooking: true, ...data, changes, customerText });
       } else {
         const oldPrice = Number(selected.price);
         const payload = {
@@ -709,9 +757,29 @@ export default function Orders() {
                               </strong>
                             )}
                           </div>
-                          <textarea readOnly value={savedDiff.summary_text}
+                          {savedDiff.changes?.length > 0 && (
+                            <div style={{ marginBottom: 10, padding: '10px 12px', background: '#fff', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6 }}>What changed (before → after)</div>
+                              {savedDiff.changes.map((c, i) => (
+                                <div key={i} style={{ fontSize: 12, marginBottom: 4, display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                                  {c.type === 'removed' && (
+                                    <span style={{ color: '#A32D2D' }}>✕ <strong>Removed:</strong> {c.label} <span style={{ textDecoration: 'line-through', color: '#9CA3AF' }}>₱{Number(c.oldPrice).toLocaleString()}</span></span>
+                                  )}
+                                  {c.type === 'added' && (
+                                    <span style={{ color: '#166534' }}>＋ <strong>Added:</strong> {c.label} — ₱{Number(c.newPrice).toLocaleString()}</span>
+                                  )}
+                                  {c.type === 'changed' && (
+                                    <span style={{ color: '#92400E' }}>✎ <strong>Changed:</strong> {c.label !== c.oldLabel ? <>{c.oldLabel} → {c.label}</> : c.label}{' '}
+                                      {c.oldPrice !== c.newPrice && <>(₱{Number(c.oldPrice).toLocaleString()} → ₱{Number(c.newPrice).toLocaleString()})</>}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <textarea readOnly value={savedDiff.customerText || savedDiff.summary_text}
                             style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, borderRadius: 6, border: '1px solid #E2E8F0', padding: '8px', fontFamily: 'inherit', resize: 'vertical', minHeight: 130, outline: 'none', background: '#fff', color: '#111827' }} />
-                          <button onClick={() => { navigator.clipboard.writeText(savedDiff.summary_text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2500); }}
+                          <button onClick={() => { navigator.clipboard.writeText(savedDiff.customerText || savedDiff.summary_text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2500); }}
                             style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
                               background: copySuccess ? '#166534' : '#374151', color: '#fff', transition: 'background .2s' }}>
                             <Icon name={copySuccess ? 'check' : 'copy'} size={13} color="#fff" style={{ marginRight: 5 }} />{copySuccess ? 'Copied!' : 'Copy Message'}
