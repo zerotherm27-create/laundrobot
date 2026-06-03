@@ -336,6 +336,15 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
   const bookingRef = updatedOrder.booking_ref;
   if (!bookingRef) return;
 
+  // Dedupe: a multi-service booking has one row per service, and all rows are
+  // completed together — each one calls this. Only the booking's lowest-id row
+  // proceeds, so the customer receives exactly ONE combined message.
+  const { rows: [primary] } = await db.query(
+    `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
+    [bookingRef, tenantId]
+  );
+  if (!primary || primary.id !== updatedOrder.id) return;
+
   // Load all sibling orders with service names
   const { rows: siblings } = await db.query(
     `SELECT o.weight, o.price, s.name AS service_name
@@ -402,16 +411,30 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
   const bookingRef = updatedOrder.booking_ref;
   if (!bookingRef) return;
 
-  // Load customer fb_id + service name
+  // Dedupe: only the booking's lowest-id row sends, so a multi-service booking
+  // triggers exactly ONE message instead of one per service row.
+  const { rows: [primary] } = await db.query(
+    `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
+    [bookingRef, tenantId]
+  );
+  if (!primary || primary.id !== updatedOrder.id) return;
+
+  // Load customer fb_id + all service names in the booking
   const { rows: [order] } = await db.query(
-    `SELECT c.fb_id, c.name AS customer_name, s.name AS service_name
+    `SELECT c.fb_id, c.name AS customer_name
      FROM orders o
      JOIN customers c ON c.id = o.customer_id
-     LEFT JOIN services s ON s.id = o.service_id
      WHERE o.id = $1`,
     [updatedOrder.id]
   );
   if (!order?.fb_id) return;
+
+  const { rows: siblings } = await db.query(
+    `SELECT s.name AS service_name
+     FROM orders o LEFT JOIN services s ON s.id = o.service_id
+     WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
+    [bookingRef, tenantId]
+  );
 
   const { rows: [tenant] } = await db.query(
     `SELECT name, fb_page_access_token FROM tenants WHERE id=$1`,
@@ -420,7 +443,7 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
   if (!tenant?.fb_page_access_token) return;
 
   const name = order.customer_name || 'there';
-  const svc  = order.service_name  || 'your laundry';
+  const svc  = [...new Set(siblings.map(o => o.service_name).filter(Boolean))].join(' & ') || 'your laundry';
   let text;
 
   if (status === 'PROCESSING') {
