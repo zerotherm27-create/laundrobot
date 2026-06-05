@@ -286,7 +286,7 @@ export default function Settings() {
     const state = Math.random().toString(36).slice(2);
     localStorage.setItem('fb_oauth_state', state);
     const redirectUri = window.location.origin + '/settings';
-    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement,business_management,instagram_basic,instagram_manage_messages&response_type=code&state=${state}`;
+    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,pages_manage_metadata,pages_messaging,pages_utility_messaging,pages_read_engagement,business_management,instagram_basic,instagram_manage_messages&response_type=code&state=${state}`;
     window.location.href = url;
   }
 
