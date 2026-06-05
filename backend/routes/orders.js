@@ -334,23 +334,24 @@ router.patch('/:id', auth, async (req, res) => {
 
 async function sendCompletionNotification(updatedOrder, tenantId) {
   const bookingRef = updatedOrder.booking_ref;
-  if (!bookingRef) return;
 
-  // Dedupe: a multi-service booking has one row per service, and all rows are
-  // completed together — each one calls this. Only the booking's lowest-id row
-  // proceeds, so the customer receives exactly ONE combined message.
-  const { rows: [primary] } = await db.query(
-    `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
-    [bookingRef, tenantId]
-  );
-  if (!primary || primary.id !== updatedOrder.id) return;
+  if (bookingRef) {
+    // Dedupe: a multi-service booking has one row per service, and all rows are
+    // completed together — each one calls this. Only the booking's lowest-id row
+    // proceeds, so the customer receives exactly ONE combined message.
+    const { rows: [primary] } = await db.query(
+      `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
+      [bookingRef, tenantId]
+    );
+    if (!primary || primary.id !== updatedOrder.id) return;
+  }
 
-  // Load all sibling orders with service names
+  // Load all sibling orders with service names (Messenger orders have no booking_ref — single row)
   const { rows: siblings } = await db.query(
     `SELECT o.weight, o.price, s.name AS service_name
      FROM orders o LEFT JOIN services s ON s.id = o.service_id
-     WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
-    [bookingRef, tenantId]
+     WHERE ${bookingRef ? `o.booking_ref=$1 AND o.tenant_id=$2` : `o.id=$1`}`,
+    bookingRef ? [bookingRef, tenantId] : [updatedOrder.id]
   );
 
   // Load customer fb_id and review state
@@ -388,10 +389,11 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
   const serviceNames = [...new Set(siblings.map(o => o.service_name).filter(Boolean))].join(' & ');
   const weightLine = totalWeight > 0 ? `${totalWeight} kg ` : '';
 
+  const displayRef = bookingRef || updatedOrder.id.slice(-8).toUpperCase();
   const lines = [
     `✅ Your order from ${tenant.name} has been delivered! 🧺✨`,
     ``,
-    `Order #${bookingRef} — ${weightLine}${serviceNames}`,
+    `Order #${displayRef} — ${weightLine}${serviceNames}`,
     ``,
     `Hope everything is fresh and perfect! ${includeReview ? `If you had a great experience, a quick Google review means the world to us 🙏\n👉 ${tenant.google_review_link}\n\n` : ''}Reply anytime to book your next pickup! 😊`,
   ];
@@ -409,15 +411,16 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
 
 async function sendStatusNotification(updatedOrder, tenantId, status) {
   const bookingRef = updatedOrder.booking_ref;
-  if (!bookingRef) return;
 
-  // Dedupe: only the booking's lowest-id row sends, so a multi-service booking
-  // triggers exactly ONE message instead of one per service row.
-  const { rows: [primary] } = await db.query(
-    `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
-    [bookingRef, tenantId]
-  );
-  if (!primary || primary.id !== updatedOrder.id) return;
+  if (bookingRef) {
+    // Dedupe: only the booking's lowest-id row sends, so a multi-service booking
+    // triggers exactly ONE message instead of one per service row.
+    const { rows: [primary] } = await db.query(
+      `SELECT id FROM orders WHERE booking_ref=$1 AND tenant_id=$2 ORDER BY id LIMIT 1`,
+      [bookingRef, tenantId]
+    );
+    if (!primary || primary.id !== updatedOrder.id) return;
+  }
 
   // Load customer fb_id + all service names in the booking
   const { rows: [order] } = await db.query(
@@ -429,11 +432,12 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
   );
   if (!order?.fb_id) return;
 
+  // Messenger orders have no booking_ref — single row, query by id
   const { rows: siblings } = await db.query(
     `SELECT s.name AS service_name
      FROM orders o LEFT JOIN services s ON s.id = o.service_id
-     WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
-    [bookingRef, tenantId]
+     WHERE ${bookingRef ? `o.booking_ref=$1 AND o.tenant_id=$2` : `o.id=$1`}`,
+    bookingRef ? [bookingRef, tenantId] : [updatedOrder.id]
   );
 
   const { rows: [tenant] } = await db.query(
@@ -444,13 +448,14 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
 
   const name = order.customer_name || 'there';
   const svc  = [...new Set(siblings.map(o => o.service_name).filter(Boolean))].join(' & ') || 'your laundry';
+  const displayRef = bookingRef || updatedOrder.id.slice(-8).toUpperCase();
   let text;
 
   if (status === 'PROCESSING') {
     text = [
       `🧺 Your laundry is now being processed, ${name}!`,
       ``,
-      `Order #${bookingRef} — ${svc}`,
+      `Order #${displayRef} — ${svc}`,
       ``,
       `We're washing, drying, and folding with care. Sit back and relax — we'll notify you when it's ready for delivery! 😊`,
       ``,
@@ -460,7 +465,7 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
     text = [
       `Hi ${name}! Your laundry is all set and ready for delivery! 🚚`,
       ``,
-      `Order #${bookingRef} — ${svc}`,
+      `Order #${displayRef} — ${svc}`,
       ``,
       `Our staff will contact you shortly to confirm your delivery. 😊`,
       ``,
