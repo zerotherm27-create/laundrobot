@@ -37,14 +37,34 @@ async function sendMessage(token, recipientId, text) {
   }
 }
 
-// POST_PURCHASE_UPDATE tag — Meta-approved for order/payment updates outside 24-hr window
+// Order / status update message.
+//
+// The POST_PURCHASE_UPDATE message tag this used to send was DEPRECATED by Meta
+// on 2026-04-27 — it now returns error code 100, so every status notification was
+// silently failing. We send a normal RESPONSE message instead, which Meta delivers
+// to any customer within the 24-hour messaging window (i.e. who has messaged the
+// shop recently).
+//
+// Customers OUTSIDE the 24h window will get error #10 here (caught/logged by the
+// fire-and-forget callers). Reaching them requires sending the approved UTILITY
+// template `order_status_update_v2` via sendUtilityTemplate() — TODO: wire that in
+// once its Send API payload is verified against the live Graph API (see
+// scripts/send-utility-template.js).
 async function sendTaggedMessage(token, recipientId, text) {
-  await post(token, {
-    messaging_type: 'MESSAGE_TAG',
-    tag: 'POST_PURCHASE_UPDATE',
-    recipient: { id: recipientId },
-    message: { text },
-  });
+  try {
+    await post(token, {
+      messaging_type: 'RESPONSE',
+      recipient: { id: recipientId },
+      message: { text },
+    });
+  } catch (err) {
+    const e = err.response?.data?.error;
+    if (e?.code === 10) {
+      // Outside the 24h window — expected until the UTILITY template path is wired.
+      console.warn(`[sendTaggedMessage] outside 24h window for ${recipientId}; needs UTILITY template (order_status_update_v2). ${e.message}`);
+    }
+    throw err; // preserve existing fire-and-forget .catch() behaviour in callers
+  }
 }
 
 // Button template (max 3 buttons)

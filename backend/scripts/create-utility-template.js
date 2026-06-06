@@ -38,9 +38,9 @@ const template = {
   components: [
     {
       type: 'BODY',
-      text: 'Hi {{1}}! Your order {{2}} is now: {{3}}.\n\n– {{4}}',
+      text: 'Hi {{1}}, this is an update on your laundry order {{2}} with The Laundry Project. Your order status is now: {{3}}. Thank you for choosing us!',
       example: {
-        body_text: [['Maria', 'BKG-000123', 'ready for delivery', 'The Laundry Project']],
+        body_text: [['Maria', 'BKG-000123', 'ready for delivery']],
       },
     },
   ],
