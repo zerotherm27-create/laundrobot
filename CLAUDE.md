@@ -40,6 +40,13 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - Order-status notifications only fire for customers with an `fb_id` (Messenger users). Web/walk-in customers have none → no notification (see `project_whatsapp_viber_notifications.md` in memory for the planned fallback).
 - Instagram DM replies blocked until `instagram_manage_messages` passes App Review. Webhook matches tenant by `ig_user_id` = the `17841…` IG business id; handler logs `[ig-webhook] …` verbosely (check Railway logs to debug activation).
 
+## Frontend architecture notes
+- **All global CSS lives in `frontend/index.html`** — no separate `.css` file. Responsive breakpoints: tablet `(min-width:768px) and (max-width:1023px)`, mobile `(max-width:767px)`.
+- **Kanban layout:** `kanban-wrapper` + `kanban-board` (CSS grid). On tablet and mobile, all 5 status columns stay in a single horizontal-scrolling row (`repeat(5, minmax(190px,1fr))` + `min-width:max-content`). Do NOT change this to fewer columns — wrapping to 2 rows breaks the pipeline view and makes empty-column icons appear lower than populated ones.
+- **Service/category PUT routes are full-replace.** `PUT /services/:id` and `PUT /categories/:id` overwrite every column. Never send a partial payload (e.g. `{ sort_order }` only) — it will wipe `name`, `price`, etc. Always spread the full object: `updateService(id, { ...svc, sort_order: newVal })`.
+- **Multi-branch:** each branch is a `tenants` row; `primary_tenant_id` links sub-branches to parent (NULL = primary). Branch switching re-issues a JWT scoped to the target tenant. Plan limits: starter=1, growth=3, pro=unlimited. Routes `GET /tenants/my-branches`, `POST /tenants/branch`, `POST /tenants/sync-branch` must be registered BEFORE `GET /tenants/:id` in `backend/routes/tenants.js` (Express matches the first route that fits).
+- **SW cache:** `frontend/src/sw.js` has `self.skipWaiting()` + `clients.claim()` so new deploys activate immediately without waiting for all tabs to close.
+
 ## Safety / process
 - Never enter the FB password during re-auth — that's the tenant's step. Drive up to the consent screen only.
 - `git push` to main = live frontend deploy. Only push when asked.
