@@ -179,6 +179,57 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+// POST /auth/switch-branch — re-issue JWT scoped to a different branch in the same group
+router.post('/switch-branch', require('../middleware/auth'), async (req, res) => {
+  const { tenant_id: targetId } = req.body;
+  if (!targetId) return res.status(400).json({ error: 'tenant_id is required' });
+
+  const currentId = req.user.tenant_id;
+  if (targetId === currentId) return res.status(400).json({ error: 'Already on that branch' });
+
+  // Allow superadmin to switch to any tenant
+  if (req.user.role === 'superadmin') {
+    try {
+      const { rows: [target] } = await db.query(
+        `SELECT id, name FROM tenants WHERE id=$1`, [targetId]
+      );
+      if (!target) return res.status(404).json({ error: 'Branch not found' });
+      const token = jwt.sign(
+        { ...req.user, tenant_id: target.id, tenant_name: target.name },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      return res.json({ token, tenant_id: target.id, tenant_name: target.name });
+    } catch (err) { console.error('[switch-branch]', err); return res.status(500).json({ error: 'Internal server error' }); }
+  }
+
+  // For regular admins: verify the target is in the same branch group
+  try {
+    const { rows: [self] } = await db.query(
+      `SELECT id, primary_tenant_id FROM tenants WHERE id=$1`, [currentId]
+    );
+    if (!self) return res.status(404).json({ error: 'Current tenant not found' });
+
+    const primaryId = self.primary_tenant_id || self.id;
+
+    const { rows: [target] } = await db.query(
+      `SELECT id, name FROM tenants WHERE id=$1 AND (id=$2 OR primary_tenant_id=$2)`,
+      [targetId, primaryId]
+    );
+    if (!target) return res.status(403).json({ error: 'Branch not found or not in your group' });
+
+    const token = jwt.sign(
+      { ...req.user, tenant_id: target.id, tenant_name: target.name },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    res.json({ token, tenant_id: target.id, tenant_name: target.name });
+  } catch (err) {
+    console.error('[switch-branch]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET subscription status for current tenant
 router.get('/subscription', require('../middleware/auth'), async (req, res) => {
   try {
@@ -198,7 +249,20 @@ router.get('/subscription', require('../middleware/auth'), async (req, res) => {
       tenant.subscription_status = 'expired';
     }
 
-    res.json(tenant);
+    // Branch limit based on plan
+    const plan = tenant.subscription_plan || 'starter';
+    const branch_limit = plan === 'pro' ? 999 : plan === 'growth' ? 3 : 1;
+
+    // Branch count for this group
+    const { rows: [self] } = await db.query(
+      `SELECT primary_tenant_id FROM tenants WHERE id=$1`, [req.user.tenant_id]
+    );
+    const primaryId = (self && self.primary_tenant_id) || req.user.tenant_id;
+    const { rows: [{ count }] } = await db.query(
+      `SELECT COUNT(*) AS count FROM tenants WHERE id=$1 OR primary_tenant_id=$1`, [primaryId]
+    );
+
+    res.json({ ...tenant, branch_limit, branch_count: parseInt(count) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

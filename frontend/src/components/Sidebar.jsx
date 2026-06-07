@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { changeMyPassword } from '../api.js';
 import { Icon } from './Icons.jsx';
@@ -18,6 +18,7 @@ const NAV = [
   { key: 'Finance',       iconName: 'finance',    label: 'Finance', adminOnly: true },
   { key: 'Inventory',     iconName: 'inventory',  label: 'Inventory', adminOnly: true },
   { key: 'Users',         iconName: 'users',      label: 'Users', adminOnly: true },
+  { key: 'Branches',      iconName: 'package',    label: 'Branches', adminOnly: true },
   { key: 'Settings',      iconName: 'settings',   label: 'Settings' },
 ];
 
@@ -70,13 +71,26 @@ const GUIDE_STEPS = [
 
 export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
   const { isPro } = usePlan();
-  const { user, logout } = useAuth();
-  const [pwOpen,    setPwOpen]    = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [form,      setForm]      = useState({ current: '', newPw: '', confirm: '' });
-  const [saving,    setSaving]    = useState(false);
-  const [msg,       setMsg]       = useState('');
-  const [show,      setShow]      = useState(false);
+  const { user, logout, branches, branchLimit, switchToBranch } = useAuth();
+  const [pwOpen,         setPwOpen]         = useState(false);
+  const [guideOpen,      setGuideOpen]      = useState(false);
+  const [form,           setForm]           = useState({ current: '', newPw: '', confirm: '' });
+  const [saving,         setSaving]         = useState(false);
+  const [msg,            setMsg]            = useState('');
+  const [show,           setShow]           = useState(false);
+  const [branchDropOpen, setBranchDropOpen] = useState(false);
+  const branchDropRef = useRef(null);
+
+  useEffect(() => {
+    if (!branchDropOpen) return;
+    function handleClick(e) {
+      if (branchDropRef.current && !branchDropRef.current.contains(e.target)) {
+        setBranchDropOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [branchDropOpen]);
 
   async function handleChangePw(e) {
     e.preventDefault();
@@ -135,6 +149,72 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
             </button>
           </div>
         </div>
+
+        {/* ── Branch Switcher ── */}
+        {branches.length > 1 && (
+          <div ref={branchDropRef} style={{ padding: '8px 12px', borderBottom: '0.5px solid #F0F0EC', position: 'relative' }}>
+            <button
+              onClick={() => setBranchDropOpen(o => !o)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#F7F7F5', border: '0.5px solid #E8E8E0', borderRadius: 8,
+                padding: '7px 10px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+                color: '#374151', fontWeight: 500,
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#38a9c2', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user?.tenant_name || 'Branch'}
+                </span>
+              </span>
+              <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>{branchDropOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {branchDropOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 12, right: 12,
+                background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,.08)', zIndex: 50, overflow: 'hidden',
+              }}>
+                {branches.map(b => (
+                  <button
+                    key={b.id}
+                    onClick={() => { setBranchDropOpen(false); if (b.id !== user?.tenant_id) switchToBranch(b.id); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', background: b.id === user?.tenant_id ? '#F0F9FF' : 'transparent',
+                      border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+                      color: b.id === user?.tenant_id ? '#0369A1' : '#374151', textAlign: 'left',
+                      borderBottom: '0.5px solid #F0F0EC',
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: b.id === user?.tenant_id ? '#38a9c2' : '#D1D5DB', flexShrink: 0 }} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
+                    {b.id === user?.tenant_id && <span style={{ fontSize: 10, color: '#38a9c2' }}>✓</span>}
+                  </button>
+                ))}
+                {(role === 'admin' || role === 'superadmin') && (
+                  <button
+                    onClick={() => { setBranchDropOpen(false); onNav('Branches'); }}
+                    disabled={branches.length >= branchLimit}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', background: 'transparent', border: 'none',
+                      cursor: branches.length >= branchLimit ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit', fontSize: 12,
+                      color: branches.length >= branchLimit ? '#9CA3AF' : '#38a9c2',
+                      fontWeight: 600, textAlign: 'left',
+                    }}
+                  >
+                    + Add Branch
+                    {branches.length >= branchLimit && <span style={{ fontSize: 10, opacity: 0.7 }}>🔒</span>}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Nav ── */}
         <nav style={{ flex: 1, padding: '8px 0' }}>

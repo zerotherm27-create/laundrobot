@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
@@ -23,12 +23,14 @@ import Users from './pages/Users.jsx';
 import DeliveryZones from './pages/DeliveryZones.jsx';
 import Settings from './pages/Settings.jsx';
 import WalkIn from './pages/WalkIn.jsx';
+import Branches from './pages/Branches.jsx';
 import Landing from './pages/Landing.jsx';
 import PaywallScreen from './pages/PaywallScreen.jsx';
 import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
 import TermsOfService from './pages/TermsOfService.jsx';
 import DataDeletion from './pages/DataDeletion.jsx';
 import { getSubscription, getPublicTenantByDomain } from './api.js';
+import { useAuth } from './context/AuthContext.jsx';
 import { usePushNotifications } from './hooks/usePushNotifications.js';
 
 const PLATFORM_HOSTS = ['laundrobot.app', 'www.laundrobot.app', 'localhost', '127.0.0.1'];
@@ -57,7 +59,7 @@ function CustomDomainApp() {
 
 const PAGES = {
   Overview, Kanban, Orders, Customers, Services,
-  Messaging, FAQs, Users, Reports, Finance, Inventory, SuperAdmin, DeliveryZones, Settings, WalkIn,
+  Messaging, FAQs, Users, Reports, Finance, Inventory, SuperAdmin, DeliveryZones, Settings, WalkIn, Branches,
 };
 
 const PAGE_TITLES = {
@@ -76,10 +78,11 @@ const PAGE_TITLES = {
   DeliveryZones:  'Delivery Zones',
   Settings:       'Settings',
   WalkIn:         'Walk-in POS',
+  Branches:       'Branches',
 };
 
 function Dashboard({ initialPage }) {
-  const { user } = useAuth();
+  const { user, setBranchLimit } = useAuth();
   const [page, setPage] = useState(initialPage || 'Kanban');
   usePushNotifications();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -99,6 +102,7 @@ function Dashboard({ initialPage }) {
       .then(r => {
         setSubStatus(r.data.subscription_status || 'active');
         setSubPlan(r.data.subscription_plan   || 'starter');
+        if (r.data.branch_limit) setBranchLimit(r.data.branch_limit);
       })
       .catch(err => {
         console.error('Subscription check failed', err);

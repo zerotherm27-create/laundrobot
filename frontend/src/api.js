@@ -189,4 +189,10 @@ export const upsertFormula            = data             => api.put('/inventory/
 export const deleteFormula            = id               => api.delete(`/inventory/formulas/${id}`);
 export const suggestFormula           = data             => api.post('/inventory/formulas/suggest', data);
 
+// Multi-branch
+export const getMyBranches = ()     => api.get('/tenants/my-branches');
+export const createBranch  = data   => api.post('/tenants/branch', data);
+export const switchBranch  = tenant_id => api.post('/auth/switch-branch', { tenant_id });
+export const syncBranch    = data   => api.post('/tenants/sync-branch', data);
+
 export default api;

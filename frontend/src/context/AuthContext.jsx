@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin } from '../api.js';
+import { login as apiLogin, getMyBranches, switchBranch as apiSwitchBranch } from '../api.js';
 
 const AuthContext = createContext();
 
@@ -18,6 +18,15 @@ export function AuthProvider({ children }) {
       };
     } catch { return null; }
   });
+
+  const [branches,    setBranches]    = useState([]);
+  const [branchLimit, setBranchLimit] = useState(1);
+
+  // Load branches whenever a logged-in non-superadmin session is active
+  useEffect(() => {
+    if (!user?.tenant_id) return;
+    getMyBranches().then(r => setBranches(r.data || [])).catch(() => {});
+  }, [user?.tenant_id]);
 
   async function login(email, password) {
     const { data } = await apiLogin(email, password);
@@ -38,6 +47,14 @@ export function AuthProvider({ children }) {
     });
   }
 
+  async function switchToBranch(tenantId) {
+    const { data } = await apiSwitchBranch(tenantId);
+    sessionStorage.setItem('token', data.token);
+    localStorage.setItem('tenant_id',   data.tenant_id);
+    localStorage.setItem('tenant_name', data.tenant_name);
+    window.location.reload();
+  }
+
   function logout() {
     sessionStorage.removeItem('token');
     ['role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
@@ -50,7 +67,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, branches, setBranches, branchLimit, setBranchLimit, switchToBranch }}>
       {children}
     </AuthContext.Provider>
   );
