@@ -1,8 +1,34 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+
+function buildSslConfig() {
+  const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === 'true';
+  const inlineCa = process.env.PGSSLROOTCERT || process.env.PG_CA_CERT;
+  const caFile = process.env.PGSSLROOTCERT_FILE || process.env.PG_CA_CERT_FILE;
+
+  if (caFile) {
+    return {
+      rejectUnauthorized: true,
+      ca: fs.readFileSync(caFile, 'utf8'),
+    };
+  }
+
+  if (inlineCa) {
+    return {
+      rejectUnauthorized: true,
+      ca: inlineCa.replace(/\\n/g, '\n'),
+    };
+  }
+
+  if (rejectUnauthorized) return { rejectUnauthorized: true };
+
+  console.warn('[db] PG CA certificate not configured; SSL is enabled without certificate verification.');
+  return { rejectUnauthorized: false };
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: true },
+  ssl: buildSslConfig(),
   connectionTimeoutMillis: 5000,
   idleTimeoutMillis: 30000,
   max: 10,
