@@ -6,7 +6,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
-import { printReceipt, printReceiptRawBT } from '../components/ThermalReceipt.jsx';
+import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -218,11 +218,6 @@ export default function Kanban() {
       deliveryZone: modalOrder.delivery_zone || '',
       shopInfo,
     };
-  }
-
-  function handlePrintReceipt() {
-    const data = buildReceiptData();
-    if (data) printReceipt(data);
   }
 
   function handlePrintReceiptThermal() {
@@ -696,9 +691,6 @@ export default function Kanban() {
                 <Icon name="printer" size={14} color="#fff" />Print to Thermal Printer
               </button>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={handlePrintReceipt} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#F7F7F5', border: '1.5px solid #E8E8E0', color: '#374151', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  <Icon name="printer" size={13} color="#374151" />Browser
-                </button>
                 <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <Icon name="file" size={13} color="#1D4ED8" />PDF
                 </button>
