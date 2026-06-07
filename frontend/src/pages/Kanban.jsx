@@ -95,8 +95,11 @@ function groupByBookingRef(orders) {
     });
     g.orderIds.push(o.id);
     if (o.promo_code && !g.promo_code) g.promo_code = o.promo_code;
-    if (Number(o.promo_discount) > 0 && !g.promo_discount) g.promo_discount = Number(o.promo_discount);
-    if (Number(o.delivery_fee) > 0 && !g.delivery_fee) g.delivery_fee = Number(o.delivery_fee);
+    if (Number(o.promo_discount) > 0 && Number(g.promo_discount || 0) === 0) g.promo_discount = Number(o.promo_discount);
+    if (Number(o.delivery_fee) > 0 && Number(g.delivery_fee || 0) === 0) {
+      g.delivery_fee = Number(o.delivery_fee);
+      if (o.delivery_zone) g.delivery_zone = o.delivery_zone;
+    }
   }
   return Array.from(map.values());
 }
