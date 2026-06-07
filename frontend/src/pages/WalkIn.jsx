@@ -643,7 +643,7 @@ export default function WalkIn() {
         </div>
 
         <button
-          onClick={() => printReceiptRawBT({ bookingRef, form, cart, appliedPromo, shopInfo })}
+          onClick={() => printReceiptRawBT({ bookingRef, form, cart, appliedPromo, source: 'walk_in', paid: true, shopInfo })}
           style={{
             width: '100%', marginBottom: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

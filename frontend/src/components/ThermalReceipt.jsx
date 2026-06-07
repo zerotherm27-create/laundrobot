@@ -29,7 +29,7 @@ function fmtDateTime(str) {
   return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, shopInfo }) {
+function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, source, paid, shopInfo }) {
   const now = new Date();
   const printedAt = now.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -37,10 +37,7 @@ function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, deliveryFee, d
   const discount    = appliedPromo?.discount_amount ?? 0;
   const delivery    = Number(deliveryFee || 0);
   const grandTotal  = cartTotal + delivery - discount;
-
-  const pickupDate  = form.pickup_date
-    ? fmtDate(form.pickup_date.includes('T') ? form.pickup_date : form.pickup_date + 'T00:00:00')
-    : '—';
+  const tag         = `${paid === false ? 'UNPAID' : '✓ PAID'} &nbsp;•&nbsp; ${esc(channelLabel(source))}`;
 
   const shopName    = esc(shopInfo?.name || 'Laundry Shop');
   const shopAddr    = esc(shopInfo?.shop_address || '');
@@ -174,7 +171,6 @@ function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, deliveryFee, d
   <div class="block"><span class="bold">Customer: </span>${esc(form.name) || '—'}</div>
   <div class="block"><span class="bold">Phone: </span>${esc(form.phone) || '—'}</div>
   ${form.address ? `<div class="block"><span class="bold">Address: </span>${esc(form.address)}</div>` : ''}
-  <div class="block"><span class="bold">Pickup: </span>${pickupDate}</div>
 </div>
 
 <hr/>
@@ -228,7 +224,6 @@ ${form.notes ? `
 
 <div class="section">
   <div class="block"><span class="bold">Customer: </span>${esc(form.name) || '—'}</div>
-  <div class="block"><span class="bold">Pickup: </span>${pickupDate}</div>
 </div>
 
 <hr/>
@@ -244,7 +239,7 @@ ${form.notes ? `
 </div>
 
 <div class="paid-wrap">
-  <div class="paid-badge">✓ PAID &nbsp;•&nbsp; Walk-in</div>
+  <div class="paid-badge">${tag}</div>
 </div>
 
 <hr/>
@@ -307,6 +302,11 @@ function money(n) {
   return 'P' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Order channel for the receipt tag: walk-in vs online
+function channelLabel(source) {
+  return source === 'walk_in' ? 'Walk-in' : 'Online';
+}
+
 class EscPos {
   constructor() { this.bytes = []; this.cmd(ESC, 0x40); } // init
   cmd(...b) { this.bytes.push(...b); return this; }
@@ -338,15 +338,13 @@ class EscPos {
   }
 }
 
-function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, shopInfo }) {
+function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, source, paid, shopInfo }) {
   const printedAt   = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const cartTotal   = cart.reduce((s, i) => s + (i.itemTotal || 0), 0);
   const discount    = appliedPromo?.discount_amount ?? 0;
   const delivery    = Number(deliveryFee || 0);
   const grandTotal  = cartTotal + delivery - discount;
-  const pickupDate  = form.pickup_date
-    ? fmtDate(form.pickup_date.includes('T') ? form.pickup_date : form.pickup_date + 'T00:00:00')
-    : '—';
+  const tag         = '[ ' + (paid === false ? 'UNPAID' : 'PAID') + ' - ' + channelLabel(source) + ' ]';
   const shopName  = shopInfo?.name || 'Laundry Shop';
   const shopAddr  = shopInfo?.shop_address || '';
   const shopPhone = shopInfo?.contact_number || '';
@@ -382,7 +380,6 @@ function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, deliveryFee,
   p.line('Customer: ' + (form.name || '—'));
   p.line('Phone: '    + (form.phone || '—'));
   if (form.address) p.line('Address: ' + form.address);
-  p.line('Pickup: '   + pickupDate);
   p.rule();
   items();
   totals();
@@ -398,11 +395,10 @@ function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, deliveryFee,
   p.bold(true).size(0x11).line(bookingRef).size(0x00).bold(false);
   p.align(0).rule();
   p.line('Customer: ' + (form.name || '—'));
-  p.line('Pickup: '   + pickupDate);
   p.rule();
   items();
   totals();
-  p.feed(1).align(1).bold(true).line('[ PAID - Walk-in ]').bold(false);
+  p.feed(1).align(1).bold(true).line(tag).bold(false);
   p.line('Present this receipt when');
   p.line('claiming your laundry.');
   p.feed(1).line('Thank you! See you again.').align(0);

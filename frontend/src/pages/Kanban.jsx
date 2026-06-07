@@ -216,6 +216,8 @@ export default function Kanban() {
         : null,
       deliveryFee:  Number(modalOrder.delivery_fee || 0),
       deliveryZone: modalOrder.delivery_zone || '',
+      source:       modalOrder.source,
+      paid:         modalOrder.paid,
       shopInfo,
     };
   }
