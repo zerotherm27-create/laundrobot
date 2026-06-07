@@ -60,16 +60,83 @@ const FIELD_TYPES = [
 ];
 
 export default function Services() {
-  const [categories,  setCategories]  = useState([]);
-  const [services,    setServices]    = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [svcForm,     setSvcForm]     = useState(null);
-  const [catForm,     setCatForm]     = useState(null);
-  const [saving,      setSaving]      = useState(false);
-  const [preview,     setPreview]     = useState(null);
-  const [imgTab,      setImgTab]      = useState('icon'); // 'icon' | 'upload'
-  const [fields,      setFields]      = useState([]);   // custom fields for open service
+  const [categories,    setCategories]    = useState([]);
+  const [services,      setServices]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [svcForm,       setSvcForm]       = useState(null);
+  const [catForm,       setCatForm]       = useState(null);
+  const [saving,        setSaving]        = useState(false);
+  const [preview,       setPreview]       = useState(null);
+  const [imgTab,        setImgTab]        = useState('icon'); // 'icon' | 'upload'
+  const [fields,        setFields]        = useState([]);     // custom fields for open service
+  const [dragOverSvcId, setDragOverSvcId] = useState(null);
+  const [dragOverCatId, setDragOverCatId] = useState(null);
+  const dragRef = useRef({}); // { type: 'svc'|'cat', id, catKey }
   const fileRef = useRef();
+
+  // ── Drag handlers — services ──────────────────────────────────────────
+  function handleSvcDragStart(e, svc) {
+    dragRef.current = { type: 'svc', id: svc.id, catKey: svc.category_id ? String(svc.category_id) : '__none__' };
+    e.dataTransfer.effectAllowed = 'move';
+  }
+  function handleSvcDragOver(e, svc) {
+    e.preventDefault();
+    if (dragRef.current.type === 'svc' && dragOverSvcId !== svc.id) setDragOverSvcId(svc.id);
+  }
+  function handleSvcDrop(e, targetSvc) {
+    e.preventDefault();
+    const { id: fromId, catKey } = dragRef.current;
+    setDragOverSvcId(null);
+    if (!fromId || fromId === targetSvc.id) { dragRef.current = {}; return; }
+    setServices(prev => {
+      const catSvcs = [...prev]
+        .filter(s => (s.category_id ? String(s.category_id) : '__none__') === catKey)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const others = prev.filter(s => (s.category_id ? String(s.category_id) : '__none__') !== catKey);
+      const fromIdx = catSvcs.findIndex(s => s.id === fromId);
+      const toIdx   = catSvcs.findIndex(s => s.id === targetSvc.id);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const reordered = [...catSvcs];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+      reordered.forEach((s, i) => { if (s.sort_order !== i) updateService(s.id, { sort_order: i }).catch(() => {}); });
+      return [...others, ...reordered.map((s, i) => ({ ...s, sort_order: i }))];
+    });
+    dragRef.current = {};
+  }
+
+  // ── Drag handlers — categories ────────────────────────────────────────
+  function handleCatDragStart(e, cat) {
+    dragRef.current = { type: 'cat', id: cat.id };
+    e.dataTransfer.effectAllowed = 'move';
+  }
+  function handleCatDragOver(e, cat) {
+    e.preventDefault();
+    if (dragRef.current.type === 'cat' && dragOverCatId !== cat.id) setDragOverCatId(cat.id);
+  }
+  function handleCatDrop(e, targetCat) {
+    e.preventDefault();
+    const { id: fromId } = dragRef.current;
+    setDragOverCatId(null);
+    if (!fromId || fromId === targetCat.id) { dragRef.current = {}; return; }
+    setCategories(prev => {
+      const sorted = [...prev].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const fromIdx = sorted.findIndex(c => c.id === fromId);
+      const toIdx   = sorted.findIndex(c => c.id === targetCat.id);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const reordered = [...sorted];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+      reordered.forEach((c, i) => { if (c.sort_order !== i) updateCategory(c.id, { sort_order: i }).catch(() => {}); });
+      return reordered.map((c, i) => ({ ...c, sort_order: i }));
+    });
+    dragRef.current = {};
+  }
+  function handleDragEnd() {
+    setDragOverSvcId(null);
+    setDragOverCatId(null);
+    dragRef.current = {};
+  }
 
   useEffect(() => {
     Promise.all([getServices(), getCategories()])
@@ -310,11 +377,28 @@ export default function Services() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {sections.map(({ id, name, active, cat }) => {
-              const svcList = grouped[id] || [];
+              const svcList = (grouped[id] || []).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+              const isDragOverCat = dragOverCatId === cat?.id;
               return (
-                <div key={id}>
+                <div key={id}
+                  onDragOver={cat ? e => handleCatDragOver(e, cat) : undefined}
+                  onDrop={cat ? e => handleCatDrop(e, cat) : undefined}
+                  style={{ borderRadius: 10, padding: isDragOverCat ? '6px' : 0, background: isDragOverCat ? '#F0F9FF' : 'transparent', border: isDragOverCat ? '1.5px dashed #38a9c2' : '1.5px solid transparent', transition: 'all .15s' }}
+                >
                   {/* Category header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    {/* Drag handle for category */}
+                    {cat && (
+                      <div
+                        draggable
+                        onDragStart={e => handleCatDragStart(e, cat)}
+                        onDragEnd={handleDragEnd}
+                        title="Drag to reorder category"
+                        style={{ cursor: 'grab', color: '#9CA3AF', fontSize: 14, lineHeight: 1, userSelect: 'none', padding: '2px 4px', borderRadius: 4 }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
+                      >⠿</div>
+                    )}
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>{name}</span>
                       {!active && <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: '#f0f0ec', color: '#374151' }}>Hidden</span>}
@@ -330,8 +414,20 @@ export default function Services() {
 
                   {/* Services grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 10 }}>
-                    {svcList.map(s => (
-                      <div key={s.id} style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 10, overflow: 'hidden', opacity: s.active ? 1 : 0.55 }}>
+                    {svcList.map(s => {
+                      const isOver = dragOverSvcId === s.id;
+                      const isDragging = dragRef.current.id === s.id;
+                      return (
+                      <div key={s.id}
+                        draggable
+                        onDragStart={e => handleSvcDragStart(e, s)}
+                        onDragOver={e => handleSvcDragOver(e, s)}
+                        onDrop={e => handleSvcDrop(e, s)}
+                        onDragEnd={handleDragEnd}
+                        style={{ background: '#fff', border: isOver ? '2px solid #38a9c2' : '0.5px solid #e8e8e0', borderRadius: 10, overflow: 'hidden', opacity: isDragging ? 0.4 : (s.active ? 1 : 0.55), cursor: 'grab', transition: 'border-color .1s, opacity .1s', position: 'relative' }}
+                      >
+                        {/* Drag handle overlay */}
+                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '1px 4px', fontSize: 13, color: '#9CA3AF', cursor: 'grab', lineHeight: 1, pointerEvents: 'none' }}>⠿</div>
                         {s.image_url
                           ? <img src={s.image_url} alt={s.name} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
                           : <div style={{ width: '100%', height: 110, background: '#f5f5f3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🧺</div>
@@ -372,7 +468,8 @@ export default function Services() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Add service to this category shortcut */}
                     <div
