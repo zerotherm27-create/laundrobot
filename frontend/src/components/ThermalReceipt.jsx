@@ -29,13 +29,14 @@ function fmtDateTime(str) {
   return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, shopInfo }) {
+function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, shopInfo }) {
   const now = new Date();
   const printedAt = now.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const cartTotal   = cart.reduce((s, i) => s + (i.itemTotal || 0), 0);
   const discount    = appliedPromo?.discount_amount ?? 0;
-  const grandTotal  = cartTotal - discount;
+  const delivery    = Number(deliveryFee || 0);
+  const grandTotal  = cartTotal + delivery - discount;
 
   const pickupDate  = form.pickup_date
     ? fmtDate(form.pickup_date.includes('T') ? form.pickup_date : form.pickup_date + 'T00:00:00')
@@ -45,39 +46,19 @@ function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, shopInfo }) {
   const shopAddr    = esc(shopInfo?.shop_address || '');
   const shopPhone   = esc(shopInfo?.contact_number || '');
 
-  // ── Item rows for Job Order (full detail) ──────────────────────────────
-  const jobItems = cart.map(item => {
-    const lines = [`<div class="item-name">${esc(item.service_name)}</div>`];
-
-    // displayLines: [{ label, price }]
-    if (Array.isArray(item.displayLines)) {
-      item.displayLines.forEach(dl => {
-        if (dl.label && dl.label !== item.service_name) {
-          lines.push(`<div class="item-detail">  ${esc(dl.label)}</div>`);
-        }
-      });
-    }
-
-    // custom_fields: [{ label, value, unit_price }]
-    if (Array.isArray(item.custom_fields)) {
-      item.custom_fields.forEach(cf => {
-        if (cf.label && cf.value != null && cf.value !== '') {
-          lines.push(`<div class="item-detail">  ${esc(cf.label)}: ${esc(cf.value)}</div>`);
-        }
-      });
-    }
-
-    return `
-      <div class="item-row">
-        <div class="item-left">${lines.join('')}</div>
-        <div class="item-right">${fmt(item.itemTotal)}</div>
-      </div>`;
-  }).join('');
-
-  // ── Service names only for Claim Receipt ───────────────────────────────
-  const claimItems = cart.map(item =>
+  // Summary rows: one line per service (name + total) — used by both receipts
+  const itemRows = cart.map(item =>
     `<div class="item-row"><div class="item-left">${esc(item.service_name)}</div><div class="item-right">${fmt(item.itemTotal)}</div></div>`
   ).join('');
+  const jobItems = itemRows;
+  const claimItems = itemRows;
+
+  // Shared totals block (Subtotal / Delivery / Promo / TOTAL)
+  const totalsHtml = `
+    <div class="total-row"><span>Subtotal</span><span>${fmt(cartTotal)}</span></div>
+    ${delivery > 0 ? `<div class="total-row"><span>Delivery${deliveryZone ? ` (${esc(deliveryZone)})` : ''}</span><span>${fmt(delivery)}</span></div>` : ''}
+    ${discount > 0 ? `<div class="total-row"><span>Promo (${esc(appliedPromo.code)})</span><span>-${fmt(discount)}</span></div>` : ''}
+    <div class="grand-total"><span>TOTAL</span><span>${fmt(grandTotal)}</span></div>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -205,9 +186,7 @@ function buildReceiptHtml({ bookingRef, form, cart, appliedPromo, shopInfo }) {
 <hr/>
 
 <div class="section">
-  <div class="total-row"><span>Subtotal</span><span>${fmt(cartTotal)}</span></div>
-  ${discount > 0 ? `<div class="total-row"><span>Promo (${esc(appliedPromo.code)})</span><span>-${fmt(discount)}</span></div>` : ''}
-  <div class="grand-total"><span>TOTAL</span><span>${fmt(grandTotal)}</span></div>
+  ${totalsHtml}
 </div>
 
 ${form.notes ? `
@@ -261,8 +240,7 @@ ${form.notes ? `
 <hr/>
 
 <div class="section">
-  ${discount > 0 ? `<div class="total-row small"><span>Promo (${esc(appliedPromo.code)})</span><span>-${fmt(discount)}</span></div>` : ''}
-  <div class="grand-total"><span>TOTAL</span><span>${fmt(grandTotal)}</span></div>
+  ${totalsHtml}
 </div>
 
 <div class="paid-wrap">
@@ -360,12 +338,13 @@ class EscPos {
   }
 }
 
-function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, shopInfo }) {
-  const printedAt  = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const cartTotal  = cart.reduce((s, i) => s + (i.itemTotal || 0), 0);
-  const discount   = appliedPromo?.discount_amount ?? 0;
-  const grandTotal = cartTotal - discount;
-  const pickupDate = form.pickup_date
+function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, deliveryFee, deliveryZone, shopInfo }) {
+  const printedAt   = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cartTotal   = cart.reduce((s, i) => s + (i.itemTotal || 0), 0);
+  const discount    = appliedPromo?.discount_amount ?? 0;
+  const delivery    = Number(deliveryFee || 0);
+  const grandTotal  = cartTotal + delivery - discount;
+  const pickupDate  = form.pickup_date
     ? fmtDate(form.pickup_date.includes('T') ? form.pickup_date : form.pickup_date + 'T00:00:00')
     : '—';
   const shopName  = shopInfo?.name || 'Laundry Shop';
@@ -382,7 +361,20 @@ function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, shopInfo }) 
     p.align(0).rule();
   };
 
-  // ── JOB ORDER ──
+  // Shared summary: one line per service (name + total), then the totals block
+  const totals = () => {
+    p.rule();
+    p.row('Subtotal', money(cartTotal));
+    if (delivery > 0) {
+      p.row('Delivery', money(delivery));
+      if (deliveryZone) p.line('  ' + deliveryZone);
+    }
+    if (discount > 0) p.row('Promo (' + (appliedPromo.code || '') + ')', '-' + money(discount));
+    p.bold(true).size(0x01).row('TOTAL', money(grandTotal)).size(0x00).bold(false);
+  };
+  const items = () => cart.forEach(item => p.row(item.service_name, money(item.itemTotal)));
+
+  // ── JOB ORDER (summary) ──
   header('JOB ORDER');
   p.row('Ref#: ' + bookingRef, '');
   p.row('Date:', printedAt);
@@ -392,30 +384,15 @@ function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, shopInfo }) 
   if (form.address) p.line('Address: ' + form.address);
   p.line('Pickup: '   + pickupDate);
   p.rule();
-  cart.forEach(item => {
-    p.row(item.service_name, money(item.itemTotal));
-    if (Array.isArray(item.displayLines)) {
-      item.displayLines.forEach(dl => {
-        if (dl.label && dl.label !== item.service_name) p.line('  ' + dl.label);
-      });
-    }
-    if (Array.isArray(item.custom_fields)) {
-      item.custom_fields.forEach(cf => {
-        if (cf.label && cf.value != null && cf.value !== '') p.line('  ' + cf.label + ': ' + cf.value);
-      });
-    }
-  });
-  p.rule();
-  p.row('Subtotal', money(cartTotal));
-  if (discount > 0) p.row('Promo (' + (appliedPromo.code || '') + ')', '-' + money(discount));
-  p.bold(true).size(0x01).row('TOTAL', money(grandTotal)).size(0x00).bold(false);
+  items();
+  totals();
   if (form.notes) { p.rule(); p.line('Notes: ' + form.notes); }
   p.rule();
   p.align(1).line('Printed: ' + printedAt).align(0);
 
   p.feed(1).align(1).line('- - - - CUT HERE - - - -').align(0).feed(1);
 
-  // ── CLAIM RECEIPT ──
+  // ── CLAIM RECEIPT (summary) ──
   header('CLAIM RECEIPT');
   p.align(1).line('BOOKING REFERENCE');
   p.bold(true).size(0x11).line(bookingRef).size(0x00).bold(false);
@@ -423,10 +400,8 @@ function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, shopInfo }) 
   p.line('Customer: ' + (form.name || '—'));
   p.line('Pickup: '   + pickupDate);
   p.rule();
-  cart.forEach(item => p.row(item.service_name, money(item.itemTotal)));
-  p.rule();
-  if (discount > 0) p.row('Promo (' + (appliedPromo.code || '') + ')', '-' + money(discount));
-  p.bold(true).size(0x01).row('TOTAL', money(grandTotal)).size(0x00).bold(false);
+  items();
+  totals();
   p.feed(1).align(1).bold(true).line('[ PAID - Walk-in ]').bold(false);
   p.line('Present this receipt when');
   p.line('claiming your laundry.');

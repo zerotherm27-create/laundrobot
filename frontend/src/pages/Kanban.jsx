@@ -214,6 +214,8 @@ export default function Kanban() {
       appliedPromo: Number(modalOrder.promo_discount) > 0
         ? { code: modalOrder.promo_code || '', discount_amount: Number(modalOrder.promo_discount) }
         : null,
+      deliveryFee:  Number(modalOrder.delivery_fee || 0),
+      deliveryZone: modalOrder.delivery_zone || '',
       shopInfo,
     };
   }
