@@ -86,8 +86,10 @@ export default function Services() {
   function handleSvcDrop(e, targetSvc) {
     e.preventDefault();
     const { id: fromId, catKey } = dragRef.current;
+    dragRef.current = {};
     setDragOverSvcId(null);
-    if (!fromId || fromId === targetSvc.id) { dragRef.current = {}; return; }
+    if (!fromId || fromId === targetSvc.id) return;
+
     setServices(prev => {
       const catSvcs = [...prev]
         .filter(s => (s.category_id ? String(s.category_id) : '__none__') === catKey)
@@ -99,10 +101,16 @@ export default function Services() {
       const reordered = [...catSvcs];
       const [moved] = reordered.splice(fromIdx, 1);
       reordered.splice(toIdx, 0, moved);
-      reordered.forEach((s, i) => { if (s.sort_order !== i) updateService(s.id, { sort_order: i }).catch(() => {}); });
-      return [...others, ...reordered.map((s, i) => ({ ...s, sort_order: i }))];
+      const updated = reordered.map((s, i) => ({ ...s, sort_order: i }));
+      // Save changed rows — spread full object so PUT doesn't wipe name/price/etc.
+      updated.forEach(s => {
+        const orig = catSvcs.find(x => x.id === s.id);
+        if (!orig || orig.sort_order !== s.sort_order) {
+          updateService(s.id, { ...s }).catch(() => {});
+        }
+      });
+      return [...others, ...updated];
     });
-    dragRef.current = {};
   }
 
   // ── Drag handlers — categories ────────────────────────────────────────
@@ -117,8 +125,10 @@ export default function Services() {
   function handleCatDrop(e, targetCat) {
     e.preventDefault();
     const { id: fromId } = dragRef.current;
+    dragRef.current = {};
     setDragOverCatId(null);
-    if (!fromId || fromId === targetCat.id) { dragRef.current = {}; return; }
+    if (!fromId || fromId === targetCat.id) return;
+
     setCategories(prev => {
       const sorted = [...prev].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
       const fromIdx = sorted.findIndex(c => c.id === fromId);
@@ -127,10 +137,15 @@ export default function Services() {
       const reordered = [...sorted];
       const [moved] = reordered.splice(fromIdx, 1);
       reordered.splice(toIdx, 0, moved);
-      reordered.forEach((c, i) => { if (c.sort_order !== i) updateCategory(c.id, { sort_order: i }).catch(() => {}); });
-      return reordered.map((c, i) => ({ ...c, sort_order: i }));
+      const updated = reordered.map((c, i) => ({ ...c, sort_order: i }));
+      // Save only changed rows — pass full object so PUT doesn't wipe the name
+      updated.forEach(c => {
+        if (sorted.find(x => x.id === c.id)?.sort_order !== c.sort_order) {
+          updateCategory(c.id, { ...c }).catch(() => {});
+        }
+      });
+      return updated;
     });
-    dragRef.current = {};
   }
   function handleDragEnd() {
     setDragOverSvcId(null);
