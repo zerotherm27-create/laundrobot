@@ -673,9 +673,27 @@ export default function Kanban() {
               </a>
             )}
 
+            {/* ── Invoice / Print actions ── */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>Actions</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={handlePrintReceipt} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#F7F7F5', border: '1.5px solid #E8E8E0', color: '#374151', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Icon name="printer" size={13} color="#374151" />Print Receipt
+                </button>
+                <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Icon name="file" size={13} color="#1D4ED8" />PDF
+                </button>
+                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '1.5px solid #86EFAC', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Email</>}
+                </button>
+              </div>
+              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
+              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
+            </div>
+
             {/* Status update */}
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Update Status</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>Update Status</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {STATUSES.map(s => (
                   <button key={s} onClick={() => {
@@ -695,24 +713,6 @@ export default function Kanban() {
 
             <div style={{ marginTop: 8, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               Created {modalOrder.created_at ? new Date(modalOrder.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
-            </div>
-
-            {/* ── Invoice ── */}
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
-              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  <Icon name="file" size={13} color="#1D4ED8" />Download PDF
-                </button>
-                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Send to Email</>}
-                </button>
-                <button onClick={handlePrintReceipt} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#F7F7F5', border: '0.5px solid #E8E8E0', color: '#374151', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  <Icon name="printer" size={12} color="#374151" />Print Receipt
-                </button>
-              </div>
-              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
-              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
             </div>
 
             {/* ── Close (mobile) ── */}
