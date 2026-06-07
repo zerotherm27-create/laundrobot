@@ -17,7 +17,7 @@ router.get('/', auth, async (req, res) => {
       [tenantId]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 const STAFF_LIMITS = { starter: 2, growth: 5, pro: 10 };
@@ -29,6 +29,13 @@ router.post('/', auth, async (req, res) => {
   const targetTenantId = req.user.role === 'superadmin'
     ? (tenant_id || null)
     : req.user.tenant_id;
+  // Prevent role escalation
+  if (req.user.role !== 'superadmin') {
+    const allowedRoles = ['staff', 'admin'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({ error: 'Cannot assign this role' });
+    }
+  }
   try {
     // Enforce staff limit per plan (superadmin accounts have no tenant, skip)
     if (targetTenantId && req.user.role !== 'superadmin') {
@@ -48,13 +55,20 @@ router.post('/', auth, async (req, res) => {
       [targetTenantId, name, email, hash, role, JSON.stringify(permissions || [])]
     );
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PUT update user
 router.put('/:id', auth, async (req, res) => {
   const { name, email, password, role, permissions } = req.body;
   const isSuperAdmin = req.user.role === 'superadmin';
+  // Prevent role escalation
+  if (!isSuperAdmin) {
+    const allowedRoles = ['staff', 'admin'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({ error: 'Cannot assign this role' });
+    }
+  }
   try {
     let query, params;
     if (password) {
@@ -82,7 +96,7 @@ router.put('/:id', auth, async (req, res) => {
     const { rows } = await db.query(query, params);
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH change own password (any logged-in user) — must be before /:id/password
@@ -98,13 +112,24 @@ router.patch('/me/password', auth, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 10);
     await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.user.id]);
     res.json({ message: 'Password updated successfully' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH change password for a specific user (admin/superadmin only)
 router.patch('/:id/password', auth, async (req, res) => {
   const { password } = req.body;
   if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  // Authorization check: must be changing own password, or be admin/superadmin
+  if (req.user.id !== req.params.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  // Non-superadmins can only change passwords for users in their own tenant
+  if (req.user.role !== 'superadmin') {
+    const target = await db.query('SELECT tenant_id FROM users WHERE id=$1', [req.params.id]);
+    if (!target.rows[0] || target.rows[0].tenant_id !== req.user.tenant_id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+  }
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
@@ -113,7 +138,7 @@ router.patch('/:id/password', auth, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'Password updated successfully' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // DELETE user
@@ -126,7 +151,7 @@ router.delete('/:id', auth, async (req, res) => {
       await db.query(`DELETE FROM users WHERE id=$1 AND tenant_id=$2`, [req.params.id, req.user.tenant_id]);
     }
     res.json({ message: 'User deleted' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

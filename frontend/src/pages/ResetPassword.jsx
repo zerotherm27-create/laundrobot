@@ -11,7 +11,7 @@ export default function ResetPassword({ token, onBack }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (password.length < 6) return setMessage('Password must be at least 6 characters.');
+    if (password.length < 8) return setMessage('Password must be at least 8 characters.');
     if (password !== confirm)  return setMessage('Passwords do not match.');
     setLoading(true); setMessage('');
     try {
@@ -74,8 +74,8 @@ export default function ResetPassword({ token, onBack }) {
                 <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>New Password</label>
                 <div style={{ position: 'relative' }}>
                   <input type={show ? 'text' : 'password'} value={password}
-                    onChange={e => setPassword(e.target.value)} required minLength={6}
-                    placeholder="At least 6 characters" className="input-base"
+                    onChange={e => setPassword(e.target.value)} required minLength={8}
+                    placeholder="At least 8 characters" className="input-base"
                     style={{ ...inputStyle, paddingRight: 42 }} />
                   <button type="button" onClick={() => setShow(s => !s)}
                     style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#374151', padding: 0 }}>

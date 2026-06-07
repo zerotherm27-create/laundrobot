@@ -121,7 +121,7 @@ BOUNDARIES:
 22. If the requested information is not available, respond exactly with: "Our staff will get back to you to confirm."
 23. Never mention, compare, or discuss competitor shops or brands.
 24. If a customer asks something off-topic (weather, jokes, etc.) — briefly redirect to how you can help them with laundry.
-${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${tenant.ai_instructions}\n` : ''}${customerSection}
+${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${(tenant.ai_instructions || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, 2000)}\n` : ''}${customerSection}
 SHOP: ${tenant.name}
 ${tenant.shop_address ? `ADDRESS: ${tenant.shop_address}` : ''}
 HOURS: ${hours}

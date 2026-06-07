@@ -4,6 +4,9 @@ const db = require('../db');
 const { sendMessage } = require('../utils/messenger');
 
 router.post('/blast', auth, async (req, res) => {
+  if (!['admin','superadmin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   const { message, filter_status } = req.body;
   const tenantId = req.user.tenant_id;
   try {
@@ -50,7 +53,7 @@ router.post('/blast', auth, async (req, res) => {
       [tenantId, message, filter_status || 'ALL', sent]
     );
     res.json({ sent });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 router.get('/blast/history', auth, async (req, res) => {
@@ -60,7 +63,7 @@ router.get('/blast/history', auth, async (req, res) => {
       [req.user.tenant_id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

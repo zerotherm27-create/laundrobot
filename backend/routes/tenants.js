@@ -31,7 +31,7 @@ router.get('/settings', auth, async (req, res) => {
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     res.json(tenant);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PUT own tenant settings (admin — only safe fields)
@@ -158,7 +158,7 @@ router.put('/settings', auth, async (req, res) => {
         process.env.APP_URL, current.ig_user_id, newDomain
       ).catch(e => console.warn('[auto-whitelist] messenger profile update failed:', e.message));
     }
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET settings history for own tenant (last 20 snapshots)
@@ -173,7 +173,7 @@ router.get('/settings/history', auth, async (req, res) => {
       [req.user.tenant_id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST restore a specific snapshot (admin)
@@ -203,7 +203,7 @@ router.post('/settings/history/:snapshotId/restore', auth, async (req, res) => {
       ]
     );
     res.json({ message: 'Settings restored successfully' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST fetch linked Instagram Business Account from the connected Facebook Page
@@ -243,8 +243,8 @@ router.post('/settings/setup-messenger', auth, async (req, res) => {
     const { fbError, igError } = await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, tenant.id, process.env.APP_URL, tenant.ig_user_id, tenant.custom_domain);
     res.json({ fbError: fbError || null, igError: igError || null });
   } catch (err) {
-    console.error('[setup-messenger]', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+    console.error('[setup-messenger]', err.response?.data || err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -401,7 +401,7 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
       return res.status(400).json({ error: 'Session expired — please try connecting again.' });
     }
     console.error('[facebook-connect] CAUGHT ERROR:', err.name, err.message, err.stack);
-    res.status(500).json({ error: `[${err.name}] ${err.message}` });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -429,7 +429,11 @@ router.get('/settings/facebook-status', auth, async (req, res) => {
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT t.id, t.name, t.fb_page_id, t.fb_page_access_token, t.xendit_api_key, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap,
+      `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap,
+              CASE WHEN t.fb_page_access_token IS NOT NULL AND length(t.fb_page_access_token) >= 4
+                   THEN right(t.fb_page_access_token, 4) ELSE NULL END AS fb_token_hint,
+              CASE WHEN t.xendit_api_key IS NOT NULL AND length(t.xendit_api_key) >= 4
+                   THEN right(t.xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
               COUNT(o.id)::int AS total_orders,
               COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_revenue
        FROM tenants t
@@ -438,19 +442,24 @@ router.get('/', auth, superadminOnly, async (req, res) => {
        ORDER BY t.created_at DESC`
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET single tenant
 router.get('/:id', auth, superadminOnly, async (req, res) => {
   try {
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url, active, created_at, plan FROM tenants WHERE id=$1`,
+      `SELECT id, name, fb_page_id, logo_url, active, created_at, plan,
+              CASE WHEN fb_page_access_token IS NOT NULL AND length(fb_page_access_token) >= 4
+                   THEN right(fb_page_access_token, 4) ELSE NULL END AS fb_token_hint,
+              CASE WHEN xendit_api_key IS NOT NULL AND length(xendit_api_key) >= 4
+                   THEN right(xendit_api_key, 4) ELSE NULL END AS xendit_key_hint
+       FROM tenants WHERE id=$1`,
       [req.params.id]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     res.json(tenant);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST create tenant
@@ -466,7 +475,7 @@ router.post('/', auth, superadminOnly, async (req, res) => {
     // Auto-setup Messenger profile for the new page
     try { await setupMessengerProfile(fb_page_access_token, name, rows[0].id, process.env.APP_URL); } catch (e) { console.warn('[tenant] messenger profile setup failed:', e.message); }
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST setup Messenger profile manually (Get Started, greeting, persistent menu)
@@ -479,8 +488,8 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
     await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, req.params.id, process.env.APP_URL, tenant.ig_user_id, tenant.custom_domain);
     res.json({ message: 'Messenger profile configured successfully' });
   } catch (err) {
-    console.error('[setup-messenger]', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+    console.error('[setup-messenger]', err.response?.data || err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -505,7 +514,7 @@ router.patch('/:id/plan', auth, superadminOnly, async (req, res) => {
     vals.push(req.params.id);
     await db.query(`UPDATE tenants SET ${updates.join(',')} WHERE id=$${vals.length}`, vals);
     res.json({ message: 'Updated' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PUT update tenant
@@ -532,7 +541,7 @@ router.put('/:id', auth, superadminOnly, async (req, res) => {
       setupMessengerProfile(fb_page_access_token, rows[0].name, req.params.id, process.env.APP_URL, before?.ig_user_id, before?.custom_domain)
         .catch(e => console.warn('[tenant-update] messenger profile setup failed:', e.message));
     }
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST clone data from one tenant to another
@@ -720,8 +729,8 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
-    console.error('[clone-services]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[clone-services]', err);
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
   }
@@ -732,7 +741,7 @@ router.delete('/:id', auth, superadminOnly, async (req, res) => {
   try {
     await db.query(`DELETE FROM tenants WHERE id=$1`, [req.params.id]);
     res.json({ message: 'Tenant deleted' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

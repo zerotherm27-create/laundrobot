@@ -57,8 +57,8 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (err) {
-    console.error('[forgot-password]', err.message);
-    res.status(500).json({ error: 'Failed to send reset email: ' + err.message });
+    console.error('[forgot-password]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -66,7 +66,7 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
   try {
     const { rows } = await db.query(
@@ -88,8 +88,8 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ message: 'Password updated successfully. You can now log in.' });
   } catch (err) {
-    console.error('[reset-password]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[reset-password]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -8,6 +8,9 @@ router.get('/dashboard', auth, async (req, res) => {
     const now = new Date();
     const year = parseInt(req.query.year) || now.getFullYear();
     const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    if (year < 2020 || year > 2100 || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' });
+    }
     const tid = req.user.tenant_id;
 
     const { rows: [rev] } = await db.query(
@@ -39,7 +42,7 @@ router.get('/dashboard', auth, async (req, res) => {
     res.json({ revenue, expenses, netProfit, profitMargin, loadCount, avgRevenuePerLoad, year, month });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -65,7 +68,7 @@ router.get('/pricing-guide', auth, async (req, res) => {
     res.json(guide);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -86,7 +89,7 @@ router.put('/pricing-guide/:serviceId', auth, async (req, res) => {
     res.json(rows[0]);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -125,7 +128,7 @@ router.get('/daily-sales', auth, async (req, res) => {
     res.json(sales);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -143,7 +146,7 @@ router.get('/expenses', auth, async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -165,7 +168,7 @@ router.put('/expenses', auth, async (req, res) => {
     res.json(rows[0]);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -240,7 +243,7 @@ router.get('/monthly-summary', auth, async (req, res) => {
     res.json({ year, months });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -257,7 +260,7 @@ router.get('/targets', auth, async (req, res) => {
     res.json({ weekly: map.weekly || 0, monthly: map.monthly || 0, annual: map.annual || 0 });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -279,7 +282,7 @@ router.put('/targets', auth, async (req, res) => {
     res.json(rows[0]);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -289,6 +292,9 @@ router.get('/breakeven', auth, async (req, res) => {
     const now = new Date();
     const year  = parseInt(req.query.year)  || now.getFullYear();
     const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    if (year < 2020 || year > 2100 || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' });
+    }
     const tid   = req.user.tenant_id;
 
     const [{ rows: [rev] }, { rows: [exp] }, { rows: [vc] }] = await Promise.all([
@@ -343,7 +349,7 @@ router.get('/breakeven', auth, async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -353,6 +359,9 @@ router.get('/projections', auth, async (req, res) => {
     const now   = new Date();
     const year  = parseInt(req.query.year)  || now.getFullYear();
     const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    if (year < 2020 || year > 2100 || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'Invalid year or month' });
+    }
     const tid   = req.user.tenant_id;
 
     const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
@@ -406,7 +415,7 @@ router.get('/projections', auth, async (req, res) => {
     });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -418,6 +427,9 @@ router.post('/insights', auth, async (req, res) => {
 
     const { context } = req.body;
     if (!context) return res.status(400).json({ error: 'context required' });
+    if (req.body.context && JSON.stringify(req.body.context).length > 50000) {
+      return res.status(400).json({ error: 'Context too large' });
+    }
 
     const PESO = n => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
     const PCT  = n => `${Number(n || 0).toFixed(1)}%`;
@@ -483,7 +495,7 @@ Format each recommendation on its own line starting with "•".`;
     res.json({ recommendations, raw: text });
   } catch (e) {
     console.error('[finance/insights]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -604,7 +616,7 @@ router.get('/customer-retention', auth, async (req, res) => {
     });
   } catch (e) {
     console.error('[customer-retention]', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

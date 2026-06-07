@@ -100,11 +100,23 @@ function Dashboard({ initialPage }) {
         setSubStatus(r.data.subscription_status || 'active');
         setSubPlan(r.data.subscription_plan   || 'starter');
       })
-      .catch(() => { setSubStatus('active'); setSubPlan('starter'); }); // fail open
+      .catch(err => {
+        console.error('Subscription check failed', err);
+        setSubStatus('error');
+        // Don't grant access on failure
+      });
   }, [user.role]);
 
   // While checking, show nothing (or you could show a spinner)
   if (subStatus === null) return null;
+
+  // Subscription check failed — require re-login rather than granting access
+  if (subStatus === 'error') return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', color: '#374151', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 15, fontWeight: 600 }}>Cannot verify subscription. Please sign in again.</p>
+      <button onClick={() => { window.dispatchEvent(new Event('auth:logout')); }} style={{ padding: '9px 22px', borderRadius: 8, background: '#38a9c2', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Sign Out</button>
+    </div>
+  );
 
   // Trial expired → paywall
   if (subStatus === 'expired') return <PaywallScreen />;
@@ -137,7 +149,9 @@ function Dashboard({ initialPage }) {
           flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
           maxWidth: 'calc(100vw - 230px)',
         }}>
-          <Page />
+          {page === 'SuperAdmin' && user.role !== 'superadmin'
+            ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
+            : <Page />}
         </main>
       </div>
     </div>
@@ -189,7 +203,7 @@ function Inner() {
   const oauthCode  = params.get('code');
   const oauthState = params.get('state');
   if (oauthCode && oauthState) {
-    localStorage.setItem('fb_oauth_pending', JSON.stringify({
+    sessionStorage.setItem('fb_oauth_pending', JSON.stringify({
       code: oauthCode,
       state: oauthState,
       redirectUri: window.location.origin + '/settings',

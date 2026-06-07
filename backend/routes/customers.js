@@ -18,7 +18,7 @@ router.get('/', auth, async (req, res) => {
       [req.user.tenant_id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET single customer with order history
@@ -32,11 +32,11 @@ router.get('/:id', auth, async (req, res) => {
     const { rows: orders } = await db.query(
       `SELECT o.*, s.name as service_name FROM orders o
        LEFT JOIN services s ON s.id = o.service_id
-       WHERE o.customer_id=$1 ORDER BY o.created_at DESC`,
-      [req.params.id]
+       WHERE o.customer_id=$1 AND o.tenant_id=$2 ORDER BY o.created_at DESC`,
+      [req.params.id, req.user.tenant_id]
     );
     res.json({ ...customer, orders });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH update customer info
@@ -57,7 +57,7 @@ router.patch('/:id', auth, async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Customer not found' });
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // DELETE customer
@@ -69,7 +69,7 @@ router.delete('/:id', auth, async (req, res) => {
     );
     if (!rowCount) return res.status(404).json({ error: 'Customer not found' });
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

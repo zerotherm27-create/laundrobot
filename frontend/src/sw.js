@@ -19,12 +19,29 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const rawUrl = event.notification.data?.url || '/';
+
+  // Validate URL — only allow relative paths or our own domains
+  let safeUrl = '/';
+  try {
+    if (rawUrl.startsWith('/')) {
+      safeUrl = rawUrl;
+    } else {
+      const parsed = new URL(rawUrl);
+      const allowedHosts = ['laundrobot.app', 'www.laundrobot.app', 'book.thelaundryproject.app', 'www.thelaundryproject.app'];
+      if (allowedHosts.includes(parsed.hostname)) {
+        safeUrl = rawUrl;
+      }
+    }
+  } catch (e) {
+    safeUrl = '/';
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      const existing = list.find((c) => c.url.includes(url) && 'focus' in c);
+      const existing = list.find((c) => c.url.includes(safeUrl) && 'focus' in c);
       if (existing) return existing.focus();
-      return clients.openWindow(url);
+      return clients.openWindow(safeUrl);
     })
   );
 });

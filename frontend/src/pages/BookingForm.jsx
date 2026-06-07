@@ -212,9 +212,17 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   const [promoError,   setPromoError]   = useState('');
 
   // Messenger PSID — prefer URL param (embedded by bot in Book Now link), fall back to Extensions SDK
-  const [messengerPsid, setMessengerPsid] = useState(
-    () => new URLSearchParams(window.location.search).get('psid') || null
-  );
+  // Strip psid from URL immediately to prevent it appearing in server logs, Referer headers, and browser history
+  const [messengerPsid, setMessengerPsid] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const psid = searchParams.get('psid');
+    if (psid) {
+      searchParams.delete('psid');
+      const newUrl = window.location.pathname + (searchParams.toString() ? '?' + searchParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+    }
+    return psid || null;
+  });
 
   // Server-side cart ID for abandonment tracking
   const [serverCartId, setServerCartId] = useState(null);
@@ -255,10 +263,9 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   const [screenshotErr,       setScreenshotErr]       = useState('');
 
   useEffect(() => {
-    // Read psid from URL param first (set by bot when opening the booking link)
-    // Works even when the form opens in an external browser outside Messenger webview
-    const urlPsid = new URLSearchParams(window.location.search).get('psid');
-    if (urlPsid) setMessengerPsid(urlPsid);
+    // psid is read and stripped from the URL in the useState initializer above.
+    // Here we only fall back to MessengerExtensions SDK (only works inside Messenger webview).
+    const urlPsid = messengerPsid; // already captured; URL param has been removed
 
     // Also try MessengerExtensions SDK (only works inside Messenger webview, may override URL psid)
     if (!urlPsid) {
@@ -556,7 +563,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
       if (RECAPTCHA_SITE_KEY && window.grecaptcha) {
         try {
           captcha_token = await window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'booking' });
-        } catch (_) { /* skip if captcha fails — backend allows through */ }
+        } catch (_) { /* grecaptcha available but threw — log and continue; server enforces token validity */ console.warn('reCAPTCHA execute failed'); }
       }
 
       const pickupDatetime = form.pickup_time

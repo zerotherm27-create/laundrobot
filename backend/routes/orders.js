@@ -86,8 +86,8 @@ router.post('/walk-in', auth, async (req, res) => {
     res.json({ ok: true, booking_ref: bookingRef });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
-    console.error('[walk-in order]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[walk-in order]', err);
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
   }
@@ -96,7 +96,8 @@ router.post('/walk-in', auth, async (req, res) => {
 // GET all orders for tenant (archived=true to fetch archives)
 router.get('/', auth, async (req, res) => {
   try {
-    const { status, page = 1, limit = 200, archived = 'false' } = req.query;
+    const { status, page = 1, archived = 'false' } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
     const offset = (page - 1) * limit;
     const isArchived = archived === 'true';
     let query = `
@@ -114,11 +115,12 @@ router.get('/', auth, async (req, res) => {
     params.push(limit, offset);
     const { rows } = await db.query(query, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST archive completed orders for a given month (or auto by cron)
 router.post('/archive-month', auth, async (req, res) => {
+  if (!['admin','superadmin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const { year, month } = req.body; // month = 1-12
   if (!year || !month) return res.status(400).json({ error: 'year and month required' });
   try {
@@ -129,7 +131,7 @@ router.post('/archive-month', auth, async (req, res) => {
       [req.user.tenant_id, year, month]
     );
     res.json({ archived: rowCount });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PUT full booking edit — update/add/remove items, return copyable summary + payment link if needed
@@ -264,8 +266,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
-    console.error('[booking update]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[booking update]', err);
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
   }
@@ -285,7 +287,7 @@ router.get('/:id', auth, async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH update order status / notes / service / price
@@ -329,7 +331,7 @@ router.patch('/:id', auth, async (req, res) => {
         console.warn('[delivery-notify]', e.message)
       );
     }
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 async function sendCompletionNotification(updatedOrder, tenantId) {
@@ -535,8 +537,8 @@ router.post('/:id/payment-link', auth, async (req, res) => {
 
     res.json({ payment_url: invoice.invoiceUrl });
   } catch (err) {
-    console.error('[payment-link]', err.message);
-    res.status(500).json({ error: err.response?.data?.message || err.message });
+    console.error('[payment-link]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -586,8 +588,8 @@ router.post('/:id/notify-update', auth, async (req, res) => {
     await sendTaggedMessage(tenant.fb_page_access_token, order.fb_id, text);
     res.json({ ok: true, sent_to: order.fb_id });
   } catch (err) {
-    console.error('[notify-update]', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+    console.error('[notify-update]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -655,8 +657,8 @@ router.post('/:id/cancel', auth, async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('[cancel-order]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[cancel-order]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -687,8 +689,8 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
     );
     res.json({ ok: true });
   } catch (err) {
-    console.error('[verify-payment]', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.message || err.message });
+    console.error('[verify-payment]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -716,16 +718,20 @@ router.post('/:id/send-invoice', auth, async (req, res) => {
     });
     res.json({ ok: true });
   } catch (err) {
-    console.error('[send-invoice]', err.response?.data || err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[send-invoice]', err.response?.data || err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // POST upload payment screenshot (public — called by customer on booking success screen)
 router.post('/:id/upload-screenshot', async (req, res) => {
-  const { screenshot } = req.body;
+  const { screenshot, booking_ref } = req.body;
   if (!screenshot) return res.status(400).json({ error: 'screenshot is required' });
+  if (!booking_ref) return res.status(400).json({ error: 'booking_ref is required' });
   try {
+    // Validate ownership: require booking_ref matching the order
+    const lookup = await db.query('SELECT id, tenant_id FROM orders WHERE id=$1 AND booking_ref=$2', [req.params.id, booking_ref]);
+    if (!lookup.rows[0]) return res.status(403).json({ error: 'Forbidden' });
     const { rows: [order] } = await db.query(
       `UPDATE orders SET payment_screenshot=$1 WHERE id=$2 RETURNING id`,
       [screenshot, req.params.id]
@@ -733,8 +739,8 @@ router.post('/:id/upload-screenshot', async (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
     res.json({ ok: true });
   } catch (err) {
-    console.error('[upload-screenshot]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[upload-screenshot]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -822,13 +828,14 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    console.error('[confirm-qr-payment]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[confirm-qr-payment]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // DELETE order — soft delete only, never hard delete
 router.delete('/:id', auth, async (req, res) => {
+  if (!['admin','superadmin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   try {
     // Fetch the order snapshot before soft-deleting
     const { rows: [order] } = await db.query(
@@ -855,7 +862,7 @@ router.delete('/:id', auth, async (req, res) => {
     );
 
     res.json({ message: 'Order deleted' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

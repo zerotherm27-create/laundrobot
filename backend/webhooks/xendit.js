@@ -1,14 +1,21 @@
 const router = require('express').Router();
+const crypto = require('crypto');
 const db = require('../db');
 const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
-  console.log('[xendit] received token:', callbackToken, '| expected:', process.env.XENDIT_CALLBACK_TOKEN);
-  if (process.env.XENDIT_CALLBACK_TOKEN && callbackToken !== process.env.XENDIT_CALLBACK_TOKEN) {
-    return res.status(403).json({ error: 'Invalid callback token' });
+  const expectedToken = process.env.XENDIT_CALLBACK_TOKEN;
+  if (!expectedToken) {
+    console.error('[xendit] XENDIT_CALLBACK_TOKEN env var not set — rejecting all callbacks');
+    return res.sendStatus(500);
   }
+  if (!callbackToken || !crypto.timingSafeEqual(Buffer.from(callbackToken), Buffer.from(expectedToken))) {
+    console.warn('[xendit] Invalid callback token');
+    return res.sendStatus(403);
+  }
+  console.log('[xendit] callback token check passed');
 
   const { external_id, status, id: xenditInvoiceId } = req.body;
 
@@ -21,8 +28,11 @@ router.post('/', async (req, res) => {
       // UUID contains 4 hyphens (8-4-4-4-12), so segments 1..5 reconstruct it
       const _parts = String(external_id).split('-');
       const tenantId = _parts.slice(1, 6).join('-');
+      // Parse plan from description as a fallback; primary source is the amount paid
       const desc = req.body.description || '';
       const isAnnual  = desc.includes('Annual');
+      // Look up what plan the tenant was trying to buy from the description label set in auth.js
+      // Labels: 'LaundroBot Starter Monthly/Annual', 'LaundroBot Growth Monthly/Annual', 'LaundroBot Pro Monthly/Annual'
       const isPro     = desc.includes('Pro');
       const isGrowth  = desc.includes('Growth');
       const subPlan   = isAnnual
@@ -76,12 +86,14 @@ router.post('/', async (req, res) => {
 
     if (isBkgRef) {
       await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99 WHERE booking_ref=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+         WHERE booking_ref=$2 AND tenant_id = (SELECT tenant_id FROM orders WHERE booking_ref=$2 LIMIT 1)`,
         [xenditInvoiceId, refId]
       );
     } else {
       await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99 WHERE id=$2`,
+        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+         WHERE id=$2 AND tenant_id = (SELECT tenant_id FROM orders WHERE id=$2 LIMIT 1)`,
         [xenditInvoiceId, refId]
       );
     }
@@ -164,8 +176,8 @@ router.post('/', async (req, res) => {
 
     res.sendStatus(200);
   } catch (err) {
-    console.error('Xendit webhook error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Xendit webhook error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

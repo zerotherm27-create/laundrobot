@@ -6,7 +6,7 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (!token) return null;
       return {
         token,
@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { data } = await apiLogin(email, password);
     const permissions = data.permissions || [];
-    localStorage.setItem('token',       data.token);
+    sessionStorage.setItem('token',     data.token);
     localStorage.setItem('role',        data.role);
     localStorage.setItem('tenant_id',   data.tenant_id   || '');
     localStorage.setItem('tenant_name', data.tenant_name || '');
@@ -39,7 +39,8 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    ['token','role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
+    sessionStorage.removeItem('token');
+    ['role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
     setUser(null);
   }
 

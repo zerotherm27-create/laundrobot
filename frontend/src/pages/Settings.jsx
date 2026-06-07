@@ -252,20 +252,20 @@ export default function Settings() {
     } catch { alert('Failed to remove blocked date.'); }
   }
 
-  // Handle Facebook OAuth redirect return (code stored in localStorage by App.jsx Inner)
+  // Handle Facebook OAuth redirect return (code stored in sessionStorage by App.jsx Inner)
   useEffect(() => {
-    const raw = localStorage.getItem('fb_oauth_pending');
+    const raw = sessionStorage.getItem('fb_oauth_pending');
     if (!raw) return;
     let pending;
-    try { pending = JSON.parse(raw); } catch { localStorage.removeItem('fb_oauth_pending'); return; }
-    localStorage.removeItem('fb_oauth_pending');
+    try { pending = JSON.parse(raw); } catch { sessionStorage.removeItem('fb_oauth_pending'); return; }
+    sessionStorage.removeItem('fb_oauth_pending');
     // Expire after 5 minutes
     if (Date.now() - pending.ts > 5 * 60 * 1000) return;
-    // Validate state
-    const storedState = localStorage.getItem('fb_oauth_state');
-    localStorage.removeItem('fb_oauth_state');
-    if (storedState && pending.state !== storedState) {
-      setFbMsg('❌ OAuth state mismatch — please try connecting again.');
+    // Validate state — reject if storedState is missing
+    const storedState = sessionStorage.getItem('fb_oauth_state');
+    sessionStorage.removeItem('fb_oauth_state');
+    if (!storedState || storedState !== pending.state) {
+      setFbMsg('❌ OAuth state mismatch. Please reconnect.');
       return;
     }
     setFbConnecting(true);
@@ -283,8 +283,10 @@ export default function Settings() {
   function handleFbLogin() {
     const appId = import.meta.env.VITE_FB_APP_ID;
     if (!appId) return setFbMsg('❌ Facebook App ID not configured — contact support.');
-    const state = Math.random().toString(36).slice(2);
-    localStorage.setItem('fb_oauth_state', state);
+    const stateArray = new Uint8Array(16);
+    crypto.getRandomValues(stateArray);
+    const state = Array.from(stateArray).map(b => b.toString(16).padStart(2, '0')).join('');
+    sessionStorage.setItem('fb_oauth_state', state);
     const redirectUri = window.location.origin + '/settings';
     const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,pages_manage_metadata,pages_messaging,pages_utility_messaging,pages_read_engagement,business_management,instagram_basic,instagram_manage_messages&response_type=code&state=${state}`;
     window.location.href = url;
@@ -605,7 +607,7 @@ export default function Settings() {
                   {xenditKeySet && !xenditKeyEditing ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #E2E8F0', background: '#F9FAFB', fontSize: 13, color: '#374151', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                        xnd_production_••••••••••••••{xenditKeyHint}
+                        ••••••••••••••••  <span style={{ fontFamily: 'inherit', fontSize: 11, color: '#6B7280' }}>(Key configured)</span>
                       </div>
                       <button type="button" onClick={() => setXenditKeyEditing(true)}
                         style={{ padding: '9px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8, border: '0.5px solid #D1D5DB', background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>

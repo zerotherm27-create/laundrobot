@@ -1,12 +1,15 @@
 const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
 const { sendMessage, sendButtons } = require('../utils/messenger');
 const { sendPushToTenant } = require('../utils/push');
 const { haversine } = require('./deliveryBrackets');
+
+const coordsLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
 
 // Look up a tenant by custom domain — used by the booking form on white-label domains
 router.get('/by-domain/:hostname', async (req, res) => {
@@ -18,7 +21,7 @@ router.get('/by-domain/:hostname', async (req, res) => {
     );
     if (!tenant) return res.status(404).json({ error: 'Domain not configured' });
     res.json({ tenant_id: tenant.id, tenant_name: tenant.name, white_label: tenant.white_label });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Serve service image — allows Messenger carousel to display base64-stored images via a public URL
@@ -32,6 +35,9 @@ router.get('/image/:serviceId', async (req, res) => {
       res.set('Content-Type', mimeType);
       res.set('Cache-Control', 'public, max-age=86400');
       return res.send(Buffer.from(b64, 'base64'));
+    }
+    if (!svc.image_url.startsWith('https://')) {
+      return res.status(400).json({ error: 'Invalid image URL' });
     }
     res.redirect(svc.image_url);
   } catch (err) { res.status(500).end(); }
@@ -49,7 +55,7 @@ router.get('/geocode', async (req, res) => {
     });
     if (!data.length) return res.json(null);
     res.json({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Address autocomplete — returns up to 5 suggestions with coords
@@ -73,7 +79,7 @@ router.get('/geocode/suggest', async (req, res) => {
         full: r.display_name,
       };
     }));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET all booking-form data in one request
@@ -133,7 +139,7 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
         : null,
       blockedDates,
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET tenant info (name + logo + store hours for booking form)
@@ -149,7 +155,7 @@ router.get('/:tenantId/info', async (req, res) => {
     );
     if (!t) return res.status(404).json({ error: 'Shop not found' });
     res.json(t);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET blocked dates for public booking form
@@ -160,7 +166,7 @@ router.get('/:tenantId/blocked-dates', async (req, res) => {
       [req.params.tenantId]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET active categories
@@ -171,7 +177,7 @@ router.get('/:tenantId/categories', async (req, res) => {
       [req.params.tenantId]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET active services with custom fields
@@ -203,11 +209,11 @@ router.get('/:tenantId/services', async (req, res) => {
     }
     for (const svc of services) svc.custom_fields = fieldMap[svc.id] || [];
     res.json(services);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH customer coords — called after geocoding succeeds for old customers with no stored coords
-router.patch('/:tenantId/customer/coords', async (req, res) => {
+router.patch('/:tenantId/customer/coords', coordsLimiter, async (req, res) => {
   const { phone, addr_lat, addr_lng } = req.body;
   if (!phone?.trim() || !addr_lat || !addr_lng) return res.json({ ok: false });
   try {
@@ -220,24 +226,24 @@ router.patch('/:tenantId/customer/coords', async (req, res) => {
   } catch { res.json({ ok: false }); }
 });
 
-// GET customer by phone — repeat customer lookup
+// GET customer by phone — repeat customer lookup (returns only fields needed for form prefill, no PII overload)
 router.get('/:tenantId/customer', async (req, res) => {
   const { phone } = req.query;
   if (!phone?.trim()) return res.json(null);
   try {
     const { rows: [customer] } = await db.query(
-      `SELECT c.name, c.phone, c.email, c.address, c.addr_lat, c.addr_lng
+      `SELECT c.name, c.phone, c.address, c.addr_lat, c.addr_lng
        FROM customers c
        WHERE c.tenant_id=$1 AND c.phone=$2`,
       [req.params.tenantId, phone.trim()]
     );
     if (!customer || !customer.address) return res.json(null);
     res.json({
-      name: customer.name, phone: customer.phone, email: customer.email, address: customer.address,
+      name: customer.name, phone: customer.phone, address: customer.address,
       addr_lat: customer.addr_lat ? Number(customer.addr_lat) : null,
       addr_lng: customer.addr_lng ? Number(customer.addr_lng) : null,
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET active delivery zones
@@ -248,7 +254,7 @@ router.get('/:tenantId/delivery-zones', async (req, res) => {
       [req.params.tenantId]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET delivery brackets + shop location
@@ -260,7 +266,7 @@ router.get('/:tenantId/delivery-brackets', async (req, res) => {
     ]);
     if (!t) return res.status(404).json({ error: 'Not found' });
     res.json({ brackets, shop_lat: t.shop_lat ? Number(t.shop_lat) : null, shop_lng: t.shop_lng ? Number(t.shop_lng) : null, delivery_note: t.delivery_note, delivery_radius: Number(t.delivery_radius) || 15 });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET validate promo code
@@ -287,7 +293,7 @@ router.get('/:tenantId/promo', async (req, res) => {
       ? Math.round(Math.min(orderTotal * Number(promo.discount_value) / 100, orderTotal) * 100) / 100
       : Math.min(Number(promo.discount_value), orderTotal);
     res.json({ code: promo.code, discount_type: promo.discount_type, discount_value: Number(promo.discount_value), discount });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ── Price calculator (per cart item) ────────────────────────────────────────
@@ -394,7 +400,7 @@ router.post('/:tenantId/orders', async (req, res) => {
 
   // reCAPTCHA v3 verification (skip gracefully if secret not configured)
   const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
-  if (recaptchaSecret && source !== 'admin') {
+  if (recaptchaSecret) {
     if (!captcha_token) {
       return res.status(400).json({ error: 'Security check failed. Please refresh and try again.' });
     }
@@ -416,27 +422,25 @@ router.post('/:tenantId/orders', async (req, res) => {
   }
 
   // Rate limit: max 3 pending/active bookings per phone per tenant per day
-  if (source !== 'admin') {
-    try {
-      const { rows: [{ count: pendingCount }] } = await db.query(
-        `SELECT COUNT(*) FROM orders o
-         JOIN customers c ON c.id = o.customer_id
-         WHERE o.tenant_id=$1 AND c.phone=$2
-           AND o.status NOT IN ('completed','cancelled','archived')
-           AND o.created_at > NOW() - INTERVAL '24 hours'`,
-        [req.params.tenantId, cleanPhone]
-      );
-      if (Number(pendingCount) >= 3) {
-        return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
-      }
-    } catch (rateErr) {
-      console.warn('[rate-limit] check failed (skipping):', rateErr.message);
+  try {
+    const { rows: [{ count: pendingCount }] } = await db.query(
+      `SELECT COUNT(*) FROM orders o
+       JOIN customers c ON c.id = o.customer_id
+       WHERE o.tenant_id=$1 AND c.phone=$2
+         AND o.status NOT IN ('completed','cancelled','archived')
+         AND o.created_at > NOW() - INTERVAL '24 hours'`,
+      [req.params.tenantId, cleanPhone]
+    );
+    if (Number(pendingCount) >= 3) {
+      return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
     }
+  } catch (rateErr) {
+    console.warn('[rate-limit] check failed (skipping):', rateErr.message);
   }
 
   const pickupDay = new Date(pickup_date.trim());
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  if (source !== 'admin' && (isNaN(pickupDay.getTime()) || pickupDay < today)) {
+  if (isNaN(pickupDay.getTime()) || pickupDay < today) {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
@@ -758,8 +762,8 @@ router.post('/:tenantId/orders', async (req, res) => {
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
-    console.error('[public order]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[public order]', err);
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
   }
@@ -811,7 +815,7 @@ router.get('/:tenantId/reorder/:orderId', async (req, res) => {
       is_dropoff: order.is_dropoff,
       weight: order.weight ? Number(order.weight) : null,
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST save/update an in-progress cart (called by BookingForm on first item add)
@@ -826,7 +830,7 @@ router.post('/:tenantId/cart', async (req, res) => {
       [req.params.tenantId, fb_user_id || null, JSON.stringify(items), step || 1]
     );
     res.json({ cart_id: cart.id });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // PATCH update cart step or mark converted
@@ -845,7 +849,7 @@ router.patch('/:tenantId/cart/:cartId', async (req, res) => {
       params
     );
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 module.exports = router;

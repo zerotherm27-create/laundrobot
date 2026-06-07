@@ -30,6 +30,10 @@ export default function SuperAdmin() {
   const [savingPw, setSavingPw] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
+  // Show/hide toggles for credential fields in tenant form
+  const [showFbToken, setShowFbToken] = useState(false);
+  const [showXenditKey, setShowXenditKey] = useState(false);
+
   // Clone
   const [cloneSource, setCloneSource] = useState('');
   const [cloneTarget, setCloneTarget] = useState('');
@@ -85,7 +89,7 @@ export default function SuperAdmin() {
   // ── Change password ──
   async function handleChangePw() {
     if (!newPw) return alert('Enter a new password');
-    if (newPw.length < 6) return alert('Password must be at least 6 characters');
+    if (newPw.length < 8) return alert('Password must be at least 8 characters');
     if (newPw !== confirmPw) return alert('Passwords do not match');
     setSavingPw(true);
     try {
@@ -432,7 +436,7 @@ export default function SuperAdmin() {
               <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>New Password</label>
               <div style={{ position: 'relative' }}>
                 <input type={showPw ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', borderRadius: 8, border: '0.5px solid #ccc', fontSize: 13 }} />
                 <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
                   {showPw ? '🙈' : '👁'}
@@ -509,13 +513,33 @@ export default function SuperAdmin() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 16 }}>{tenantForm.isNew ? 'Add branch' : 'Edit branch'}</div>
-            {[['name','Branch name','text'],['fb_page_id','Facebook Page ID','text'],['fb_page_access_token','Page Access Token','text'],['xendit_api_key','Xendit API Key','text'],['logo_url','Logo URL','text']].map(([field, label, type]) => (
+            {[['name','Branch name','text'],['fb_page_id','Facebook Page ID','text'],['logo_url','Logo URL','text']].map(([field, label, type]) => (
               <div key={field} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>{label}</label>
                 <input type={type} value={tenantForm[field] || ''} onChange={e => setTenantForm(p => ({ ...p, [field]: e.target.value }))}
                   style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
               </div>
             ))}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Page Access Token</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showFbToken ? 'text' : 'password'} value={tenantForm.fb_page_access_token || ''} onChange={e => setTenantForm(p => ({ ...p, fb_page_access_token: e.target.value }))}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '7px 36px 7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
+                <span onClick={() => setShowFbToken(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                  {showFbToken ? '🙈' : '👁'}
+                </span>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Xendit API Key</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showXenditKey ? 'text' : 'password'} value={tenantForm.xendit_api_key || ''} onChange={e => setTenantForm(p => ({ ...p, xendit_api_key: e.target.value }))}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '7px 36px 7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
+                <span onClick={() => setShowXenditKey(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                  {showXenditKey ? '🙈' : '👁'}
+                </span>
+              </div>
+            </div>
             {tenantForm.isNew && (
               <>
                 <div style={{ fontSize: 12, color: '#374151', fontWeight: 500, margin: '14px 0 8px' }}>Admin account for this branch</div>

@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+// npm install helmet
+const helmet = require('helmet');
 const cron = require('node-cron');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
@@ -12,7 +14,24 @@ const app = express();
 // Trust Railway's reverse proxy so req.ip returns the real client IP
 app.set('trust proxy', 1);
 
-app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
+app.use(helmet());
+
+app.use(cors({
+  origin: [
+    'https://laundrobot.app',
+    'https://www.laundrobot.app',
+    'https://www.thelaundryproject.app',
+    'https://book.thelaundryproject.app',
+    ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:3000'] : [])
+  ],
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
+// Raw body for Messenger webhook HMAC verification — must be BEFORE express.json()
+app.use('/webhook/messenger', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -23,6 +42,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' },
 });
+
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+app.use(generalLimiter);
 
 const routes = [
   ['/auth',       './routes/auth',         authLimiter],

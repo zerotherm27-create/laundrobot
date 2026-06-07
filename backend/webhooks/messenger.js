@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { randomUUID } = require('crypto');
+const crypto = require('crypto');
 const axios = require('axios');
 const db = require('../db');
 const messengerUtils = require('../utils/messenger');
@@ -39,8 +40,27 @@ router.get('/', (req, res) => {
 
 // ── Incoming messages ───────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
+  // HMAC signature verification
+  const sig = req.headers['x-hub-signature-256'];
+  const appSecret = process.env.FB_APP_SECRET;
+  if (!appSecret) {
+    console.error('[messenger-webhook] FB_APP_SECRET not set');
+    return res.sendStatus(500);
+  }
+  if (!sig) {
+    console.warn('[messenger-webhook] Missing signature');
+    return res.sendStatus(403);
+  }
+  const rawBody = req.body; // Buffer because express.raw() applied in server.js
+  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    console.warn('[messenger-webhook] Signature mismatch');
+    return res.sendStatus(403);
+  }
+  const body = JSON.parse(rawBody.toString());
+
   res.sendStatus(200);
-  const { object, entry } = req.body;
+  const { object, entry } = body;
   console.log('[webhook] received object:', object, 'entries:', entry?.length);
 
   try {
@@ -872,8 +892,8 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   if (text === 'CONFIRM_NO' || lc === 'cancel') {
     const { rows: activeOrders } = await db.query(
       `UPDATE orders SET status='CANCELLED'
-       WHERE customer_id=$1 AND paid=FALSE AND status!='CANCELLED' RETURNING id`,
-      [customer.id]
+       WHERE customer_id=$1 AND paid=FALSE AND status!='CANCELLED' AND tenant_id=$2 RETURNING id`,
+      [customer.id, tenant.id]
     );
     await setState('START', {}, {});
     await sendButtons(token, senderId,

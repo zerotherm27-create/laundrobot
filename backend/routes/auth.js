@@ -44,7 +44,7 @@ router.post('/login', async (req, res) => {
         permissions,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
 
     res.json({
@@ -58,7 +58,7 @@ router.post('/login', async (req, res) => {
 
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: err.message || err.toString() });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -157,7 +157,7 @@ router.post('/signup', async (req, res) => {
         permissions: [],
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
 
     res.json({
@@ -172,8 +172,8 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
-    console.error('Signup error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
   }
@@ -200,7 +200,8 @@ router.get('/subscription', require('../middleware/auth'), async (req, res) => {
 
     res.json(tenant);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -234,8 +235,8 @@ router.post('/subscription/pay', require('../middleware/auth'), async (req, res)
     });
     res.json({ invoiceUrl, externalId, amount: chosen.amount });
   } catch (err) {
-    console.error('Subscription pay error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Subscription pay error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -254,8 +255,8 @@ router.post('/setup', async (req, res) => {
     );
     res.json({ message: 'Superadmin created' });
   } catch (err) {
-    console.error('Setup error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('Setup error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
