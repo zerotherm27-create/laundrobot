@@ -292,18 +292,25 @@ function CreditCardModal({ total, paymentUrl, onCancel }) {
   );
 }
 
+// ── Module-level cache — persists across tab switches within the same session ──
+// First visit fetches from API (shows skeleton). Every subsequent navigation to
+// this tab seeds state from the cache immediately (no skeleton), then silently
+// refreshes in the background so data stays fresh.
+const _cache = { categories: null, services: null, shopInfo: null };
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function WalkIn() {
   const [step, setStep] = useState(1); // 1 = services, 2 = details, 3 = confirm, 'success'
 
-  const [categories, setCategories] = useState([]);
-  const [services, setServices]     = useState([]);
-  const [shopInfo, setShopInfo]     = useState(null);
-  const [loading, setLoading]       = useState(true);
+  const hasCached = !!_cache.categories;
+  const [categories, setCategories] = useState(_cache.categories || []);
+  const [services, setServices]     = useState(_cache.services   || []);
+  const [shopInfo, setShopInfo]     = useState(_cache.shopInfo   || null);
+  const [loading, setLoading]       = useState(!hasCached);
 
   // Step 1
-  const [activeCat, setActiveCat]     = useState(null);
+  const [activeCat, setActiveCat]     = useState(_cache.categories?.[0]?.id ?? null);
   const [selectedSvc, setSelectedSvc] = useState(null);
   const [fieldValues, setFieldValues] = useState({});
   const [addonQty, setAddonQty]       = useState({});
@@ -341,10 +348,17 @@ export default function WalkIn() {
   useEffect(() => {
     Promise.all([getCategories(), getServices(), getMyTenantSettings()])
       .then(([catRes, svcRes, shopRes]) => {
-        setCategories(catRes.data);
-        setServices(svcRes.data.filter(s => s.active !== false));
-        setShopInfo(shopRes.data);
-        if (catRes.data.length > 0) setActiveCat(catRes.data[0].id);
+        const cats = catRes.data;
+        const svcs = svcRes.data.filter(s => s.active !== false);
+        const shop = shopRes.data;
+        // Populate cache for instant load on next visit
+        _cache.categories = cats;
+        _cache.services   = svcs;
+        _cache.shopInfo   = shop;
+        setCategories(cats);
+        setServices(svcs);
+        setShopInfo(shop);
+        if (cats.length > 0) setActiveCat(prev => prev ?? cats[0].id);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
