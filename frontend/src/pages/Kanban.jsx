@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
+import { printReceipt } from '../components/ThermalReceipt.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -166,6 +167,51 @@ export default function Kanban() {
       };
       reader.readAsDataURL(blob);
     } catch (e) { setInvoiceResult('err:' + e.message); setInvoiceSending(false); }
+  }
+
+  function handlePrintReceipt() {
+    if (!modalOrder || !shopInfo) return;
+
+    // Normalise to an array of services (multi-booking or single row)
+    const services = modalOrder.services?.length > 0
+      ? modalOrder.services
+      : [{
+          service_name: modalOrder.service_name || 'Service',
+          price:        modalOrder.price,
+          weight:       modalOrder.weight,
+          custom_selections: modalOrder.custom_selections,
+        }];
+
+    const cart = services.map(s => {
+      const raw = s.custom_selections
+        ? (typeof s.custom_selections === 'string' ? JSON.parse(s.custom_selections) : s.custom_selections)
+        : [];
+      return {
+        service_name: s.service_name,
+        itemTotal:    Number(s.price || 0),
+        displayLines: [],
+        custom_fields: raw.filter(cf => cf.value != null && cf.value !== '').map(cf => ({
+          label: cf.label,
+          value: String(cf.value),
+        })),
+      };
+    });
+
+    printReceipt({
+      bookingRef:   modalOrder.booking_ref || modalOrder.id,
+      form: {
+        name:        modalOrder.customer_name  || '',
+        phone:       modalOrder.customer_phone || '',
+        address:     modalOrder.address || modalOrder.customer_address || '',
+        pickup_date: modalOrder.pickup_date || '',
+        notes:       modalOrder.notes || '',
+      },
+      cart,
+      appliedPromo: Number(modalOrder.promo_discount) > 0
+        ? { code: modalOrder.promo_code || '', discount_amount: Number(modalOrder.promo_discount) }
+        : null,
+      shopInfo,
+    });
   }
 
   function move(g, dir, e) {
@@ -654,12 +700,15 @@ export default function Kanban() {
             {/* ── Invoice ── */}
             <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid #E8E8E0' }}>
               <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 6 }}>Invoice</div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleDownloadInvoice} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '0.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <Icon name="file" size={13} color="#1D4ED8" />Download PDF
                 </button>
-                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '0.5px solid #86EFAC', color: '#166534', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Send to Email</>}
+                </button>
+                <button onClick={handlePrintReceipt} style={{ flex: 1, minWidth: 100, padding: '8px', fontSize: 12, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', background: '#F7F7F5', border: '0.5px solid #E8E8E0', color: '#374151', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Icon name="printer" size={12} color="#374151" />Print Receipt
                 </button>
               </div>
               {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
