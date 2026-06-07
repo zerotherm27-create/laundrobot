@@ -2,16 +2,18 @@ import { precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { createHandlerBoundToURL } from 'workbox-precaching';
 
-// Take over immediately on update — no waiting for all tabs to close
 self.skipWaiting();
 self.addEventListener('activate', event => {
   event.waitUntil(
-    // Wipe every old cache so browsers don't serve stale assets after a deploy
-    caches.keys()
-      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then(clients => clients.forEach(c => c.navigate(c.url)))
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      await self.clients.claim();
+      try {
+        const list = await self.clients.matchAll({ type: 'window' });
+        await Promise.all(list.map(c => c.navigate(c.url).catch(() => {})));
+      } catch (_) {}
+    })()
   );
 });
 
