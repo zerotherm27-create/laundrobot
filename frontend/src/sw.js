@@ -4,7 +4,16 @@ import { createHandlerBoundToURL } from 'workbox-precaching';
 
 // Take over immediately on update — no waiting for all tabs to close
 self.skipWaiting();
-self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    // Wipe every old cache so browsers don't serve stale assets after a deploy
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => c.navigate(c.url)))
+  );
+});
 
 precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')));
