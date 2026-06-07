@@ -445,6 +445,136 @@ router.get('/', auth, superadminOnly, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ── Multi-branch ─────────────────────────────────────────────────────────────
+
+function branchLimitForPlan(plan) {
+  if (plan === 'pro')    return 999;
+  if (plan === 'growth') return 3;
+  return 1;
+}
+
+// GET /tenants/my-branches
+router.get('/my-branches', auth, async (req, res) => {
+  try {
+    const tid = req.user.tenant_id;
+    const { rows: [self] } = await db.query(
+      `SELECT id, primary_tenant_id FROM tenants WHERE id=$1`, [tid]
+    );
+    if (!self) return res.status(404).json({ error: 'Tenant not found' });
+    const primaryId = self.primary_tenant_id || self.id;
+    const { rows } = await db.query(
+      `SELECT id, name, subscription_status, subscription_plan, primary_tenant_id, created_at
+       FROM tenants
+       WHERE id = $1 OR primary_tenant_id = $1
+       ORDER BY created_at ASC`,
+      [primaryId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[my-branches]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /tenants/branch — create a sub-branch (plan-gated)
+router.post('/branch', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  const { name, clone_from, clone_options } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Branch name is required' });
+  try {
+    const tid = req.user.tenant_id;
+    const { rows: [self] } = await db.query(
+      `SELECT id, primary_tenant_id, subscription_plan FROM tenants WHERE id=$1`, [tid]
+    );
+    if (!self) return res.status(404).json({ error: 'Tenant not found' });
+    const primaryId = self.primary_tenant_id || self.id;
+    const plan = self.subscription_plan || 'starter';
+    const limit = branchLimitForPlan(plan);
+    const { rows: [{ count }] } = await db.query(
+      `SELECT COUNT(*) AS count FROM tenants WHERE id=$1 OR primary_tenant_id=$1`, [primaryId]
+    );
+    if (parseInt(count) >= limit) {
+      return res.status(403).json({ error: `Your plan allows up to ${limit} branch(es). Upgrade to add more.` });
+    }
+    const { rows: [parent] } = await db.query(
+      `SELECT trial_ends_at, subscription_status FROM tenants WHERE id=$1`, [primaryId]
+    );
+    const { rows: [newTenant] } = await db.query(
+      `INSERT INTO tenants (name, primary_tenant_id, trial_ends_at, subscription_status, subscription_plan)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, subscription_status, subscription_plan, primary_tenant_id`,
+      [name.trim(), primaryId, parent.trial_ends_at, parent.subscription_status || 'trial', plan]
+    );
+    if (clone_from && clone_from !== newTenant.id) {
+      const { rows: [srcCheck] } = await db.query(
+        `SELECT id FROM tenants WHERE id=$1 AND (id=$2 OR primary_tenant_id=$2)`,
+        [clone_from, primaryId]
+      );
+      if (srcCheck) {
+        const opts = {
+          services:       clone_options?.services       !== false,
+          faqs:           clone_options?.faqs           !== false,
+          settings:       clone_options?.settings       || false,
+          delivery_zones: clone_options?.delivery_zones || false,
+        };
+        try {
+          await _cloneTenantData(db, clone_from, newTenant.id, opts, false);
+        } catch (cloneErr) {
+          console.error('[branch] clone error (non-fatal):', cloneErr.message);
+        }
+      }
+    }
+    res.status(201).json(newTenant);
+  } catch (err) {
+    console.error('[branch]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /tenants/sync-branch
+router.post('/sync-branch', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  const { source_tenant_id, target_tenant_id, clone_options } = req.body;
+  if (!source_tenant_id || !target_tenant_id) {
+    return res.status(400).json({ error: 'source_tenant_id and target_tenant_id are required' });
+  }
+  if (source_tenant_id === target_tenant_id) {
+    return res.status(400).json({ error: 'Source and target must be different' });
+  }
+  try {
+    const tid = req.user.tenant_id;
+    const { rows: [self] } = await db.query(
+      `SELECT id, primary_tenant_id FROM tenants WHERE id=$1`, [tid]
+    );
+    const primaryId = (self && self.primary_tenant_id) || tid;
+    const { rows: owned } = await db.query(
+      `SELECT id FROM tenants WHERE id = ANY($1) AND (id=$2 OR primary_tenant_id=$2)`,
+      [[source_tenant_id, target_tenant_id], primaryId]
+    );
+    if (owned.length < 2) {
+      return res.status(403).json({ error: 'Both branches must belong to your account' });
+    }
+    const opts = {
+      services:       clone_options?.services       !== false,
+      faqs:           clone_options?.faqs           !== false,
+      settings:       clone_options?.settings       || false,
+      delivery_zones: clone_options?.delivery_zones || false,
+    };
+    if (!opts.services && !opts.faqs && !opts.settings && !opts.delivery_zones) {
+      return res.status(400).json({ error: 'Select at least one item to sync' });
+    }
+    const stats = await _cloneTenantData(db, source_tenant_id, target_tenant_id, opts, true);
+    res.json({ message: 'Sync complete', ...stats });
+  } catch (err) {
+    console.error('[sync-branch]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET single tenant
 router.get('/:id', auth, superadminOnly, async (req, res) => {
   try {
@@ -735,311 +865,6 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
     if (client) client.release();
   }
 });
-
-// ── Multi-branch ─────────────────────────────────────────────────────────────
-
-function branchLimitForPlan(plan) {
-  if (plan === 'pro')    return 999; // unlimited
-  if (plan === 'growth') return 3;
-  return 1; // starter / default
-}
-
-// GET /tenants/my-branches — all branches in this owner's group
-router.get('/my-branches', auth, async (req, res) => {
-  try {
-    const tid = req.user.tenant_id;
-    // Find the primary tenant id: if this tenant has a primary_tenant_id it's a sub-branch
-    const { rows: [self] } = await db.query(
-      `SELECT id, primary_tenant_id FROM tenants WHERE id=$1`, [tid]
-    );
-    if (!self) return res.status(404).json({ error: 'Tenant not found' });
-
-    const primaryId = self.primary_tenant_id || self.id;
-
-    const { rows } = await db.query(
-      `SELECT id, name, subscription_status, subscription_plan, primary_tenant_id, created_at
-       FROM tenants
-       WHERE id = $1 OR primary_tenant_id = $1
-       ORDER BY created_at ASC`,
-      [primaryId]
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('[my-branches]', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// POST /tenants/branch — create a sub-branch (plan-gated)
-router.post('/branch', auth, async (req, res) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-
-  const { name, clone_from, clone_options } = req.body;
-  if (!name || !name.trim()) return res.status(400).json({ error: 'Branch name is required' });
-
-  try {
-    const tid = req.user.tenant_id;
-
-    // Resolve primary id and plan
-    const { rows: [self] } = await db.query(
-      `SELECT id, primary_tenant_id, subscription_plan FROM tenants WHERE id=$1`, [tid]
-    );
-    if (!self) return res.status(404).json({ error: 'Tenant not found' });
-
-    const primaryId = self.primary_tenant_id || self.id;
-    const plan = self.subscription_plan || 'starter';
-    const limit = branchLimitForPlan(plan);
-
-    // Count existing branches in group
-    const { rows: [{ count }] } = await db.query(
-      `SELECT COUNT(*) AS count FROM tenants WHERE id=$1 OR primary_tenant_id=$1`,
-      [primaryId]
-    );
-    if (parseInt(count) >= limit) {
-      return res.status(403).json({ error: `Your plan allows up to ${limit} branch(es). Upgrade to add more.` });
-    }
-
-    // Get parent trial info to inherit
-    const { rows: [parent] } = await db.query(
-      `SELECT trial_ends_at, subscription_status FROM tenants WHERE id=$1`, [primaryId]
-    );
-
-    // Create the new sub-branch tenant
-    const { rows: [newTenant] } = await db.query(
-      `INSERT INTO tenants (name, primary_tenant_id, trial_ends_at, subscription_status, subscription_plan)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, subscription_status, subscription_plan, primary_tenant_id`,
-      [name.trim(), primaryId, parent.trial_ends_at, parent.subscription_status || 'trial', plan]
-    );
-
-    // Optionally clone data from an existing branch
-    if (clone_from && clone_from !== newTenant.id) {
-      // Verify clone_from is in the same group
-      const { rows: [srcCheck] } = await db.query(
-        `SELECT id FROM tenants WHERE id=$1 AND (id=$2 OR primary_tenant_id=$2)`,
-        [clone_from, primaryId]
-      );
-      if (srcCheck) {
-        const opts = {
-          services:       clone_options?.services       !== false,
-          faqs:           clone_options?.faqs           !== false,
-          settings:       clone_options?.settings       || false,
-          delivery_zones: clone_options?.delivery_zones || false,
-        };
-        // Reuse clone logic inline (simplified — fire and forget errors won't block response)
-        try {
-          await _cloneTenantData(db, clone_from, newTenant.id, opts, false);
-        } catch (cloneErr) {
-          console.error('[branch] clone error (non-fatal):', cloneErr.message);
-        }
-      }
-    }
-
-    res.status(201).json(newTenant);
-  } catch (err) {
-    console.error('[branch]', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// POST /tenants/sync-branch — re-sync data from one branch to another (owner-only, within group)
-router.post('/sync-branch', auth, async (req, res) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-
-  const { source_tenant_id, target_tenant_id, clone_options } = req.body;
-  if (!source_tenant_id || !target_tenant_id) {
-    return res.status(400).json({ error: 'source_tenant_id and target_tenant_id are required' });
-  }
-  if (source_tenant_id === target_tenant_id) {
-    return res.status(400).json({ error: 'Source and target must be different' });
-  }
-
-  try {
-    const tid = req.user.tenant_id;
-    const { rows: [self] } = await db.query(
-      `SELECT id, primary_tenant_id FROM tenants WHERE id=$1`, [tid]
-    );
-    const primaryId = (self && self.primary_tenant_id) || tid;
-
-    // Both branches must belong to this group
-    const { rows: owned } = await db.query(
-      `SELECT id FROM tenants WHERE id = ANY($1) AND (id=$2 OR primary_tenant_id=$2)`,
-      [[source_tenant_id, target_tenant_id], primaryId]
-    );
-    if (owned.length < 2) {
-      return res.status(403).json({ error: 'Both branches must belong to your account' });
-    }
-
-    const opts = {
-      services:       clone_options?.services       !== false,
-      faqs:           clone_options?.faqs           !== false,
-      settings:       clone_options?.settings       || false,
-      delivery_zones: clone_options?.delivery_zones || false,
-    };
-
-    if (!opts.services && !opts.faqs && !opts.settings && !opts.delivery_zones) {
-      return res.status(400).json({ error: 'Select at least one item to sync' });
-    }
-
-    const stats = await _cloneTenantData(db, source_tenant_id, target_tenant_id, opts, true);
-    res.json({ message: 'Sync complete', ...stats });
-  } catch (err) {
-    console.error('[sync-branch]', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Shared clone helper (used by /branch and /sync-branch)
-async function _cloneTenantData(db, sourceTenantId, targetTenantId, opts, clearExisting) {
-  const client = await db.pool.connect();
-  const stats = { services_synced: 0, faqs_synced: 0 };
-  try {
-    await client.query('BEGIN');
-
-    // ── Services + categories ──────────────────────────────────────────
-    if (opts.services) {
-      if (clearExisting) {
-        await client.query(`DELETE FROM services WHERE tenant_id=$1`, [targetTenantId]);
-        await client.query(`DELETE FROM service_categories WHERE tenant_id=$1`, [targetTenantId]);
-      }
-      const { rows: sourceCats } = await client.query(
-        `SELECT * FROM service_categories WHERE tenant_id=$1 ORDER BY sort_order ASC, id ASC`,
-        [sourceTenantId]
-      );
-      const catIdMap = {};
-      for (const cat of sourceCats) {
-        const { rows: [nc] } = await client.query(
-          `INSERT INTO service_categories (tenant_id, name, sort_order, active)
-           VALUES ($1,$2,$3,$4) RETURNING id`,
-          [targetTenantId, cat.name, cat.sort_order, cat.active]
-        );
-        catIdMap[cat.id] = nc.id;
-      }
-      const { rows: sourceSvcs } = await client.query(
-        `SELECT * FROM services WHERE tenant_id=$1 ORDER BY sort_order ASC, id ASC`,
-        [sourceTenantId]
-      );
-      for (const svc of sourceSvcs) {
-        const newCatId = svc.category_id ? (catIdMap[svc.category_id] || null) : null;
-        const { rows: [ns] } = await client.query(
-          `INSERT INTO services
-             (tenant_id, name, price, unit, description, active, category_id, sort_order, image_url)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-          [targetTenantId, svc.name, svc.price, svc.unit, svc.description,
-           svc.active, newCatId, svc.sort_order, svc.image_url]
-        );
-        stats.services_synced++;
-        const { rows: fields } = await client.query(
-          `SELECT * FROM service_custom_fields WHERE service_id=$1 ORDER BY sort_order ASC`,
-          [svc.id]
-        );
-        for (const f of fields) {
-          await client.query(
-            `INSERT INTO service_custom_fields
-               (service_id, label, field_type, placeholder, required, sort_order, options,
-                min_value, max_value, unit_price, allow_own, linked_to_field_label, linked_to_value, sync_qty)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-            [ns.id, f.label, f.field_type, f.placeholder, f.required, f.sort_order,
-             f.options != null ? JSON.stringify(f.options) : null,
-             f.min_value, f.max_value, f.unit_price,
-             f.allow_own ?? false, f.linked_to_field_label ?? null, f.linked_to_value ?? null, f.sync_qty ?? false]
-          );
-        }
-      }
-    }
-
-    // ── Delivery zones ─────────────────────────────────────────────────
-    if (opts.delivery_zones) {
-      if (clearExisting) {
-        await client.query(`DELETE FROM delivery_zones WHERE tenant_id=$1`, [targetTenantId]);
-        await client.query(`DELETE FROM delivery_brackets WHERE tenant_id=$1`, [targetTenantId]);
-      }
-      const { rows: zones } = await client.query(
-        `SELECT * FROM delivery_zones WHERE tenant_id=$1 ORDER BY sort_order ASC, id ASC`,
-        [sourceTenantId]
-      );
-      for (const z of zones) {
-        await client.query(
-          `INSERT INTO delivery_zones (tenant_id, name, fee, active, sort_order, custom_note)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [targetTenantId, z.name, z.fee, z.active, z.sort_order, z.custom_note]
-        );
-      }
-      const { rows: brackets } = await client.query(
-        `SELECT * FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC`,
-        [sourceTenantId]
-      );
-      for (const b of brackets) {
-        await client.query(
-          `INSERT INTO delivery_brackets (tenant_id, min_km, max_km, fee, sort_order)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [targetTenantId, b.min_km, b.max_km, b.fee, b.sort_order]
-        );
-      }
-    }
-
-    // ── Settings ───────────────────────────────────────────────────────
-    if (opts.settings) {
-      const { rows: [src] } = await client.query(
-        `SELECT store_open, store_close, booking_cutoff, minimum_order,
-                ai_enabled, ai_instructions, contact_number,
-                delivery_note, delivery_radius, shop_address, shop_lat, shop_lng
-         FROM tenants WHERE id=$1`, [sourceTenantId]
-      );
-      await client.query(
-        `UPDATE tenants SET
-           store_open      = COALESCE($1, store_open),
-           store_close     = COALESCE($2, store_close),
-           booking_cutoff  = COALESCE($3, booking_cutoff),
-           minimum_order   = COALESCE($4, minimum_order),
-           ai_enabled      = $5,
-           ai_instructions = COALESCE($6, ai_instructions),
-           contact_number  = COALESCE($7, contact_number),
-           delivery_note   = COALESCE($8, delivery_note),
-           delivery_radius = COALESCE($9, delivery_radius),
-           shop_address    = COALESCE($10, shop_address),
-           shop_lat        = COALESCE($11, shop_lat),
-           shop_lng        = COALESCE($12, shop_lng)
-         WHERE id=$13`,
-        [src.store_open, src.store_close, src.booking_cutoff, src.minimum_order,
-         src.ai_enabled, src.ai_instructions, src.contact_number,
-         src.delivery_note, src.delivery_radius, src.shop_address, src.shop_lat, src.shop_lng,
-         targetTenantId]
-      );
-    }
-
-    // ── FAQs ───────────────────────────────────────────────────────────
-    if (opts.faqs) {
-      if (clearExisting) {
-        await client.query(`DELETE FROM faqs WHERE tenant_id=$1`, [targetTenantId]);
-      }
-      const { rows: faqs } = await client.query(
-        `SELECT * FROM faqs WHERE tenant_id=$1 ORDER BY sort_order ASC, id ASC`,
-        [sourceTenantId]
-      );
-      for (const f of faqs) {
-        await client.query(
-          `INSERT INTO faqs (tenant_id, question, answer, active, sort_order)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [targetTenantId, f.question, f.answer, f.active, f.sort_order]
-        );
-        stats.faqs_synced++;
-      }
-    }
-
-    await client.query('COMMIT');
-    return stats;
-  } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
-  }
-}
 
 // DELETE tenant
 router.delete('/:id', auth, superadminOnly, async (req, res) => {
