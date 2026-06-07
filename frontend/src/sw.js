@@ -2,6 +2,10 @@ import { precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { createHandlerBoundToURL } from 'workbox-precaching';
 
+// Take over immediately on update — no waiting for all tabs to close
+self.skipWaiting();
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
 precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')));
 
