@@ -1,21 +1,15 @@
-import { precacheAndRoute } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { createHandlerBoundToURL } from 'workbox-precaching';
 
+// Activate the new SW immediately and take control of open tabs.
+// vite-plugin-pwa's autoUpdate registration reloads the tabs once we're in control.
 self.skipWaiting();
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-      await self.clients.claim();
-      try {
-        const list = await self.clients.matchAll({ type: 'window' });
-        await Promise.all(list.map(c => c.navigate(c.url).catch(() => {})));
-      } catch (_) {}
-    })()
-  );
-});
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
+// Remove ONLY stale precaches from previous deploys — never the current one.
+// (The old code wiped every cache including the fresh precache, so the app
+// ran with no caching at all and refetched every asset on each navigation.)
+cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')));
