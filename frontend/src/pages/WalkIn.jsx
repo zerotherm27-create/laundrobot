@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceipt } from '../components/ThermalReceipt.jsx';
+import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -1100,28 +1101,31 @@ export default function WalkIn() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { id: 'gcash',       label: 'GCash',       emoji: '📱', color: '#0062AD', bg: '#EBF0FA', border: '#0062AD' },
-                  { id: 'maya',        label: 'Maya',        emoji: '💚', color: '#00704A', bg: '#E6F5EE', border: '#00704A' },
-                  { id: 'cash',        label: 'Cash',        emoji: '💵', color: '#374151', bg: '#F9FAFB', border: '#6B7280' },
-                  { id: 'credit_card', label: 'Credit Card', emoji: '💳', color: '#7C3AED', bg: '#F3EEFF', border: '#7C3AED' },
+                  { id: 'gcash',       color: '#0062AD', bg: '#EBF0FA', border: '#0062AD', logo: <GCashLogo height={24} /> },
+                  { id: 'maya',        color: '#00A36C', bg: '#E6F5EE', border: '#00A36C', logo: <MayaLogo height={24} /> },
+                  { id: 'cash',        color: '#374151', bg: '#F9FAFB', border: '#6B7280', logo: <CashLogo size={30} />, label: 'Cash' },
+                  { id: 'credit_card', color: '#7C3AED', bg: '#F3EEFF', border: '#7C3AED', logo: <CreditCardLogo width={44} height={28} />, label: 'Credit Card' },
                 ].map(m => (
                   <button key={m.id} type="button"
                     disabled={!privacyConsent || (submitting && paymentMethod !== m.id)}
                     onClick={() => m.id === 'credit_card' ? handleCreditCardPayment() : setPaymentMethod(m.id)}
                     style={{
-                      padding: '11px 8px', borderRadius: 10,
+                      padding: '12px 8px', borderRadius: 10,
                       border: `2px solid ${privacyConsent ? m.border : '#E2E8F0'}`,
                       background: privacyConsent ? m.bg : '#F3F4F6',
-                      color: privacyConsent ? m.color : '#9CA3AF',
-                      fontWeight: 700, fontSize: 13, cursor: privacyConsent ? 'pointer' : 'not-allowed',
-                      fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                      opacity: privacyConsent ? 1 : 0.5, transition: 'all .15s',
+                      cursor: privacyConsent ? 'pointer' : 'not-allowed',
+                      fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      opacity: privacyConsent ? 1 : 0.4, transition: 'all .15s', minHeight: 72,
                     }}>
                     {(submitting && paymentMethod === null && m.id === 'credit_card')
-                      ? <span className="spinner" style={{ borderTopColor: m.color, borderColor: `${m.color}30`, width: 18, height: 18 }} />
-                      : <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                      ? <span className="spinner" style={{ borderTopColor: m.color, borderColor: `${m.color}30`, width: 20, height: 20 }} />
+                      : m.logo
                     }
-                    {m.label}
+                    {m.label && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: privacyConsent ? m.color : '#9CA3AF', letterSpacing: '.02em' }}>
+                        {m.label}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
