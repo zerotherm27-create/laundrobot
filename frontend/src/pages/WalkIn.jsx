@@ -1101,10 +1101,10 @@ export default function WalkIn() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { id: 'gcash',       color: '#0062AD', bg: '#EBF0FA', border: '#0062AD', logo: <GCashLogo height={24} /> },
-                  { id: 'maya',        color: '#00A36C', bg: '#E6F5EE', border: '#00A36C', logo: <MayaLogo height={24} /> },
-                  { id: 'cash',        color: '#374151', bg: '#F9FAFB', border: '#6B7280', logo: <CashLogo size={30} />, label: 'Cash' },
-                  { id: 'credit_card', color: '#7C3AED', bg: '#F3EEFF', border: '#7C3AED', logo: <CreditCardLogo width={44} height={28} />, label: 'Credit Card' },
+                  { id: 'gcash',       color: '#0062AD', bg: '#EBF0FA',  border: '#0062AD', logo: <GCashLogo height={26} /> },
+                  { id: 'maya',        color: '#00A36C', bg: '#1F2937',  border: '#00A36C', logo: <MayaLogo  height={26} /> },
+                  { id: 'cash',        color: '#374151', bg: '#F9FAFB',  border: '#6B7280', logo: <CashLogo  height={30} />, label: 'Cash' },
+                  { id: 'credit_card', color: '#1F2937', bg: '#F9FAFB',  border: '#6B7280', logo: <CreditCardLogo height={22} />, label: 'Credit Card' },
                 ].map(m => (
                   <button key={m.id} type="button"
                     disabled={!privacyConsent || (submitting && paymentMethod !== m.id)}
@@ -1118,11 +1118,11 @@ export default function WalkIn() {
                       opacity: privacyConsent ? 1 : 0.4, transition: 'all .15s', minHeight: 72,
                     }}>
                     {(submitting && paymentMethod === null && m.id === 'credit_card')
-                      ? <span className="spinner" style={{ borderTopColor: m.color, borderColor: `${m.color}30`, width: 20, height: 20 }} />
+                      ? <span className="spinner" style={{ borderTopColor: '#374151', borderColor: 'rgba(0,0,0,.12)', width: 20, height: 20 }} />
                       : m.logo
                     }
                     {m.label && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: privacyConsent ? m.color : '#9CA3AF', letterSpacing: '.02em' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: privacyConsent ? '#374151' : '#9CA3AF', letterSpacing: '.02em' }}>
                         {m.label}
                       </span>
                     )}
