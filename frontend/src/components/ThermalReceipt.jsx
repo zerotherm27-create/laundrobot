@@ -309,3 +309,145 @@ export function printReceipt(data) {
     });
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RawBT / ESC-POS path — for Bluetooth thermal printers (e.g. Xprinter XP-58)
+//
+// Bluetooth thermal printers don't register as OS print services, so
+// window.print() can't reach them. RawBT (Android app) bridges the browser to
+// the printer over classic Bluetooth and speaks ESC/POS. We build raw ESC/POS
+// bytes, base64-encode them, and hand them to RawBT via its intent: URL scheme.
+// On Chrome/Android this prints with no paper-size prompt; if RawBT isn't
+// installed, the intent falls back to its Play Store page.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ESC = 0x1B, GS = 0x1D;
+const LINE_WIDTH = 32; // Font A on 58mm = 32 chars per line
+
+// Peso amounts: the ₱ glyph isn't in the printer's default codepage, so use "P"
+function money(n) {
+  return 'P' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+class EscPos {
+  constructor() { this.bytes = []; this.cmd(ESC, 0x40); } // init
+  cmd(...b) { this.bytes.push(...b); return this; }
+  text(str) {
+    const s = String(str ?? '').replace(/₱/g, 'P');
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      this.bytes.push(c > 0xFF ? 0x3F : c); // '?' for anything outside Latin-1
+    }
+    return this;
+  }
+  line(str = '') { return this.text(str).cmd(0x0A); }
+  align(n)  { return this.cmd(ESC, 0x61, n); }          // 0 left, 1 center, 2 right
+  bold(on)  { return this.cmd(ESC, 0x45, on ? 1 : 0); }
+  size(n)   { return this.cmd(GS, 0x21, n); }            // GS ! n  (hi nibble=width, lo=height)
+  feed(n = 1) { for (let i = 0; i < n; i++) this.bytes.push(0x0A); return this; }
+  rule()    { return this.line('-'.repeat(LINE_WIDTH)); }
+  // label left / value right padded to LINE_WIDTH
+  row(left, right) {
+    const l = String(left), r = String(right);
+    const gap = Math.max(1, LINE_WIDTH - l.length - r.length);
+    return this.line(l + ' '.repeat(gap) + r);
+  }
+  cut() { return this.feed(3).cmd(GS, 0x56, 0x42, 0x00); } // feed + partial cut (no-op on cutter-less XP-58)
+  base64() {
+    let bin = '';
+    for (const b of this.bytes) bin += String.fromCharCode(b & 0xFF);
+    return btoa(bin);
+  }
+}
+
+function buildReceiptEscPos({ bookingRef, form, cart, appliedPromo, shopInfo }) {
+  const printedAt  = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cartTotal  = cart.reduce((s, i) => s + (i.itemTotal || 0), 0);
+  const discount   = appliedPromo?.discount_amount ?? 0;
+  const grandTotal = cartTotal - discount;
+  const pickupDate = form.pickup_date
+    ? fmtDate(form.pickup_date.includes('T') ? form.pickup_date : form.pickup_date + 'T00:00:00')
+    : '—';
+  const shopName  = shopInfo?.name || 'Laundry Shop';
+  const shopAddr  = shopInfo?.shop_address || '';
+  const shopPhone = shopInfo?.contact_number || '';
+
+  const p = new EscPos();
+
+  const header = (title) => {
+    p.align(1).bold(true).line(title).bold(false);
+    p.bold(true).line(shopName).bold(false);
+    if (shopAddr)  p.line(shopAddr);
+    if (shopPhone) p.line(shopPhone);
+    p.align(0).rule();
+  };
+
+  // ── JOB ORDER ──
+  header('JOB ORDER');
+  p.row('Ref#: ' + bookingRef, '');
+  p.row('Date:', printedAt);
+  p.rule();
+  p.line('Customer: ' + (form.name || '—'));
+  p.line('Phone: '    + (form.phone || '—'));
+  if (form.address) p.line('Address: ' + form.address);
+  p.line('Pickup: '   + pickupDate);
+  p.rule();
+  cart.forEach(item => {
+    p.row(item.service_name, money(item.itemTotal));
+    if (Array.isArray(item.displayLines)) {
+      item.displayLines.forEach(dl => {
+        if (dl.label && dl.label !== item.service_name) p.line('  ' + dl.label);
+      });
+    }
+    if (Array.isArray(item.custom_fields)) {
+      item.custom_fields.forEach(cf => {
+        if (cf.label && cf.value != null && cf.value !== '') p.line('  ' + cf.label + ': ' + cf.value);
+      });
+    }
+  });
+  p.rule();
+  p.row('Subtotal', money(cartTotal));
+  if (discount > 0) p.row('Promo (' + (appliedPromo.code || '') + ')', '-' + money(discount));
+  p.bold(true).size(0x01).row('TOTAL', money(grandTotal)).size(0x00).bold(false);
+  if (form.notes) { p.rule(); p.line('Notes: ' + form.notes); }
+  p.rule();
+  p.align(1).line('Printed: ' + printedAt).align(0);
+
+  p.feed(1).align(1).line('- - - - CUT HERE - - - -').align(0).feed(1);
+
+  // ── CLAIM RECEIPT ──
+  header('CLAIM RECEIPT');
+  p.align(1).line('BOOKING REFERENCE');
+  p.bold(true).size(0x11).line(bookingRef).size(0x00).bold(false);
+  p.align(0).rule();
+  p.line('Customer: ' + (form.name || '—'));
+  p.line('Pickup: '   + pickupDate);
+  p.rule();
+  cart.forEach(item => p.row(item.service_name, money(item.itemTotal)));
+  p.rule();
+  if (discount > 0) p.row('Promo (' + (appliedPromo.code || '') + ')', '-' + money(discount));
+  p.bold(true).size(0x01).row('TOTAL', money(grandTotal)).size(0x00).bold(false);
+  p.feed(1).align(1).bold(true).line('[ PAID - Walk-in ]').bold(false);
+  p.line('Present this receipt when');
+  p.line('claiming your laundry.');
+  p.feed(1).line('Thank you! See you again.').align(0);
+
+  p.cut();
+  return p.base64();
+}
+
+// Print to a Bluetooth thermal printer via RawBT (Chrome/Android).
+// Returns true if the print intent was dispatched, false otherwise.
+export function printReceiptRawBT(data) {
+  try {
+    const b64 = buildReceiptEscPos(data);
+    const intentUrl =
+      'intent:base64,' + b64 +
+      '#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;';
+    window.location.href = intentUrl;
+    return true;
+  } catch (err) {
+    alert('Could not reach the thermal printer.\nMake sure the RawBT app is installed and the XP-58 is selected in it.');
+    return false;
+  }
+}

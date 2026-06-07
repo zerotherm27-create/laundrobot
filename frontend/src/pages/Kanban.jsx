@@ -6,7 +6,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
-import { printReceipt } from '../components/ThermalReceipt.jsx';
+import { printReceipt, printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -172,8 +172,9 @@ export default function Kanban() {
     } catch (e) { setInvoiceResult('err:' + e.message); setInvoiceSending(false); }
   }
 
-  function handlePrintReceipt() {
-    if (!modalOrder || !shopInfo) return;
+  // Build the shared receipt payload from the open order, or null if not ready
+  function buildReceiptData() {
+    if (!modalOrder || !shopInfo) return null;
 
     // Normalise to an array of services (multi-booking or single row)
     const services = modalOrder.services?.length > 0
@@ -200,7 +201,7 @@ export default function Kanban() {
       };
     });
 
-    printReceipt({
+    return {
       bookingRef:   modalOrder.booking_ref || modalOrder.id,
       form: {
         name:        modalOrder.customer_name  || '',
@@ -214,7 +215,17 @@ export default function Kanban() {
         ? { code: modalOrder.promo_code || '', discount_amount: Number(modalOrder.promo_discount) }
         : null,
       shopInfo,
-    });
+    };
+  }
+
+  function handlePrintReceipt() {
+    const data = buildReceiptData();
+    if (data) printReceipt(data);
+  }
+
+  function handlePrintReceiptThermal() {
+    const data = buildReceiptData();
+    if (data) printReceiptRawBT(data);
   }
 
   function move(g, dir, e) {
@@ -679,9 +690,12 @@ export default function Kanban() {
             {/* ── Invoice / Print actions ── */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>Actions</div>
+              <button onClick={handlePrintReceiptThermal} style={{ width: '100%', marginBottom: 6, padding: '10px 8px', fontSize: 13, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#38a9c2', border: 'none', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Icon name="printer" size={14} color="#fff" />Print to Thermal Printer
+              </button>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button onClick={handlePrintReceipt} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#F7F7F5', border: '1.5px solid #E8E8E0', color: '#374151', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  <Icon name="printer" size={13} color="#374151" />Print Receipt
+                  <Icon name="printer" size={13} color="#374151" />Browser
                 </button>
                 <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <Icon name="file" size={13} color="#1D4ED8" />PDF

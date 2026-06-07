@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
-import { printReceipt } from '../components/ThermalReceipt.jsx';
+import { printReceipt, printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -643,17 +643,31 @@ export default function WalkIn() {
         </div>
 
         <button
+          onClick={() => printReceiptRawBT({ bookingRef, form, cart, appliedPromo, shopInfo })}
+          style={{
+            width: '100%', marginBottom: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            background: '#38a9c2', color: '#fff',
+            border: 'none', borderRadius: 10,
+            padding: '13px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <Icon name="printer" size={16} color="#fff" />
+          Print to Thermal Printer
+        </button>
+
+        <button
           onClick={() => printReceipt({ bookingRef, form, cart, appliedPromo, shopInfo })}
           style={{
             width: '100%', marginBottom: 10,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             background: '#F7F7F5', color: '#374151',
             border: '1.5px solid #E8E8E0', borderRadius: 10,
-            padding: '13px', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+            padding: '11px', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
           }}
         >
-          <Icon name="printer" size={16} color="#374151" />
-          Print Receipt
+          <Icon name="printer" size={15} color="#374151" />
+          Print via Browser (PDF / USB)
         </button>
 
         <button onClick={reset} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: 14, borderRadius: 10 }}>
