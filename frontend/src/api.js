@@ -42,6 +42,7 @@ export const updateBooking = (ref, items, customNote, customPrice, deletedIds) =
   api.put(`/orders/booking/${ref}`, { items, custom_note: customNote || '', custom_price: customPrice || 0, deleted_ids: deletedIds || [] });
 export const notifyOrderUpdate    = (id, data) => api.post(`/orders/${id}/notify-update`, data);
 export const generatePaymentLink  = id          => api.post(`/orders/${id}/payment-link`);
+export const getPaymentStatus     = ref         => api.get(`/orders/booking/${ref}/payment-status`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 export const cancelOrder     = id => api.post(`/orders/${id}/cancel`);
 export const verifyPayment       = id => api.post(`/orders/${id}/verify-payment`);

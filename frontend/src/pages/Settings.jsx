@@ -76,6 +76,7 @@ function formatDateDisplay(dateStr) {
 export default function Settings() {
   const [paymentMode,    setPaymentMode]    = useState('xendit');
   const [qrImageUrl,     setQrImageUrl]     = useState('');
+  const [mayaQrUrl,      setMayaQrUrl]      = useState('');
   const [xenditKeySet,   setXenditKeySet]   = useState(false);
   const [xenditKeyHint,  setXenditKeyHint]  = useState('');
   const [xenditKeyInput, setXenditKeyInput] = useState('');
@@ -144,8 +145,9 @@ export default function Settings() {
 
   // Logo
   const [logoUrl,        setLogoUrl]        = useState('');
-  const logoFileRef = useRef();
-  const qrFileRef   = useRef();
+  const logoFileRef    = useRef();
+  const qrFileRef      = useRef();
+  const mayaQrFileRef  = useRef();
 
   // White-label / custom domain (Pro only)
   const [tenantPlan,        setTenantPlan]        = useState('starter');
@@ -162,6 +164,7 @@ export default function Settings() {
     ]).then(([s, b, p, r]) => {
       setPaymentMode(s.data.payment_mode || 'xendit');
       setQrImageUrl(s.data.qr_image_url || '');
+      setMayaQrUrl(s.data.maya_qr_url || '');
       setXenditKeySet(!!s.data.has_xendit_key);
       setXenditKeyHint(s.data.xendit_key_hint || '');
       setNotifEmail(s.data.notification_email || '');
@@ -207,6 +210,7 @@ export default function Settings() {
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
         qr_image_url: qrImageUrl || null,
+        maya_qr_url: mayaQrUrl || null,
         payment_mode: paymentMode,
         custom_domain: customDomain || null,
         white_label: whiteLabel,
@@ -641,15 +645,15 @@ export default function Settings() {
                 </div>
               )}
 
-              {/* QR Code image — context-aware label & description */}
-              <div>
+              {/* GCash QR Code */}
+              <div style={{ paddingBottom: 16, borderBottom: '0.5px solid #E8E8E0', marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
-                  {paymentMode === 'qr_static' ? 'Payment QR Code' : 'Walk-in QR Payment'}
+                  {paymentMode === 'qr_static' ? 'Payment QR Code (GCash)' : 'Walk-in GCash QR'}
                 </div>
                 <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
                   {paymentMode === 'qr_static'
                     ? 'Shown to customers after online booking — they scan this to pay'
-                    : 'QR code shown to walk-in customers at the POS payment step'}
+                    : 'GCash QR shown to walk-in customers at the POS payment step'}
                 </div>
                 <input ref={qrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
                   onChange={e => {
@@ -661,7 +665,7 @@ export default function Settings() {
                   }} />
                 {qrImageUrl ? (
                   <div style={{ textAlign: 'center' }}>
-                    <img src={qrImageUrl} alt="QR preview"
+                    <img src={qrImageUrl} alt="GCash QR preview"
                       style={{ maxWidth: 180, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto 10px' }} />
                     <button type="button" onClick={() => qrFileRef.current?.click()}
                       style={{ fontSize: 12, color: '#1a7d94', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
@@ -674,11 +678,45 @@ export default function Settings() {
                   </div>
                 ) : (
                   <button type="button" onClick={() => qrFileRef.current?.click()}
-                    style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #9ED3DC', background: '#F0FAFB', color: '#1a7d94', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Icon name="camera" size={14} color="#1a7d94" />Upload QR Image
+                    style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #0062AD', background: '#EBF0FA', color: '#0062AD', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Icon name="camera" size={14} color="#0062AD" />Upload GCash QR Image
                   </button>
                 )}
-                <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Upload your GCash or Maya merchant QR code image from your device.</div>
+              </div>
+
+              {/* Maya QR Code */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>Walk-in Maya QR</div>
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
+                  Maya QR shown to walk-in customers when they choose Maya as payment method
+                </div>
+                <input ref={mayaQrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setMayaQrUrl(ev.target.result);
+                    reader.readAsDataURL(file);
+                  }} />
+                {mayaQrUrl ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <img src={mayaQrUrl} alt="Maya QR preview"
+                      style={{ maxWidth: 180, borderRadius: 10, border: '1px solid #E8E8E0', display: 'block', margin: '0 auto 10px' }} />
+                    <button type="button" onClick={() => mayaQrFileRef.current?.click()}
+                      style={{ fontSize: 12, color: '#1a7d94', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                      Replace image
+                    </button>
+                    <button type="button" onClick={() => setMayaQrUrl('')}
+                      style={{ fontSize: 12, color: '#A32D2D', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', marginLeft: 12 }}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => mayaQrFileRef.current?.click()}
+                    style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed #00704A', background: '#E6F5EE', color: '#00704A', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Icon name="camera" size={14} color="#00704A" />Upload Maya QR Image
+                  </button>
+                )}
               </div>
             </SectionCard>
 

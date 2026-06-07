@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getServices, getCategories, getMyTenantSettings, createWalkInOrder } from '../api.js';
+import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceipt } from '../components/ThermalReceipt.jsx';
 
@@ -61,22 +61,22 @@ function blurInput(e) {
   e.target.style.boxShadow = 'none';
 }
 
-// ── QR Payment modal ─────────────────────────────────────────────────────────
+// ── QR Payment modal (GCash / Maya) ──────────────────────────────────────────
 
-function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCancel }) {
+function QRModal({ label, accentColor, total, qrUrl, submitting, error, onConfirm, onCancel }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
         style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>QR Payment</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{label} Payment</div>
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Amount to collect</div>
-          <div style={{ fontSize: 36, fontWeight: 800, color: '#38a9c2', letterSpacing: '-.5px' }}>
+          <div style={{ fontSize: 36, fontWeight: 800, color: accentColor || '#38a9c2', letterSpacing: '-.5px' }}>
             ₱{Number(total).toLocaleString()}
           </div>
         </div>
@@ -86,7 +86,7 @@ function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCance
             <div style={{ fontSize: 12, color: '#374151', marginBottom: 10, fontWeight: 500 }}>
               Show this QR to the customer to scan
             </div>
-            <img src={qrUrl} alt="Payment QR"
+            <img src={qrUrl} alt={`${label} QR`}
               style={{ maxWidth: 200, width: '100%', borderRadius: 12, border: '1px solid #E8E8E0', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }} />
           </div>
         ) : (
@@ -94,8 +94,8 @@ function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCance
             <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
               <Icon name="walkin" size={28} color="#9CA3AF" />
             </div>
-            <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>No QR image set</div>
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Add your GCash/Maya QR in Settings → Walk-in QR</div>
+            <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>No {label} QR image set</div>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Add your {label} QR in Settings → Walk-in {label} QR</div>
           </div>
         )}
 
@@ -120,6 +120,171 @@ function QRModal({ total, qrUrl, shopName, submitting, error, onConfirm, onCance
         <button onClick={onCancel} disabled={submitting}
           className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '10px', borderRadius: 10, marginTop: 8 }}>
           Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Cash Payment modal ────────────────────────────────────────────────────────
+
+function CashModal({ total, cashTendered, onChangeTendered, submitting, error, onConfirm, onCancel }) {
+  const tendered = parseFloat(cashTendered) || 0;
+  const change   = tendered - total;
+  const canPay   = tendered >= total && total > 0;
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+      <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
+        style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Cash Payment</div>
+          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Amount to collect</div>
+          <div style={{ fontSize: 36, fontWeight: 800, color: '#374151', letterSpacing: '-.5px' }}>
+            ₱{Number(total).toLocaleString()}
+          </div>
+        </div>
+
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+          Cash Tendered (₱)
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          autoFocus
+          value={cashTendered}
+          onChange={e => onChangeTendered(e.target.value)}
+          placeholder="0.00"
+          style={{
+            width: '100%', padding: '12px', borderRadius: 10, fontSize: 20, fontWeight: 700,
+            border: '2px solid #E2E8F0', outline: 'none', textAlign: 'center', marginBottom: 16,
+            fontFamily: 'inherit', boxSizing: 'border-box',
+          }}
+          onFocus={e => { e.target.style.borderColor = '#38a9c2'; }}
+          onBlur={e => { e.target.style.borderColor = '#E2E8F0'; }}
+        />
+
+        {cashTendered !== '' && (
+          <div style={{
+            padding: '14px 16px', borderRadius: 12, marginBottom: 16,
+            background: canPay ? '#EBF8FA' : '#FCEBEB',
+            border: `1.5px solid ${canPay ? '#38a9c2' : '#F87171'}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
+              <span>Cash Tendered</span><span>₱{tendered.toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#374151', marginBottom: 4 }}>
+              <span>Total Due</span><span>₱{Number(total).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 800, color: canPay ? '#38a9c2' : '#A32D2D', borderTop: '0.5px solid rgba(0,0,0,.08)', paddingTop: 8, marginTop: 4 }}>
+              <span>{canPay ? 'Change Due' : 'Short by'}</span>
+              <span>₱{Math.abs(change).toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="alert-triangle" size={13} color="#A32D2D" /> {error}
+          </div>
+        )}
+
+        <button onClick={onConfirm} disabled={!canPay || submitting}
+          style={{
+            width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
+            border: 'none', cursor: (canPay && !submitting) ? 'pointer' : 'not-allowed',
+            background: (canPay && !submitting) ? '#fdca00' : '#E2E8F0',
+            color: (canPay && !submitting) ? '#1F2937' : '#9CA3AF',
+            fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}>
+          {submitting
+            ? <><span className="spinner" style={{ borderTopColor: '#374151', borderColor: 'rgba(0,0,0,.15)', width: 16, height: 16 }} /> Processing…</>
+            : <><Icon name="check" size={16} color="#1F2937" /> Confirm Cash Payment</>}
+        </button>
+
+        <button onClick={onCancel} disabled={submitting}
+          className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '10px', borderRadius: 10, marginTop: 8 }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Credit Card Payment modal (Xendit link + auto-detect) ─────────────────────
+
+function CreditCardModal({ total, paymentUrl, onCancel }) {
+  const [copied, setCopied] = useState(false);
+  const qrSrc = paymentUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentUrl)}`
+    : null;
+
+  function copyLink() {
+    navigator.clipboard?.writeText(paymentUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {});
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
+        style={{ width: 380, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Credit Card Payment</div>
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Amount to collect</div>
+          <div style={{ fontSize: 36, fontWeight: 800, color: '#7C3AED', letterSpacing: '-.5px' }}>
+            ₱{Number(total).toLocaleString()}
+          </div>
+        </div>
+
+        {qrSrc && (
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 500 }}>
+              Let the customer scan this QR to pay
+            </div>
+            <img src={qrSrc} alt="Payment QR"
+              style={{ width: 180, height: 180, borderRadius: 12, border: '1px solid #E8E8E0', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }} />
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, color: '#374151', marginBottom: 6, fontWeight: 500 }}>Or share this link:</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          <input readOnly value={paymentUrl || ''} style={{
+            flex: 1, padding: '9px 10px', borderRadius: 8, border: '1.5px solid #E2E8F0',
+            fontSize: 12, color: '#374151', background: '#F9FAFB', fontFamily: 'inherit',
+            overflow: 'hidden', textOverflow: 'ellipsis',
+          }} />
+          <button onClick={copyLink} style={{
+            padding: '9px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0',
+            background: copied ? '#EBF8FA' : '#fff', color: copied ? '#38a9c2' : '#374151',
+            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}>
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '14px', borderRadius: 12, background: '#F3EEFF', border: '1.5px solid #DDD6FE', marginBottom: 20 }}>
+          <span className="spinner" style={{ borderTopColor: '#7C3AED', borderColor: 'rgba(124,58,237,.2)', width: 18, height: 18, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#7C3AED' }}>Waiting for payment…</div>
+            <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>This screen will advance automatically once payment is confirmed.</div>
+          </div>
+        </div>
+
+        <button onClick={onCancel}
+          className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '10px', borderRadius: 10 }}>
+          Cancel Transaction
         </button>
       </div>
     </div>
@@ -154,11 +319,15 @@ export default function WalkIn() {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError]     = useState('');
 
-  // QR modal + submission
-  const [showQR, setShowQR]         = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitErr, setSubmitErr]   = useState('');
-  const [bookingRef, setBookingRef] = useState('');
+  // Payment method + submission
+  const [paymentMethod, setPaymentMethod] = useState(null); // 'gcash'|'maya'|'cash'|'credit_card'
+  const [cashTendered, setCashTendered]   = useState('');
+  const [ccPaymentUrl, setCcPaymentUrl]   = useState('');   // Xendit URL for credit card
+  const [ccPolling,    setCcPolling]      = useState(false);
+  const [ccBookingRef, setCcBookingRef]   = useState('');
+  const [submitting,   setSubmitting]     = useState(false);
+  const [submitErr,    setSubmitErr]      = useState('');
+  const [bookingRef,   setBookingRef]     = useState('');
 
   useEffect(() => {
     Promise.all([getCategories(), getServices(), getMyTenantSettings()])
@@ -352,33 +521,82 @@ export default function WalkIn() {
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
-  async function handleConfirmPayment() {
+  // ── Credit card polling — fires when ccPolling=true, stops on success ────────
+  useEffect(() => {
+    if (!ccPolling || !ccBookingRef) return;
+    const interval = setInterval(async () => {
+      try {
+        const { data } = await getPaymentStatus(ccBookingRef);
+        if (data.paid) {
+          clearInterval(interval);
+          setCcPolling(false);
+          setBookingRef(ccBookingRef);
+          setPaymentMethod(null);
+          setStep('success');
+        }
+      } catch (_) { /* ignore polling errors */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [ccPolling, ccBookingRef]);
+
+  // ── Build the order payload shared across all payment methods ────────────────
+  function buildOrderPayload(method, paid) {
+    const pickupDatetime = form.pickup_time
+      ? `${form.pickup_date}T${form.pickup_time}:00`
+      : form.pickup_date;
+    return {
+      cart: cart.map(item => ({
+        service_id:   item.service_id,
+        weight:       item.weight,
+        price:        item.itemTotal,
+        custom_fields: item.custom_fields,
+        service_name: item.service_name,
+      })),
+      name:           form.name.trim(),
+      phone:          form.phone.trim(),
+      email:          form.email.trim() || null,
+      address:        form.address.trim() || null,
+      notes:          form.notes.trim() || null,
+      pickup_date:    pickupDatetime,
+      payment_method: method,
+      paid,
+    };
+  }
+
+  // ── GCash / Maya / Cash — create order → success ─────────────────────────────
+  async function handleConfirmPayment(method) {
     setSubmitting(true); setSubmitErr('');
     try {
-      const pickupDatetime = form.pickup_time
-        ? `${form.pickup_date}T${form.pickup_time}:00`
-        : form.pickup_date;
-
-      const { data } = await createWalkInOrder({
-        cart: cart.map(item => ({
-          service_id: item.service_id,
-          weight: item.weight,
-          price: item.itemTotal,
-          custom_fields: item.custom_fields,
-        })),
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim() || null,
-        address: form.address.trim() || null,
-        notes: form.notes.trim() || null,
-        pickup_date: pickupDatetime,
-      });
-
+      const { data } = await createWalkInOrder(buildOrderPayload(method, true));
       setBookingRef(data.booking_ref);
-      setShowQR(false);
+      setPaymentMethod(null);
       setStep('success');
     } catch (err) {
       setSubmitErr(err.response?.data?.error || 'Something went wrong. Please try again.');
+    } finally { setSubmitting(false); }
+  }
+
+  // ── Credit Card — create order (unpaid) → generate Xendit link → poll ────────
+  async function handleCreditCardPayment() {
+    // If a link is already generated for this session, just show the modal
+    if (ccPaymentUrl) { setPaymentMethod('credit_card'); return; }
+    setSubmitting(true); setSubmitErr('');
+    try {
+      const { data } = await createWalkInOrder(buildOrderPayload('credit_card', false));
+      const ref      = data.booking_ref;
+      const orderIds = data.order_ids || [];
+      if (!orderIds.length) throw new Error('No order IDs returned');
+
+      const linkRes  = await generatePaymentLink(orderIds[0]);
+      const url      = linkRes.data.payment_url;
+      if (!url) throw new Error('No payment URL returned');
+
+      setCcPaymentUrl(url);
+      setCcBookingRef(ref);
+      setCcPolling(true);
+      setPaymentMethod('credit_card');
+    } catch (err) {
+      setSubmitErr(err.response?.data?.error || 'Failed to generate payment link. Please try again.');
     } finally { setSubmitting(false); }
   }
 
@@ -387,7 +605,9 @@ export default function WalkIn() {
     setCart([]); setSelectedSvc(null); setFieldValues({}); setAddonQty({}); setAddonOwn({});
     setForm({ name: '', phone: '', email: '', address: '', pickup_date: '', pickup_time: '', notes: '' });
     setPrivacyConsent(false); setPromoInput(''); setAppliedPromo(null); setPromoError('');
-    setShowQR(false); setSubmitErr(''); setBookingRef('');
+    setPaymentMethod(null); setCashTendered('');
+    setCcPaymentUrl(''); setCcPolling(false); setCcBookingRef('');
+    setSubmitErr(''); setBookingRef('');
   }
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -873,33 +1093,96 @@ export default function WalkIn() {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setStep(2)} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '12px', borderRadius: 10 }}>← Back</button>
-              <button onClick={() => setShowQR(true)} disabled={!privacyConsent}
-                style={{
-                  flex: 2, padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
-                  border: 'none', cursor: privacyConsent ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                  background: privacyConsent ? '#fdca00' : '#E2E8F0', color: privacyConsent ? '#1F2937' : '#9CA3AF',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all .15s',
-                }}>
-                <Icon name="walkin" size={16} color={privacyConsent ? '#1F2937' : '#9CA3AF'} />
-                Show QR &amp; Collect Payment
-              </button>
+            {/* Payment method selector */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: privacyConsent ? '#374151' : '#9CA3AF', marginBottom: 8 }}>
+                {privacyConsent ? 'Select payment method:' : 'Accept the privacy consent above to proceed'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { id: 'gcash',       label: 'GCash',       emoji: '📱', color: '#0062AD', bg: '#EBF0FA', border: '#0062AD' },
+                  { id: 'maya',        label: 'Maya',        emoji: '💚', color: '#00704A', bg: '#E6F5EE', border: '#00704A' },
+                  { id: 'cash',        label: 'Cash',        emoji: '💵', color: '#374151', bg: '#F9FAFB', border: '#6B7280' },
+                  { id: 'credit_card', label: 'Credit Card', emoji: '💳', color: '#7C3AED', bg: '#F3EEFF', border: '#7C3AED' },
+                ].map(m => (
+                  <button key={m.id} type="button"
+                    disabled={!privacyConsent || (submitting && paymentMethod !== m.id)}
+                    onClick={() => m.id === 'credit_card' ? handleCreditCardPayment() : setPaymentMethod(m.id)}
+                    style={{
+                      padding: '11px 8px', borderRadius: 10,
+                      border: `2px solid ${privacyConsent ? m.border : '#E2E8F0'}`,
+                      background: privacyConsent ? m.bg : '#F3F4F6',
+                      color: privacyConsent ? m.color : '#9CA3AF',
+                      fontWeight: 700, fontSize: 13, cursor: privacyConsent ? 'pointer' : 'not-allowed',
+                      fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                      opacity: privacyConsent ? 1 : 0.5, transition: 'all .15s',
+                    }}>
+                    {(submitting && paymentMethod === null && m.id === 'credit_card')
+                      ? <span className="spinner" style={{ borderTopColor: m.color, borderColor: `${m.color}30`, width: 18, height: 18 }} />
+                      : <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                    }
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {submitErr && (
+              <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: '#FCEBEB', color: '#A32D2D', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name="alert-triangle" size={13} color="#A32D2D" /> {submitErr}
+              </div>
+            )}
+
+            <button onClick={() => setStep(2)} className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '10px', borderRadius: 10 }}>← Back</button>
           </div>
         </div>
       )}
 
-      {/* QR Payment modal */}
-      {showQR && (
+      {/* GCash payment modal */}
+      {paymentMethod === 'gcash' && (
         <QRModal
+          label="GCash" accentColor="#0062AD"
           total={grandTotal}
           qrUrl={shopInfo?.qr_image_url}
-          shopName={shopInfo?.name}
           submitting={submitting}
           error={submitErr}
-          onConfirm={handleConfirmPayment}
-          onCancel={() => { setShowQR(false); setSubmitErr(''); }}
+          onConfirm={() => handleConfirmPayment('gcash')}
+          onCancel={() => { setPaymentMethod(null); setSubmitErr(''); }}
+        />
+      )}
+
+      {/* Maya payment modal */}
+      {paymentMethod === 'maya' && (
+        <QRModal
+          label="Maya" accentColor="#00704A"
+          total={grandTotal}
+          qrUrl={shopInfo?.maya_qr_url}
+          submitting={submitting}
+          error={submitErr}
+          onConfirm={() => handleConfirmPayment('maya')}
+          onCancel={() => { setPaymentMethod(null); setSubmitErr(''); }}
+        />
+      )}
+
+      {/* Cash payment modal */}
+      {paymentMethod === 'cash' && (
+        <CashModal
+          total={grandTotal}
+          cashTendered={cashTendered}
+          onChangeTendered={setCashTendered}
+          submitting={submitting}
+          error={submitErr}
+          onConfirm={() => handleConfirmPayment('cash')}
+          onCancel={() => { setPaymentMethod(null); setCashTendered(''); setSubmitErr(''); }}
+        />
+      )}
+
+      {/* Credit Card payment modal */}
+      {paymentMethod === 'credit_card' && ccPaymentUrl && (
+        <CreditCardModal
+          total={grandTotal}
+          paymentUrl={ccPaymentUrl}
+          onCancel={() => { setPaymentMethod(null); setCcPolling(false); setSubmitErr(''); }}
         />
       )}
     </div>

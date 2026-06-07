@@ -11,9 +11,11 @@ const { sendPushToTenant } = require('../utils/push');
 const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
 
-// POST walk-in order (staff POS — paid in cash/QR, no Xendit)
+// POST walk-in order (staff POS — paid in cash/QR/card, no Xendit required)
 router.post('/walk-in', auth, async (req, res) => {
-  const { cart, name, phone, email, address, notes, pickup_date } = req.body;
+  const { cart, name, phone, email, address, notes, pickup_date, payment_method, paid } = req.body;
+  const isPaid       = paid !== false;   // true unless caller explicitly sends false (credit card)
+  const paymentMeth  = payment_method || 'gcash';
   if (!cart?.length || !name?.trim() || !phone?.trim()) {
     return res.status(400).json({ error: 'Cart, name, and phone are required.' });
   }
@@ -62,16 +64,22 @@ router.post('/walk-in', auth, async (req, res) => {
     );
     const bookingRef = 'BKG-' + String(last_ref).padStart(6, '0');
 
+    const orderIds = [];
     for (const item of cart) {
       const orderId = randomUUID();
+      orderIds.push(orderId);
       await client.query(
-        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date, address, notes, status, paid, booking_ref, source, custom_selections)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'NEW ORDER',TRUE,$10,'walk_in',$11)`,
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date, address, notes, status, paid, booking_ref, source, custom_selections, payment_method)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'NEW ORDER',$10,$11,'walk_in',$12,$13)`,
         [orderId, req.user.tenant_id, customerId, item.service_id || null,
          item.weight || null, Number(item.price),
          pickup_date ? new Date(pickup_date).toISOString() : null,
-         address?.trim() || null, notes?.trim() || null, bookingRef,
-         item.custom_fields ? JSON.stringify(item.custom_fields) : null]
+         address?.trim() || null, notes?.trim() || null,
+         isPaid,        // $10
+         bookingRef,    // $11
+         item.custom_fields ? JSON.stringify(item.custom_fields) : null,  // $12
+         paymentMeth,   // $13
+        ]
       );
     }
 
@@ -83,13 +91,28 @@ router.post('/walk-in', auth, async (req, res) => {
       url: '/orders',
     }).catch(() => {});
 
-    res.json({ ok: true, booking_ref: bookingRef });
+    res.json({ ok: true, booking_ref: bookingRef, order_ids: orderIds });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[walk-in order]', err);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (client) client.release();
+  }
+});
+
+// GET payment status for a booking ref (used by walk-in credit card polling)
+router.get('/booking/:ref/payment-status', auth, async (req, res) => {
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT paid FROM orders WHERE booking_ref=$1 AND tenant_id=$2 LIMIT 1`,
+      [req.params.ref, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json({ paid: order.paid === true });
+  } catch (err) {
+    console.error('[payment-status]', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
