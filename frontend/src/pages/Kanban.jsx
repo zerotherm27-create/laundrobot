@@ -711,7 +711,6 @@ export default function Kanban() {
                 {STATUSES.map(s => (
                   <button key={s} onClick={() => {
                     moveStatus(modalOrder.orderIds, s);
-                    setModalOrder(prev => ({ ...prev, status: s }));
                   }} style={{
                     padding: '5px 10px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
                     background: modalOrder.status === s ? STATUS_COLORS[s] : STATUS_BG[s],
@@ -762,7 +761,6 @@ export default function Kanban() {
                         setOrders(prev => prev.map(o =>
                           modalOrder.orderIds.includes(o.id) ? { ...o, status: 'CANCELLED' } : o
                         ));
-                        setModalOrder(prev => prev ? { ...prev, status: 'CANCELLED' } : prev);
                       } catch (e) {
                         alert('Error: ' + (e.response?.data?.error || e.message));
                       }

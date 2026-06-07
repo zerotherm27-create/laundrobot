@@ -171,6 +171,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   const leafletCustRef  = useRef(null); // customer marker
   const geocodeTimer    = useRef(null);
   const suggestTimer    = useRef(null);
+  const detailsTopRef   = useRef(null);
   const [loading, setLoading]     = useState(true);
   const [notFound, setNotFound]   = useState(false);
 
@@ -724,6 +725,13 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     return () => clearTimeout(t);
   }, [step, result]);
 
+  // Auto-scroll to "Your Details" heading when customer advances to step 2
+  useEffect(() => {
+    if (step === 2 && detailsTopRef.current) {
+      detailsTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [step]);
+
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
@@ -1202,7 +1210,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         {/* ════════════ STEP 2 – CUSTOMER DETAILS ════════════ */}
         {step === 2 && (
           <div>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Your Details</div>
+            <div ref={detailsTopRef} style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Your Details</div>
             <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Tell us how to reach you and where to pick up.</div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>

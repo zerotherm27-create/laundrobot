@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
@@ -309,6 +309,14 @@ export default function WalkIn() {
   const [addonQty, setAddonQty]       = useState({});
   const [addonOwn, setAddonOwn]       = useState({});
   const [cart, setCart]               = useState([]);
+  const optionsPanelRef               = useRef(null);
+
+  // Auto-scroll to options panel when a service is selected
+  useEffect(() => {
+    if (selectedSvc && optionsPanelRef.current) {
+      optionsPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedSvc]);
 
   // Step 2
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', pickup_date: '', pickup_time: '', notes: '' });
@@ -762,7 +770,7 @@ export default function WalkIn() {
 
           {/* Custom fields for selected service */}
           {selectedSvc && (
-            <div style={{ marginTop: 8, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8', marginBottom: 16 }}>
+            <div ref={optionsPanelRef} style={{ marginTop: 8, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8', marginBottom: 16 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="orders" size={13} color="#1a7d94" />
                 Service Details — {selectedSvc.name}
