@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
+import { printReceipt } from '../components/ThermalReceipt.jsx';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -419,6 +420,20 @@ export default function WalkIn() {
         <div style={{ fontSize: 13, color: '#374151', marginBottom: 28, marginTop: 16 }}>
           Now visible in the Kanban board tagged as <strong>Walk-in</strong>.
         </div>
+
+        <button
+          onClick={() => printReceipt({ bookingRef, form, cart, appliedPromo, shopInfo })}
+          style={{
+            width: '100%', marginBottom: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            background: '#F7F7F5', color: '#374151',
+            border: '1.5px solid #E8E8E0', borderRadius: 10,
+            padding: '13px', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <Icon name="printer" size={16} color="#374151" />
+          Print Receipt
+        </button>
 
         <button onClick={reset} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '13px', fontSize: 14, borderRadius: 10 }}>
           <Icon name="walkin" size={16} color="#fff" style={{ marginRight: 6 }} />
