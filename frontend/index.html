@@ -365,9 +365,9 @@
         .stat-grid-4  { grid-template-columns: repeat(2,1fr) !important; }
         /* 2-col chart/report grid → 1 col */
         .chart-grid-2 { grid-template-columns: 1fr !important; }
-        /* Kanban 5 cols → 3 cols (still fits most tablets) */
-        .kanban-board { grid-template-columns: repeat(3,minmax(200px,1fr)) !important; }
+        /* Kanban: keep all 5 cols, scroll horizontally (wrapping breaks the pipeline view) */
         .kanban-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+        .kanban-board { grid-template-columns: repeat(5, minmax(190px,1fr)) !important; min-width: max-content; }
       }
 
       /* ════ MOBILE  < 768 px ════ */
