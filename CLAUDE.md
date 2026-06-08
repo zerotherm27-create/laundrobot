@@ -65,6 +65,15 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - **Tenant-side setup (one-time, no app settings):** install RawBT → pair XP-58 in Android Bluetooth (PIN usually `0000`/`1234`) → **in RawBT, Settings → Connection type: switch from "Emulator" to "Bluetooth" and select the XP-58.** RawBT ships pointed at its built-in **Emulator** virtual printer; if left there it shows **"emulator only"** and nothing prints on the real device — this is the #1 gotcha, not a bug in our code. (Free vs paid RawBT both print to real hardware; paid only removes a small notice line.)
 - ESC/POS specifics: `LINE_WIDTH = 32` (Font A @ 58mm); ₱ glyph isn't in the printer codepage so amounts use a `P` prefix via `money()`; XP-58 has no auto-cutter so the `GS V B 0` cut is a no-op and receipts feed lines for manual tear. Verified ESC/POS output starts with `ESC @` and base64 round-trips.
 
+## Referral link analytics
+- **Two independent tracking paths must both work** — breaking either silently kills analytics for that channel:
+  1. **Messenger (`m.me/page?ref=CODE`):** Messenger webhook → `handleOptin()` in `backend/webhooks/messenger.js` → increments `click_count` on `referral_links`, stores `referral_ref` on `conversations`. When user later books, `public.js` reads `referral_ref` from `conversations` via `fb_id`.
+  2. **Web (`book.thelaundryproject.app?ref=CODE`):** `BookingForm.jsx` reads `?ref=` on load → fires `POST /:tenantId/referral-click` (fire-and-forget) → increments `click_count`. On submit, passes `ref_code` in the order payload → `public.js` verifies it against `referral_links` and sets `referral_ref` on the order.
+- **`orders.referral_ref`** stores the `ref` slug (e.g. `WEBSITE`, `GOOGLE`). The analytics query in `backend/routes/referrals.js` `GET /` JOINs `referral_links` ↔ `orders` on `ref AND tenant_id` — both columns must match.
+- **If you add a new booking entry point** (e.g. Instagram DM, WhatsApp bot), it must either pass `ref_code` in its order payload or set `conversations.referral_ref` before the order is created — otherwise referral attribution is silently lost for that channel.
+- **`click_count` ≠ unique visitors** — refreshing the booking form with `?ref=` increments the counter again. It counts loads, not unique people. Conversion rate = `order_count / click_count` (shown in Settings).
+- **Deleting a referral link orphans its orders** — `orders.referral_ref` keeps the slug but the JOIN in the analytics query returns nothing. Soft-delete / archive instead of hard-delete if historical data matters.
+
 ## Safety / process
 - Never enter the FB password during re-auth — that's the tenant's step. Drive up to the consent screen only.
 - `git push` to main = live frontend deploy. Only push when asked.
