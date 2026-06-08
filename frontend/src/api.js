@@ -147,6 +147,7 @@ export const validatePublicPromo     = (id, code, total)   => axios.get(`${PUBLI
 export const lookupPublicCustomer      = (id, phone)           => axios.get(`${PUBLIC_BASE}/public/${id}/customer`, { params: { phone } });
 export const savePublicCustomerCoords  = (id, phone, lat, lng) => axios.patch(`${PUBLIC_BASE}/public/${id}/customer/coords`, { phone, addr_lat: lat, addr_lng: lng });
 export const createPublicOrder       = (id, data)          => pubPost(`/public/${id}/orders`, data);
+export const trackReferralClick      = (id, ref)           => pubPost(`/public/${id}/referral-click`, { ref });
 export const savePublicCart          = (id, data)          => pubPost(`/public/${id}/cart`, data);
 export const updatePublicCart        = (id, cartId, data)  => axios.patch(`${PUBLIC_BASE}/public/${id}/cart/${cartId}`, data);
 export const getPublicReorderData    = (id, orderId, params) => axios.get(`${PUBLIC_BASE}/public/${id}/reorder/${orderId}`, { params });

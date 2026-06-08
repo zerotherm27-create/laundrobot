@@ -4,7 +4,7 @@ import {
   getPublicAddressSuggest,
   lookupPublicCustomer, createPublicOrder, validatePublicPromo,
   savePublicCart, updatePublicCart, uploadPaymentScreenshot,
-  getPublicReorderData, savePublicCustomerCoords,
+  getPublicReorderData, savePublicCustomerCoords, trackReferralClick,
 } from '../api.js';
 
 function getStartsAt(svc) {
@@ -225,6 +225,12 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     return psid || null;
   });
 
+  // Referral ref — read from ?ref=CODE in the URL (web referral links)
+  const [referralRef] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get('ref')?.trim().toUpperCase() || null;
+  });
+
   // Server-side cart ID for abandonment tracking
   const [serverCartId, setServerCartId] = useState(null);
 
@@ -298,6 +304,13 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
       if (e.response?.status === 404) setNotFound(true);
     }).finally(() => setLoading(false));
   }, [tenantId]);
+
+  // Track referral click once when form loads with ?ref=CODE (web referral links)
+  useEffect(() => {
+    if (referralRef && tenantId) {
+      trackReferralClick(tenantId, referralRef).catch(() => {}); // fire-and-forget, never block the form
+    }
+  }, [referralRef, tenantId]);
 
   // Reorder prefill — runs once after services load
   useEffect(() => {
@@ -587,6 +600,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         notes: combinedNotes || undefined,
         promo_code: appliedPromo?.code || undefined,
         fb_id: messengerPsid || undefined,
+        ref_code: referralRef || undefined,
         captcha_token: captcha_token || undefined,
         is_whatsapp: isWhatsApp || undefined,
       });

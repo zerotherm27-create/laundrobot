@@ -82,6 +82,23 @@ router.get('/geocode/suggest', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// POST track a referral link click from the web booking form
+// Called when BookingForm loads with ?ref=CODE so web links get click_count just like m.me links
+router.post('/:tenantId/referral-click', async (req, res) => {
+  const { ref } = req.body;
+  if (!ref?.trim()) return res.status(400).json({ error: 'ref required' });
+  try {
+    const { rows: [link] } = await db.query(
+      `UPDATE referral_links SET click_count = click_count + 1
+       WHERE tenant_id=$1 AND ref=$2
+       RETURNING id`,
+      [req.params.tenantId, ref.trim().toUpperCase()]
+    );
+    if (!link) return res.status(404).json({ error: 'Referral link not found' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET all booking-form data in one request
 router.get('/:tenantId/bootstrap', async (req, res) => {
   const id = req.params.tenantId;
@@ -387,7 +404,7 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
 // POST create order (public booking) — supports multi-service cart
 router.post('/:tenantId/orders', async (req, res) => {
-  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff, source, captcha_token, is_whatsapp } = req.body;
+  const { cart, name, phone, email, address, pickup_date, delivery_zone_id, customer_lat, customer_lng, notes, promo_code, fb_id, is_dropoff, source, captcha_token, is_whatsapp, ref_code } = req.body;
   const isDropoff = is_dropoff === true || is_dropoff === 'true';
 
   if (!cart?.length || !name?.trim() || !phone?.trim() || !address?.trim() || !pickup_date?.trim()) {
@@ -545,9 +562,17 @@ router.post('/:tenantId/orders', async (req, res) => {
       }
     }
 
-    // Referral attribution — pull ref stored on conversation when customer arrived via m.me link
+    // Referral attribution — prefer explicit ref_code (web form), fall back to Messenger conversation ref
     let referralRef = null;
-    if (fb_id) {
+    if (ref_code?.trim()) {
+      // Web booking with ?ref=CODE — verify the ref actually exists for this tenant
+      const { rows: [link] } = await db.query(
+        `SELECT ref FROM referral_links WHERE tenant_id=$1 AND ref=$2`,
+        [req.params.tenantId, ref_code.trim().toUpperCase()]
+      );
+      referralRef = link?.ref || null;
+    } else if (fb_id) {
+      // Messenger booking — pull ref stored when customer clicked m.me link
       const { rows: [conv] } = await db.query(
         `SELECT referral_ref FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2`,
         [req.params.tenantId, fb_id]
