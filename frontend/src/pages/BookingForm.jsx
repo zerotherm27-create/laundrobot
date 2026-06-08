@@ -350,9 +350,10 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     if (!selectedSvc || qty <= 0) return;
     const syncFields = (selectedSvc.custom_fields || []).filter(f => f.field_type === 'addon' && f.sync_qty);
     if (!syncFields.length) return;
+    const syncedQty = Math.max(0, Math.floor(qty)); // addons are whole items — floor prevents fractional qty
     setAddonQty(prev => {
       const next = { ...prev };
-      syncFields.forEach(f => { next[f.id] = qty; });
+      syncFields.forEach(f => { next[f.id] = syncedQty; });
       return next;
     });
   }, [qty, selectedSvc]);

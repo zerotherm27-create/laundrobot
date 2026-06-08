@@ -593,7 +593,8 @@ export default function Kanban() {
                       {s.custom_selections?.map((sel, j) => sel.value ? (
                         <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
                           <span>{sel.label}: {sel.value}</span>
-                          {sel.unit_price > 0 && <span>+₱{Number(sel.unit_price).toLocaleString()}</span>}
+                          {/* unit_price present = addon field; show line total (unit × qty), not just unit price */}
+                          {sel.unit_price > 0 && <span>+₱{(Number(sel.unit_price) * Math.max(1, Number(sel.value) || 1)).toLocaleString()}</span>}
                         </div>
                       ) : null)}
                     </div>
@@ -612,7 +613,7 @@ export default function Kanban() {
                       {modalOrder.services?.[0]?.custom_selections?.map((sel, j) => sel.value ? (
                         <div key={j} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B7280', paddingLeft: 8, paddingTop: 2 }}>
                           <span>{sel.label}: {sel.value}</span>
-                          {sel.unit_price > 0 && <span>+₱{Number(sel.unit_price).toLocaleString()}</span>}
+                          {sel.unit_price > 0 && <span>+₱{(Number(sel.unit_price) * Math.max(1, Number(sel.value) || 1)).toLocaleString()}</span>}
                         </div>
                       ) : null)}
                     </div>

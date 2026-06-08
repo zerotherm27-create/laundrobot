@@ -323,7 +323,11 @@ async function calcItemPrice(tenantId, serviceId, custom_fields) {
 
   const addonTotal = (custom_fields || []).reduce((sum, cf) => {
     const fd = svcFields.find(f => f.field_type === 'addon' && f.label === cf.label);
-    return fd && cf.value ? sum + Number(fd.unit_price || 0) * (parseInt(cf.value) || 0) : sum;
+    if (!fd) return sum;
+    const unitPrice = Number(fd.unit_price || 0);
+    const qty       = Math.max(0, Number(cf.value) || 0); // Number() preserves decimals; Math.max guards negatives
+    if (unitPrice <= 0 || qty <= 0) return sum;           // skip invalid entries
+    return sum + unitPrice * qty;
   }, 0);
 
   const selectFieldDefs = svcFields.filter(f => f.field_type === 'select');
