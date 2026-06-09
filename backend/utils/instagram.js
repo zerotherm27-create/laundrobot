@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { noteBotSend } = require('./botEchoTracker');
 
 // Instagram Messaging API — endpoint uses ig_user_id, not 'me'
 function graphUrl(igUserId) {
@@ -7,6 +8,8 @@ function graphUrl(igUserId) {
 
 async function post(token, igUserId, body) {
   await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
+  // Record actual messages we send so their echoes aren't mistaken for a human.
+  if (body?.message && body?.recipient?.id) noteBotSend(body.recipient.id);
 }
 
 // Split long text at paragraph/sentence boundaries (IG limit: 1000 chars)

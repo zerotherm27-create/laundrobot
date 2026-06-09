@@ -6,6 +6,7 @@ const db = require('../db');
 const messengerUtils = require('../utils/messenger');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping } = messengerUtils;
 const igUtils = require('../utils/instagram');
+const { isOwnEcho } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 
@@ -80,12 +81,13 @@ router.post('/', async (req, res) => {
         for (const event of (e.messaging || [])) {
           console.log('[ig-webhook] event — sender:', event.sender?.id, '| has_message:', !!event.message, '| has_postback:', !!event.postback, '| is_echo:', !!event.message?.is_echo);
           // Admin replied from Instagram — sender is the IG business account.
-          // Skip pause if it was the bot itself sending (check app_id to distinguish human vs bot).
-          if (event.message && event.sender.id === String(tenant.ig_user_id)) {
-            const echoAppId = String(event.message.app_id || '');
-            const ownAppId  = String(process.env.FB_APP_ID || '');
-            const isBotEcho = ownAppId && echoAppId === ownAppId;
-            if (!isBotEcho) {
+          // Pause the AI unless this echo is one of the bot's own outgoing
+          // messages (tracked locally — Meta's app_id can't be trusted to tell
+          // a human Business-Suite reply apart from our API sends).
+          if (event.message?.is_echo || (event.message && event.sender.id === String(tenant.ig_user_id))) {
+            const ownEcho = isOwnEcho(event.recipient.id);
+            console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| trackedOwnEcho:', ownEcho);
+            if (!ownEcho) {
               try { await pauseAiForCustomer(tenant, event.recipient.id); }
               catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
             }
@@ -116,12 +118,15 @@ router.post('/', async (req, res) => {
           try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
           catch (err) { console.error('[webhook] referral error:', err.message); }
         } else if (event.message?.is_echo) {
-          // Only pause AI when a human staff member replies — NOT when the bot itself sends a message.
-          // Bot-sent messages have app_id matching our own FB app; human Page Inbox replies have a different app_id.
-          const echoAppId = String(event.message.app_id || '');
-          const ownAppId  = String(process.env.FB_APP_ID || '');
-          const isBotEcho = ownAppId && echoAppId === ownAppId;
-          if (!isBotEcho) {
+          // Pause AI when a human staff member replies — but NOT when the bot
+          // itself sends a message. We can't use the echo's app_id for this:
+          // Meta stamps human Business-Suite/inbox replies with the connected
+          // app's id too, so app_id matching skipped real human takeovers and
+          // the AI kept talking. Instead we recognise the bot's own echoes by
+          // matching them against the messages we actually sent (botEchoTracker).
+          const ownEcho = isOwnEcho(event.recipient.id);
+          console.log('[webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| trackedOwnEcho:', ownEcho);
+          if (!ownEcho) {
             try { await pauseAiForCustomer(tenant, event.recipient.id); }
             catch (err) { console.error('[webhook] echo-pause error:', err.message); }
           }

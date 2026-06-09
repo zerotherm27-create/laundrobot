@@ -1,9 +1,13 @@
 const axios = require('axios');
+const { noteBotSend } = require('./botEchoTracker');
 
 const GRAPH_URL = 'https://graph.facebook.com/v19.0/me/messages';
 
 async function post(token, body) {
   await axios.post(`${GRAPH_URL}?access_token=${token}`, body);
+  // Record actual messages we send (not typing/sender_action) so their echoes
+  // are recognised as ours and don't trigger a human-takeover pause.
+  if (body?.message && body?.recipient?.id) noteBotSend(body.recipient.id);
 }
 
 // Typing indicator

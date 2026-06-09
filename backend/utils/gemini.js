@@ -232,7 +232,9 @@ Extract any NEW or UPDATED facts worth remembering about this customer. Only ext
       `${GEMINI_URL}?key=${apiKey}`,
       {
         contents: [{ role: 'user', parts: [{ text: extractionPrompt }] }],
-        generationConfig: { maxOutputTokens: 200, temperature: 0 },
+        // No thinking needed for a deterministic JSON extraction — keeps this
+        // background call fast and cheap.
+        generationConfig: { maxOutputTokens: 200, temperature: 0, thinkingConfig: { thinkingBudget: 0 } },
       },
       { timeout: 8000 }
     );
@@ -273,9 +275,17 @@ async function askGemini(tenantId, userMessage, senderId) {
       {
         system_instruction: { parts: [{ text: systemContextWithCustomer }] },
         contents,
-        generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
+        generationConfig: {
+          maxOutputTokens: 1500,
+          temperature: 0.7,
+          // Let Flash reason before replying — sharper handling of pricing,
+          // policy and multi-part questions. Fixed budget keeps latency bounded
+          // (~1s) vs. the unbounded default; thinking tokens are separate from
+          // the 1500 reply tokens above.
+          thinkingConfig: { thinkingBudget: 1024 },
+        },
       },
-      { timeout: 12000 }
+      { timeout: 15000 }
     );
 
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
