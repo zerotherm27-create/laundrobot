@@ -11,6 +11,14 @@ const { sendPushToTenant } = require('../utils/push');
 const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
 
+// Naive datetime strings from the dashboard mean Asia/Manila wall-clock time. Pin the
+// offset so a UTC server/DB doesn't read them as UTC (+8h display shift). Leaves
+// strings that already carry Z/offset, and bare dates ("2026-06-10"), untouched.
+function normalizeManila(str) {
+  const s = String(str).trim();
+  return /T.*$/.test(s) && !/(Z|[+-]\d{2}:?\d{2})$/.test(s) ? `${s}+08:00` : s;
+}
+
 // POST walk-in order (staff POS — paid in cash/QR/card, no Xendit required)
 router.post('/walk-in', auth, async (req, res) => {
   const { cart, name, phone, email, address, notes, pickup_date, payment_method, paid } = req.body;
@@ -73,7 +81,7 @@ router.post('/walk-in', auth, async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'NEW ORDER',$10,$11,'walk_in',$12,$13)`,
         [orderId, req.user.tenant_id, customerId, item.service_id || null,
          item.weight || null, Number(item.price),
-         pickup_date ? new Date(pickup_date).toISOString() : null,
+         pickup_date ? new Date(normalizeManila(pickup_date)).toISOString() : null,
          address?.trim() || null, notes?.trim() || null,
          isPaid,        // $10
          bookingRef,    // $11

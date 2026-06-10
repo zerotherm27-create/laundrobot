@@ -565,9 +565,12 @@ export default function WalkIn() {
 
   // ── Build the order payload shared across all payment methods ────────────────
   function buildOrderPayload(method, paid) {
+    // Manila wall-clock time — explicit +08:00 so the timestamptz column stores the right instant
     const pickupDatetime = form.pickup_time
-      ? `${form.pickup_date}T${form.pickup_time}:00`
-      : form.pickup_date;
+      ? `${form.pickup_date}T${form.pickup_time}:00+08:00`
+      : form.pickup_date
+        ? `${form.pickup_date}T00:00:00+08:00`
+        : form.pickup_date;
     return {
       cart: cart.map(item => ({
         service_id:   item.service_id,

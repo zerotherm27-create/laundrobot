@@ -68,7 +68,7 @@ async function sendNewOrderEmail(tenantId, { orderId, serviceName, customerName,
     }
 
     const formattedDate = pickupDate
-      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })
       : '—';
 
     const tableRows = [
@@ -153,7 +153,7 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
     const shopName = tenant?.name || 'Your Shop';
 
     const formattedDate = pickupDate
-      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })
       : '—';
 
     const tableRows = [
@@ -201,7 +201,7 @@ async function sendPaymentReminderEmail(tenantId, { orderId, customerName, custo
     const shopName = tenant?.name || 'Your Shop';
     const amount = `₱${Number(total).toLocaleString()}`;
     const formattedDate = pickupDate
-      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+      ? new Date(pickupDate).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })
       : '—';
 
     const urgency = reminderNum >= 4 ? '⚠️ Last Reminder' : reminderNum === 1 ? 'Friendly Reminder' : 'Payment Reminder';

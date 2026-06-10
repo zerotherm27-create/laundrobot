@@ -459,7 +459,12 @@ router.post('/:tenantId/orders', async (req, res) => {
     console.warn('[rate-limit] check failed (skipping):', rateErr.message);
   }
 
-  const pickupDay = new Date(pickup_date.trim());
+  // Normalize pickup to an explicit Asia/Manila offset. Older cached frontends send a naive
+  // local string ("2026-06-10T15:30:00") which a UTC server/DB reads as UTC → +8h shift on display.
+  const pickupRaw = pickup_date.trim();
+  const pickupNormalized = /(Z|[+-]\d{2}:?\d{2})$/.test(pickupRaw) ? pickupRaw : `${pickupRaw}+08:00`;
+
+  const pickupDay = new Date(pickupNormalized);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   if (isNaN(pickupDay.getTime()) || pickupDay < today) {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
@@ -634,7 +639,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       let deliveryDate = null;
       try {
         const maxTurnaround = Math.max(...pricedItems.map(pi => pi.resolvedTurnaround));
-        const pd = new Date(pickup_date.trim());
+        const pd = new Date(pickupNormalized);
         if (!isNaN(pd.getTime())) {
           pd.setDate(pd.getDate() + maxTurnaround);
           deliveryDate = pd.toISOString();
@@ -648,7 +653,7 @@ router.post('/:tenantId/orders', async (req, res) => {
                              promo_code, promo_discount, referral_ref, is_dropoff)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
         [orderId, req.params.tenantId, customerId, service.id,
-         weight, itemServicePrice, pickup_date.trim(), address.trim(),
+         weight, itemServicePrice, pickupNormalized, address.trim(),
          itemDeliveryFee, i === 0 ? zoneName : null, notes?.trim() || null, orderStatus, bookingRef,
          cart[i].custom_fields ? JSON.stringify(cart[i].custom_fields) : null, orderPaid, deliveryDate, orderSource,
          i === 0 ? (promoCodeApplied || null) : null, i === 0 ? (promoDiscount || 0) : 0,
@@ -707,7 +712,7 @@ router.post('/:tenantId/orders', async (req, res) => {
         if (tenant?.fb_page_access_token) {
           const pickupFormatted = (() => {
             try {
-              return new Date(pickup_date).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+              return new Date(pickupNormalized).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' });
             } catch { return pickup_date; }
           })();
           const servicesList = createdOrders.map(o => `• ${o.service_name} — ₱${Number(o.price).toLocaleString('en-PH')}`).join('\n');
@@ -760,7 +765,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       customerName: name.trim(),
       customerPhone: phone.trim(),
       address: address.trim(),
-      pickupDate: pickup_date.trim(),
+      pickupDate: pickupNormalized,
       deliveryZone: zoneName || null,
       total: grandTotal,
       paymentUrl,
@@ -772,7 +777,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       customerName: name.trim(),
       customerEmail: email?.trim() || null,
       serviceName: pricedItems.map(i => i.service.name).join(', '),
-      pickupDate: pickup_date.trim(),
+      pickupDate: pickupNormalized,
       address: address.trim(),
       total: grandTotal,
       paymentUrl,

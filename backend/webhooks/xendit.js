@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
               <tr><td style="padding:8px 0;color:#6B7280;">Email</td><td style="color:#111827;">${newTenant?.email || '—'}</td></tr>
               <tr><td style="padding:8px 0;color:#6B7280;">Plan</td><td style="color:#7C3AED;font-weight:700;">${tierLabel} ${isAnnual ? 'Annual' : 'Monthly'}</td></tr>
               <tr><td style="padding:8px 0;color:#6B7280;">Amount</td><td style="color:#059669;font-weight:700;">₱${Number(amount).toLocaleString()}</td></tr>
-              <tr><td style="padding:8px 0;color:#6B7280;">Date</td><td style="color:#111827;">${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Date</td><td style="color:#111827;">${new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })}</td></tr>
             </table>
           </div>
         </body></html>`,

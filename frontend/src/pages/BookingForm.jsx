@@ -581,9 +581,13 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         } catch (_) { /* grecaptcha available but threw — log and continue; server enforces token validity */ console.warn('reCAPTCHA execute failed'); }
       }
 
+      // Customer picks a Manila wall-clock time; send an explicit +08:00 offset so the
+      // timestamptz column stores the right instant (naive strings get read as UTC → +8h shift)
       const pickupDatetime = form.pickup_time
-        ? `${form.pickup_date}T${form.pickup_time}:00`
-        : form.pickup_date;
+        ? `${form.pickup_date}T${form.pickup_time}:00+08:00`
+        : form.pickup_date
+          ? `${form.pickup_date}:00+08:00`
+          : form.pickup_date;
       const selfPickupNote = selfPickup ? '[Self drop-off & pick-up]' : '';
       const combinedNotes = [selfPickupNote, form.notes.trim()].filter(Boolean).join(' ');
       const { data } = await createPublicOrder(tenantId, {
