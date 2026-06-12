@@ -10,6 +10,8 @@ export default function Login() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
+
   const [view, setView]         = useState('login');
   const [fpEmail, setFpEmail]   = useState('');
   const [fpMsg, setFpMsg]       = useState('');
@@ -20,7 +22,7 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true); setError('');
-    try { await login(email, password); }
+    try { await login(email, password, keepLoggedIn); }
     catch { setError('Invalid email or password. Please try again.'); }
     finally { setLoading(false); }
   }
@@ -129,7 +131,16 @@ export default function Login() {
                 </div>
               </div>
 
-              <div style={{ textAlign: 'right', marginBottom: 22 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={keepLoggedIn}
+                    onChange={e => setKeepLoggedIn(e.target.checked)}
+                    style={{ width: 15, height: 15, accentColor: '#38a9c2', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 12, color: '#374151' }}>Keep me logged in</span>
+                </label>
                 <button type="button"
                   onClick={() => { setView('forgot'); setFpEmail(email); setFpError(''); setFpMsg(''); setFpSent(false); }}
                   style={{ fontSize: 12, color: '#38a9c2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>

@@ -3,10 +3,30 @@ import { login as apiLogin, getMyBranches, switchBranch as apiSwitchBranch } fro
 
 const AuthContext = createContext();
 
+function getToken() {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+}
+
+function saveToken(token, persistent) {
+  if (persistent) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('token_persistent', '1');
+    sessionStorage.removeItem('token');
+  } else {
+    sessionStorage.setItem('token', token);
+    localStorage.removeItem('token');
+    localStorage.removeItem('token_persistent');
+  }
+}
+
+function isPersistent() {
+  return !!localStorage.getItem('token_persistent');
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = getToken();
       if (!token) return null;
       return {
         token,
@@ -28,10 +48,10 @@ export function AuthProvider({ children }) {
     getMyBranches().then(r => setBranches(r.data || [])).catch(() => {});
   }, [user?.tenant_id]);
 
-  async function login(email, password) {
+  async function login(email, password, keepLoggedIn = false) {
     const { data } = await apiLogin(email, password);
     const permissions = data.permissions || [];
-    sessionStorage.setItem('token',     data.token);
+    saveToken(data.token, keepLoggedIn);
     localStorage.setItem('role',        data.role);
     localStorage.setItem('tenant_id',   data.tenant_id   || '');
     localStorage.setItem('tenant_name', data.tenant_name || '');
@@ -49,7 +69,7 @@ export function AuthProvider({ children }) {
 
   async function switchToBranch(tenantId) {
     const { data } = await apiSwitchBranch(tenantId);
-    sessionStorage.setItem('token', data.token);
+    saveToken(data.token, isPersistent());
     localStorage.setItem('tenant_id',   data.tenant_id);
     localStorage.setItem('tenant_name', data.tenant_name);
     window.location.reload();
@@ -57,7 +77,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     sessionStorage.removeItem('token');
-    ['role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
+    ['token','token_persistent','role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
     setUser(null);
   }
 
