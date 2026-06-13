@@ -4,8 +4,12 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
 });
 
+function getStoredToken() {
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+}
+
 api.interceptors.request.use(cfg => {
-  const token = sessionStorage.getItem('token');
+  const token = getStoredToken();
   if (token) cfg.headers.Authorization = `Bearer ${token}`;
   return cfg;
 });
