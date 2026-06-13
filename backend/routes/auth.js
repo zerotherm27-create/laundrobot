@@ -7,13 +7,17 @@ const db = require('../db');
 // Login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  const loginEmail = email?.trim().toLowerCase();
+  if (!loginEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
   try {
     const result = await db.query(
       `SELECT u.*, t.name as tenant_name 
        FROM users u
        LEFT JOIN tenants t ON t.id = u.tenant_id
-       WHERE u.email = $1`,
-      [email]
+       WHERE LOWER(u.email) = $1`,
+      [loginEmail]
     );
 
     if (!result.rows || result.rows.length === 0) {

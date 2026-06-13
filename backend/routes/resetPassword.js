@@ -7,10 +7,11 @@ const db = require('../db');
 // POST /auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
+  const lookupEmail = email?.trim().toLowerCase();
+  if (!lookupEmail) return res.status(400).json({ error: 'Email is required' });
 
   try {
-    const { rows } = await db.query('SELECT id, email, name FROM users WHERE email = $1', [email]);
+    const { rows } = await db.query('SELECT id, email, name FROM users WHERE LOWER(email) = $1', [lookupEmail]);
 
     // Always respond with success (don't reveal if email exists)
     if (rows.length === 0) {
