@@ -466,7 +466,9 @@ router.post('/:tenantId/orders', async (req, res) => {
 
   const pickupDay = new Date(pickupNormalized);
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  if (isNaN(pickupDay.getTime()) || pickupDay < today) {
+  // Admin-created manual orders may back-date pickup (e.g. logging a walk-in/phone
+  // order after the fact). Public customer bookings still cannot pick a past date.
+  if (isNaN(pickupDay.getTime()) || (pickupDay < today && source !== 'admin')) {
     return res.status(400).json({ error: 'Pickup date cannot be in the past.' });
   }
 
