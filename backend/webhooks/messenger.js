@@ -62,6 +62,17 @@ router.post('/', async (req, res) => {
 
   res.sendStatus(200);
   const { object, entry } = body;
+  // Log full structure of every incoming event to diagnose missing echoes
+  for (const e of (entry || [])) {
+    for (const ev of (e.messaging || [])) {
+      console.log('[webhook-raw]', JSON.stringify({
+        sender: ev.sender?.id, recipient: ev.recipient?.id,
+        is_echo: ev.message?.is_echo, mid: ev.message?.mid,
+        has_postback: !!ev.postback, has_optin: !!ev.optin,
+        text_preview: ev.message?.text?.slice(0, 30),
+      }));
+    }
+  }
   console.log('[webhook] received object:', object, 'entries:', entry?.length);
 
   try {
