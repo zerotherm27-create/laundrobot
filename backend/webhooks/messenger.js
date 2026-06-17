@@ -86,8 +86,9 @@ router.post('/', async (req, res) => {
           // a human Business-Suite reply apart from our API sends).
           if (event.message?.is_echo || (event.message && event.sender.id === String(tenant.ig_user_id))) {
             const ownEcho = isBotOwnEcho(event.message);
-            console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
+            console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| mid:', event.message.mid, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
             if (!ownEcho) {
+              console.log('[ig-webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
               try { await pauseAiForCustomer(tenant, event.recipient.id); }
               catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
             }
@@ -123,8 +124,9 @@ router.post('/', async (req, res) => {
           // metadata tag we stamp on every send (Meta round-trips it); humans'
           // inbox replies have none. Never use app_id (see isBotOwnEcho).
           const ownEcho = isBotOwnEcho(event.message);
-          console.log('[webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
+          console.log('[webhook] echo — recipient:', event.recipient.id, '| mid:', event.message.mid, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
           if (!ownEcho) {
+            console.log('[webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
             try { await pauseAiForCustomer(tenant, event.recipient.id); }
             catch (err) { console.error('[webhook] echo-pause error:', err.message); }
           }
