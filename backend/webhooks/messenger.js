@@ -6,7 +6,7 @@ const db = require('../db');
 const messengerUtils = require('../utils/messenger');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping } = messengerUtils;
 const igUtils = require('../utils/instagram');
-const { isOwnEcho } = require('../utils/botEchoTracker');
+const { isBotOwnEcho } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 
@@ -85,8 +85,8 @@ router.post('/', async (req, res) => {
           // messages (tracked locally — Meta's app_id can't be trusted to tell
           // a human Business-Suite reply apart from our API sends).
           if (event.message?.is_echo || (event.message && event.sender.id === String(tenant.ig_user_id))) {
-            const ownEcho = isOwnEcho(event.recipient.id);
-            console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| trackedOwnEcho:', ownEcho);
+            const ownEcho = isBotOwnEcho(event.message, event.recipient.id);
+            console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
             if (!ownEcho) {
               try { await pauseAiForCustomer(tenant, event.recipient.id); }
               catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
@@ -119,13 +119,11 @@ router.post('/', async (req, res) => {
           catch (err) { console.error('[webhook] referral error:', err.message); }
         } else if (event.message?.is_echo) {
           // Pause AI when a human staff member replies — but NOT when the bot
-          // itself sends a message. We can't use the echo's app_id for this:
-          // Meta stamps human Business-Suite/inbox replies with the connected
-          // app's id too, so app_id matching skipped real human takeovers and
-          // the AI kept talking. Instead we recognise the bot's own echoes by
-          // matching them against the messages we actually sent (botEchoTracker).
-          const ownEcho = isOwnEcho(event.recipient.id);
-          console.log('[webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| trackedOwnEcho:', ownEcho);
+          // itself sends a message. We recognise the bot's own echoes by the
+          // metadata tag we stamp on every send (Meta round-trips it); humans'
+          // inbox replies have none. Never use app_id (see isBotOwnEcho).
+          const ownEcho = isBotOwnEcho(event.message, event.recipient.id);
+          console.log('[webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
           if (!ownEcho) {
             try { await pauseAiForCustomer(tenant, event.recipient.id); }
             catch (err) { console.error('[webhook] echo-pause error:', err.message); }

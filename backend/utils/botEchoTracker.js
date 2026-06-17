@@ -8,19 +8,27 @@
 //   stamps human Business-Suite replies with the *connected app's* id too, so the
 //   app_id check classified almost every human reply as a bot echo and the AI
 //   never paused (root cause of the recurring "AI keeps talking after I take over"
-//   bug).
+//   bug). NEVER reintroduce app_id-based discrimination.
 //
-// What we do instead:
-//   We KNOW exactly which messages the bot sends — every outbound message goes
-//   through `post()` in utils/messenger.js / utils/instagram.js. We increment a
-//   per-recipient counter there. Each incoming echo decrements it: if there's an
-//   outstanding bot-send, the echo is ours; if not, a human typed it → pause.
-//   This is independent of Meta's unreliable `app_id`.
+// PRIMARY mechanism (stateless, reliable): every outbound message is stamped with
+//   `message.metadata = BOT_METADATA_TAG`. Meta round-trips that string back in the
+//   echo at `message.metadata`. A human's inbox reply carries no such tag, so the
+//   echo handler can tell them apart with certainty — independent of app_id, and
+//   independent of process state (survives restarts and multiple replicas).
 //
-// Caveat: state is in-process memory, so it assumes a single backend instance
-//   (the current Railway setup). If you scale to multiple replicas, move this
-//   counter into the DB (e.g. a `pending_bot_echoes` column on `conversations`)
-//   so a send on one instance is visible to an echo handled on another.
+// FALLBACK mechanism (the counter below): some channels/older API versions may not
+//   round-trip metadata. When an echo arrives with NO metadata field at all, we
+//   fall back to this per-recipient counter: every bot send increments it via
+//   noteBotSend(); each un-tagged echo decrements it. If there's an outstanding
+//   bot-send the echo is ours; otherwise a human typed it → pause.
+//
+//   ⚠️ The counter is a heuristic — it can't tell which message an echo belongs to,
+//   so out-of-order / dropped echoes mislabel a human reply as a bot echo (this was
+//   the recurring failure). It is also in-process memory (single instance only).
+//   Treat it as a best-effort backstop; the metadata tag is the real fix.
+
+// Developer-defined string stamped on every bot send and matched on every echo.
+const BOT_METADATA_TAG = 'laundrobot_ai_v1';
 
 const _outstanding = new Map(); // recipientId -> { count, ts }
 const TTL_MS = 2 * 60 * 1000;   // forget unpaired sends after 2 min
@@ -51,4 +59,17 @@ function isOwnEcho(recipientId) {
   return true;
 }
 
-module.exports = { noteBotSend, isOwnEcho };
+// Decide whether a message_echoes event is the bot's own send (true → ignore) or a
+// human staff reply from the Meta inbox (false → pause the AI). PRIMARY signal: the
+// metadata tag we stamp on every bot send, which Meta round-trips at
+// message.metadata — a human reply has none. Only when the echo carries NO metadata
+// field at all do we fall back to the in-memory counter. NEVER use app_id here.
+function isBotOwnEcho(echoMessage, recipientId) {
+  const meta = echoMessage?.metadata;
+  if (meta !== undefined && meta !== null) {
+    return meta === BOT_METADATA_TAG; // authoritative: stateless, restart/replica-safe
+  }
+  return isOwnEcho(recipientId); // fallback for channels that don't round-trip metadata
+}
+
+module.exports = { noteBotSend, isOwnEcho, isBotOwnEcho, BOT_METADATA_TAG };

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { noteBotSend } = require('./botEchoTracker');
+const { noteBotSend, BOT_METADATA_TAG } = require('./botEchoTracker');
 
 // Instagram Messaging API — endpoint uses ig_user_id, not 'me'
 function graphUrl(igUserId) {
@@ -7,8 +7,13 @@ function graphUrl(igUserId) {
 }
 
 async function post(token, igUserId, body) {
+  // Stamp with our metadata tag so echoes are recognised as the bot's own without
+  // relying on app_id. IG may not round-trip metadata on every API version — the
+  // echo handler falls back to the counter (noteBotSend) when metadata is absent.
+  if (body?.message && body.message.metadata === undefined) {
+    body.message.metadata = BOT_METADATA_TAG;
+  }
   await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
-  // Record actual messages we send so their echoes aren't mistaken for a human.
   if (body?.message && body?.recipient?.id) noteBotSend(body.recipient.id);
 }
 
