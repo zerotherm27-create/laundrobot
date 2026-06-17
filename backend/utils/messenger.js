@@ -1,18 +1,18 @@
 const axios = require('axios');
-const { noteBotSend, BOT_METADATA_TAG } = require('./botEchoTracker');
+const { BOT_METADATA_TAG } = require('./botEchoTracker');
 
 const GRAPH_URL = 'https://graph.facebook.com/v19.0/me/messages';
 
 async function post(token, body) {
   // Stamp every real message (not typing/sender_action) with our metadata tag.
-  // Meta echoes this string back at message.metadata, letting the webhook tell the
-  // bot's own echoes apart from a human staff reply WITHOUT relying on app_id.
+  // Meta echoes this string back at message.metadata, which is how the webhook
+  // tells the bot's own echoes apart from a human staff reply WITHOUT using
+  // app_id (see utils/botEchoTracker.js). Every outbound message MUST go through
+  // here so it gets stamped.
   if (body?.message && body.message.metadata === undefined) {
     body.message.metadata = BOT_METADATA_TAG;
   }
   await axios.post(`${GRAPH_URL}?access_token=${token}`, body);
-  // Fallback bookkeeping for echoes that don't round-trip metadata (see botEchoTracker).
-  if (body?.message && body?.recipient?.id) noteBotSend(body.recipient.id);
 }
 
 // Typing indicator

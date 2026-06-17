@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
           // messages (tracked locally — Meta's app_id can't be trusted to tell
           // a human Business-Suite reply apart from our API sends).
           if (event.message?.is_echo || (event.message && event.sender.id === String(tenant.ig_user_id))) {
-            const ownEcho = isBotOwnEcho(event.message, event.recipient.id);
+            const ownEcho = isBotOwnEcho(event.message);
             console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
             if (!ownEcho) {
               try { await pauseAiForCustomer(tenant, event.recipient.id); }
@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
           // itself sends a message. We recognise the bot's own echoes by the
           // metadata tag we stamp on every send (Meta round-trips it); humans'
           // inbox replies have none. Never use app_id (see isBotOwnEcho).
-          const ownEcho = isBotOwnEcho(event.message, event.recipient.id);
+          const ownEcho = isBotOwnEcho(event.message);
           console.log('[webhook] echo — recipient:', event.recipient.id, '| app_id:', event.message.app_id, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
           if (!ownEcho) {
             try { await pauseAiForCustomer(tenant, event.recipient.id); }
