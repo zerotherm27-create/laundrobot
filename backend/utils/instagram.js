@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { BOT_METADATA_TAG } = require('./botEchoTracker');
+const { BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
 // Instagram Messaging API — endpoint uses ig_user_id, not 'me'
 function graphUrl(igUserId) {
@@ -7,15 +7,12 @@ function graphUrl(igUserId) {
 }
 
 async function post(token, igUserId, body) {
-  // Stamp with our metadata tag so echoes are recognised as the bot's own without
-  // relying on app_id (see utils/botEchoTracker.js). This assumes Meta round-trips
-  // message.metadata on IG echoes; verify when the IG bot goes live (currently
-  // blocked on App Review). If it does not, the bot would read its own echoes as
-  // human and pause itself — the safe direction, but retest before launch.
   if (body?.message && body.message.metadata === undefined) {
     body.message.metadata = BOT_METADATA_TAG;
   }
-  await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
+  const resp = await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
+  noteBotSend(resp.data?.message_id);
+  return resp;
 }
 
 // Split long text at paragraph/sentence boundaries (IG limit: 1000 chars)
