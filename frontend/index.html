@@ -207,7 +207,12 @@
         to { transform: rotate(360deg); }
       }
 
-      .animate-fade-up  { animation: fadeUp  0.25s ease both; }
+      /* `backwards` (not `both`): keep the pre-animation state to avoid a load
+         flash, but do NOT keep `forwards` fill — that left transform:translateY(0)
+         applied permanently, and ANY non-none transform makes this element the
+         containing block for position:fixed descendants, trapping nested modals
+         (.modal-overlay) inside the wrapper and pushing them off-screen. */
+      .animate-fade-up  { animation: fadeUp  0.25s ease backwards; }
       .animate-fade-in  { animation: fadeIn  0.2s  ease both; }
 
       @keyframes slideInRight {
