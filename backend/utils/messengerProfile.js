@@ -15,18 +15,18 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
   try {
     const pageInfo = await axios.get(`${GRAPH}/me?fields=id&access_token=${pageToken}`);
     const pageId = pageInfo.data.id;
-    const messengerFields = ['messages', 'messaging_postbacks', 'messaging_optins', 'messaging_referrals', 'message_echoes'];
-    // Try with instagram_manage_messages first; fall back to Messenger-only if not yet approved
+    const messengerFields = 'messages,messaging_postbacks,messaging_optins,messaging_referrals,message_echoes';
+    // subscribed_fields must be a comma-separated string in the URL — Facebook's
+    // subscribed_apps endpoint ignores JSON-body arrays and returns success anyway,
+    // which is why message_echoes was silently never registered.
     try {
       await axios.post(
-        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
-        { subscribed_fields: [...messengerFields, 'instagram_manage_messages'] }
+        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}&subscribed_fields=${messengerFields},instagram_manage_messages`
       );
       console.log(`[messenger-profile] webhook subscribed with Instagram for page ${pageId}`);
     } catch (igErr) {
       await axios.post(
-        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}`,
-        { subscribed_fields: messengerFields }
+        `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}&subscribed_fields=${messengerFields}`
       );
       console.log(`[messenger-profile] webhook subscribed (Messenger only) for page ${pageId} — instagram_manage_messages not yet approved`);
     }
