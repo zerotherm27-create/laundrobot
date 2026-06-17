@@ -156,4 +156,15 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
   });
   console.log('✓ monthly archive cron scheduled (1st of each month)');
+
+  // Prune old bot_sends rows — keeps the table small (only need last 5h)
+  cron.schedule('15 * * * *', async () => {
+    try {
+      const db = require('./db');
+      await db.query("DELETE FROM bot_sends WHERE created_at < NOW() - INTERVAL '6 hours'");
+    } catch (err) {
+      console.error('[bot-sends-cleanup] error:', err.message);
+    }
+  });
+  console.log('✓ bot_sends cleanup cron scheduled (every hour)');
 });

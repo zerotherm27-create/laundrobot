@@ -1,4 +1,5 @@
 const axios = require('axios');
+const db = require('../db');
 const { BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
 const GRAPH_URL = 'https://graph.facebook.com/v19.0/me/messages';
@@ -10,8 +11,10 @@ async function post(token, body) {
     body.message.metadata = BOT_METADATA_TAG;
   }
   const resp = await axios.post(`${GRAPH_URL}?access_token=${token}`, body);
-  // Record the message_id so its echo is recognised as the bot's own send.
-  noteBotSend(resp.data?.message_id);
+  const mid = resp.data?.message_id;
+  noteBotSend(mid);
+  // Persist to DB so the human-takeover check survives process restarts.
+  if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
   return resp;
 }
 

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const db = require('../db');
 const { BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
 // Instagram Messaging API — endpoint uses ig_user_id, not 'me'
@@ -11,7 +12,9 @@ async function post(token, igUserId, body) {
     body.message.metadata = BOT_METADATA_TAG;
   }
   const resp = await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
-  noteBotSend(resp.data?.message_id);
+  const mid = resp.data?.message_id;
+  noteBotSend(mid);
+  if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
   return resp;
 }
 

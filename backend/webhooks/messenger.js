@@ -440,10 +440,15 @@ async function checkForHumanReply(pageToken, userId, tenant) {
     for (const msg of messages) {
       if (msg.from?.id === userId) continue;                          // customer's own message
       if (new Date(msg.created_time).getTime() < cutoffMs) continue; // too old to matter
-      if (!hasSentMid(msg.id)) {
-        console.log('[human-check] human reply detected via Graph API mid:', msg.id);
-        return true;
-      }
+      if (hasSentMid(msg.id)) continue;                              // in-memory: bot's own send
+      // Not in memory (possible after restart) — check DB before concluding it's human
+      const { rows } = await db.query(
+        "SELECT 1 FROM bot_sends WHERE mid=$1 AND created_at > NOW() - INTERVAL '5 hours'",
+        [msg.id]
+      );
+      if (rows.length > 0) continue; // DB confirms it's a bot send
+      console.log('[human-check] human reply detected via Graph API mid:', msg.id);
+      return true;
     }
     return false;
   } catch (err) {
