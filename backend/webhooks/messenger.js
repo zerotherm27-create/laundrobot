@@ -6,7 +6,7 @@ const db = require('../db');
 const messengerUtils = require('../utils/messenger');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping } = messengerUtils;
 const igUtils = require('../utils/instagram');
-const { isBotOwnEcho } = require('../utils/botEchoTracker');
+const { isBotOwnEcho, hasSentMid } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 
@@ -417,6 +417,40 @@ async function showSubscribePrompt(sends, token, senderId, customer) {
       { type: 'postback', title: 'No thanks',   payload: 'NO_SUBSCRIBE'    },
     ]
   );
+}
+
+// ── Graph API fallback: detect human reply without message_echoes ────────────
+// When message_echoes subscription is not delivering, we query the conversation
+// thread directly. If any recent message FROM the page has a mid we never sent
+// (not in botEchoTracker._sentMids), a human staff member replied → pause AI.
+const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
+async function checkForHumanReply(pageToken, userId, tenant) {
+  try {
+    const pauseHours = tenant.ai_pause_hours ?? 2;
+    const { data } = await axios.get(`${GRAPH_BASE}/me/conversations`, {
+      params: {
+        user_id: userId,
+        access_token: pageToken,
+        fields: 'messages.limit(5){from,id,created_time}',
+      },
+      timeout: 3000,
+    });
+    const messages = data?.data?.[0]?.messages?.data || [];
+    const cutoffMs = Date.now() - pauseHours * 3_600_000;
+    for (const msg of messages) {
+      if (msg.from?.id === userId) continue;                          // customer's own message
+      if (new Date(msg.created_time).getTime() < cutoffMs) continue; // too old to matter
+      if (!hasSentMid(msg.id)) {
+        console.log('[human-check] human reply detected via Graph API mid:', msg.id);
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    // Fail open — let AI reply rather than silently blocking it
+    console.warn('[human-check] Graph API check failed:', err.response?.data?.error?.message || err.message);
+    return false;
+  }
 }
 
 // ── Pause AI for a customer (called on admin echo) ───────────────────────────
@@ -969,6 +1003,14 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     if (pauseRow?.needs_human) return; // human takeover — stay silent
     if (pauseRow?.ai_paused_until && new Date(pauseRow.ai_paused_until) > new Date()) {
       return; // human replied recently — stay silent
+    }
+    // Fallback human-takeover detection: message_echoes subscription is unreliable,
+    // so we query the Graph API conversation thread and look for any recent page
+    // message we didn't send (not in botEchoTracker._sentMids) → human replied.
+    const humanReplied = await checkForHumanReply(token, senderId, tenant);
+    if (humanReplied) {
+      await pauseAiForCustomer(tenant, senderId);
+      return;
     }
     // Check daily cap — reset counter if day has changed
     const today = new Date().toISOString().slice(0, 10);

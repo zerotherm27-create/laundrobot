@@ -41,7 +41,9 @@ const BOT_METADATA_TAG = 'laundrobot_ai_v1';
 
 // mid → expiry timestamp (ms). Capped at MAX_MIDS; old entries pruned on overflow.
 const _sentMids = new Map();
-const MID_TTL_MS = 10 * 60 * 1000; // 10 min — far longer than any echo round-trip
+// TTL must exceed ai_pause_hours (default 2h) so that the Graph API fallback check
+// can still tell bot mids apart from human mids within the pause window.
+const MID_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const MAX_MIDS = 1000;
 
 function noteBotSend(mid) {
@@ -71,4 +73,14 @@ function isBotOwnEcho(echoMessage) {
   return echoMessage.metadata === BOT_METADATA_TAG;
 }
 
-module.exports = { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend };
+// Returns true if the given mid was sent by our bot (i.e., recorded via noteBotSend).
+// Used by the Graph API fallback to distinguish bot sends from human replies.
+function hasSentMid(mid) {
+  if (!mid) return false;
+  const exp = _sentMids.get(mid);
+  if (exp === undefined) return false;
+  if (Date.now() >= exp) { _sentMids.delete(mid); return false; }
+  return true;
+}
+
+module.exports = { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend, hasSentMid };
