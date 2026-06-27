@@ -66,6 +66,7 @@ export const updateCategory = (id, data) => api.put(`/categories/${id}`, data);
 export const deleteCategory = id => api.delete(`/categories/${id}`);
 
 export const getCustomers = () => api.get('/customers');
+export const searchCustomers = (q) => api.get('/customers/search', { params: { q } });
 export const updateCustomer = (id, data) => api.patch(`/customers/${id}`, data);
 export const deleteCustomer = id => api.delete(`/customers/${id}`);
 

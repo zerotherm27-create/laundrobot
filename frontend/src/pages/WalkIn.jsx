@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus } from '../api.js';
+import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus, searchCustomers } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
@@ -327,6 +327,9 @@ export default function WalkIn() {
 
   // Step 2
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', pickup_date: '', pickup_time: '', notes: '' });
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [showSuggestions,     setShowSuggestions]     = useState(false);
+  const searchTimeout = useRef(null);
 
   // Step 3
   const [privacyConsent, setPrivacyConsent] = useState(false);
@@ -979,15 +982,63 @@ export default function WalkIn() {
           <div style={{ fontSize: 13, color: '#374151', marginBottom: 20 }}>Enter the customer's information below.</div>
 
           <Field label="Full Name" required>
-            <input type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              placeholder="e.g. Juan dela Cruz" style={INPUT}
-              onFocus={focusInput} onBlur={blurInput} />
+            <div style={{ position: 'relative' }}>
+              <input type="text" value={form.name}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(p => ({ ...p, name: val }));
+                  clearTimeout(searchTimeout.current);
+                  if (val.trim().length < 2) { setCustomerSuggestions([]); setShowSuggestions(false); return; }
+                  searchTimeout.current = setTimeout(async () => {
+                    try {
+                      const { data } = await searchCustomers(val.trim());
+                      setCustomerSuggestions(data);
+                      setShowSuggestions(data.length > 0);
+                    } catch { /* ignore */ }
+                  }, 250);
+                }}
+                onFocus={e => { focusInput(e); if (customerSuggestions.length > 0) setShowSuggestions(true); }}
+                onBlur={e => { blurInput(e); setTimeout(() => setShowSuggestions(false), 150); }}
+                placeholder="e.g. Juan dela Cruz" style={INPUT} autoComplete="off" />
+              {showSuggestions && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.10)', marginTop: 2, overflow: 'hidden' }}>
+                  {customerSuggestions.map(c => (
+                    <div key={c.id}
+                      onMouseDown={() => {
+                        setForm(p => ({ ...p, name: c.name, phone: c.phone || p.phone, email: c.email || p.email, address: c.address || p.address }));
+                        setShowSuggestions(false);
+                        setCustomerSuggestions([]);
+                      }}
+                      style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#F0F9FF'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{c.name}</div>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>{c.phone}{c.email ? ` · ${c.email}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </Field>
 
           <Field label="Mobile Number" required>
-            <input type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-              placeholder="09XXXXXXXXX" style={INPUT}
-              onFocus={focusInput} onBlur={blurInput} />
+            <input type="tel" value={form.phone}
+              onChange={e => {
+                const val = e.target.value;
+                setForm(p => ({ ...p, phone: val }));
+                clearTimeout(searchTimeout.current);
+                if (val.trim().length < 7) { setCustomerSuggestions([]); setShowSuggestions(false); return; }
+                searchTimeout.current = setTimeout(async () => {
+                  try {
+                    const { data } = await searchCustomers(val.trim());
+                    setCustomerSuggestions(data);
+                    setShowSuggestions(data.length > 0);
+                  } catch { /* ignore */ }
+                }, 250);
+              }}
+              onFocus={e => { focusInput(e); if (customerSuggestions.length > 0) setShowSuggestions(true); }}
+              onBlur={e => { blurInput(e); setTimeout(() => setShowSuggestions(false), 150); }}
+              placeholder="09XXXXXXXXX" style={INPUT} autoComplete="off" />
           </Field>
 
           <Field label="Email (optional)">

@@ -21,6 +21,24 @@ router.get('/', auth, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// GET customer search (typeahead) — matches name or phone, returns top 8
+router.get('/search', auth, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+  try {
+    const { rows } = await db.query(
+      `SELECT id, name, phone, email, address
+       FROM customers
+       WHERE tenant_id = $1
+         AND (name ILIKE $2 OR phone ILIKE $2)
+       ORDER BY name
+       LIMIT 8`,
+      [req.user.tenant_id, `%${q}%`]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET single customer with order history
 router.get('/:id', auth, async (req, res) => {
   try {
