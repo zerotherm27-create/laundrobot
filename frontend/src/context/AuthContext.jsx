@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
   }, [user?.tenant_id]);
 
   async function login(email, password, keepLoggedIn = false) {
-    const { data } = await apiLogin(email, password);
+    const { data } = await apiLogin(email, password, keepLoggedIn);
     const permissions = data.permissions || [];
     saveToken(data.token, keepLoggedIn);
     localStorage.setItem('role',        data.role);
