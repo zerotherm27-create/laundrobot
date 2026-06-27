@@ -3,6 +3,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 // Activate the new SW immediately and take control of open tabs.
 // vite-plugin-pwa's autoUpdate registration reloads the tabs once we're in control.
+// Force update: 2026-06-27
 self.skipWaiting();
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
