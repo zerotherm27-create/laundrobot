@@ -171,6 +171,10 @@
       /* ── Transitions ── */
       button, a { transition: all var(--transition); }
 
+      /* ── Global button press feedback (applies to inline-styled buttons too) ── */
+      button:not(:disabled):hover { opacity: .88; }
+      button:not(:disabled):active { transform: scale(.95); opacity: 1; }
+
       /* ── Sidebar nav items ── */
       .nav-item {
         display: flex; align-items: center; gap: 10px;
