@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 
@@ -122,6 +122,8 @@ export default function Settings() {
   const [refForm,        setRefForm]        = useState({ name: '', ref: '' });
   const [savingRef,      setSavingRef]      = useState(false);
   const [refErr,         setRefErr]         = useState('');
+  const [editingRefId,   setEditingRefId]   = useState(null);
+  const [editingRefName, setEditingRefName] = useState('');
 
   // Messenger menu reset
   const [resettingMenu,  setResettingMenu]  = useState(false);
@@ -1288,9 +1290,31 @@ export default function Settings() {
                     {referrals.map(r => {
                       const conv = r.click_count > 0 ? ((Number(r.order_count) / r.click_count) * 100).toFixed(1) : '—';
                       const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
+                      const isEditing = editingRefId === r.id;
                       return (
                         <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                          <td style={{ padding: '10px 10px', fontWeight: 600, color: '#111827' }}>{r.name}</td>
+                          <td style={{ padding: '10px 10px', fontWeight: 600, color: '#111827' }}>
+                            {isEditing ? (
+                              <input
+                                autoFocus
+                                value={editingRefName}
+                                onChange={e => setEditingRefName(e.target.value)}
+                                onKeyDown={async e => {
+                                  if (e.key === 'Escape') { setEditingRefId(null); return; }
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (!editingRefName.trim()) return;
+                                    try {
+                                      const { data } = await updateReferralLink(r.id, { name: editingRefName.trim() });
+                                      setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, name: data.name } : x));
+                                      setEditingRefId(null);
+                                    } catch { alert('Failed to rename.'); }
+                                  }
+                                }}
+                                style={{ fontSize: 13, padding: '4px 8px', borderRadius: 6, border: '1.5px solid #38a9c2', outline: 'none', width: '100%', minWidth: 120 }}
+                              />
+                            ) : r.name}
+                          </td>
                           <td style={{ padding: '10px 10px' }}>
                             <span style={{ fontFamily: 'monospace', background: '#F3F4F6', padding: '2px 7px', borderRadius: 4, fontSize: 12 }}>{r.ref}</span>
                           </td>
@@ -1304,16 +1328,44 @@ export default function Settings() {
                           <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.order_count}</td>
                           <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
                           <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
-                          <td style={{ padding: '10px 10px' }}>
-                            <button type="button"
-                              onClick={async () => {
-                                if (!confirm(`Delete referral link "${r.name}"?`)) return;
-                                try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
-                                catch { alert('Failed to delete.'); }
-                              }}
-                              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
-                              Delete
-                            </button>
+                          <td style={{ padding: '10px 10px', display: 'flex', gap: 6 }}>
+                            {isEditing ? (
+                              <>
+                                <button type="button"
+                                  onClick={async () => {
+                                    if (!editingRefName.trim()) return;
+                                    try {
+                                      const { data } = await updateReferralLink(r.id, { name: editingRefName.trim() });
+                                      setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, name: data.name } : x));
+                                      setEditingRefId(null);
+                                    } catch { alert('Failed to rename.'); }
+                                  }}
+                                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+                                  Save
+                                </button>
+                                <button type="button" onClick={() => setEditingRefId(null)}
+                                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid #E2E8F0', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button type="button"
+                                  onClick={() => { setEditingRefId(r.id); setEditingRefName(r.name); }}
+                                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid #E2E8F0', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
+                                  Rename
+                                </button>
+                                <button type="button"
+                                  onClick={async () => {
+                                    if (!confirm(`Delete referral link "${r.name}"?`)) return;
+                                    try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
+                                    catch { alert('Failed to delete.'); }
+                                  }}
+                                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
+                                  Delete
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );
