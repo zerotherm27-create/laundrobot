@@ -189,7 +189,11 @@ router.put('/booking/:ref', auth, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    const first = existing[0];
+    // Use only active (non-cancelled) rows to determine booking context.
+    // Cancelled rows may exist from a prior web booking under the same ref —
+    // never inherit their status/source when inserting new items.
+    const activeRows = existing.filter(o => o.status !== 'CANCELLED');
+    const first = activeRows[0] || existing[0];
     const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
     const editStamp = `[Edited by admin — ${new Date().toLocaleDateString('en-PH', { dateStyle: 'short' })}]`;
 
