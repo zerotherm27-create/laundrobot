@@ -2,10 +2,9 @@ const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const auth = require('../middleware/auth');
 const db = require('../db');
-const { sendTaggedMessage } = require('../utils/messenger');
+const { sendTaggedMessage, sendStatusUpdate, sendButtons } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
-const { sendButtons } = require('../utils/messenger');
 const { sendPushToTenant } = require('../utils/push');
 
 const { deductInventory } = require('./inventory');
@@ -389,7 +388,7 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
 
   // Load customer fb_id and review state
   const { rows: [orderWithCustomer] } = await db.query(
-    `SELECT c.fb_id, c.id AS customer_id, c.has_reviewed, c.review_last_requested_at
+    `SELECT c.fb_id, c.name AS customer_name, c.id AS customer_id, c.has_reviewed, c.review_last_requested_at
      FROM orders o JOIN customers c ON c.id = o.customer_id
      WHERE o.id=$1`,
     [updatedOrder.id]
@@ -398,7 +397,7 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
 
   // Load tenant details
   const { rows: [tenant] } = await db.query(
-    `SELECT name, fb_page_access_token, google_review_link,
+    `SELECT name, fb_page_id, fb_page_access_token, google_review_link,
             COALESCE(review_cooldown_days, 30) AS review_cooldown_days
      FROM tenants WHERE id=$1`,
     [tenantId]
@@ -431,7 +430,16 @@ async function sendCompletionNotification(updatedOrder, tenantId) {
     `Hope everything is fresh and perfect! ${includeReview ? `If you had a great experience, a quick Google review means the world to us 🙏\n👉 ${tenant.google_review_link}\n\n` : ''}Reply anytime to book your next pickup! 😊`,
   ];
 
-  await sendTaggedMessage(tenant.fb_page_access_token, orderWithCustomer.fb_id, lines.join('\n'));
+  const customerName = orderWithCustomer.customer_name || 'there';
+  await sendStatusUpdate(
+    tenant.fb_page_id,
+    tenant.fb_page_access_token,
+    orderWithCustomer.fb_id,
+    lines.join('\n'),
+    customerName,
+    displayRef,
+    'completed and ready for pickup'
+  );
 
   // Update review timestamp if we sent the link
   if (includeReview) {
@@ -474,7 +482,7 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
   );
 
   const { rows: [tenant] } = await db.query(
-    `SELECT name, fb_page_access_token FROM tenants WHERE id=$1`,
+    `SELECT name, fb_page_id, fb_page_access_token FROM tenants WHERE id=$1`,
     [tenantId]
   );
   if (!tenant?.fb_page_access_token) return;
@@ -483,8 +491,10 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
   const svc  = [...new Set(siblings.map(o => o.service_name).filter(Boolean))].join(' & ') || 'your laundry';
   const displayRef = bookingRef || updatedOrder.id.slice(-8).toUpperCase();
   let text;
+  let statusPhrase;
 
   if (status === 'PROCESSING') {
+    statusPhrase = 'being processed';
     text = [
       `🧺 Your laundry is now being processed, ${name}!`,
       ``,
@@ -495,6 +505,7 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
       `– ${tenant.name}`,
     ].join('\n');
   } else if (status === 'FOR DELIVERY') {
+    statusPhrase = 'ready for delivery';
     text = [
       `Hi ${name}! Your laundry is all set and ready for delivery! 🚚`,
       ``,
@@ -506,7 +517,9 @@ async function sendStatusNotification(updatedOrder, tenantId, status) {
     ].join('\n');
   }
 
-  if (text) await sendTaggedMessage(tenant.fb_page_access_token, order.fb_id, text);
+  if (text) {
+    await sendStatusUpdate(tenant.fb_page_id, tenant.fb_page_access_token, order.fb_id, text, name, displayRef, statusPhrase);
+  }
 }
 
 // POST generate (or regenerate) a Xendit payment link for an existing order

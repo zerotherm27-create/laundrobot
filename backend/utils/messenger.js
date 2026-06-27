@@ -3,6 +3,8 @@ const db = require('../db');
 const { BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
 const GRAPH_URL = 'https://graph.facebook.com/v19.0/me/messages';
+const GRAPH_VERSION = 'v21.0';
+const UTILITY_TEMPLATE = 'order_status_update_v2';
 
 async function post(token, body) {
   // Still stamp metadata as a secondary fallback for environments where mid
@@ -51,17 +53,9 @@ async function sendMessage(token, recipientId, text) {
 
 // Order / status update message.
 //
-// The POST_PURCHASE_UPDATE message tag this used to send was DEPRECATED by Meta
-// on 2026-04-27 — it now returns error code 100, so every status notification was
-// silently failing. We send a normal RESPONSE message instead, which Meta delivers
-// to any customer within the 24-hour messaging window (i.e. who has messaged the
-// shop recently).
-//
-// Customers OUTSIDE the 24h window will get error #10 here (caught/logged by the
-// fire-and-forget callers). Reaching them requires sending the approved UTILITY
-// template `order_status_update_v2` via sendUtilityTemplate() — TODO: wire that in
-// once its Send API payload is verified against the live Graph API (see
-// scripts/send-utility-template.js).
+// Tries RESPONSE (works within the 24h messaging window), then falls back to the
+// approved UTILITY template `order_status_update_v2` for customers outside that window.
+// The old POST_PURCHASE_UPDATE tag was deprecated by Meta on 2026-04-27 (error 100).
 async function sendTaggedMessage(token, recipientId, text) {
   try {
     await post(token, {
@@ -72,10 +66,99 @@ async function sendTaggedMessage(token, recipientId, text) {
   } catch (err) {
     const e = err.response?.data?.error;
     if (e?.code === 10) {
-      // Outside the 24h window — expected until the UTILITY template path is wired.
-      console.warn(`[sendTaggedMessage] outside 24h window for ${recipientId}; needs UTILITY template (order_status_update_v2). ${e.message}`);
+      console.warn(`[sendTaggedMessage] outside 24h window for ${recipientId}; needs UTILITY template. ${e.message}`);
     }
-    throw err; // preserve existing fire-and-forget .catch() behaviour in callers
+    throw err;
+  }
+}
+
+// Send the approved utility template `order_status_update_v2`.
+// Template body params: {{1}} customerName, {{2}} orderRef, {{3}} statusPhrase.
+// pageId is the FB page id (not the token) — utility templates require /{pageId}/messages.
+// Meta's exact Send API shape for utility templates is undocumented so we try candidates
+// in order (same as scripts/send-utility-template.js) and use the first accepted one.
+async function sendUtilityTemplate(pageId, token, recipientId, customerName, orderRef, statusPhrase) {
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/messages`;
+  const params_list = [customerName, orderRef, statusPhrase].map(t => ({ type: 'text', text: t }));
+
+  const candidates = [
+    {
+      label: 'A',
+      message: {
+        attachment: {
+          type: 'template',
+          payload: {
+            template_type: 'utility',
+            name: UTILITY_TEMPLATE,
+            language: 'en_US',
+            components: [{ type: 'body', parameters: params_list }],
+          },
+        },
+      },
+    },
+    {
+      label: 'B',
+      message: {
+        template: {
+          name: UTILITY_TEMPLATE,
+          language: { code: 'en_US' },
+          components: [{ type: 'body', parameters: params_list }],
+        },
+      },
+    },
+    {
+      label: 'C',
+      message: {
+        attachment: {
+          type: 'template',
+          payload: {
+            template_type: 'customer_information',
+            name: UTILITY_TEMPLATE,
+            language: 'en_US',
+            body_parameters: [customerName, orderRef, statusPhrase],
+          },
+        },
+      },
+    },
+  ];
+
+  let lastErr;
+  for (const c of candidates) {
+    const body = { messaging_type: 'MESSAGE_TAG', recipient: { id: recipientId }, ...c };
+    try {
+      const resp = await axios.post(url, body, { params: { access_token: token } });
+      const mid = resp.data?.message_id;
+      noteBotSend(mid);
+      if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
+      console.log(`[utility-template] sent via candidate ${c.label} to ${recipientId} mid=${mid}`);
+      return;
+    } catch (err) {
+      const e = err.response?.data?.error;
+      console.warn(`[utility-template] candidate ${c.label} failed: (#${e?.code}/${e?.error_subcode}) ${e?.message || err.message}`);
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+// Sends a status notification: tries RESPONSE first (within 24h window),
+// falls back to utility template for customers outside the window.
+// pageId required for the utility template endpoint.
+async function sendStatusUpdate(pageId, token, recipientId, text, customerName, orderRef, statusPhrase) {
+  try {
+    await post(token, {
+      messaging_type: 'RESPONSE',
+      recipient: { id: recipientId },
+      message: { text },
+    });
+  } catch (err) {
+    const e = err.response?.data?.error;
+    if (e?.code === 10 && pageId) {
+      console.log(`[sendStatusUpdate] outside 24h window for ${recipientId}; trying utility template`);
+      await sendUtilityTemplate(pageId, token, recipientId, customerName, orderRef, statusPhrase);
+    } else {
+      throw err;
+    }
   }
 }
 
@@ -139,4 +222,4 @@ async function sendCatalog(token, recipientId, elements) {
   });
 }
 
-module.exports = { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping };
+module.exports = { sendMessage, sendTaggedMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping };
