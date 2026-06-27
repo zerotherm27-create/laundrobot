@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus, searchCustomers } from '../api.js';
+import { saveWalkInCache, loadWalkInCache, enqueueOrder, getPendingOrders, syncPendingOrders } from '../utils/offlineQueue.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
@@ -348,13 +349,37 @@ export default function WalkIn() {
   const [submitErr,    setSubmitErr]      = useState('');
   const [bookingRef,   setBookingRef]     = useState('');
 
+  // Offline support
+  const [isOffline,    setIsOffline]    = useState(!navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [syncing,      setSyncing]      = useState(false);
+
   useEffect(() => {
+    // Load pending count on mount
+    getPendingOrders().then(q => setPendingCount(q.length)).catch(() => {});
+
+    // Seed from IndexedDB if no in-memory cache (handles offline after full reload)
+    if (!hasCached) {
+      loadWalkInCache().then(cached => {
+        if (cached && !_cache.categories) {
+          _cache.categories = cached.categories;
+          _cache.services   = cached.services;
+          _cache.shopInfo   = cached.shopInfo;
+          setCategories(cached.categories || []);
+          setServices((cached.services || []).filter(s => s.active !== false));
+          setShopInfo(cached.shopInfo || null);
+          if (cached.categories?.length > 0) setActiveCat(prev => prev ?? cached.categories[0].id);
+          setLoading(false);
+        }
+      }).catch(() => {});
+    }
+
+    // Always try the API — fresher data, and saves to IDB for next offline use
     Promise.all([getCategories(), getServices(), getMyTenantSettings()])
       .then(([catRes, svcRes, shopRes]) => {
         const cats = catRes.data;
         const svcs = svcRes.data.filter(s => s.active !== false);
         const shop = shopRes.data;
-        // Populate cache for instant load on next visit
         _cache.categories = cats;
         _cache.services   = svcs;
         _cache.shopInfo   = shop;
@@ -362,6 +387,8 @@ export default function WalkIn() {
         setServices(svcs);
         setShopInfo(shop);
         if (cats.length > 0) setActiveCat(prev => prev ?? cats[0].id);
+        // Persist for offline use
+        saveWalkInCache({ categories: cats, services: svcs, shopInfo: shop }).catch(() => {});
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -546,6 +573,31 @@ export default function WalkIn() {
     } finally { setPromoLoading(false); }
   }
 
+  // ── Offline sync ─────────────────────────────────────────────────────────
+
+  const doSync = useCallback(async () => {
+    const pending = await getPendingOrders().catch(() => []);
+    if (!pending.length) return;
+    setSyncing(true);
+    try {
+      await syncPendingOrders(payload => createWalkInOrder(payload));
+      const remaining = await getPendingOrders();
+      setPendingCount(remaining.length);
+    } catch (_) {}
+    setSyncing(false);
+  }, []);
+
+  useEffect(() => {
+    function handleOnline()  { setIsOffline(false); doSync(); }
+    function handleOffline() { setIsOffline(true); }
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [doSync]);
+
   // ── Submit ────────────────────────────────────────────────────────────────
 
   // ── Credit card polling — fires when ccPolling=true, stops on success ────────
@@ -596,13 +648,42 @@ export default function WalkIn() {
   // ── GCash / Maya / Cash — create order → success ─────────────────────────────
   async function handleConfirmPayment(method) {
     setSubmitting(true); setSubmitErr('');
+    const payload = buildOrderPayload(method, true);
+
+    // Save offline if no connection
+    if (!navigator.onLine) {
+      try {
+        const tempRef = await enqueueOrder(payload);
+        setPendingCount(c => c + 1);
+        setBookingRef(tempRef);
+        setPaymentMethod(null);
+        setStep('success');
+      } catch (_) {
+        setSubmitErr('Failed to save order. Please try again.');
+      } finally { setSubmitting(false); }
+      return;
+    }
+
     try {
-      const { data } = await createWalkInOrder(buildOrderPayload(method, true));
+      const { data } = await createWalkInOrder(payload);
       setBookingRef(data.booking_ref);
       setPaymentMethod(null);
       setStep('success');
     } catch (err) {
-      setSubmitErr(err.response?.data?.error || 'Something went wrong. Please try again.');
+      // Network error (no response) — save offline silently
+      if (!err.response) {
+        try {
+          const tempRef = await enqueueOrder(payload);
+          setPendingCount(c => c + 1);
+          setBookingRef(tempRef);
+          setPaymentMethod(null);
+          setStep('success');
+        } catch (_) {
+          setSubmitErr('Network error. Please check your connection and try again.');
+        }
+      } else {
+        setSubmitErr(err.response?.data?.error || 'Something went wrong. Please try again.');
+      }
     } finally { setSubmitting(false); }
   }
 
@@ -651,24 +732,38 @@ export default function WalkIn() {
 
   // ── Success ───────────────────────────────────────────────────────────────
 
+  const isOfflineOrder = bookingRef?.startsWith('OFFLINE-');
+
   if (step === 'success') return (
     <div style={{ maxWidth: 620, margin: '0 auto' }} className="animate-fade-up">
       <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,.08)', padding: '2.5rem', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg, #d6eff4 0%, #E2F5F8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="check-circle" size={32} color="#38a9c2" />
+          <div style={{ width: 64, height: 64, borderRadius: '50%',
+            background: isOfflineOrder ? 'linear-gradient(135deg, #FEF3C7, #FDE68A)' : 'linear-gradient(135deg, #d6eff4 0%, #E2F5F8 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={isOfflineOrder ? 'alert-triangle' : 'check-circle'} size={32} color={isOfflineOrder ? '#92400E' : '#38a9c2'} />
           </div>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 6 }}>Payment Received!</div>
-        <div style={{ fontSize: 13, color: '#374151', marginBottom: 24 }}>Order created and marked as paid.</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 6 }}>
+          {isOfflineOrder ? 'Order Saved Offline' : 'Payment Received!'}
+        </div>
+        <div style={{ fontSize: 13, color: '#374151', marginBottom: 24 }}>
+          {isOfflineOrder
+            ? 'No connection — order is queued and will sync to the system automatically when you\'re back online.'
+            : 'Order created and marked as paid.'}
+        </div>
 
-        <div style={{ background: '#F7F9FC', borderRadius: 12, padding: '18px 20px', marginBottom: 8, display: 'inline-block', minWidth: 240, border: '1.5px solid #E2F5F8' }}>
-          <div style={{ fontSize: 11, color: '#374151', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' }}>Booking Reference</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#38a9c2', letterSpacing: '.5px', fontFamily: 'monospace' }}>{bookingRef}</div>
+        <div style={{ background: '#F7F9FC', borderRadius: 12, padding: '18px 20px', marginBottom: 8, display: 'inline-block', minWidth: 240, border: `1.5px solid ${isOfflineOrder ? '#FDE68A' : '#E2F5F8'}` }}>
+          <div style={{ fontSize: 11, color: '#374151', marginBottom: 4, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            {isOfflineOrder ? 'Temp Reference (offline)' : 'Booking Reference'}
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: isOfflineOrder ? '#92400E' : '#38a9c2', letterSpacing: '.5px', fontFamily: 'monospace' }}>{bookingRef}</div>
         </div>
 
         <div style={{ fontSize: 13, color: '#374151', marginBottom: 28, marginTop: 16 }}>
-          Now visible in the Kanban board tagged as <strong>Walk-in</strong>.
+          {isOfflineOrder
+            ? 'Print receipt now. The order will appear in Kanban once synced.'
+            : <span>Now visible in the Kanban board tagged as <strong>Walk-in</strong>.</span>}
         </div>
 
         <button
@@ -698,6 +793,30 @@ export default function WalkIn() {
 
   return (
     <div style={{ maxWidth: 660, margin: '0 auto' }} className="animate-fade-up">
+      {/* Offline / pending sync banner */}
+      {(isOffline || pendingCount > 0) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+          padding: '10px 14px', borderRadius: 10, marginBottom: 14,
+          background: isOffline ? '#FEF3C7' : '#EBF8FA',
+          border: `1px solid ${isOffline ? '#FDE68A' : '#BAE6FD'}`,
+        }}>
+          <div style={{ fontSize: 13, color: isOffline ? '#92400E' : '#0369A1', fontWeight: 500 }}>
+            {isOffline
+              ? '📶 No internet — orders will be saved and synced when you reconnect.'
+              : `🔄 ${pendingCount} order${pendingCount !== 1 ? 's' : ''} pending sync`}
+          </div>
+          {!isOffline && pendingCount > 0 && (
+            <button onClick={doSync} disabled={syncing}
+              style={{ padding: '5px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
+                background: '#38a9c2', color: '#fff', cursor: syncing ? 'not-allowed' : 'pointer',
+                opacity: syncing ? 0.7 : 1, fontFamily: 'inherit', flexShrink: 0 }}>
+              {syncing ? 'Syncing…' : 'Sync Now'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
