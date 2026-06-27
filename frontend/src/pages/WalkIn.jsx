@@ -699,7 +699,7 @@ export default function WalkIn() {
       <div style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', letterSpacing: '-.3px', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Icon name="walkin" size={20} color="#38a9c2" />
-          Walk-in POS
+          Walk In
         </h1>
         <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>In-store order — no delivery, payment via QR.</p>
       </div>

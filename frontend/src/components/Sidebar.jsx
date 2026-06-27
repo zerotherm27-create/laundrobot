@@ -12,7 +12,7 @@ const NAV = [
   { key: 'Services',      iconName: 'services',   label: 'Services' },
   { key: 'Messaging',     iconName: 'messaging',  label: 'Messaging' },
   { key: 'FAQs',          iconName: 'faqs',       label: 'FAQs' },
-  { key: 'WalkIn',        iconName: 'walkin',     label: 'Walk-in POS' },
+  { key: 'WalkIn',        iconName: 'walkin',     label: 'Walk In' },
   { key: 'DeliveryZones', iconName: 'delivery',   label: 'Delivery Zones' },
   { key: 'Reports',       iconName: 'reports',    label: 'Reports' },
   { key: 'Finance',       iconName: 'finance',    label: 'Finance', adminOnly: true },

@@ -10,7 +10,7 @@ const FEATURES = [
   { key: 'Services',      icon: '✦',  label: 'Services' },
   { key: 'Messaging',     icon: '✉',  label: 'Messaging' },
   { key: 'FAQs',          icon: '❓', label: 'FAQs' },
-  { key: 'WalkIn',        icon: '🏪', label: 'Walk-in POS' },
+  { key: 'WalkIn',        icon: '🏪', label: 'Walk In' },
   { key: 'DeliveryZones', icon: '🚚', label: 'Delivery Zones' },
   { key: 'Reports',       icon: '📊', label: 'Reports' },
   { key: 'Finance',       icon: '💰', label: 'Finance' },

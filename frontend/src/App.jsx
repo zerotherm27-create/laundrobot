@@ -77,7 +77,7 @@ const PAGE_TITLES = {
   SuperAdmin:     'Super Admin',
   DeliveryZones:  'Delivery Zones',
   Settings:       'Settings',
-  WalkIn:         'Walk-in POS',
+  WalkIn:         'Walk In',
   Branches:       'Branches',
 };
 
