@@ -124,6 +124,7 @@ export default function Settings() {
   const [refErr,         setRefErr]         = useState('');
   const [editingRefId,   setEditingRefId]   = useState(null);
   const [editingRefName, setEditingRefName] = useState('');
+  const [refreshingRef,  setRefreshingRef]  = useState(false);
 
   // Messenger menu reset
   const [resettingMenu,  setResettingMenu]  = useState(false);
@@ -1224,10 +1225,17 @@ export default function Settings() {
                 ? <span style={{ fontSize: 10, fontWeight: 700, background: '#D1FAE5', color: '#065F46', padding: '2px 7px', borderRadius: 4 }}>GROWTH+</span>
                 : !addingRef && (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="button"
-                      onClick={async () => { const { data } = await getReferralLinks(); setReferrals(data); }}
-                      style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
-                      ↻ Refresh
+                    <button type="button" disabled={refreshingRef}
+                      onClick={async () => {
+                        setRefreshingRef(true);
+                        try {
+                          const { data } = await getReferralLinks();
+                          setReferrals(data);
+                        } catch { alert('Failed to refresh. Please try again.'); }
+                        finally { setRefreshingRef(false); }
+                      }}
+                      style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: '#F9FAFB', color: refreshingRef ? '#9CA3AF' : '#374151', cursor: refreshingRef ? 'not-allowed' : 'pointer', minWidth: 80 }}>
+                      {refreshingRef ? 'Refreshing…' : '↻ Refresh'}
                     </button>
                     <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
                       style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none', background: '#0369A1', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
