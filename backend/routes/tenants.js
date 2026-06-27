@@ -437,7 +437,7 @@ router.get('/', auth, superadminOnly, async (req, res) => {
               CASE WHEN t.xendit_api_key IS NOT NULL AND length(t.xendit_api_key) >= 4
                    THEN right(t.xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
               COUNT(o.id)::int AS total_orders,
-              COALESCE(SUM(CASE WHEN o.paid THEN o.price ELSE 0 END), 0) AS total_revenue
+              COALESCE(SUM(CASE WHEN o.paid AND o.status != 'CANCELLED' THEN o.price ELSE 0 END), 0) AS total_revenue
        FROM tenants t
        LEFT JOIN orders o ON o.tenant_id = t.id
        GROUP BY t.id

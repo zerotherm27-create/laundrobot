@@ -15,7 +15,7 @@ router.get('/dashboard', auth, async (req, res) => {
 
     const { rows: [rev] } = await db.query(
       `SELECT
-        COALESCE(SUM(CASE WHEN paid THEN price ELSE 0 END), 0)::numeric AS revenue,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS revenue,
         COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED') AS load_count
        FROM orders
        WHERE tenant_id = $1
@@ -182,9 +182,9 @@ router.get('/monthly-summary', auth, async (req, res) => {
     const { rows: revRows } = await db.query(
       `SELECT
         EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
-        COALESCE(SUM(CASE WHEN paid THEN price ELSE 0 END), 0)::numeric AS gross_sales,
-        COALESCE(SUM(CASE WHEN paid THEN COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS total_discounts,
-        COALESCE(SUM(CASE WHEN paid THEN COALESCE(delivery_fee,0) ELSE 0 END), 0)::numeric AS delivery_revenue,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS gross_sales,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS total_discounts,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(delivery_fee,0) ELSE 0 END), 0)::numeric AS delivery_revenue,
         COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
        FROM orders
        WHERE tenant_id = $1
@@ -300,7 +300,7 @@ router.get('/breakeven', auth, async (req, res) => {
     const [{ rows: [rev] }, { rows: [exp] }, { rows: [vc] }] = await Promise.all([
       db.query(
         `SELECT
-          COALESCE(SUM(CASE WHEN paid THEN price ELSE 0 END), 0)::numeric AS revenue,
+          COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS revenue,
           COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
          FROM orders
          WHERE tenant_id=$1
@@ -369,7 +369,7 @@ router.get('/projections', auth, async (req, res) => {
     const daysElapsed    = isCurrentMonth ? now.getDate() : daysInMonth;
 
     const { rows: [mtd] } = await db.query(
-      `SELECT COALESCE(SUM(CASE WHEN paid THEN price ELSE 0 END),0)::numeric AS revenue,
+      `SELECT COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END),0)::numeric AS revenue,
               COUNT(*) FILTER (WHERE paid AND status!='CANCELLED')::int AS load_count
        FROM orders
        WHERE tenant_id=$1
@@ -382,7 +382,7 @@ router.get('/projections', auth, async (req, res) => {
     const { rows: history } = await db.query(
       `SELECT EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
               EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS yr,
-              SUM(CASE WHEN paid THEN price ELSE 0 END)::numeric AS revenue
+              SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END)::numeric AS revenue
        FROM orders
        WHERE tenant_id=$1
          AND created_at < DATE_TRUNC('month', (NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')
