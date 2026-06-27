@@ -16,7 +16,10 @@ router.get('/dashboard', auth, async (req, res) => {
     const { rows: [rev] } = await db.query(
       `SELECT
         COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS revenue,
-        COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED') AS load_count
+        COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED') AS load_count,
+        COALESCE(SUM(CASE WHEN paid AND status = 'CANCELLED'
+          THEN price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS refund_total,
+        COUNT(*) FILTER (WHERE paid AND status = 'CANCELLED') AS refund_count
        FROM orders
        WHERE tenant_id = $1
          AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
@@ -35,11 +38,13 @@ router.get('/dashboard', auth, async (req, res) => {
     const revenue = parseFloat(rev?.revenue) || 0;
     const expenses = parseFloat(exp?.expenses) || 0;
     const loadCount = parseInt(rev?.load_count) || 0;
+    const refundTotal = parseFloat(rev?.refund_total) || 0;
+    const refundCount = parseInt(rev?.refund_count) || 0;
     const netProfit = revenue - expenses;
     const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
     const avgRevenuePerLoad = loadCount > 0 ? revenue / loadCount : 0;
 
-    res.json({ revenue, expenses, netProfit, profitMargin, loadCount, avgRevenuePerLoad, year, month });
+    res.json({ revenue, expenses, netProfit, profitMargin, loadCount, avgRevenuePerLoad, refundTotal, refundCount, year, month });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Internal server error' });
@@ -185,7 +190,10 @@ router.get('/monthly-summary', auth, async (req, res) => {
         COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS gross_sales,
         COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS total_discounts,
         COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(delivery_fee,0) ELSE 0 END), 0)::numeric AS delivery_revenue,
-        COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
+        COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count,
+        COALESCE(SUM(CASE WHEN paid AND status = 'CANCELLED'
+          THEN price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS refund_total,
+        COUNT(*) FILTER (WHERE paid AND status = 'CANCELLED')::int AS refund_count
        FROM orders
        WHERE tenant_id = $1
          AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
@@ -230,6 +238,8 @@ router.get('/monthly-summary', auth, async (req, res) => {
       const discounts = parseFloat(r.total_discounts) || 0;
       const deliveryRev = parseFloat(r.delivery_revenue) || 0;
       const loadCount = parseInt(r.load_count) || 0;
+      const refundTotal = parseFloat(r.refund_total) || 0;
+      const refundCount = parseInt(r.refund_count) || 0;
       const netRevenue = grossSales - discounts + deliveryRev;
       const cogs = parseFloat(cogsMap[m]) || 0;
       const grossProfit = netRevenue - cogs;
@@ -237,7 +247,7 @@ router.get('/monthly-summary', auth, async (req, res) => {
       const netProfit = grossProfit - opExpenses;
       const marginPct = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0;
       ytd += netProfit;
-      return { month: m, grossSales, discounts, deliveryRev, netRevenue, cogs, grossProfit, opExpenses, netProfit, marginPct, ytdCumulative: ytd, loadCount };
+      return { month: m, grossSales, discounts, deliveryRev, netRevenue, cogs, grossProfit, opExpenses, netProfit, marginPct, ytdCumulative: ytd, loadCount, refundTotal, refundCount };
     });
 
     res.json({ year, months });

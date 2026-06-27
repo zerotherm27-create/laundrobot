@@ -617,12 +617,14 @@ function Dashboard() {
   }, [todayStr]);
 
 
-  const rev = parseFloat(data?.revenue)          || 0;
-  const exp = parseFloat(data?.expenses)         || 0;
-  const net = parseFloat(data?.netProfit)        || 0;
-  const mrg = parseFloat(data?.profitMargin)     || 0;
-  const cnt = Number(data?.loadCount             ?? 0);
-  const avg = parseFloat(data?.avgRevenuePerLoad) || 0;
+  const rev = parseFloat(data?.revenue)           || 0;
+  const exp = parseFloat(data?.expenses)          || 0;
+  const net = parseFloat(data?.netProfit)         || 0;
+  const mrg = parseFloat(data?.profitMargin)      || 0;
+  const cnt = Number(data?.loadCount              ?? 0);
+  const avg = parseFloat(data?.avgRevenuePerLoad)  || 0;
+  const rfd = parseFloat(data?.refundTotal)        || 0;
+  const rfc = Number(data?.refundCount             ?? 0);
 
   const kpis = data ? [
     { label: 'MTD Revenue',        val: PESO(rev), color: '#38a9c2' },
@@ -631,6 +633,7 @@ function Dashboard() {
     { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#EF4444' },
     { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD' },
     { label: 'Avg Revenue / Load', val: PESO(avg), color: '#BA7517' },
+    ...(rfd > 0 ? [{ label: `Refunds (${rfc} order${rfc !== 1 ? 's' : ''})`, val: PESO(rfd), color: '#DC2626' }] : []),
   ] : [];
 
   // Donut: profit (green) vs expenses (red)
@@ -1270,15 +1273,17 @@ function MonthlySummary() {
   }
 
   const totals = data?.months.reduce((s, m) => ({
-    grossSales:  s.grossSales  + m.grossSales,
-    discounts:   s.discounts   + m.discounts,
-    netRevenue:  s.netRevenue  + m.netRevenue,
-    cogs:        s.cogs        + m.cogs,
-    grossProfit: s.grossProfit + m.grossProfit,
-    opExpenses:  s.opExpenses  + m.opExpenses,
-    netProfit:   s.netProfit   + m.netProfit,
-    loadCount:   s.loadCount   + m.loadCount,
-  }), { grossSales: 0, discounts: 0, netRevenue: 0, cogs: 0, grossProfit: 0, opExpenses: 0, netProfit: 0, loadCount: 0 });
+    grossSales:   s.grossSales   + m.grossSales,
+    discounts:    s.discounts    + m.discounts,
+    netRevenue:   s.netRevenue   + m.netRevenue,
+    cogs:         s.cogs         + m.cogs,
+    grossProfit:  s.grossProfit  + m.grossProfit,
+    opExpenses:   s.opExpenses   + m.opExpenses,
+    netProfit:    s.netProfit    + m.netProfit,
+    loadCount:    s.loadCount    + m.loadCount,
+    refundTotal:  s.refundTotal  + (m.refundTotal  || 0),
+    refundCount:  s.refundCount  + (m.refundCount  || 0),
+  }), { grossSales: 0, discounts: 0, netRevenue: 0, cogs: 0, grossProfit: 0, opExpenses: 0, netProfit: 0, loadCount: 0, refundTotal: 0, refundCount: 0 });
 
   const totalMargin = totals && totals.netRevenue > 0
     ? (totals.netProfit / totals.netRevenue) * 100 : 0;
@@ -1388,7 +1393,7 @@ function MonthlySummary() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f9f9f7' }}>
-                  {['Month', 'Gross Sales', 'Discounts', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Profit', 'Orders'].map(h => (
+                  {['Month', 'Gross Sales', 'Discounts', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Profit', 'Orders', 'Refunds'].map(h => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -1419,6 +1424,9 @@ function MonthlySummary() {
                         {PESO(m.ytdCumulative)}
                       </td>
                       <td style={{ ...tdNum, color: '#6B7280' }}>{m.loadCount || '—'}</td>
+                      <td style={{ ...tdNum, color: m.refundTotal > 0 ? '#DC2626' : '#6B7280' }}>
+                        {m.refundTotal > 0 ? `-${PESO(m.refundTotal)}` : '—'}
+                      </td>
                     </tr>
                   );
                 })}
@@ -1445,6 +1453,9 @@ function MonthlySummary() {
                     </td>
                     <td style={tdNum}>—</td>
                     <td style={{ ...tdNum, color: '#6B7280', fontWeight: 700 }}>{totals.loadCount}</td>
+                    <td style={{ ...tdNum, fontWeight: 700, color: totals.refundTotal > 0 ? '#DC2626' : '#6B7280' }}>
+                      {totals.refundTotal > 0 ? `-${PESO(totals.refundTotal)}` : '—'}
+                    </td>
                   </tr>
                 )}
               </tbody>
