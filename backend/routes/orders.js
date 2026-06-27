@@ -303,6 +303,32 @@ router.put('/booking/:ref', auth, async (req, res) => {
   }
 });
 
+// GET refunds — must be before /:id to avoid Express treating "refunds" as an id
+router.get('/refunds', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT ON (o.booking_ref)
+              o.id, o.booking_ref, o.status, o.payment_method, o.paid,
+              o.refund_status, o.refund_note, o.refunded_at, o.refunded_by,
+              o.created_at,
+              SUM(o2.price) OVER (PARTITION BY o.booking_ref) AS total_amount,
+              c.name AS customer_name, c.phone AS customer_phone
+       FROM orders o
+       JOIN orders o2 ON o2.booking_ref = o.booking_ref AND o2.tenant_id = o.tenant_id
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.tenant_id = $1
+         AND o.paid = TRUE
+         AND o.status = 'CANCELLED'
+       ORDER BY o.booking_ref, o.created_at DESC`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[refunds]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET single order
 router.get('/:id', auth, async (req, res) => {
   try {
@@ -718,31 +744,6 @@ router.post('/:id/cancel', auth, async (req, res) => {
   }
 });
 
-// GET refunds — all cancelled paid orders with refund tracking
-router.get('/refunds', auth, async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT DISTINCT ON (o.booking_ref)
-              o.id, o.booking_ref, o.status, o.payment_method, o.paid,
-              o.refund_status, o.refund_note, o.refunded_at, o.refunded_by,
-              o.created_at,
-              SUM(o2.price) OVER (PARTITION BY o.booking_ref) AS total_amount,
-              c.name AS customer_name, c.phone AS customer_phone
-       FROM orders o
-       JOIN orders o2 ON o2.booking_ref = o.booking_ref AND o2.tenant_id = o.tenant_id
-       LEFT JOIN customers c ON c.id = o.customer_id
-       WHERE o.tenant_id = $1
-         AND o.paid = TRUE
-         AND o.status = 'CANCELLED'
-       ORDER BY o.booking_ref, o.created_at DESC`,
-      [req.user.tenant_id]
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('[refunds]', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // PATCH mark manual refund as issued
 router.patch('/:id/refund', auth, async (req, res) => {

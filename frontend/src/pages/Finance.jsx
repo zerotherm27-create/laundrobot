@@ -1815,8 +1815,6 @@ function Insights() {
 
 // ─── Refunds tab ─────────────────────────────────────────────────────────────
 
-const PESO = v => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const STATUS_LABEL = {
   pending: { label: 'Pending',      bg: '#FEF3C7', color: '#92400E' },
   issued:  { label: 'Issued',       bg: '#D1FAE5', color: '#065F46' },
