@@ -311,7 +311,7 @@ router.get('/refunds', auth, async (req, res) => {
               o.id, o.booking_ref, o.status, o.payment_method, o.paid,
               o.refund_status, o.refund_note, o.refunded_at, o.refunded_by,
               o.created_at,
-              SUM(o2.price) OVER (PARTITION BY o.booking_ref) AS total_amount,
+              SUM(o2.price + COALESCE(o2.delivery_fee,0) - COALESCE(o2.promo_discount,0)) OVER (PARTITION BY o.booking_ref) AS total_amount,
               c.name AS customer_name, c.phone AS customer_phone
        FROM orders o
        JOIN orders o2 ON o2.booking_ref = o.booking_ref AND o2.tenant_id = o.tenant_id
