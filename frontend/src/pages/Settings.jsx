@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 
@@ -125,6 +125,7 @@ export default function Settings() {
   const [editingRefId,   setEditingRefId]   = useState(null);
   const [editingRefName, setEditingRefName] = useState('');
   const [refreshingRef,  setRefreshingRef]  = useState(false);
+  const [channelSummary, setChannelSummary] = useState([]);
 
   // Messenger menu reset
   const [resettingMenu,  setResettingMenu]  = useState(false);
@@ -164,7 +165,8 @@ export default function Settings() {
       getBlockedDates(),
       getPromoCodes(),
       getReferralLinks(),
-    ]).then(([s, b, p, r]) => {
+      getChannelSummary(),
+    ]).then(([s, b, p, r, ch]) => {
       setPaymentMode(s.data.payment_mode || 'xendit');
       setQrImageUrl(s.data.qr_image_url || '');
       setMayaQrUrl(s.data.maya_qr_url || '');
@@ -192,6 +194,7 @@ export default function Settings() {
       setBlockedDates(b.data);
       setPromos(p.data);
       setReferrals(r.data);
+      setChannelSummary(ch.data);
     }).catch(() => setError('Failed to load settings.'))
       .finally(() => setLoading(false));
   }, []);
@@ -1229,8 +1232,9 @@ export default function Settings() {
                       onClick={async () => {
                         setRefreshingRef(true);
                         try {
-                          const { data } = await getReferralLinks();
-                          setReferrals(data);
+                          const [{ data: links }, { data: ch }] = await Promise.all([getReferralLinks(), getChannelSummary()]);
+                          setReferrals(links);
+                          setChannelSummary(ch);
                         } catch { alert('Failed to refresh. Please try again.'); }
                         finally { setRefreshingRef(false); }
                       }}
@@ -1253,6 +1257,40 @@ export default function Settings() {
                 features={['Unique link per channel', 'Click & booking tracking', 'Revenue attribution', 'Unlimited links']}
               />
             ) : <>
+
+            {/* Channel breakdown — all orders by booking source */}
+            {channelSummary.length > 0 && (() => {
+              const CHANNEL_LABEL = { web: '🌐 Web Booking', messenger: '💬 Messenger', walk_in: '🚶 Walk-in', admin: '🛠 Admin / Manual', instagram: '📸 Instagram' };
+              const totalOrders  = channelSummary.reduce((s, c) => s + Number(c.order_count), 0);
+              const totalRevenue = channelSummary.reduce((s, c) => s + Number(c.revenue), 0);
+              return (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>All Orders by Channel</div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {channelSummary.map(c => {
+                      const pct = totalRevenue > 0 ? ((Number(c.revenue) / totalRevenue) * 100).toFixed(0) : 0;
+                      return (
+                        <div key={c.source} style={{ flex: '1 1 140px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
+                          <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{CHANNEL_LABEL[c.source] || c.source}</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{c.order_count}</div>
+                          <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₱{Number(c.revenue).toLocaleString('en-PH')}</div>
+                          <div style={{ marginTop: 6, height: 4, borderRadius: 4, background: '#E5E7EB' }}>
+                            <div style={{ height: 4, borderRadius: 4, background: '#38a9c2', width: `${pct}%` }} />
+                          </div>
+                          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>{pct}% of revenue</div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ flex: '1 1 140px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>📊 Total</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{totalOrders}</div>
+                      <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₱{totalRevenue.toLocaleString('en-PH')}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {addingRef && (
               <form onSubmit={async e => {
                 e.preventDefault(); setSavingRef(true); setRefErr('');

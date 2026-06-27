@@ -24,8 +24,8 @@ api.interceptors.response.use(
   }
 );
 
-export const login = (email, password) =>
-  api.post('/auth/login', { email, password });
+export const login = (email, password, keepLoggedIn = false) =>
+  api.post('/auth/login', { email, password, keep_logged_in: keepLoggedIn });
 
 export const signup = (business_name, email, password) =>
   api.post('/auth/signup', { business_name, email, password });
@@ -158,6 +158,7 @@ export const getPublicReorderData    = (id, orderId, params) => axios.get(`${PUB
 
 // Referral links (authenticated)
 export const getReferralLinks   = ()         => api.get('/referrals');
+export const getChannelSummary  = ()         => api.get('/referrals/channel-summary');
 export const createReferralLink = data       => api.post('/referrals', data);
 export const updateReferralLink = (id, data) => api.patch(`/referrals/${id}`, data);
 export const deleteReferralLink = id         => api.delete(`/referrals/${id}`);

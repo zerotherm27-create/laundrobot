@@ -2,6 +2,26 @@ const router = require('express').Router();
 const auth   = require('../middleware/auth');
 const db     = require('../db');
 
+// GET channel-level order + revenue breakdown (web, messenger, walk_in, admin)
+router.get('/channel-summary', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT
+         source,
+         COUNT(*) FILTER (WHERE status != 'CANCELLED')                                          AS order_count,
+         COUNT(*) FILTER (WHERE paid = TRUE AND status != 'CANCELLED')                          AS paid_order_count,
+         COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0))
+           FILTER (WHERE paid = TRUE AND status != 'CANCELLED'), 0)                             AS revenue
+       FROM orders
+       WHERE tenant_id = $1
+       GROUP BY source
+       ORDER BY order_count DESC`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET all referral links with click + order stats
 router.get('/', auth, async (req, res) => {
   try {
