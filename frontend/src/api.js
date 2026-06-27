@@ -49,6 +49,8 @@ export const generatePaymentLink  = id          => api.post(`/orders/${id}/payme
 export const getPaymentStatus     = ref         => api.get(`/orders/booking/${ref}/payment-status`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
 export const cancelOrder     = id => api.post(`/orders/${id}/cancel`);
+export const getRefunds      = ()         => api.get('/orders/refunds');
+export const markRefundIssued = (id, note) => api.patch(`/orders/${id}/refund`, { note });
 export const verifyPayment       = id => api.post(`/orders/${id}/verify-payment`);
 export const uploadPaymentScreenshot = (id, screenshot) => api.post(`/orders/${id}/upload-screenshot`, { screenshot });
 export const confirmQrPayment    = id => api.post(`/orders/${id}/confirm-qr-payment`);

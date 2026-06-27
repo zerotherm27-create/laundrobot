@@ -673,19 +673,27 @@ router.post('/:id/cancel', auth, async (req, res) => {
       [orderIds, req.user.tenant_id]
     );
 
-    // Not paid — done
+    // Not paid — no refund needed
     if (!order.paid) {
       return res.json({ ok: true, cancelled: true, refund_status: 'not_applicable', message: 'Order cancelled.' });
     }
 
-    // Paid but no Xendit invoice on record
+    // Paid but no Xendit invoice on record — manual refund needed
     if (!invoiceId || !order.xendit_api_key) {
+      await db.query(
+        `UPDATE orders SET refund_status='pending' WHERE id = ANY($1::text[]) AND tenant_id=$2`,
+        [orderIds, req.user.tenant_id]
+      );
       return res.json({ ok: true, cancelled: true, refund_status: 'manual', message: 'Order cancelled. No Xendit payment found — process refund manually if needed.' });
     }
 
     // Attempt Xendit refund
     try {
       await createRefund(order.xendit_api_key, { invoiceId, amount: totalAmount, reason: 'CANCELLATION' });
+      await db.query(
+        `UPDATE orders SET refund_status='auto', refunded_at=NOW() WHERE id = ANY($1::text[]) AND tenant_id=$2`,
+        [orderIds, req.user.tenant_id]
+      );
       return res.json({
         ok: true, cancelled: true, refund_status: 'success',
         message: `Refund of ₱${Number(totalAmount).toLocaleString('en-PH')} processed successfully via Xendit.`,
@@ -693,6 +701,10 @@ router.post('/:id/cancel', auth, async (req, res) => {
     } catch (e) {
       const msg = e.response?.data?.message || e.message || '';
       const isMethodIssue = /not support|refundable|channel|method/i.test(msg);
+      await db.query(
+        `UPDATE orders SET refund_status='pending' WHERE id = ANY($1::text[]) AND tenant_id=$2`,
+        [orderIds, req.user.tenant_id]
+      );
       return res.json({
         ok: true, cancelled: true, refund_status: 'manual',
         message: isMethodIssue
@@ -702,6 +714,56 @@ router.post('/:id/cancel', auth, async (req, res) => {
     }
   } catch (err) {
     console.error('[cancel-order]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET refunds — all cancelled paid orders with refund tracking
+router.get('/refunds', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT DISTINCT ON (o.booking_ref)
+              o.id, o.booking_ref, o.status, o.payment_method, o.paid,
+              o.refund_status, o.refund_note, o.refunded_at, o.refunded_by,
+              o.created_at,
+              SUM(o2.price) OVER (PARTITION BY o.booking_ref) AS total_amount,
+              c.name AS customer_name, c.phone AS customer_phone
+       FROM orders o
+       JOIN orders o2 ON o2.booking_ref = o.booking_ref AND o2.tenant_id = o.tenant_id
+       LEFT JOIN customers c ON c.id = o.customer_id
+       WHERE o.tenant_id = $1
+         AND o.paid = TRUE
+         AND o.status = 'CANCELLED'
+       ORDER BY o.booking_ref, o.created_at DESC`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[refunds]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH mark manual refund as issued
+router.patch('/:id/refund', auth, async (req, res) => {
+  const { note } = req.body;
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT booking_ref, tenant_id, paid, status FROM orders WHERE id=$1 AND tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order.paid || order.status !== 'CANCELLED') return res.status(400).json({ error: 'Order must be cancelled and paid to mark refund issued' });
+
+    const staffName = req.user.name || req.user.email || 'Staff';
+    await db.query(
+      `UPDATE orders SET refund_status='issued', refund_note=$1, refunded_at=NOW(), refunded_by=$2
+       WHERE booking_ref=$3 AND tenant_id=$4`,
+      [note || null, staffName, order.booking_ref, req.user.tenant_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[refund-patch]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -4,10 +4,11 @@ import {
   getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
   getFinanceCustomerRetention,  // used in MonthlySummary
+  getRefunds, markRefundIssued,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 
-const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights'];
+const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -1812,15 +1813,195 @@ function Insights() {
   );
 }
 
+// ─── Refunds tab ─────────────────────────────────────────────────────────────
+
+const PESO = v => `₱${Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const STATUS_LABEL = {
+  pending: { label: 'Pending',      bg: '#FEF3C7', color: '#92400E' },
+  issued:  { label: 'Issued',       bg: '#D1FAE5', color: '#065F46' },
+  auto:    { label: 'Auto (Xendit)',bg: '#E0F2FE', color: '#0369A1' },
+  none:    { label: 'N/A',          bg: '#F3F4F6', color: '#6B7280' },
+};
+
+function Refunds() {
+  const [rows,    setRows]    = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [noting,  setNoting]  = useState({}); // id → note text being typed
+  const [saving,  setSaving]  = useState({}); // id → bool
+
+  useEffect(() => {
+    getRefunds()
+      .then(r => setRows(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleMarkIssued(row) {
+    const note = noting[row.id] || '';
+    setSaving(s => ({ ...s, [row.id]: true }));
+    try {
+      await markRefundIssued(row.id, note);
+      setRows(prev => prev.map(r =>
+        r.booking_ref === row.booking_ref
+          ? { ...r, refund_status: 'issued', refund_note: note, refunded_at: new Date().toISOString() }
+          : r
+      ));
+      setNoting(n => { const c = { ...n }; delete c[row.id]; return c; });
+    } catch (e) {
+      alert(e.response?.data?.error || 'Failed to save.');
+    } finally {
+      setSaving(s => ({ ...s, [row.id]: false }));
+    }
+  }
+
+  const pending  = rows.filter(r => r.refund_status === 'pending');
+  const done     = rows.filter(r => r.refund_status === 'issued' || r.refund_status === 'auto');
+  const totalPending  = pending.reduce((s, r) => s + Number(r.total_amount || 0), 0);
+  const totalRefunded = done.reduce((s, r) => s + Number(r.total_amount || 0), 0);
+
+  const cardS = { background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem' };
+  const thS   = { padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#6B7280', textAlign: 'left', borderBottom: '0.5px solid #e8e8e0', whiteSpace: 'nowrap' };
+  const tdS   = { padding: '10px 12px', fontSize: 13, color: '#111827', borderBottom: '0.5px solid #f3f4f6', verticalAlign: 'middle' };
+
+  if (loading) return <div style={{ color: '#6B7280', fontSize: 14 }}>Loading…</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Summary cards */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ ...cardS, flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Pending Refunds</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: pending.length ? '#92400E' : '#111827' }}>{pending.length}</div>
+          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{PESO(totalPending)} to return</div>
+        </div>
+        <div style={{ ...cardS, flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Total Refunded</div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#065F46' }}>{done.length}</div>
+          <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{PESO(totalRefunded)} returned</div>
+        </div>
+      </div>
+
+      {/* Pending queue */}
+      <div style={cardS}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14 }}>
+          🔴 Needs Refund ({pending.length})
+        </div>
+        {pending.length === 0 ? (
+          <div style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', padding: '1.5rem 0' }}>No pending refunds. All clear!</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f9f9f7' }}>
+                  {['Booking', 'Customer', 'Amount', 'Payment', 'Cancelled', 'Refund Note', ''].map(h => (
+                    <th key={h} style={thS}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map(row => (
+                  <tr key={row.booking_ref}>
+                    <td style={tdS}><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#38a9c2' }}>{row.booking_ref}</span></td>
+                    <td style={tdS}>
+                      <div style={{ fontWeight: 600 }}>{row.customer_name}</div>
+                      {row.customer_phone && <div style={{ fontSize: 11, color: '#6B7280' }}>{row.customer_phone}</div>}
+                    </td>
+                    <td style={{ ...tdS, fontWeight: 700, color: '#DC2626' }}>{PESO(row.total_amount)}</td>
+                    <td style={{ ...tdS, color: '#6B7280', textTransform: 'capitalize' }}>{row.payment_method || '—'}</td>
+                    <td style={{ ...tdS, color: '#6B7280', fontSize: 11 }}>{new Date(row.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                    <td style={tdS}>
+                      <input
+                        placeholder="e.g. GCash 0917xxx"
+                        value={noting[row.id] ?? ''}
+                        onChange={e => setNoting(n => ({ ...n, [row.id]: e.target.value }))}
+                        style={{ padding: '5px 8px', borderRadius: 6, border: '1.5px solid #D1D5DB', fontSize: 12, fontFamily: 'inherit', width: 170 }}
+                      />
+                    </td>
+                    <td style={tdS}>
+                      <button
+                        onClick={() => handleMarkIssued(row)}
+                        disabled={saving[row.id]}
+                        style={{ padding: '6px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
+                          background: saving[row.id] ? '#E5E7EB' : '#059669', color: saving[row.id] ? '#9CA3AF' : '#fff',
+                          cursor: saving[row.id] ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                        {saving[row.id] ? 'Saving…' : '✓ Mark Refunded'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Completed */}
+      {done.length > 0 && (
+        <div style={cardS}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14 }}>✅ Refund History ({done.length})</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f9f9f7' }}>
+                  {['Booking', 'Customer', 'Amount', 'Method', 'Status', 'Note', 'Refunded', 'By'].map(h => (
+                    <th key={h} style={thS}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {done.map(row => {
+                  const st = STATUS_LABEL[row.refund_status] || STATUS_LABEL.none;
+                  return (
+                    <tr key={row.booking_ref}>
+                      <td style={tdS}><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#38a9c2' }}>{row.booking_ref}</span></td>
+                      <td style={tdS}>{row.customer_name}</td>
+                      <td style={{ ...tdS, fontWeight: 700 }}>{PESO(row.total_amount)}</td>
+                      <td style={{ ...tdS, color: '#6B7280', textTransform: 'capitalize' }}>{row.payment_method || '—'}</td>
+                      <td style={tdS}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.color }}>{st.label}</span>
+                      </td>
+                      <td style={{ ...tdS, color: '#6B7280' }}>{row.refund_note || '—'}</td>
+                      <td style={{ ...tdS, fontSize: 11, color: '#6B7280' }}>
+                        {row.refunded_at ? new Date(row.refunded_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                      </td>
+                      <td style={{ ...tdS, fontSize: 11, color: '#6B7280' }}>{row.refunded_by || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Finance Page ────────────────────────────────────────────────────────
 
 export default function Finance() {
   const { isPro } = usePlan();
   const [tab, setTab] = useState('Dashboard');
 
-  if (!isPro) return (
+  if (!isPro && tab !== 'Refunds') return (
     <div>
       <h2 style={{ fontSize:18, fontWeight:500, marginBottom:'1.25rem' }}>Finance</h2>
+      <div style={{ display: 'flex', gap: 4, marginBottom: '1.25rem', borderBottom: '0.5px solid #e8e8e0' }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer',
+            background:   tab === t ? '#fff'    : 'transparent',
+            color:        tab === t ? '#38a9c2' : '#6B7280',
+            border:       tab === t ? '0.5px solid #e8e8e0' : '0.5px solid transparent',
+            borderBottom: tab === t ? '1px solid #fff' : 'none',
+            fontWeight:   tab === t ? 600 : 400,
+            marginBottom: tab === t ? -1  : 0,
+            fontFamily: 'inherit',
+          }}>{t}</button>
+        ))}
+      </div>
       <div style={{ background:'#fff', border:'0.5px solid #e8e8e0', borderRadius:12 }}>
         <ProWall />
       </div>
@@ -1853,6 +2034,7 @@ export default function Finance() {
       {tab === 'Expenses'        && <Expenses />}
       {tab === 'Monthly Summary' && <MonthlySummary />}
       {tab === 'Insights'        && <Insights />}
+      {tab === 'Refunds'         && <Refunds />}
     </div>
   );
 }
