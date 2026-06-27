@@ -685,10 +685,21 @@ function FormulasTab({ items, services }) {
           No formulas yet. Add a formula to auto-deduct stock when orders complete.
         </div>
       ) : (
-        Object.entries(grouped).map(([svcId, g]) => (
+        Object.entries(grouped).map(([svcId, g]) => {
+          const svc = services.find(s => s.id === parseInt(svcId));
+          const svcVariantOptions = buildVariantOptions(svc);
+          return (
           <div key={svcId} style={cardStyle}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:'#111827' }}>{g.service_name}</div>
-            {Object.entries(g.subgroups).map(([vKey, rows]) => (
+            {Object.entries(g.subgroups).map(([vKey, rows]) => {
+              // Check if this variant still matches the service's current custom fields
+              const f0 = rows[0];
+              const isMismatch = f0?.variant_label && f0?.variant_value &&
+                !svcVariantOptions.some(o =>
+                  o.value && o.value.split('::')[0]?.trim() === f0.variant_label?.trim()
+                  && o.value.split('::')[1]?.trim() === f0.variant_value?.trim()
+                );
+              return (
               <div key={vKey} style={{ marginBottom:16 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                   <span style={{
@@ -696,6 +707,12 @@ function FormulasTab({ items, services }) {
                     background: vKey === 'All variations (default)' ? '#E5E7EB' : '#EDE9FE',
                     color:      vKey === 'All variations (default)' ? '#6B7280'  : '#7C3AED',
                   }}>{vKey}</span>
+                  {isMismatch && (
+                    <span title={`"${f0.variant_label}" / "${f0.variant_value}" no longer matches this service's options — orders won't trigger this formula. Delete and re-add with the correct variation.`}
+                      style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:20, background:'#FEF3C7', color:'#92400E', cursor:'help' }}>
+                      ⚠️ Variant mismatch
+                    </span>
+                  )}
                 </div>
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
@@ -724,9 +741,11 @@ function FormulasTab({ items, services }) {
                   </tbody>
                 </table>
               </div>
-            ))}
+            );
+            })}
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );

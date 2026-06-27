@@ -263,8 +263,8 @@ async function deductInventory(order, tenantId) {
   if (!order.service_id) return;
   const selections = Array.isArray(order.custom_selections) ? order.custom_selections : [];
 
-  // Quantity multiplier — look for a "Quantity" field in selections
-  const qtySelection = selections.find(s => s.label === 'Quantity');
+  // Quantity multiplier — look for a "Quantity" field in selections (case-insensitive, trim-safe)
+  const qtySelection = selections.find(s => s.label?.trim().toLowerCase() === 'quantity');
   const orderQty = Math.max(1, parseInt(qtySelection?.value) || 1);
 
   const { rows: formulas } = await db.query(
@@ -290,11 +290,11 @@ async function deductInventory(order, tenantId) {
       };
     }
   }
-  // Pass 2: exact variant match overrides the default
+  // Pass 2: variant match overrides the default (trim-safe to tolerate trailing spaces in field labels)
   for (const f of formulas) {
     if (f.variant_label && f.variant_value) {
       const matched = selections.some(
-        s => s.label === f.variant_label && s.value === f.variant_value
+        s => s.label?.trim() === f.variant_label?.trim() && s.value?.trim() === f.variant_value?.trim()
       );
       if (matched) {
         itemQty[f.item_id] = {
