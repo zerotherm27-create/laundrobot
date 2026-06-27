@@ -1853,7 +1853,7 @@ function Refunds() {
     }
   }
 
-  const pending  = rows.filter(r => r.refund_status === 'pending');
+  const pending  = rows.filter(r => r.refund_status === 'pending' || r.refund_status === 'none');
   const done     = rows.filter(r => r.refund_status === 'issued' || r.refund_status === 'auto');
   const totalPending  = pending.reduce((s, r) => s + Number(r.total_amount || 0), 0);
   const totalRefunded = done.reduce((s, r) => s + Number(r.total_amount || 0), 0);
