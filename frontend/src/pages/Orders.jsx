@@ -321,7 +321,22 @@ export default function Orders() {
         const changes = computeChanges(editBefore, after);
         const changeBlock = changesToText(changes);
         const customerText = changeBlock ? `${changeBlock}\n\n${data.summary_text}` : data.summary_text;
-        loadActive();
+
+        // Immediately apply the fresh order rows from the PUT response so that
+        // a second edit sees current data even before loadActive() resolves.
+        const freshRows = data.orders || [];
+        const freshRowIds = new Set(freshRows.map(o => o.id));
+        setOrders(prev => {
+          // Remove any order rows belonging to this booking (some may have been
+          // deleted), then append the fresh rows returned by the server.
+          const without = prev.filter(o => o.booking_ref !== bookingRef && !freshRowIds.has(o.id));
+          return [...without, ...freshRows];
+        });
+        // Re-derive the group so the detail panel shows current prices/services.
+        const freshGroup = groupByBookingRef(freshRows)[0];
+        if (freshGroup) setSelected(prev => ({ ...prev, ...freshGroup }));
+
+        loadActive(); // background refresh for any other data (status, archived, etc.)
         setEditMode(false);
         setSavedDiff({ isBooking: true, ...data, changes, customerText });
       } else {
