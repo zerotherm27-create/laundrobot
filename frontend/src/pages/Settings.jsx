@@ -160,43 +160,44 @@ export default function Settings() {
   const { openUpgradeModal } = useUpgrade();
 
   useEffect(() => {
-    Promise.all([
-      getMyTenantSettings(),
-      getBlockedDates(),
-      getPromoCodes(),
-      getReferralLinks(),
-      getChannelSummary(),
-    ]).then(([s, b, p, r, ch]) => {
-      setPaymentMode(s.data.payment_mode || 'xendit');
-      setQrImageUrl(s.data.qr_image_url || '');
-      setMayaQrUrl(s.data.maya_qr_url || '');
-      setXenditKeySet(!!s.data.has_xendit_key);
-      setXenditKeyHint(s.data.xendit_key_hint || '');
-      setNotifEmail(s.data.notification_email || '');
-      setContactNumber(s.data.contact_number || '');
-      setGoogleReviewLink(s.data.google_review_link || '');
-      setReviewCooldownDays(s.data.review_cooldown_days != null ? String(s.data.review_cooldown_days) : '30');
-      setShopAddress(s.data.shop_address || '');
-      setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
-      setAiEnabled(!!s.data.ai_enabled);
-      setAiInstructions(s.data.ai_instructions || '');
-      setAiPauseHours(s.data.ai_pause_hours != null ? String(s.data.ai_pause_hours) : '2');
-      setIgUserId(s.data.ig_user_id || '');
-      setStoreOpen(s.data.store_open || '');
-      setStoreClose(s.data.store_close || '');
-      setBookingCutoff(s.data.booking_cutoff || '');
-      setOpenDays(Array.isArray(s.data.open_days) && s.data.open_days.length ? s.data.open_days.map(Number) : [0,1,2,3,4,5,6]);
-      setFbPageId(s.data.fb_page_id || '');
-      setLogoUrl(s.data.logo_url || '');
-      setTenantPlan(s.data.plan || 'starter');
-      setCustomDomain(s.data.custom_domain || '');
-      setWhiteLabel(!!s.data.white_label);
-      setBlockedDates(b.data);
-      setPromos(p.data);
-      setReferrals(r.data);
-      setChannelSummary(ch.data);
-    }).catch(() => setError('Failed to load settings.'))
+    // Core settings (carries the plan) must load independently. Secondary
+    // calls (blocked dates, promos, referrals, channel summary) are allowed
+    // to fail without blanking the whole page or hiding Pro features.
+    getMyTenantSettings()
+      .then(s => {
+        setPaymentMode(s.data.payment_mode || 'xendit');
+        setQrImageUrl(s.data.qr_image_url || '');
+        setMayaQrUrl(s.data.maya_qr_url || '');
+        setXenditKeySet(!!s.data.has_xendit_key);
+        setXenditKeyHint(s.data.xendit_key_hint || '');
+        setNotifEmail(s.data.notification_email || '');
+        setContactNumber(s.data.contact_number || '');
+        setGoogleReviewLink(s.data.google_review_link || '');
+        setReviewCooldownDays(s.data.review_cooldown_days != null ? String(s.data.review_cooldown_days) : '30');
+        setShopAddress(s.data.shop_address || '');
+        setMinimumOrder(s.data.minimum_order != null ? String(s.data.minimum_order) : '');
+        setAiEnabled(!!s.data.ai_enabled);
+        setAiInstructions(s.data.ai_instructions || '');
+        setAiPauseHours(s.data.ai_pause_hours != null ? String(s.data.ai_pause_hours) : '2');
+        setIgUserId(s.data.ig_user_id || '');
+        setStoreOpen(s.data.store_open || '');
+        setStoreClose(s.data.store_close || '');
+        setBookingCutoff(s.data.booking_cutoff || '');
+        setOpenDays(Array.isArray(s.data.open_days) && s.data.open_days.length ? s.data.open_days.map(Number) : [0,1,2,3,4,5,6]);
+        setFbPageId(s.data.fb_page_id || '');
+        setLogoUrl(s.data.logo_url || '');
+        setTenantPlan(s.data.plan || 'starter');
+        setCustomDomain(s.data.custom_domain || '');
+        setWhiteLabel(!!s.data.white_label);
+      })
+      .catch(() => setError('Failed to load settings.'))
       .finally(() => setLoading(false));
+
+    // Secondary data — load independently, ignore individual failures
+    getBlockedDates().then(b => setBlockedDates(b.data)).catch(() => {});
+    getPromoCodes().then(p => setPromos(p.data)).catch(() => {});
+    getReferralLinks().then(r => setReferrals(r.data)).catch(() => {});
+    getChannelSummary().then(ch => setChannelSummary(ch.data)).catch(() => {});
   }, []);
 
   async function handleSave(e) {
