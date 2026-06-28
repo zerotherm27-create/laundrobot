@@ -648,7 +648,11 @@ router.post('/:tenantId/orders', async (req, res) => {
         }
       } catch (_) {}
 
-      const orderSource = fb_id ? 'messenger' : 'web';
+      // Honor an explicit admin source (orders created from the dashboard's
+      // Create Order modal pass source:'admin'). Without this the INSERT would
+      // overwrite it with 'web', and the 24h unpaid auto-cancel cron — which
+      // only exempts source='admin' — would cancel legitimate admin orders.
+      const orderSource = source === 'admin' ? 'admin' : (fb_id ? 'messenger' : 'web');
       await client.query(
         `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
                              address, delivery_fee, delivery_zone, notes, status, booking_ref, custom_selections, paid, delivery_date, source,
