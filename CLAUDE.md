@@ -29,13 +29,12 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 
 ## Meta / Messenger / Instagram
 - **FB OAuth scope list lives in `frontend/src/pages/Settings.jsx`** (`handleFbLogin`). Page access tokens only carry permissions that were in the scope at connect time — **adding a scope requires the tenant to reconnect (re-auth)** to mint a new token. App admins/testers can grant permissions pre-App-Review.
-- **Message tags `POST_PURCHASE_UPDATE` / `CONFIRMED_EVENT_UPDATE` / `ACCOUNT_UPDATE` are DEPRECATED (error 100) as of 2026-04-27.** `backend/utils/messenger.js` `sendTaggedMessage()` still uses `POST_PURCHASE_UPDATE` — it now fails, so out-of-24h order-status notifications are broken until migrated.
-- **Replacement = Utility Message Templates** (`pages_utility_messaging` permission):
-  - Create: `POST /{page-id}/message_templates` (Graph **v21.0**), `category: "UTILITY"`, BODY component.
-  - Watch `PARAMS_TO_WORD_RATIO_EXCEED_LIMIT` — need enough static text per `{{n}}` variable. Few words + many vars → REJECTED.
-  - Probe/creator script: `backend/scripts/create-utility-template.js` (reads tenant token from DB).
-  - Approved template exists: **`order_status_update_v2`** (id `27038636189155408`).
-  - TODO (not done): migrate `sendTaggedMessage` to SEND this approved template so COMPLETED/PROCESSING/FOR DELIVERY notifications work again.
+- **Message tags `POST_PURCHASE_UPDATE` / `CONFIRMED_EVENT_UPDATE` / `ACCOUNT_UPDATE` are DEPRECATED (error 100) as of 2026-04-27.**
+- **Order-status notifications now use a two-step fallback** (`backend/utils/messenger.js` `sendStatusUpdate()`):
+  1. Try `RESPONSE` type (free, within 24h window only).
+  2. On error 10 (outside window), fall back to Utility Message Template `order_status_update_v2` (id `27038636189155408`) via `sendUtilityTemplate()` — probes 3 candidate payload shapes; first accepted shape is logged to Railway.
+  - Template requires `pages_utility_messaging` permission. Approved template: **`order_status_update_v2`**.
+  - `sendStatusNotification` (FOR DELIVERY / PROCESSING) and `sendCompletionNotification` (COMPLETED) in `backend/routes/orders.js` both call `sendStatusUpdate`.
 - **App Review "X of 1 API call(s)" counter is delayed/aggregated, not real-time** (even auto-used `public_profile` reads 0). A successful call won't reflect for hours.
 - Order-status notifications only fire for customers with an `fb_id` (Messenger users). Web/walk-in customers have none → no notification (see `project_whatsapp_viber_notifications.md` in memory for the planned fallback).
 - Instagram DM replies blocked until `instagram_manage_messages` passes App Review. Webhook matches tenant by `ig_user_id` = the `17841…` IG business id; handler logs `[ig-webhook] …` verbosely (check Railway logs to debug activation).
@@ -85,6 +84,43 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - **If you add a new booking entry point** (e.g. Instagram DM, WhatsApp bot), it must either pass `ref_code` in its order payload or set `conversations.referral_ref` before the order is created — otherwise referral attribution is silently lost for that channel.
 - **`click_count` ≠ unique visitors** — refreshing the booking form with `?ref=` increments the counter again. It counts loads, not unique people. Conversion rate = `order_count / click_count` (shown in Settings).
 - **Deleting a referral link orphans its orders** — `orders.referral_ref` keeps the slug but the JOIN in the analytics query returns nothing. Soft-delete / archive instead of hard-delete if historical data matters.
+
+## Order auto-cancel behavior
+- **Walk-in orders are always `paid = TRUE`** (cash or QR confirmed at POS) — they are NEVER auto-cancelled.
+- **Admin-created orders (`source = 'admin'`) are excluded from auto-cancel** — the cron only cancels orders where `source != 'admin'`.
+- **Web/Messenger orders** that are unpaid 24h after creation are auto-cancelled by `backend/jobs/followup.js` (the cancel query is in section "1. Auto-cancel orders unpaid after 24 hours"; only fires for `growth`/`pro` tenants). The cancel job sets `refund_status = 'auto'` on orders that had a Xendit payment (Xendit void succeeded); purely unpaid orders get `refund_status = 'none'`.
+- **`source` is set at INSERT time in `backend/routes/public.js`.** Admin orders created from the dashboard's Create Order modal (`CreateOrderModal.jsx`) post `source:'admin'` to the public order endpoint; the INSERT must honor it (`source === 'admin' ? 'admin' : (fb_id ? 'messenger' : 'web')`). If that override is ever removed, admin orders get stored as `'web'` and the auto-cancel cron (which only exempts `source='admin'`) will cancel them.
+- **If an admin order is getting auto-cancelled**, check the `source` column — change it to `'admin'` to exempt it permanently.
+
+## Refund tracking
+- **DB columns on `orders`:** `refund_status` (enum: `none` / `pending` / `issued` / `auto`), `refund_note` (text), `refunded_at` (timestamp), `refunded_by` (text staff name).
+- **`refund_status` lifecycle:** `none` (default) → `pending` (set on manual cancel of a paid order by `POST /orders/:id/cancel`) → `issued` (set by `PATCH /orders/:id/refund` when staff marks refund done). Xendit-voided cancellations skip to `auto`.
+- **Finance → Refunds tab** (`frontend/src/pages/Finance.jsx`): shows pending queue (orders needing manual refund action) and refund history. Accessible on all plans (not Pro-gated). Staff enter a note and click "Mark Refunded."
+- **Past paid+cancelled orders** that have no `refund_status` (legacy) appear in the pending queue; `refund_status === 'none'` is treated the same as `'pending'` for display purposes.
+- **Refund totals in Finance Dashboard KPI** — a red "Refunds" card appears when there are pending refunds in the current period.
+- **Refund totals in Monthly Summary table** — a "Refunds" column shows total refunded amount and count per month.
+- **`GET /orders/refunds`** route must be registered BEFORE `GET /:id` in `backend/routes/orders.js` — Express will match `"refunds"` as an order ID otherwise. This applies to any literal sub-routes added in the future.
+- **Refund total formula = grand total** (`price + delivery_fee − promo_discount`), NOT just `price`. The query uses `SUM(o2.price + COALESCE(o2.delivery_fee,0) - COALESCE(o2.promo_discount,0))`.
+- **Mixed-status booking refs** (some rows CANCELLED, some active) are excluded from the refund queue via a `NOT EXISTS` subquery — only refs where ALL rows are cancelled appear.
+- **Edit route (`PUT /orders/booking/:ref`)** derives `first` from active rows only: `const activeRows = existing.filter(o => o.status !== 'CANCELLED'); const first = activeRows[0] || existing[0];` — prevents new items from inheriting a cancelled row's metadata.
+
+## Revenue query invariant
+- **All revenue aggregations must exclude cancelled orders.** Every `CASE WHEN paid THEN price ELSE 0 END` in `backend/routes/finance.js` and `backend/routes/tenants.js` must read `CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END`. Same applies to `delivery_fee` and `promo_discount` aggregations in monthly summary. Failure to include this means refunded/cancelled orders inflate reported revenue.
+
+## Walk-in offline support
+- **`frontend/src/utils/offlineQueue.js`** — IndexedDB wrapper (no library). DB: `laundrobot-walkin`, stores: `cache` (categories/services/shopInfo) and `pendingOrders`.
+- **Offline order flow:** when `navigator.onLine === false` or a network error occurs during `handleConfirmPayment`, the order is enqueued via `enqueueOrder(payload)` which returns a temp ref `OFFLINE-xxxxxx`. The success screen detects the `OFFLINE-` prefix and shows amber styling with "queued" messaging.
+- **Auto-sync:** `WalkIn.jsx` listens to `online` events and calls `doSync` (a `useCallback`-stabilized function) which flushes the queue via `syncPendingOrders(createFn)`. Orders that succeed are removed from the queue; server rejections (4xx) are also removed (bad payload); network errors leave the order in queue for the next sync attempt.
+- **Cash and QR payments always work offline** — payment confirmation is local; the backend call is what's queued.
+- **IDB cache persistence:** on API load, categories/services/shopInfo are saved to IDB. On the next page load (including offline), IDB seeds the state instantly before the API call fires — no skeleton flash after first visit.
+- **Pending sync banner** shows above the Walk-in header when there are queued orders, with a manual "Sync now" button and count.
+
+## Inventory formula matching
+- **Trim + case-insensitive matching** is required for formula deduction in `backend/routes/inventory.js` `deductInventory()`. Service custom field labels (e.g. `'QUANTITY'`, `'Quantity'`) must be matched with `.toLowerCase()` + `.trim()`. Variant label/value strings from both the formula and the order must be `.trim()`-compared.
+- **Mismatch warning badge** in `frontend/src/pages/Inventory.jsx` — when a saved formula's variant label/value no longer matches the service's current custom fields, a ⚠️ badge is shown so staff know the formula needs updating.
+
+## Express route ordering rule
+- **Literal routes must be registered before wildcard `/:id` routes.** In any Express router file, routes like `GET /refunds`, `GET /search`, `POST /archive-month` must appear before `GET /:id` / `PATCH /:id` / `DELETE /:id`. Express matches the first fitting route — a literal path segment will be read as a param value if the wildcard comes first.
 
 ## Safety / process
 - Never enter the FB password during re-auth — that's the tenant's step. Drive up to the consent screen only.
