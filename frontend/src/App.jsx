@@ -1,9 +1,14 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, Component } from 'react';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
 import UpgradeModal from './components/UpgradeModal.jsx';
 import { UpgradeProvider } from './context/UpgradeContext.jsx';
+
+// Eager imports for pages used immediately or that caused issues lazy
+import Settings from './pages/Settings.jsx';
+import Kanban from './pages/Kanban.jsx';
+import Overview from './pages/Overview.jsx';
 
 const Login        = lazy(() => import('./pages/Login.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
@@ -14,8 +19,6 @@ const PaywallScreen = lazy(() => import('./pages/PaywallScreen.jsx'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService.jsx'));
 const DataDeletion = lazy(() => import('./pages/DataDeletion.jsx'));
-const Overview     = lazy(() => import('./pages/Overview.jsx'));
-const Kanban       = lazy(() => import('./pages/Kanban.jsx'));
 const Orders       = lazy(() => import('./pages/Orders.jsx'));
 const Customers    = lazy(() => import('./pages/Customers.jsx'));
 const Services     = lazy(() => import('./pages/Services.jsx'));
@@ -27,9 +30,25 @@ const Inventory    = lazy(() => import('./pages/Inventory.jsx'));
 const FAQs         = lazy(() => import('./pages/FAQs.jsx'));
 const Users        = lazy(() => import('./pages/Users.jsx'));
 const DeliveryZones = lazy(() => import('./pages/DeliveryZones.jsx'));
-const Settings     = lazy(() => import('./pages/Settings.jsx'));
 const WalkIn       = lazy(() => import('./pages/WalkIn.jsx'));
 const Branches     = lazy(() => import('./pages/Branches.jsx'));
+
+class PageErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 14 }}>
+        Failed to load page. Please refresh.
+        <button onClick={() => window.location.reload()}
+          style={{ marginLeft: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', fontSize: 13 }}>
+          Refresh
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 import { getSubscription, getPublicTenantByDomain } from './api.js';
 import { useAuth } from './context/AuthContext.jsx';
 import { usePushNotifications } from './hooks/usePushNotifications.js';
@@ -156,7 +175,7 @@ function Dashboard({ initialPage }) {
         }}>
           {page === 'SuperAdmin' && user.role !== 'superadmin'
             ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
-            : <Suspense fallback={null}><Page /></Suspense>}
+            : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#9CA3AF', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page /></Suspense></PageErrorBoundary>}
         </main>
       </div>
     </div>
