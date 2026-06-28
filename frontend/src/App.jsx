@@ -1,34 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext.jsx';
-import Login from './pages/Login.jsx';
-import Signup from './pages/Signup.jsx';
-import ResetPassword from './pages/ResetPassword.jsx';
-import BookingForm from './pages/BookingForm.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
 import UpgradeModal from './components/UpgradeModal.jsx';
 import { UpgradeProvider } from './context/UpgradeContext.jsx';
-import Overview from './pages/Overview.jsx';
-import Kanban from './pages/Kanban.jsx';
-import Orders from './pages/Orders.jsx';
-import Customers from './pages/Customers.jsx';
-import Services from './pages/Services.jsx';
-import Messaging from './pages/Messaging.jsx';
-import SuperAdmin from './pages/SuperAdmin.jsx';
-import Reports from './pages/Reports.jsx';
-import Finance from './pages/Finance.jsx';
-import Inventory from './pages/Inventory.jsx';
-import FAQs from './pages/FAQs.jsx';
-import Users from './pages/Users.jsx';
-import DeliveryZones from './pages/DeliveryZones.jsx';
-import Settings from './pages/Settings.jsx';
-import WalkIn from './pages/WalkIn.jsx';
-import Branches from './pages/Branches.jsx';
-import Landing from './pages/Landing.jsx';
-import PaywallScreen from './pages/PaywallScreen.jsx';
-import PrivacyPolicy from './pages/PrivacyPolicy.jsx';
-import TermsOfService from './pages/TermsOfService.jsx';
-import DataDeletion from './pages/DataDeletion.jsx';
+
+const Login        = lazy(() => import('./pages/Login.jsx'));
+const Signup       = lazy(() => import('./pages/Signup.jsx'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
+const BookingForm  = lazy(() => import('./pages/BookingForm.jsx'));
+const Landing      = lazy(() => import('./pages/Landing.jsx'));
+const PaywallScreen = lazy(() => import('./pages/PaywallScreen.jsx'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService.jsx'));
+const DataDeletion = lazy(() => import('./pages/DataDeletion.jsx'));
+const Overview     = lazy(() => import('./pages/Overview.jsx'));
+const Kanban       = lazy(() => import('./pages/Kanban.jsx'));
+const Orders       = lazy(() => import('./pages/Orders.jsx'));
+const Customers    = lazy(() => import('./pages/Customers.jsx'));
+const Services     = lazy(() => import('./pages/Services.jsx'));
+const Messaging    = lazy(() => import('./pages/Messaging.jsx'));
+const SuperAdmin   = lazy(() => import('./pages/SuperAdmin.jsx'));
+const Reports      = lazy(() => import('./pages/Reports.jsx'));
+const Finance      = lazy(() => import('./pages/Finance.jsx'));
+const Inventory    = lazy(() => import('./pages/Inventory.jsx'));
+const FAQs         = lazy(() => import('./pages/FAQs.jsx'));
+const Users        = lazy(() => import('./pages/Users.jsx'));
+const DeliveryZones = lazy(() => import('./pages/DeliveryZones.jsx'));
+const Settings     = lazy(() => import('./pages/Settings.jsx'));
+const WalkIn       = lazy(() => import('./pages/WalkIn.jsx'));
+const Branches     = lazy(() => import('./pages/Branches.jsx'));
 import { getSubscription, getPublicTenantByDomain } from './api.js';
 import { useAuth } from './context/AuthContext.jsx';
 import { usePushNotifications } from './hooks/usePushNotifications.js';
@@ -54,7 +55,7 @@ function CustomDomainApp() {
     </div>
   );
   if (!tenantId) return null;
-  return <BookingForm tenantId={tenantId} whiteLabel={whiteLabel} />;
+  return <Suspense fallback={null}><BookingForm tenantId={tenantId} whiteLabel={whiteLabel} /></Suspense>;
 }
 
 const PAGES = {
@@ -123,7 +124,7 @@ function Dashboard({ initialPage }) {
   );
 
   // Trial expired → paywall
-  if (subStatus === 'expired') return <PaywallScreen />;
+  if (subStatus === 'expired') return <Suspense fallback={null}><PaywallScreen /></Suspense>;
 
   function navigate(p) {
     setPage(p);
@@ -155,7 +156,7 @@ function Dashboard({ initialPage }) {
         }}>
           {page === 'SuperAdmin' && user.role !== 'superadmin'
             ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
-            : <Page />}
+            : <Suspense fallback={null}><Page /></Suspense>}
         </main>
       </div>
     </div>
@@ -168,39 +169,41 @@ function Inner() {
 
   // Public booking form — /book/:tenantId
   const bookMatch = window.location.pathname.match(/^\/book\/([a-f0-9-]{36})$/i);
-  if (bookMatch) return <BookingForm tenantId={bookMatch[1]} />;
+  if (bookMatch) return <Suspense fallback={null}><BookingForm tenantId={bookMatch[1]} /></Suspense>;
 
   const params     = new URLSearchParams(window.location.search);
   const resetToken = params.get('reset_token');
   if (resetToken) {
     document.title = 'Reset Password — LaundroBot';
     return (
-      <ResetPassword
-        token={resetToken}
-        onBack={() => {
-          window.history.replaceState({}, '', window.location.pathname);
-          window.location.reload();
-        }}
-      />
+      <Suspense fallback={null}>
+        <ResetPassword
+          token={resetToken}
+          onBack={() => {
+            window.history.replaceState({}, '', window.location.pathname);
+            window.location.reload();
+          }}
+        />
+      </Suspense>
     );
   }
 
   const path = window.location.pathname;
 
-  if (path === '/privacy')       return <PrivacyPolicy />;
-  if (path === '/terms')         return <TermsOfService />;
-  if (path === '/data-deletion') return <DataDeletion />;
+  if (path === '/privacy')       return <Suspense fallback={null}><PrivacyPolicy /></Suspense>;
+  if (path === '/terms')         return <Suspense fallback={null}><TermsOfService /></Suspense>;
+  if (path === '/data-deletion') return <Suspense fallback={null}><DataDeletion /></Suspense>;
 
   if (!user) {
     if (path === '/login') {
       document.title = 'Sign In — LaundroBot';
-      return <Login />;
+      return <Suspense fallback={null}><Login /></Suspense>;
     }
     if (path === '/signup') {
       document.title = 'Start Free Trial — LaundroBot';
-      return <Signup />;
+      return <Suspense fallback={null}><Signup /></Suspense>;
     }
-    return <Landing />;
+    return <Suspense fallback={null}><Landing /></Suspense>;
   }
 
   // Intercept Facebook OAuth return before Dashboard renders
