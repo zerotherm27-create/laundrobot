@@ -149,6 +149,18 @@ router.get('/', auth, async (req, res) => {
 });
 
 // POST archive completed orders for a given month (or auto by cron)
+router.post('/:id/unarchive', auth, async (req, res) => {
+  if (!['admin','superadmin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const { rowCount } = await db.query(
+      `UPDATE orders SET archived=FALSE, archived_at=NULL WHERE id=$1 AND tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Order not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 router.post('/archive-month', auth, async (req, res) => {
   if (!['admin','superadmin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const { year, month } = req.body; // month = 1-12

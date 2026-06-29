@@ -40,6 +40,7 @@ export const createWalkInOrder = data => api.post('/orders/walk-in', data);
 export const getOrders = (params) => api.get('/orders', { params });
 export const getArchivedOrders = () => api.get('/orders', { params: { archived: 'true', limit: 500 } });
 export const archiveOrderMonth = (year, month) => api.post('/orders/archive-month', { year, month });
+export const unarchiveOrder = (id) => api.post(`/orders/${id}/unarchive`);
 export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}`, { status });
 export const updateOrder = (id, data) => api.patch(`/orders/${id}`, data);
 export const updateBooking = (ref, items, customNote, customPrice, deletedIds) =>

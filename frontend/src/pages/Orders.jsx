@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, unarchiveOrder, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -1362,7 +1362,7 @@ export default function Orders() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                         <thead>
                           <tr style={{ background: '#fafafa' }}>
-                            {['Order','Customer','Service','Amount','Pickup','Archived'].map(h => (
+                            {['Order','Customer','Service','Amount','Pickup','Archived',''].map(h => (
                               <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                             ))}
                           </tr>
@@ -1384,6 +1384,19 @@ export default function Orders() {
                               </td>
                               <td style={{ padding: '9px 12px', color: '#374151', fontSize: 11 }}>
                                 {o.archived_at ? new Date(o.archived_at).toLocaleDateString() : '—'}
+                              </td>
+                              <td style={{ padding: '9px 12px' }}>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm('Move this order back to active?')) return;
+                                    try {
+                                      await unarchiveOrder(o.id);
+                                      setArchived(prev => prev.filter(x => x.id !== o.id));
+                                      loadActive();
+                                    } catch { alert('Failed to unarchive.'); }
+                                  }}
+                                  style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                                >Unarchive</button>
                               </td>
                             </tr>
                           ))}
