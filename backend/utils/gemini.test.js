@@ -47,10 +47,23 @@ test('no active bookings → empty string (section omitted from prompt)', () => 
 
 const src = fs.readFileSync(path.join(__dirname, 'gemini.js'), 'utf8');
 
-test('system prompt carries an explicit payment policy', () => {
-  assert.match(src, /PAYMENT POLICY/, 'prompt must have a PAYMENT POLICY section');
-  assert.match(src, /cash on pickup|cash upon pickup/i, 'policy must explicitly rule out cash on pickup');
-  assert.match(src, /full payment/i, 'policy must require full payment before pickup is arranged');
+test('base prompt defers payment policy to shop-specific instructions, never invents one', () => {
+  assert.match(src, /Payment policies differ per shop/, 'prompt must state payment policy is per-shop');
+  assert.match(
+    src,
+    /never confirm a customer's own assumption/i,
+    "AI must not confirm assumptions like 'I can pay cash on pickup, right?'"
+  );
+  // Payment rules are tenant-specific (ai_instructions), NOT platform-wide:
+  // the base prompt must not hardcode a no-cash-on-pickup (or any) policy.
+  assert.doesNotMatch(src, /NO cash on pickup/i, 'no hardcoded platform-wide cash policy');
+  assert.doesNotMatch(src, /Full payment is required BEFORE/i, 'no hardcoded platform-wide prepayment policy');
+});
+
+test('shop ai_instructions cap fits long tenant policies (TLP is >2200 chars)', () => {
+  const m = src.match(/\.slice\(0,\s*(\d+)\)/);
+  assert.ok(m, 'ai_instructions must be length-capped');
+  assert.ok(Number(m[1]) >= 4000, `cap must be >= 4000 chars, got ${m[1]} — TLP's instructions were silently truncated at 2000`);
 });
 
 test('system prompt tells the AI how to treat customers with active bookings', () => {
