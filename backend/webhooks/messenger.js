@@ -10,14 +10,16 @@ const { isBotOwnEcho, hasSentMid } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 
-function makeSends(channel, token, igUserId) {
+// IG sends go through the PAGE's /messages edge (Facebook-login flavor) —
+// pass the fb_page_id, NOT the ig_user_id (see utils/instagram.js).
+function makeSends(channel, token, pageId) {
   if (channel === 'instagram') {
     return {
-      sendMessage:      (t, r, text)         => igUtils.sendMessage(t, igUserId, r, text),
-      sendButtons:      (t, r, text, btns)   => igUtils.sendButtons(t, igUserId, r, text, btns),
-      sendQuickReplies: (t, r, text, replies) => igUtils.sendQuickReplies(t, igUserId, r, text, replies),
-      sendCatalog:      (t, r, els)          => igUtils.sendCatalog(t, igUserId, r, els),
-      sendTaggedMessage:(t, r, text)         => igUtils.sendMessage(t, igUserId, r, text),
+      sendMessage:      (t, r, text)         => igUtils.sendMessage(t, pageId, r, text),
+      sendButtons:      (t, r, text, btns)   => igUtils.sendButtons(t, pageId, r, text, btns),
+      sendQuickReplies: (t, r, text, replies) => igUtils.sendQuickReplies(t, pageId, r, text, replies),
+      sendCatalog:      (t, r, els)          => igUtils.sendCatalog(t, pageId, r, els),
+      sendTaggedMessage:(t, r, text)         => igUtils.sendMessage(t, pageId, r, text),
     };
   }
   return { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog };
@@ -476,7 +478,7 @@ async function pauseAiForCustomer(tenant, customerId) {
 // ── Main message handler ────────────────────────────────────────────────────
 async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   const token    = tenant.fb_page_access_token;
-  const sends    = makeSends(channel, token, tenant.ig_user_id);
+  const sends    = makeSends(channel, token, tenant.fb_page_id);
   // Shadow module-level send imports so all existing call sites below work unchanged
   const sendMessage      = sends.sendMessage.bind(sends);
   const sendButtons      = sends.sendButtons.bind(sends);

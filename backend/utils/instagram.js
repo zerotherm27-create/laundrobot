@@ -2,16 +2,20 @@ const axios = require('axios');
 const db = require('../db');
 const { BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
-// Instagram Messaging API — endpoint uses ig_user_id, not 'me'
-function graphUrl(igUserId) {
-  return `https://graph.facebook.com/v19.0/${igUserId}/messages`;
+// Instagram Messaging API (Facebook-login flavor): sends go through the
+// PAGE's /messages edge with the page access token; recipient.id is the IGSID.
+// Do NOT post to /{ig_user_id}/messages — with a page token that returns
+// "(#3) Application does not have the capability to make this API call"
+// (that endpoint shape belongs to the Instagram-login API on graph.instagram.com).
+function graphUrl(pageId) {
+  return `https://graph.facebook.com/v21.0/${pageId}/messages`;
 }
 
-async function post(token, igUserId, body) {
+async function post(token, pageId, body) {
   if (body?.message && body.message.metadata === undefined) {
     body.message.metadata = BOT_METADATA_TAG;
   }
-  const resp = await axios.post(`${graphUrl(igUserId)}?access_token=${token}`, body);
+  const resp = await axios.post(`${graphUrl(pageId)}?access_token=${token}`, body);
   const mid = resp.data?.message_id;
   noteBotSend(mid);
   if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
@@ -36,10 +40,10 @@ function chunkText(text, maxLen = 990) {
   return chunks;
 }
 
-async function sendMessage(token, igUserId, recipientId, text) {
+async function sendMessage(token, pageId, recipientId, text) {
   const chunks = chunkText(text);
   for (const chunk of chunks) {
-    await post(token, igUserId, {
+    await post(token, pageId, {
       recipient: { id: recipientId },
       message: { text: chunk },
     });
@@ -47,8 +51,8 @@ async function sendMessage(token, igUserId, recipientId, text) {
 }
 
 // Instagram supports button template with postback buttons (same format as Messenger)
-async function sendButtons(token, igUserId, recipientId, text, buttons) {
-  await post(token, igUserId, {
+async function sendButtons(token, pageId, recipientId, text, buttons) {
+  await post(token, pageId, {
     recipient: { id: recipientId },
     message: {
       attachment: {
@@ -60,8 +64,8 @@ async function sendButtons(token, igUserId, recipientId, text, buttons) {
 }
 
 // Quick replies work the same as Messenger
-async function sendQuickReplies(token, igUserId, recipientId, text, replies) {
-  await post(token, igUserId, {
+async function sendQuickReplies(token, pageId, recipientId, text, replies) {
+  await post(token, pageId, {
     recipient: { id: recipientId },
     message: {
       text,
@@ -76,11 +80,11 @@ async function sendQuickReplies(token, igUserId, recipientId, text, replies) {
 
 // Instagram does not support generic template (product cards).
 // Fall back to a numbered text list followed by quick-reply buttons for the first 10 items.
-async function sendCatalog(token, igUserId, recipientId, elements) {
+async function sendCatalog(token, pageId, recipientId, elements) {
   const items = elements.slice(0, 10);
   const lines = items.map((el, i) => `${i + 1}. ${el.title} — ${el.subtitle || ''}`);
   const text = lines.join('\n');
-  await sendMessage(token, igUserId, recipientId, text);
+  await sendMessage(token, pageId, recipientId, text);
 
   // Send quick-reply chips so customer can tap to book (max 13 chips)
   const replies = items.slice(0, 13).map((el, i) => {
@@ -88,7 +92,7 @@ async function sendCatalog(token, igUserId, recipientId, elements) {
     return { title: `${i + 1}. Book`, payload: btn?.payload || `SVC_SELECT:${i}` };
   });
   if (replies.length) {
-    await sendQuickReplies(token, igUserId, recipientId, 'Tap to book a service 👆', replies);
+    await sendQuickReplies(token, pageId, recipientId, 'Tap to book a service 👆', replies);
   }
 }
 
