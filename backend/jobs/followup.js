@@ -29,19 +29,24 @@ const SCHEDULE = [
 ];
 const CANCEL_AFTER_MINUTES = 1440; // 24 hours
 
+// `order` here is a BOOKING group (all unpaid rows sharing a booking_ref, or a
+// single ref-less row). The invoice covers the booking's grand total and its
+// external_id is the booking ref, so the Xendit webhook's BKG- branch marks
+// every row in the booking paid at once.
 async function getOrCreatePaymentUrl(order) {
   if (order.xendit_invoice_url) return order.xendit_invoice_url;
   if (!order.xendit_api_key) return null;
   try {
     const invoice = await createInvoice(order.xendit_api_key, {
-      externalId: order.id,
-      amount: parseFloat(order.price),
-      description: `${order.service_name || 'Laundry'} - Order ${order.id}`,
+      externalId: order.ref,
+      amount: parseFloat(order.total),
+      description: `${order.service_name || 'Laundry'} - Order ${order.ref}`,
       successRedirectUrl: `https://m.me/${order.fb_id}`,
     });
     await db.query(
-      `UPDATE orders SET xendit_invoice_url = $1 WHERE id = $2`,
-      [invoice.invoiceUrl, order.id]
+      `UPDATE orders SET xendit_invoice_url = $1
+       WHERE tenant_id = $2 AND COALESCE(booking_ref, id::text) = $3`,
+      [invoice.invoiceUrl, order.tenant_id, order.ref]
     );
     return invoice.invoiceUrl;
   } catch (e) {
@@ -52,8 +57,8 @@ async function getOrCreatePaymentUrl(order) {
 
 function buildMessage(reminderNum, order, paymentUrl) {
   const name = order.customer_name || 'there';
-  const amount = `₱${parseFloat(order.price).toFixed(2)}`;
-  const orderId = order.id;
+  const amount = `₱${parseFloat(order.total).toFixed(2)}`;
+  const orderId = order.ref;
   const payLine = paymentUrl ? `\n\n💳 Pay now: ${paymentUrl}` : '';
   const cancelLine = `\n\nReply CANCEL if you want to cancel your order.`;
   const isDropoff = order.is_dropoff;
@@ -133,9 +138,13 @@ async function runFollowUp() {
   try {
 
     // ── 1. Auto-cancel orders unpaid after 24 hours ──────────────────────
+    // Grouped by booking: a multi-item booking is cancelled as one unit and
+    // the customer gets ONE message showing the booking ref, not a message
+    // per row with a raw UUID.
     const { rows: toCancel } = await db.query(`
-      SELECT o.id, c.fb_id, c.name as customer_name,
-             t.fb_page_access_token, o.price, o.service_id
+      SELECT COALESCE(o.booking_ref, o.id::text) AS ref,
+             c.fb_id, c.name as customer_name,
+             t.id as tenant_id, t.fb_page_access_token
       FROM orders o
       JOIN customers c ON c.id = o.customer_id
       JOIN tenants  t ON t.id = o.tenant_id
@@ -144,46 +153,59 @@ async function runFollowUp() {
         AND (o.source IS NULL OR o.source != 'admin')
         AND o.created_at < NOW() - make_interval(mins => $1::int)
         AND t.plan IN ('growth', 'pro')
+      GROUP BY COALESCE(o.booking_ref, o.id::text), c.id, t.id
     `, [CANCEL_AFTER_MINUTES]);
 
     for (const order of toCancel) {
       try {
         await db.query(
-          `UPDATE orders SET status = 'CANCELLED' WHERE id = $1`,
-          [order.id]
+          `UPDATE orders SET status = 'CANCELLED'
+           WHERE tenant_id = $1 AND COALESCE(booking_ref, id::text) = $2
+             AND paid = FALSE AND status != 'CANCELLED'
+             AND (source IS NULL OR source != 'admin')`,
+          [order.tenant_id, order.ref]
         );
         if (order.fb_id) {
           await sendTaggedMessage(
             order.fb_page_access_token,
             order.fb_id,
-            `Hi ${order.customer_name || 'there'}, your order ${order.id} has been automatically cancelled due to non-payment.\n\n` +
+            `Hi ${order.customer_name || 'there'}, your order ${order.ref} has been automatically cancelled due to non-payment.\n\n` +
             `If this was a mistake, type "hi" to place a new order. Sorry for the inconvenience! 🙏`
           );
         }
-        console.log(`[follow-up] auto-cancelled order ${order.id}`);
+        console.log(`[follow-up] auto-cancelled order ${order.ref}`);
       } catch (err) {
-        console.error(`[follow-up] cancel failed for ${order.id}:`, err.message);
+        console.error(`[follow-up] cancel failed for ${order.ref}:`, err.message);
       }
     }
 
     // ── 2. Send reminders based on schedule ──────────────────────────────
+    // One reminder per BOOKING (all rows sharing a booking_ref), not per order
+    // row. `total` is the booking grand total: SUM(price) + delivery_fee −
+    // promo_discount across the unpaid rows. Booking refs are only unique per
+    // tenant, so every ref-keyed UPDATE below is also tenant-scoped.
     for (const { reminder, afterMinutes } of SCHEDULE) {
       const { rows: orders } = await db.query(`
         SELECT
-          o.*, o.is_dropoff,
+          COALESCE(o.booking_ref, o.id::text) AS ref,
+          SUM(o.price) + SUM(COALESCE(o.delivery_fee, 0)) - SUM(COALESCE(o.promo_discount, 0)) AS total,
+          BOOL_OR(o.is_dropoff) AS is_dropoff,
+          MIN(o.pickup_date) AS pickup_date,
+          MAX(o.xendit_invoice_url) AS xendit_invoice_url,
+          STRING_AGG(DISTINCT s.name, ', ') AS service_name,
           c.fb_id, c.name as customer_name, c.email as customer_email,
-          t.id as tenant_id, t.fb_page_access_token, t.xendit_api_key,
-          s.name as service_name
+          t.id as tenant_id, t.fb_page_access_token, t.xendit_api_key
         FROM orders o
         JOIN customers c ON c.id = o.customer_id
         JOIN tenants  t ON t.id = o.tenant_id
         LEFT JOIN services s ON s.id = o.service_id
         WHERE o.paid = FALSE
           AND o.status != 'CANCELLED'
-          AND o.reminder_count = $1
           AND (c.fb_id IS NOT NULL OR c.email IS NOT NULL)
           AND o.created_at < NOW() - make_interval(mins => $2::int)
           AND t.plan IN ('growth', 'pro')
+        GROUP BY COALESCE(o.booking_ref, o.id::text), c.id, t.id
+        HAVING MIN(o.reminder_count) = $1
       `, [reminder - 1, afterMinutes]);
 
       for (const order of orders) {
@@ -196,28 +218,35 @@ async function runFollowUp() {
             await sendTaggedMessage(order.fb_page_access_token, order.fb_id, message);
           } else {
             await sendPaymentReminderEmail(order.tenant_id, {
-              orderId: order.id,
+              orderId: order.ref,
               customerName: order.customer_name,
               customerEmail: order.customer_email,
               serviceName: order.service_name,
               pickupDate: order.pickup_date,
-              total: order.price,
+              total: order.total,
               paymentUrl,
               reminderNum: reminder,
             });
           }
 
           await db.query(
-            `UPDATE orders SET reminder_count = $1, last_reminded_at = NOW() WHERE id = $2`,
-            [reminder, order.id]
+            `UPDATE orders SET reminder_count = $1, last_reminded_at = NOW()
+             WHERE tenant_id = $2 AND COALESCE(booking_ref, id::text) = $3
+               AND paid = FALSE AND status != 'CANCELLED'`,
+            [reminder, order.tenant_id, order.ref]
           );
-          console.log(`[follow-up] sent reminder #${reminder} for order ${order.id} to ${order.customer_name} via ${order.fb_id ? 'messenger' : 'email'}`);
+          console.log(`[follow-up] sent reminder #${reminder} for order ${order.ref} to ${order.customer_name} via ${order.fb_id ? 'messenger' : 'email'}`);
         } catch (err) {
           const errData = err.response?.data || {};
           const errCode = errData.error?.code;
-          console.error(`[follow-up] reminder #${reminder} failed for ${order.id}:`, errData || err.message);
+          console.error(`[follow-up] reminder #${reminder} failed for ${order.ref}:`, errData || err.message);
           const nextCount = [100, 200, 551].includes(errCode) ? 99 : reminder;
-          await db.query(`UPDATE orders SET reminder_count = $1 WHERE id = $2`, [nextCount, order.id]).catch(() => {});
+          await db.query(
+            `UPDATE orders SET reminder_count = $1
+             WHERE tenant_id = $2 AND COALESCE(booking_ref, id::text) = $3
+               AND paid = FALSE AND status != 'CANCELLED'`,
+            [nextCount, order.tenant_id, order.ref]
+          ).catch(() => {});
         }
       }
     }
@@ -229,3 +258,4 @@ async function runFollowUp() {
 }
 
 module.exports = runFollowUp;
+module.exports.buildMessage = buildMessage;
