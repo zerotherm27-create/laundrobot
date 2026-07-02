@@ -51,6 +51,22 @@ async function sendMessage(token, recipientId, text) {
   }
 }
 
+// Staff reply from the dashboard (human takeover). The HUMAN_AGENT tag lets a
+// human respond up to 7 days after the customer's last message — a plain
+// RESPONSE send fails with error 10 outside the 24h window. Requires the
+// "Human Agent" feature (usable by app admins/testers pre-App-Review).
+async function sendHumanAgentMessage(token, recipientId, text) {
+  const chunks = chunkText(text);
+  for (const chunk of chunks) {
+    await post(token, {
+      messaging_type: 'MESSAGE_TAG',
+      tag: 'HUMAN_AGENT',
+      recipient: { id: recipientId },
+      message: { text: chunk },
+    });
+  }
+}
+
 // Order / status update message.
 //
 // Tries RESPONSE (works within the 24h messaging window), then falls back to the
@@ -222,4 +238,4 @@ async function sendCatalog(token, recipientId, elements) {
   });
 }
 
-module.exports = { sendMessage, sendTaggedMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping };
+module.exports = { sendMessage, sendTaggedMessage, sendHumanAgentMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping };

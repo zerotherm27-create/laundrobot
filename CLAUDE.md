@@ -51,6 +51,7 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - **Failure mode is the safe direction:** if the process restarts between a bot send and its echo, the mid is lost and the echo reads as human → AI pauses briefly. Customer resumes after `ai_pause_hours` or staff use `/release-ai`.
 - Regression test: `backend/utils/botEchoTracker.test.js` (`node --test utils/botEchoTracker.test.js` — 8 tests).
 - Dashboard `POST /conversations/:fbUserId/release` (with a message) also sets `ai_paused_until` directly; `/release-ai` clears it. Staff reply from the native Meta inbox; the echo path is the primary trigger.
+- **Dashboard staff replies use the `HUMAN_AGENT` message tag** (`sendHumanAgentMessage` in `backend/utils/messenger.js`, called by the release route) — allows replying up to 7 days after the customer's last message; a plain RESPONSE send fails with error 10 outside 24h. Requires the Meta "Human Agent" feature (App Review pending as of 2026-07-02; works for app admins/testers meanwhile). Test: `backend/routes/conversations.test.js`.
 
 ## Frontend architecture notes
 - **All global CSS lives in `frontend/index.html`** — no separate `.css` file. Responsive breakpoints: tablet `(min-width:768px) and (max-width:1023px)`, mobile `(max-width:767px)`.

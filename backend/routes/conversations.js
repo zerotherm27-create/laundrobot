@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const auth   = require('../middleware/auth');
 const db     = require('../db');
-const { sendMessage } = require('../utils/messenger');
+const { sendHumanAgentMessage } = require('../utils/messenger');
 
 // GET conversations waiting for human
 router.get('/human', auth, async (req, res) => {
@@ -57,7 +57,9 @@ router.post('/:fbUserId/release', auth, async (req, res) => {
         'SELECT fb_page_access_token, ai_pause_hours FROM tenants WHERE id=$1', [req.user.tenant_id]
       );
       if (tenant?.fb_page_access_token) {
-        await sendMessage(tenant.fb_page_access_token, req.params.fbUserId, message.trim());
+        // HUMAN_AGENT tag: staff can reply up to 7 days after the customer's
+        // last message (plain RESPONSE fails with error 10 outside 24h).
+        await sendHumanAgentMessage(tenant.fb_page_access_token, req.params.fbUserId, message.trim());
         const pauseHours = tenant.ai_pause_hours || 2;
         const pauseUntil = new Date(Date.now() + pauseHours * 60 * 60 * 1000).toISOString();
         await db.query(
