@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const crypto = require('crypto');
+const { signatureMatches } = require('../utils/webhookSig');
 const axios = require('axios');
 const db = require('../db');
 const messengerUtils = require('../utils/messenger');
@@ -43,10 +44,11 @@ router.get('/', (req, res) => {
 
 // ── Incoming messages ───────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
-  // HMAC signature verification
+  // HMAC signature verification. IG DM webhooks can be signed by the
+  // companion Instagram app (FB_IG_APP_SECRET), not just the main app —
+  // verify against every configured secret (utils/webhookSig.js).
   const sig = req.headers['x-hub-signature-256'];
-  const appSecret = process.env.FB_APP_SECRET;
-  if (!appSecret) {
+  if (!process.env.FB_APP_SECRET) {
     console.error('[messenger-webhook] FB_APP_SECRET not set');
     return res.sendStatus(500);
   }
@@ -55,9 +57,9 @@ router.post('/', async (req, res) => {
     return res.sendStatus(403);
   }
   const rawBody = req.body; // Buffer because express.raw() applied in server.js
-  const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-    console.warn('[messenger-webhook] Signature mismatch');
+  if (!signatureMatches(rawBody, sig, [process.env.FB_APP_SECRET, process.env.FB_IG_APP_SECRET])) {
+    // Body preview identifies which app/payload shape is being rejected.
+    console.warn('[messenger-webhook] Signature mismatch — body preview:', rawBody.toString().slice(0, 300));
     return res.sendStatus(403);
   }
   const body = JSON.parse(rawBody.toString());
