@@ -12,7 +12,7 @@ async function buildShopContext(tenantId, customerContext) {
     { rows: zones },
     { rows: brackets },
   ] = await Promise.all([
-    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note, shop_address FROM tenants WHERE id=$1`, [tenantId]),
+    db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note, shop_address, payment_mode FROM tenants WHERE id=$1`, [tenantId]),
     db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
@@ -80,7 +80,32 @@ async function buildShopContext(tenantId, customerContext) {
     if (parts.length) {
       customerSection = `\nRETURNING CUSTOMER INFO (use this to personalize your replies):\n${parts.join('\n')}\n`;
     }
+    const bookingLines = formatActiveBookings(customerContext.active_bookings);
+    if (bookingLines) {
+      customerSection += `
+ACTIVE BOOKINGS (this customer has ALREADY BOOKED — treat their questions as follow-ups about these orders, not as a new customer inquiry):
+${bookingLines}
+
+RULES FOR CUSTOMERS WITH ACTIVE BOOKINGS:
+- Answer questions about their order (status, items, amount, pickup/drop-off schedule, payment) directly from the booking data above.
+- Do NOT tell them to type 'book' or push a new booking unless they clearly ask to place ANOTHER order.
+- If a booking above says NOT YET PAID: their booking is not confirmed until it's fully paid. Remind them to complete payment using the Pay Now link in their booking confirmation. Never say or imply they can skip it or pay later in cash.
+- For changes or cancellations to these bookings: direct them to contact the shop${tenant.contact_number ? ` at ${tenant.contact_number}` : ''}.
+`;
+    }
+    if (customerContext.cancelled_booking) {
+      const cb = customerContext.cancelled_booking;
+      customerSection += `
+RECENTLY CANCELLED BOOKING (unpaid — automatically cancelled):
+- ${cb.ref} — ${cb.services || 'Laundry'} — ₱${Number(cb.total).toLocaleString('en-PH')}
+If the customer refers to this booking or believes it is still active, gently explain it was cancelled because payment wasn't received, and invite them to re-book by typing 'book' — reminding them the new booking is only confirmed once fully paid.
+`;
+    }
   }
+
+  const payMethod = tenant.payment_mode === 'qr_static'
+    ? "by scanning the shop's payment QR code shown in their booking confirmation"
+    : 'online through the Pay Now link in their booking confirmation';
 
   return `You are Soaphie, a friendly but professional customer service assistant for ${tenant.name}, a laundry service in the Philippines.
 
@@ -114,13 +139,20 @@ PRICING:
 
 BOOKING:
 19. You CANNOT book, cancel, or modify orders yourself. To book: tell them to type "book" or tap the Book Now button. For changes or cancellations: direct them to contact the shop via the number below.
-20. When a customer seems ready to book — or after you answer a pricing question — always end with: "Just type 'book' to get started!"
+20. When a customer seems ready to book — or after you answer a pricing question — end with: "Just type 'book' to get started!" EXCEPTION: skip this line entirely when the customer already has an active booking (see ACTIVE BOOKINGS below) and is asking about it.
+
+PAYMENT POLICY (strict — never contradict or soften this):
+21. Full payment is required BEFORE the shop arranges pickup or accepts a drop-off. A booking is only confirmed once it is fully paid.
+22. There is NO cash on pickup and NO cash on delivery. Never tell a customer they can pay cash when staff pick up or deliver their items, and never say they can skip the payment step.
+23. Customers pay ${payMethod}. If they lost the link, they can ask the shop${tenant.contact_number ? ` at ${tenant.contact_number}` : ''} to resend it.
+24. Unpaid bookings are automatically cancelled — if a customer's booking is unpaid, remind them to settle it so their slot isn't released.
+25. Walk-in customers paying at the shop counter are the ONLY cash scenario. Never extend this to pickups or deliveries.
 
 BOUNDARIES:
-21. Never invent prices, policies, or availability not listed below.
-22. If the requested information is not available, respond exactly with: "Our staff will get back to you to confirm."
-23. Never mention, compare, or discuss competitor shops or brands.
-24. If a customer asks something off-topic (weather, jokes, etc.) — briefly redirect to how you can help them with laundry.
+26. Never invent prices, policies, or availability not listed below.
+27. If the requested information is not available, respond exactly with: "Our staff will get back to you to confirm."
+28. Never mention, compare, or discuss competitor shops or brands.
+29. If a customer asks something off-topic (weather, jokes, etc.) — briefly redirect to how you can help them with laundry.
 ${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${(tenant.ai_instructions || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, 2000)}\n` : ''}${customerSection}
 SHOP: ${tenant.name}
 ${tenant.shop_address ? `ADDRESS: ${tenant.shop_address}` : ''}
@@ -141,7 +173,9 @@ COMMON CUSTOMER INTENTS:
 - "Pwede ba...?" / "Can I...?" → Answer based only on what's listed; if not covered, use the fallback response.
 - "Where are you?" / "Nasaan kayo?" → Give the shop address if available, then the contact number. Never guess or invent a location.
 - "How long?" / "Kailan matatanggap?" → Refer to store hours or turnaround info if available; otherwise use the fallback response.
-- "Okay" / "Thanks" / "Sige" → Acknowledge warmly and offer if there's anything else they need.`;
+- "Okay" / "Thanks" / "Sige" → Acknowledge warmly and offer if there's anything else they need.
+- "Can I pay cash on pickup?" / "Magcash ako" / "Bayad na lang pag kuha" → NO. Full payment is required before pickup is arranged (see PAYMENT POLICY). Point them to their payment link/QR.
+- "Booked na ako" / questions after booking ("kailan pickup?", "magkano ulit?", "paid na ba?") → Answer from ACTIVE BOOKINGS above. Don't treat them as a new customer and don't tell them to type 'book'.`;
 }
 
 async function getHistory(tenantId, senderId) {
@@ -166,7 +200,26 @@ async function saveHistory(tenantId, senderId, history) {
   } catch { /* non-critical */ }
 }
 
-// Returns saved customer facts + last order summary for context injection
+// Renders the customer's active bookings as prompt lines. Bookings are
+// grouped rows (one line per booking_ref), not raw order rows.
+function formatActiveBookings(bookings) {
+  if (!bookings || !bookings.length) return '';
+  return bookings.map(b => {
+    const total = `₱${Number(b.total).toLocaleString('en-PH')}`;
+    const paid = b.paid ? 'PAID' : 'NOT YET PAID';
+    let when = '';
+    if (b.pickup_date) {
+      const d = new Date(b.pickup_date);
+      if (!isNaN(d.getTime())) {
+        when = ` — ${b.is_dropoff ? 'drop-off' : 'pickup'}: ${d.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila' })}`;
+      }
+    }
+    return `- ${b.ref} — ${b.services || 'Laundry'} — ${total} — status: ${b.status}${when} — ${paid}`;
+  }).join('\n');
+}
+
+// Returns saved customer facts + last order summary + active bookings for
+// context injection
 async function getCustomerContext(tenantId, senderId) {
   try {
     const { rows: [customer] } = await db.query(
@@ -182,6 +235,45 @@ async function getCustomerContext(tenantId, senderId) {
     );
     if (!customer) return null;
 
+    // Active bookings, grouped per booking_ref (a multi-item booking is N
+    // order rows) — grand total = SUM(price) + delivery_fee − promo_discount.
+    const { rows: activeBookings } = await db.query(
+      `SELECT COALESCE(o.booking_ref, o.id::text) AS ref,
+              SUM(o.price) + SUM(COALESCE(o.delivery_fee, 0)) - SUM(COALESCE(o.promo_discount, 0)) AS total,
+              BOOL_AND(o.paid) AS paid,
+              BOOL_OR(o.is_dropoff) AS is_dropoff,
+              STRING_AGG(DISTINCT o.status, '/') AS status,
+              MIN(o.pickup_date) AS pickup_date,
+              STRING_AGG(DISTINCT s.name, ', ') AS services
+       FROM orders o
+       JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE c.tenant_id = $1 AND c.fb_id = $2
+         AND o.status NOT IN ('CANCELLED', 'COMPLETED')
+       GROUP BY COALESCE(o.booking_ref, o.id::text)
+       ORDER BY MIN(o.created_at) DESC
+       LIMIT 3`,
+      [tenantId, senderId]
+    );
+
+    // A customer often doesn't know their unpaid booking was auto-cancelled —
+    // surface it so the AI explains instead of assuming the booking is live.
+    const { rows: cancelledBookings } = await db.query(
+      `SELECT COALESCE(o.booking_ref, o.id::text) AS ref,
+              SUM(o.price) + SUM(COALESCE(o.delivery_fee, 0)) - SUM(COALESCE(o.promo_discount, 0)) AS total,
+              STRING_AGG(DISTINCT s.name, ', ') AS services
+       FROM orders o
+       JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE c.tenant_id = $1 AND c.fb_id = $2
+         AND o.status = 'CANCELLED' AND o.paid = FALSE
+         AND o.created_at > NOW() - INTERVAL '7 days'
+       GROUP BY COALESCE(o.booking_ref, o.id::text)
+       ORDER BY MIN(o.created_at) DESC
+       LIMIT 1`,
+      [tenantId, senderId]
+    );
+
     const notes = customer.ai_notes || {};
     const ctx = {
       name: customer.name || notes.name || null,
@@ -189,6 +281,8 @@ async function getCustomerContext(tenantId, senderId) {
       preferred_service: notes.preferred_service || null,
       notes: notes.notes || null,
       last_order: null,
+      active_bookings: activeBookings.length ? activeBookings : null,
+      cancelled_booking: cancelledBookings[0] || null,
     };
 
     if (customer.last_service && customer.last_order_at) {
@@ -309,4 +403,4 @@ async function askGemini(tenantId, userMessage, senderId) {
   }
 }
 
-module.exports = { askGemini };
+module.exports = { askGemini, formatActiveBookings };

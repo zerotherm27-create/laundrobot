@@ -28,6 +28,7 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - Verify deploy state via the Vercel MCP against the **`laundrobot`** project, not `frontend`.
 
 ## Meta / Messenger / Instagram
+- **AI assistant prompt lives in `backend/utils/gemini.js` (`buildShopContext`).** It carries a strict PAYMENT POLICY (full payment BEFORE pickup/drop-off is arranged; NO cash on pickup/delivery — the AI once invented "pay cash to our staff on pickup" and this section is the fix, 2026-07-02) and injects the customer's ACTIVE BOOKINGS (grouped per `booking_ref`: ref, items, grand total, paid status) plus any RECENTLY CANCELLED unpaid booking, so follow-up questions are answered in context instead of pushing "type 'book'" at customers who already booked. Tenant `ai_instructions` override the base rules. Tests: `backend/utils/gemini.test.js`.
 - **FB OAuth scope list lives in `frontend/src/pages/Settings.jsx`** (`handleFbLogin`). Page access tokens only carry permissions that were in the scope at connect time — **adding a scope requires the tenant to reconnect (re-auth)** to mint a new token. App admins/testers can grant permissions pre-App-Review.
 - **Message tags `POST_PURCHASE_UPDATE` / `CONFIRMED_EVENT_UPDATE` / `ACCOUNT_UPDATE` are DEPRECATED (error 100) as of 2026-04-27.**
 - **Order-status notifications now use a two-step fallback** (`backend/utils/messenger.js` `sendStatusUpdate()`):
