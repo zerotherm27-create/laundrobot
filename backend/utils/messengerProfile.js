@@ -79,9 +79,47 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
     console.warn(`[messenger-profile] Facebook persistent menu failed for ${name}:`, fbError);
   }
 
-  // Instagram persistent menu API requires elevated permissions not available via standard page token.
-  // Instead, new Instagram users are greeted with a welcome menu on their first message (in the webhook).
-  const igError = null;
+  // ── 4. Instagram persistent menu + ice breakers ──────────────────────────
+  // Works with the ordinary page token via ?platform=instagram (verified live
+  // 2026-07-03). The old claim that this needs special permissions came from
+  // the wrong-endpoint era — do not reintroduce the skip.
+  let igError = null;
+  if (igUserId) {
+    const igBase = `${fbBase}?platform=instagram&access_token=${pageToken}`;
+    // No messenger_extensions webview on Instagram — plain web_url only.
+    const igBookAction = appUrl && tenantId
+      ? { type: 'web_url', title: '🛒 Book Now', url: `${customDomain ? `https://${customDomain}` : appUrl}/book/${tenantId}` }
+      : { type: 'postback', title: '🛒 Book Now', payload: 'BOOK' };
+
+    try {
+      await axios.post(igBase, {
+        persistent_menu: [{ locale: 'default', composer_input_disabled: false, call_to_actions: [
+          igBookAction,
+          { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+          { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+        ]}],
+      });
+      console.log(`[messenger-profile] Instagram persistent menu set for ${name}`);
+    } catch (e) {
+      igError = e.response?.data?.error?.message || e.message;
+      console.warn(`[messenger-profile] Instagram persistent menu failed for ${name}:`, igError);
+    }
+
+    // Ice breakers: tappable question chips shown when a customer opens a new
+    // conversation — payloads route through the same postback handlers.
+    try {
+      await axios.post(igBase, {
+        ice_breakers: [{ locale: 'default', call_to_actions: [
+          { question: 'How do I book a pickup?',     payload: 'BOOK'      },
+          { question: 'How much are your services?', payload: 'FAQS'      },
+          { question: 'Where is my order?',          payload: 'MY_ORDERS' },
+        ]}],
+      });
+      console.log(`[messenger-profile] Instagram ice breakers set for ${name}`);
+    } catch (e) {
+      console.warn(`[messenger-profile] Instagram ice breakers failed for ${name}:`, e.response?.data?.error?.message || e.message);
+    }
+  }
 
   console.log(`[messenger-profile] setup complete for ${name}`);
   return { fbError, igError };
