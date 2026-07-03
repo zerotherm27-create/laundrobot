@@ -255,8 +255,12 @@ function nextInfoStep(customer) {
 
 // ── Catalog helpers ─────────────────────────────────────────────────────────
 async function showCategoryMenu(sends, token, senderId, tenantId, channel, customDomain = null) {
+  // Only categories with at least one bookable-online service — walk-in-only
+  // categories (available_online=FALSE) belong to the POS, not the bot.
   const { rows: cats } = await db.query(
-    `SELECT * FROM service_categories WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`,
+    `SELECT * FROM service_categories c WHERE c.tenant_id=$1 AND c.active=TRUE
+       AND EXISTS (SELECT 1 FROM services s WHERE s.category_id=c.id AND s.active=TRUE AND s.available_online=TRUE)
+     ORDER BY c.sort_order ASC`,
     [tenantId]
   );
 
@@ -273,13 +277,13 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
   if (!categoryId || categoryId === 'ALL') {
     query = `SELECT s.*, c.name AS category_name FROM services s
              LEFT JOIN service_categories c ON c.id = s.category_id
-             WHERE s.tenant_id=$1 AND s.active=TRUE
+             WHERE s.tenant_id=$1 AND s.active=TRUE AND s.available_online=TRUE
              ORDER BY c.sort_order ASC NULLS LAST, s.sort_order ASC, s.name ASC`;
     params = [tenantId];
   } else {
     query = `SELECT s.*, c.name AS category_name FROM services s
              LEFT JOIN service_categories c ON c.id = s.category_id
-             WHERE s.tenant_id=$1 AND s.category_id=$2 AND s.active=TRUE
+             WHERE s.tenant_id=$1 AND s.category_id=$2 AND s.active=TRUE AND s.available_online=TRUE
              ORDER BY s.sort_order ASC, s.name ASC`;
     params = [tenantId, categoryId];
   }

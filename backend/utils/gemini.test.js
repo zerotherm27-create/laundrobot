@@ -80,6 +80,14 @@ test('active bookings query groups rows per booking and excludes terminal status
   assert.match(src, /NOT IN \('CANCELLED',\s*'COMPLETED'\)/, 'must only surface active orders');
 });
 
+test('AI service list excludes walk-in-only services', () => {
+  assert.match(
+    src,
+    /FROM services WHERE tenant_id=\$1 AND active=TRUE AND available_online=TRUE/,
+    'buildShopContext must not feed walk-in-only (available_online=FALSE) services to the AI'
+  );
+});
+
 test('prompt surfaces a recently auto-cancelled unpaid booking so the AI can explain it', () => {
   assert.match(src, /RECENTLY CANCELLED BOOKING/, 'prompt must carry the cancelled-booking section');
   assert.match(src, /status = 'CANCELLED' AND o\.paid = FALSE/, 'must look up unpaid cancelled bookings');

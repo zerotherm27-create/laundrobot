@@ -13,7 +13,7 @@ async function buildShopContext(tenantId, customerContext) {
     { rows: brackets },
   ] = await Promise.all([
     db.query(`SELECT name, contact_number, store_open, store_close, ai_instructions, delivery_radius, delivery_note, shop_address, payment_mode FROM tenants WHERE id=$1`, [tenantId]),
-    db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
+    db.query(`SELECT id, name, price, unit, description FROM services WHERE tenant_id=$1 AND active=TRUE AND available_online=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT question, answer FROM faqs WHERE tenant_id=$1 AND active=TRUE ORDER BY sort_order ASC`, [tenantId]),
     db.query(`SELECT name, fee FROM delivery_zones WHERE tenant_id=$1 AND active=TRUE`, [tenantId]),
     db.query(`SELECT min_km, max_km, fee FROM delivery_brackets WHERE tenant_id=$1 ORDER BY min_km ASC`, [tenantId]),
