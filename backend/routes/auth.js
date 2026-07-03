@@ -6,7 +6,7 @@ const db = require('../db');
 
 // Login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, keep_logged_in } = req.body;
   const loginEmail = email?.trim().toLowerCase();
   if (!loginEmail || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
         permissions,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: keep_logged_in ? '30d' : '24h' }
     );
 
     res.json({
@@ -198,10 +198,14 @@ router.post('/switch-branch', require('../middleware/auth'), async (req, res) =>
         `SELECT id, name FROM tenants WHERE id=$1`, [targetId]
       );
       if (!target) return res.status(404).json({ error: 'Branch not found' });
+      // Preserve the ORIGINAL session expiry: strip iat, keep exp. Re-signing
+      // with expiresIn while the payload has exp throws in jsonwebtoken v9,
+      // and hardcoding 24h silently downgraded 30-day "keep me logged in"
+      // sessions every time a branch was switched.
+      const { iat, ...claims } = req.user;
       const token = jwt.sign(
-        { ...req.user, tenant_id: target.id, tenant_name: target.name },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
+        { ...claims, tenant_id: target.id, tenant_name: target.name },
+        process.env.JWT_SECRET
       );
       return res.json({ token, tenant_id: target.id, tenant_name: target.name });
     } catch (err) { console.error('[switch-branch]', err); return res.status(500).json({ error: 'Internal server error' }); }
@@ -222,10 +226,11 @@ router.post('/switch-branch', require('../middleware/auth'), async (req, res) =>
     );
     if (!target) return res.status(403).json({ error: 'Branch not found or not in your group' });
 
+    // Same as the superadmin branch above: keep the original absolute exp.
+    const { iat, ...claims } = req.user;
     const token = jwt.sign(
-      { ...req.user, tenant_id: target.id, tenant_name: target.name },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { ...claims, tenant_id: target.id, tenant_name: target.name },
+      process.env.JWT_SECRET
     );
     res.json({ token, tenant_id: target.id, tenant_name: target.name });
   } catch (err) {
