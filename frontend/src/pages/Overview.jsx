@@ -106,6 +106,7 @@ export default function Overview() {
   const [humanConvs,   setHumanConvs]   = useState([]);
   const [releasing,    setReleasing]    = useState(null);
   const [replyMsg,     setReplyMsg]     = useState({});
+  const [sentConfirmation, setSentConfirmation] = useState({});
   const [customDomain, setCustomDomain] = useState('');
   const [tenantPlan,   setTenantPlan]   = useState('');
   const [fbPageId,     setFbPageId]     = useState('');
@@ -142,10 +143,14 @@ export default function Overview() {
   async function handleRelease(fbUserId) {
     setReleasing(fbUserId);
     try {
-      await releaseConversation(fbUserId, replyMsg[fbUserId] || '');
+      const { data } = await releaseConversation(fbUserId, replyMsg[fbUserId] || '');
+      if (data.sent) {
+        setSentConfirmation(p => ({ ...p, [fbUserId]: data.sent }));
+        setTimeout(() => setSentConfirmation(p => { const n = { ...p }; delete n[fbUserId]; return n; }), 8000);
+      }
       setHumanConvs(p => p.filter(c => c.fb_user_id !== fbUserId));
       setReplyMsg(p => { const n = { ...p }; delete n[fbUserId]; return n; });
-    } catch { alert('Failed to release conversation.'); }
+    } catch (err) { alert(err.response?.data?.error || 'Failed to release conversation.'); }
     finally { setReleasing(null); }
   }
 
@@ -175,19 +180,30 @@ export default function Overview() {
       </div>
 
       {/* ── Human handoff alerts ── */}
-      {humanConvs.length > 0 && (
+      {(humanConvs.length > 0 || Object.keys(sentConfirmation).length > 0) && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: '#FEF3C7', borderRadius: 20, padding: '4px 12px',
-              border: '1px solid #FCD34D', fontSize: 12, fontWeight: 600, color: '#92400E'
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-              {humanConvs.length} customer{humanConvs.length > 1 ? 's' : ''} need{humanConvs.length === 1 ? 's' : ''} a human agent
-            </span>
-          </div>
+          {humanConvs.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: '#FEF3C7', borderRadius: 20, padding: '4px 12px',
+                border: '1px solid #FCD34D', fontSize: 12, fontWeight: 600, color: '#92400E'
+              }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+                {humanConvs.length} customer{humanConvs.length > 1 ? 's' : ''} need{humanConvs.length === 1 ? 's' : ''} a human agent
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Object.entries(sentConfirmation).map(([fbUserId, sent]) => (
+              <div key={`sent-${fbUserId}`} style={{
+                background: '#F0FDF4', border: '0.5px solid #BBF7D0',
+                borderLeft: '3px solid #059669', borderRadius: 10, padding: '10px 14px',
+                fontSize: 12, color: '#065F46'
+              }}>
+                <strong>✓ Sent &amp; delivered</strong> — "{sent.text}"
+              </div>
+            ))}
             {humanConvs.map(c => (
               <div key={c.fb_user_id} style={{
                 background: '#FFFBF0', border: '0.5px solid #FCD34D',
@@ -202,6 +218,14 @@ export default function Overview() {
                     </div>
                   </div>
                 </div>
+                {c.needs_human_text && (
+                  <div style={{
+                    fontSize: 12, color: '#78716C', fontStyle: 'italic', background: '#fff',
+                    border: '1px solid #F3E8D2', borderRadius: 7, padding: '7px 10px', marginBottom: 8
+                  }}>
+                    "{c.needs_human_text}"
+                  </div>
+                )}
                 <input
                   value={replyMsg[c.fb_user_id] || ''}
                   onChange={e => setReplyMsg(p => ({ ...p, [c.fb_user_id]: e.target.value }))}

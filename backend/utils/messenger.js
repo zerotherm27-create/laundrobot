@@ -57,14 +57,17 @@ async function sendMessage(token, recipientId, text) {
 // "Human Agent" feature (usable by app admins/testers pre-App-Review).
 async function sendHumanAgentMessage(token, recipientId, text) {
   const chunks = chunkText(text);
+  const mids = [];
   for (const chunk of chunks) {
-    await post(token, {
+    const resp = await post(token, {
       messaging_type: 'MESSAGE_TAG',
       tag: 'HUMAN_AGENT',
       recipient: { id: recipientId },
       message: { text: chunk },
     });
+    mids.push(resp.data?.message_id);
   }
+  return mids;
 }
 
 // Order / status update message.

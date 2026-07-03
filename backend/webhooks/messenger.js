@@ -535,8 +535,8 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
   // ── Human request ────────────────────────────────────────────────────
   if (wantsHuman(text) && !event.postback) {
     await db.query(
-      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW() WHERE tenant_id=$1 AND fb_user_id=$2',
-      [tenant.id, senderId]
+      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW(), needs_human_text=$3 WHERE tenant_id=$1 AND fb_user_id=$2',
+      [tenant.id, senderId, event.message?.text || null]
     );
     await sendMessage(token, senderId,
       `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
@@ -949,8 +949,8 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
 
   if (text === 'HUMAN_REQUEST' || wantsHuman(text)) {
     await db.query(
-      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW() WHERE tenant_id=$1 AND fb_user_id=$2',
-      [tenant.id, senderId]
+      'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW(), needs_human_text=$3 WHERE tenant_id=$1 AND fb_user_id=$2',
+      [tenant.id, senderId, event.message?.text || null]
     );
     await sendMessage(token, senderId,
       `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
