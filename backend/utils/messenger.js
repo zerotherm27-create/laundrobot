@@ -52,19 +52,39 @@ async function sendMessage(token, recipientId, text) {
 }
 
 // Staff reply from the dashboard (human takeover). The HUMAN_AGENT tag lets a
-// human respond up to 7 days after the customer's last message — a plain
-// RESPONSE send fails with error 10 outside the 24h window. Requires the
-// "Human Agent" feature (usable by app admins/testers pre-App-Review).
+// human respond up to 7 days after the customer's last message. Meta REJECTS
+// this tag outright pre-App-Review-approval — confirmed live 2026-07-04:
+// "(#100) Cannot tag messages with 'HUMAN_AGENT' without prior approval."
+// (code 100, subcode 2018276) — even for app admins/testers, so there is no
+// pre-approval bypass for this specific tag (unlike some other permissions).
+// Fall back to a plain RESPONSE send (works within the standard 24h window)
+// so staff replies aren't silently broken while approval is pending — same
+// two-step shape as sendStatusUpdate's RESPONSE -> utility-template fallback.
 async function sendHumanAgentMessage(token, recipientId, text) {
   const chunks = chunkText(text);
   const mids = [];
   for (const chunk of chunks) {
-    const resp = await post(token, {
-      messaging_type: 'MESSAGE_TAG',
-      tag: 'HUMAN_AGENT',
-      recipient: { id: recipientId },
-      message: { text: chunk },
-    });
+    let resp;
+    try {
+      resp = await post(token, {
+        messaging_type: 'MESSAGE_TAG',
+        tag: 'HUMAN_AGENT',
+        recipient: { id: recipientId },
+        message: { text: chunk },
+      });
+    } catch (err) {
+      const e = err.response?.data?.error;
+      if (e?.error_subcode === 2018276 || /without prior approval/.test(e?.message || '')) {
+        console.log(`[sendHumanAgentMessage] HUMAN_AGENT tag not yet approved by Meta for ${recipientId}; falling back to RESPONSE`);
+        resp = await post(token, {
+          messaging_type: 'RESPONSE',
+          recipient: { id: recipientId },
+          message: { text: chunk },
+        });
+      } else {
+        throw err;
+      }
+    }
     mids.push(resp.data?.message_id);
   }
   return mids;
