@@ -42,6 +42,34 @@ test('chat category menu hides categories with no online services', () => {
   );
 });
 
+// ── Instagram's in-chat catalog flow must not silently drop delivery_fee ──────
+// SVC: (service selection from the chat catalog) used to redirect only
+// Messenger users to the webform; Instagram users fell through into the
+// legacy ASK_WEIGHT->CONFIRM state machine, which computes total = weight *
+// price_per_kg with no delivery zone lookup and no delivery_fee column in
+// the orders INSERT at all — Instagram customers were charged/shown the
+// service price only, silently missing delivery fee. Both channels must now
+// redirect to the webform (routes/public.js), which computes delivery_fee.
+
+test("SVC: (chat catalog) redirects both channels to the webform, not just messenger", () => {
+  const svcBlock = src.split("if (text.startsWith('SVC:'))")[1]?.split('\n  }\n')[0] || '';
+  assert.doesNotMatch(
+    svcBlock,
+    /if \(channel === 'messenger' && process\.env\.APP_URL\)/,
+    'the webform redirect must not be gated to messenger only — instagram must get it too'
+  );
+  assert.match(svcBlock, /if \(process\.env\.APP_URL\)/, 'must still redirect to the webform when APP_URL is configured');
+});
+
+test('the stale-in-flight-booking-step guard is channel-agnostic', () => {
+  const guardBlock = src.split("Booking flow fallback")[1]?.split('return;')[0] || '';
+  assert.doesNotMatch(
+    guardBlock,
+    /channel === 'messenger' &&/,
+    'the guard must redirect stale Instagram sessions too, not just messenger'
+  );
+});
+
 test('bookBtn emits a plain web_url button for instagram (no messenger_extensions)', () => {
   const fn = src.split('function bookBtn')[1]?.split('\n}')[0] || '';
   assert.match(fn, /channel/, 'bookBtn must be channel-aware');

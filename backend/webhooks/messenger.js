@@ -710,9 +710,14 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
-  // ── Service selected (Instagram only — Messenger uses webform "Book Now" button) ──
+  // ── Service selected — both channels redirect to the webform. The in-chat
+  // ASK_WEIGHT→CONFIRM flow below never asks for a delivery zone or adds
+  // delivery_fee to the total (it silently booked/charged customers for the
+  // service price only), while the webform (routes/public.js) computes
+  // delivery_fee from the tenant's delivery zones. Redirect instead of
+  // maintaining pricing logic in two places. ──
   if (text.startsWith('SVC:')) {
-    if (channel === 'messenger' && process.env.APP_URL) {
+    if (process.env.APP_URL) {
       await sendButtons(token, senderId, `Tap below to complete your booking! 👇`, [bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain, channel)]);
       return;
     }
@@ -733,9 +738,12 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
     return;
   }
 
-  // ── Booking flow (Instagram only — Messenger redirects to webform above) ─────
-  // Guard: if a Messenger user has a stale in-flight booking step, redirect them
-  if (channel === 'messenger' && ['ASK_WEIGHT','ASK_PHONE','ASK_ADDRESS','ASK_EMAIL','ASK_DATETIME','ASK_NAME','CONFIRM'].includes(step)) {
+  // ── Booking flow fallback (only reachable when APP_URL is unset) ─────────
+  // Guard: if a user has a stale in-flight booking step from before this
+  // redirect existed, or APP_URL got set after they entered the flow,
+  // redirect them to the webform rather than letting them reach CONFIRM
+  // with a total that's missing delivery_fee.
+  if (process.env.APP_URL && ['ASK_WEIGHT','ASK_PHONE','ASK_ADDRESS','ASK_EMAIL','ASK_DATETIME','ASK_NAME','CONFIRM'].includes(step)) {
     await sendButtons(token, senderId, `Let's complete your booking using our form! 👇`, [bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain, channel)]);
     await setState('MENU', {}, {});
     return;
