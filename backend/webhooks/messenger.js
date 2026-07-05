@@ -379,7 +379,7 @@ async function handleOptin(tenant, senderId, ref) {
       await sends.sendButtons(token, senderId,
         `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
         [
-          bookBtn(tenant.id, channel === 'messenger' ? senderId : null, tenant.custom_domain, channel),
+          bookBtn(tenant.id, senderId, tenant.custom_domain, 'messenger'),
           { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
           { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
         ]
@@ -406,8 +406,26 @@ async function handleOptin(tenant, senderId, ref) {
     }
   }
 
+  // ref was absent, or present but unrecognized (matches neither a referral
+  // link nor an existing order's booking_ref — e.g. Meta's own default
+  // ad/discovery referral params). There's no order or promo context to
+  // reference, so give the same welcome + menu a plain "Get Started" tap
+  // gets, instead of a dead-end "you're connected, we'll send order updates"
+  // message with no order behind it.
+  if (!customerName) {
+    await sends.sendButtons(token, senderId,
+      `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
+      [
+        bookBtn(tenant.id, senderId, tenant.custom_domain, 'messenger'),
+        { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+        { type: 'postback', title: '❓ FAQs',       payload: 'FAQS'      },
+      ]
+    );
+    return;
+  }
+
   await sends.sendMessage(token, senderId,
-    `✅ Hi ${customerName || 'there'}! You're now connected. We'll send your order updates right here in Messenger.`
+    `🎉 You're all set, ${customerName}! ${tenant.name} will now send you live updates on your laundry — pickup, processing, and when it's ready — straight to this chat.`
   );
   await sends.sendButtons(token, senderId,
     `🎁 Want to also receive exclusive promos and updates from us? Tap Get Updates!`,

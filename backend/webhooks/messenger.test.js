@@ -81,3 +81,37 @@ test('bookBtn emits a plain web_url button for instagram (no messenger_extension
   const igLine = fn.split("'instagram'")[1]?.split(':')?.slice(0, 4).join(':') || '';
   assert.doesNotMatch(igLine, /messenger_extensions/, 'instagram button must not set messenger_extensions');
 });
+
+// ── handleOptin must never reference an undefined `channel` variable ─────────
+// handleOptin(tenant, senderId, ref) is only ever called from the Messenger
+// branch of the webhook (never Instagram — IG has no optin/referral
+// handling), but its matched-referral-link branch called bookBtn(...,
+// channel === 'messenger' ? senderId : null, ..., channel) — `channel` was
+// never a parameter or in-scope variable of this function. Confirmed live:
+// this threw "channel is not defined" and silently ate the reply for every
+// customer who actually clicked a tracked referral link (caught by the
+// webhook's outer try/catch, logged, customer got zero response).
+
+test('handleOptin never references an undefined channel variable', () => {
+  const fnBody = src.split('async function handleOptin')[1]?.split('\nasync function')[0] || '';
+  assert.ok(fnBody.length > 100, 'expected to find the handleOptin function body');
+  assert.doesNotMatch(fnBody, /\bchannel\b/, 'handleOptin has no `channel` param/variable in scope — must not reference it');
+});
+
+// ── An unrecognized ref must not dead-end the conversation ───────────────────
+// When `ref` matches neither a referral_links row nor an existing order's
+// booking_ref (e.g. Meta's own default ad/discovery referral params on a
+// Page's "Get Started" button), handleOptin used to always send "You're now
+// connected, we'll send your order updates" — a message with no order behind
+// it and no path into booking (no menu buttons). Confirmed live via a real
+// customer's Get Started tap. It must now fall back to the same welcome +
+// menu a plain Get Started gets.
+
+test('handleOptin falls back to the welcome+menu when ref matches nothing (no dead-end message)', () => {
+  const fnBody = src.split('async function handleOptin')[1]?.split('\nasync function')[0] || '';
+  assert.match(
+    fnBody,
+    /if \(!customerName\) \{[\s\S]*?Welcome to \$\{tenant\.name\}/,
+    'must send the welcome+menu when neither a referral link nor a booking_ref matched'
+  );
+});
