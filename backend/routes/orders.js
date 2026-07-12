@@ -245,6 +245,17 @@ router.put('/booking/:ref', auth, async (req, res) => {
       );
     }
 
+    // If the edit raised the booking's total, the previously-recorded paid
+    // status no longer covers the new balance — reflect that immediately so
+    // Kanban/order-status don't keep showing "Paid" for an unpaid balance.
+    const editedTotal = items.reduce((s, i) => s + Number(i.price), 0) + extraAmount;
+    if (editedTotal - oldTotal > 0) {
+      await client.query(
+        `UPDATE orders SET paid = FALSE WHERE booking_ref=$1 AND tenant_id=$2`,
+        [req.params.ref, req.user.tenant_id]
+      );
+    }
+
     await client.query('COMMIT');
 
     const { rows: updated } = await db.query(
