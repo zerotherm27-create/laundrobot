@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
@@ -65,6 +66,8 @@ export default function Services() {
   const [loading,       setLoading]       = useState(true);
   const [svcForm,       setSvcForm]       = useState(null);
   const [catForm,       setCatForm]       = useState(null);
+  const svcModalRef = useModalA11y(() => { setSvcForm(null); setPreview(null); setFields([]); }, !!svcForm);
+  const catModalRef = useModalA11y(() => setCatForm(null), !!catForm);
   const [saving,        setSaving]        = useState(false);
   const [preview,       setPreview]       = useState(null);
   const [imgTab,        setImgTab]        = useState('icon'); // 'icon' | 'upload'
@@ -489,6 +492,8 @@ export default function Services() {
                     {/* Add service to this category shortcut */}
                     <div
                       onClick={() => openNewSvc({ category_id: id === '__none__' ? '' : id })}
+                      role="button" tabIndex={0} aria-label="Add service"
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNewSvc({ category_id: id === '__none__' ? '' : id }); } }}
                       style={{ border: '1.5px dashed #111827', borderRadius: 10, minHeight: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#111827', fontSize: 13, flexDirection: 'column', gap: 4 }}>
                       <span style={{ fontSize: 22 }}>+</span>
                       <span>Add service</span>
@@ -504,7 +509,8 @@ export default function Services() {
       {/* ── Service Modal ──────────────────────────────────────────────── */}
       {svcForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 480, border: '0.5px solid #e8e8e0', maxHeight: '92vh', overflowY: 'auto' }}>
+          <div ref={svcModalRef} role="dialog" aria-modal="true" aria-label={svcForm.isNew ? 'Add service' : 'Edit service'} tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 480, border: '0.5px solid #e8e8e0', maxHeight: '92vh', overflowY: 'auto', outline: 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{svcForm.isNew ? 'Add service' : 'Edit service'}</div>
 
             {/* Image */}
@@ -545,6 +551,8 @@ export default function Services() {
               ) : (
                 <div>
                   <div onClick={() => fileRef.current.click()}
+                    role="button" tabIndex={0} aria-label="Upload photo"
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current.click(); } }}
                     style={{ width: '100%', height: 110, borderRadius: 8, border: '1px dashed #ccc', cursor: 'pointer', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
                     {preview && !preview.startsWith('data:image/svg')
                       ? <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -907,7 +915,8 @@ export default function Services() {
       {/* ── Category Modal ─────────────────────────────────────────────── */}
       {catForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 360, border: '0.5px solid #e8e8e0' }}>
+          <div ref={catModalRef} role="dialog" aria-modal="true" aria-label={catForm.isNew ? 'Add category' : 'Edit category'} tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 360, border: '0.5px solid #e8e8e0', outline: 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 16 }}>{catForm.isNew ? 'Add category' : 'Edit category'}</div>
 
             <div style={{ marginBottom: 12 }}>

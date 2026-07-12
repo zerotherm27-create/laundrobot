@@ -90,6 +90,8 @@ export default function Customers() {
               <tbody>
                 {filtered.map(c => (
                   <tr key={c.id} onClick={() => setSelected(selected?.id === c.id ? null : c)}
+                    role="button" tabIndex={0} aria-label={`View ${c.name || 'customer'}`}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(selected?.id === c.id ? null : c); } }}
                     style={{ borderTop: '0.5px solid #f0f0ec', cursor: 'pointer', background: selected?.id === c.id ? '#f0f6ff' : 'transparent' }}>
                     <td style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -371,6 +371,8 @@ export default function Settings() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <div
                   onClick={() => logoFileRef.current.click()}
+                  role="button" tabIndex={0} aria-label="Upload logo"
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); logoFileRef.current.click(); } }}
                   style={{ width: 80, height: 80, borderRadius: 12, border: '1.5px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F9FAFB', flexShrink: 0 }}>
                   {logoUrl
                     ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -743,9 +745,12 @@ export default function Settings() {
                       : 'Bot shows main menu for anything outside the booking flow.'}
                   </div>
                 </div>
-                <div onClick={() => setAiEnabled(p => !p)} style={{
+                <div onClick={() => setAiEnabled(p => !p)}
+                  role="switch" aria-checked={aiEnabled} aria-label="AI replies" tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAiEnabled(p => !p); } }}
+                  style={{
                   width: 46, height: 26, borderRadius: 13, cursor: 'pointer', transition: 'background .2s',
-                  background: aiEnabled ? '#38a9c2' : '#D1D5DB', position: 'relative', flexShrink: 0,
+                  background: aiEnabled ? 'var(--primary)' : '#D1D5DB', position: 'relative', flexShrink: 0,
                 }}>
                   <div style={{
                     position: 'absolute', top: 3, left: aiEnabled ? 23 : 3,
@@ -834,7 +839,9 @@ export default function Settings() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
                     <div
                       onClick={() => setWhiteLabel(v => !v)}
-                      style={{ width: 40, height: 22, borderRadius: 11, background: whiteLabel ? '#38a9c2' : '#D1D5DB', position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
+                      role="switch" aria-checked={whiteLabel} aria-label="Remove Powered by LaundroBot" tabIndex={0}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setWhiteLabel(v => !v); } }}
+                      style={{ width: 40, height: 22, borderRadius: 11, background: whiteLabel ? 'var(--primary)' : '#D1D5DB', position: 'relative', cursor: 'pointer', transition: 'background .2s', flexShrink: 0 }}>
                       <div style={{ position: 'absolute', top: 3, left: whiteLabel ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left .2s' }} />
                     </div>
                     <div>

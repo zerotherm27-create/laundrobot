@@ -966,9 +966,11 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                   const selected = selectedSvc?.id === svc.id;
                   return (
                     <div key={svc.id} onClick={() => { setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setTried1(false); }}
+                      role="button" tabIndex={0} aria-pressed={selected} aria-label={svc.name}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSvc(svc); setFieldValues({}); setWeight(''); setAddonQty({}); setAddonOwn({}); setTried1(false); } }}
                       style={{
                         padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
-                        border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
+                        border: selected ? '2px solid var(--primary)' : '1.5px solid #E2E8F0',
                         background: selected ? '#EBF8FA' : '#fff',
                         transition: 'all .15s',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
@@ -1048,7 +1050,16 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                                 const next = !isOwn;
                                 setAddonOwn(p => ({ ...p, [f.id]: next }));
                                 if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
-                              }} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? '#38a9c2' : '#CBD5E0'}`, background: isOwn ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
+                              }}
+                                role="checkbox" aria-checked={isOwn} tabIndex={0}
+                                aria-label={`I'll provide my own ${f.label.toLowerCase()}`}
+                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  const next = !isOwn;
+                                  setAddonOwn(p => ({ ...p, [f.id]: next }));
+                                  if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
+                                } }}
+                                style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? 'var(--primary)' : '#CBD5E0'}`, background: isOwn ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
                                 {isOwn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
                               </div>
                               I'll provide my own {f.label.toLowerCase()}
@@ -1769,9 +1780,12 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
             )}
 
             {/* Privacy consent */}
-            <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? '#38a9c2' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer' }}
-              onClick={() => setPrivacyConsent(p => !p)}>
-              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? '#38a9c2' : '#CBD5E0'}`, background: privacyConsent ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
+            <div style={{ marginBottom: 16, padding: '14px 16px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? 'var(--primary)' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer' }}
+              onClick={() => setPrivacyConsent(p => !p)}
+              role="checkbox" aria-checked={privacyConsent} tabIndex={0}
+              aria-label="I voluntarily give my consent to keep and process my information"
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPrivacyConsent(p => !p); } }}>
+              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? 'var(--primary)' : '#CBD5E0'}`, background: privacyConsent ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
                 {privacyConsent && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
               </div>
               <p style={{ margin: 0, fontSize: 12, color: '#374151', lineHeight: 1.6 }}>

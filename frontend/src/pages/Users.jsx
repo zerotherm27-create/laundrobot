@@ -244,17 +244,20 @@ export default function Users() {
                   {FEATURES.map(feat => {
                     const on = form.permissions.includes(feat.key);
                     return (
-                      <div key={feat.key} onClick={() => togglePerm(feat.key)} style={{
+                      <div key={feat.key} onClick={() => togglePerm(feat.key)}
+                        role="checkbox" aria-checked={on} tabIndex={0} aria-label={feat.label}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePerm(feat.key); } }}
+                        style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
-                        border: `1.5px solid ${on ? '#38a9c2' : '#e8e8e0'}`,
+                        border: `1.5px solid ${on ? 'var(--primary)' : '#e8e8e0'}`,
                         background: on ? '#e6f5f8' : '#fafafa',
                       }}>
-                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? '#38a9c2' : '#fff', border: `1.5px solid ${on ? '#38a9c2' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? 'var(--primary)' : '#fff', border: `1.5px solid ${on ? 'var(--primary)' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {on && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
                         </div>
                         <span style={{ fontSize: 13 }}>{feat.icon}</span>
-                        <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? '#1a7d94' : '#666' }}>{feat.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? 'var(--primary)' : '#666' }}>{feat.label}</span>
                       </div>
                     );
                   })}

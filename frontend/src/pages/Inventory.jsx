@@ -141,7 +141,9 @@ function Stock({ items, setItems }) {
                   : item[field];
     return (
       <span style={{ borderBottom:'1px dashed #ccc', cursor:'pointer' }}
-        onClick={() => setEditing({ id:item.id, field, value:String(item[field]) })}>
+        role="button" tabIndex={0} aria-label={`Edit ${field}, currently ${display}`}
+        onClick={() => setEditing({ id:item.id, field, value:String(item[field]) })}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing({ id:item.id, field, value:String(item[field]) }); } }}>
         {display}
       </span>
     );

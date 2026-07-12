@@ -888,9 +888,11 @@ export default function WalkIn() {
                 return (
                   <div key={svc.id}
                     onClick={() => { setSelectedSvc(svc); setFieldValues({}); setAddonQty({}); setAddonOwn({}); }}
+                    role="button" tabIndex={0} aria-pressed={selected} aria-label={svc.name}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedSvc(svc); setFieldValues({}); setAddonQty({}); setAddonOwn({}); } }}
                     style={{
                       padding: '14px 16px', borderRadius: 12, cursor: 'pointer',
-                      border: selected ? '2px solid #38a9c2' : '1.5px solid #E2E8F0',
+                      border: selected ? '2px solid var(--primary)' : '1.5px solid #E2E8F0',
                       background: selected ? '#EBF8FA' : '#fff',
                       transition: 'all .15s',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
@@ -960,7 +962,16 @@ export default function WalkIn() {
                               const next = !isOwn;
                               setAddonOwn(p => ({ ...p, [f.id]: next }));
                               if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
-                            }} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? '#38a9c2' : '#CBD5E0'}`, background: isOwn ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
+                            }}
+                              role="checkbox" aria-checked={isOwn} tabIndex={0}
+                              aria-label={`I'll provide my own ${f.label.toLowerCase()}`}
+                              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                const next = !isOwn;
+                                setAddonOwn(p => ({ ...p, [f.id]: next }));
+                                if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
+                              } }}
+                              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? 'var(--primary)' : '#CBD5E0'}`, background: isOwn ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
                               {isOwn && <Icon name="check" size={11} color="#fff" />}
                             </div>
                             I'll provide my own {f.label.toLowerCase()}
@@ -1287,9 +1298,12 @@ export default function WalkIn() {
             </div>
 
             {/* Privacy consent */}
-            <div style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? '#38a9c2' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', transition: 'all .15s' }}
-              onClick={() => setPrivacyConsent(p => !p)}>
-              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? '#38a9c2' : '#CBD5E0'}`, background: privacyConsent ? '#38a9c2' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
+            <div style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${privacyConsent ? 'var(--primary)' : '#E2E8F0'}`, background: privacyConsent ? '#EBF8FA' : '#FAFAFA', display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', transition: 'all .15s' }}
+              onClick={() => setPrivacyConsent(p => !p)}
+              role="checkbox" aria-checked={privacyConsent} tabIndex={0}
+              aria-label="I voluntarily give my consent to keep and process my information"
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPrivacyConsent(p => !p); } }}>
+              <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? 'var(--primary)' : '#CBD5E0'}`, background: privacyConsent ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
                 {privacyConsent && <Icon name="check" size={11} color="#fff" />}
               </div>
               <p style={{ fontSize: 12, color: '#374151', margin: 0, lineHeight: 1.5 }}>

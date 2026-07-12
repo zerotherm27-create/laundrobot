@@ -1669,11 +1669,13 @@ function Insights() {
                           if (e.key === 'Escape') setEditTarget(p => { const n = { ...p }; delete n[key]; return n; });
                         }}
                         disabled={savingTarget[key]}
-                        style={{ width: 100, padding: '3px 6px', borderRadius: 4, border: '1px solid #38a9c2', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
+                        style={{ width: 100, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
                       />
                     ) : (
                       <span style={{ fontSize: 13, color: '#374151', borderBottom: '1px dashed #ccc', cursor: 'pointer' }}
-                        onClick={() => setEditTarget(p => ({ ...p, [key]: String(target) }))}>
+                        role="button" tabIndex={0} aria-label={target > 0 ? `Edit target, currently ${PESO(target)}` : 'Set target'}
+                        onClick={() => setEditTarget(p => ({ ...p, [key]: String(target) }))}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditTarget(p => ({ ...p, [key]: String(target) })); } }}>
                         {target > 0 ? PESO(target) : 'Set target'}
                       </span>
                     )}

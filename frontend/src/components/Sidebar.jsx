@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { changeMyPassword } from '../api.js';
 import { Icon } from './Icons.jsx';
 import { usePlan } from '../context/UpgradeContext.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const NAV = [
   { key: 'Overview',      iconName: 'overview',   label: 'Overview' },
@@ -74,6 +75,8 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
   const { user, logout, branches, branchLimit, switchToBranch } = useAuth();
   const [pwOpen,         setPwOpen]         = useState(false);
   const [guideOpen,      setGuideOpen]      = useState(false);
+  const pwModalRef    = useModalA11y(() => setPwOpen(false), pwOpen);
+  const guideModalRef = useModalA11y(() => setGuideOpen(false), guideOpen);
   const [form,           setForm]           = useState({ current: '', newPw: '', confirm: '' });
   const [saving,         setSaving]         = useState(false);
   const [msg,            setMsg]            = useState('');
@@ -307,9 +310,9 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
       {guideOpen && (
         <div onClick={() => setGuideOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
-          <div onClick={e => e.stopPropagation()}
+          <div ref={guideModalRef} role="dialog" aria-modal="true" aria-label="Setup Guide" tabIndex={-1} onClick={e => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 480, height: '100%', background: '#fff', display: 'flex', flexDirection: 'column',
-              boxShadow: '-4px 0 24px rgba(0,0,0,.12)', animation: 'slideInRight .22s ease' }}>
+              boxShadow: '-4px 0 24px rgba(0,0,0,.12)', animation: 'slideInRight .22s ease', outline: 'none' }}>
 
             {/* Header */}
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid #E8E8E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -358,7 +361,8 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
       {/* ── Change Password Modal ── */}
       {pwOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setPwOpen(false)}>
-          <div className="modal-card" style={{ width: 380, padding: '1.75rem' }}>
+          <div ref={pwModalRef} role="dialog" aria-modal="true" aria-label="Change My Password" tabIndex={-1}
+            className="modal-card" style={{ width: 380, padding: '1.75rem', outline: 'none' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="key" size={16} color="#374151" /> Change My Password</div>
             <p style={{ fontSize: 12, color: '#374151', marginBottom: 22 }}>{user?.email}</p>
 
@@ -371,10 +375,10 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                       onChange={e => setForm(p => ({ ...p, [f]: e.target.value }))} required
                       style={{ width: '100%', boxSizing: 'border-box', padding: '9px 36px 9px 12px', borderRadius: 8, border: '0.5px solid #D1D5DB', fontSize: 13, fontFamily: 'inherit' }} />
                     {f === 'confirm' && (
-                      <span onClick={() => setShow(s => !s)}
-                        style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                      <button type="button" onClick={() => setShow(s => !s)} aria-label={show ? 'Hide password' : 'Show password'}
+                        style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151', background: 'none', border: 'none', padding: 4 }}>
                         <Icon name={show ? 'eye-off' : 'eye'} size={14} color="#6B7280" />
-                      </span>
+                      </button>
                     )}
                   </div>
                 </div>

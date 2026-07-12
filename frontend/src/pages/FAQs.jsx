@@ -227,6 +227,8 @@ export default function FAQs() {
           }}>
             <div
               onClick={() => setExpandedId(expandedId === faq.id ? null : faq.id)}
+              role="button" tabIndex={0} aria-expanded={expandedId === faq.id} aria-label={faq.question}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(expandedId === faq.id ? null : faq.id); } }}
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', cursor: 'pointer', background: expandedId === faq.id ? '#f7f9fc' : '#fff' }}
             >
               <span style={{ fontSize: 12, color: '#374151', minWidth: 20 }}>#{idx + 1}</span>

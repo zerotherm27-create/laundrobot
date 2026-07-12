@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -224,6 +225,7 @@ export default function Orders() {
   const [qrConfirming,  setQrConfirming]  = useState(false);
   const [qrConfirmErr,  setQrConfirmErr]  = useState('');
   const [screenshotOpen, setScreenshotOpen] = useState(false);
+  const screenshotModalRef = useModalA11y(() => setScreenshotOpen(false), screenshotOpen);
 
   // Invoice
   const [shopInfo,        setShopInfo]        = useState(null);
@@ -552,8 +554,10 @@ export default function Orders() {
                       return (
                       <tr key={gKey}
                         onClick={() => { const next = isSelected ? null : g; setSelected(next); setEditMode(false); setSavedDiff(null); setNotifyResult(''); setPayLinkUrl(next?.xendit_invoice_url || ''); setPayLinkErr(''); setPayLinkCopied(false); setCancelResult(null); setInvoiceResult(''); setQrConfirmErr(''); setScreenshotOpen(false); }}
+                        role="button" tabIndex={0} aria-label={`View order ${g.booking_ref || g.id}`}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }}
                         style={{ cursor: 'pointer', background: isSelected ? '#f0f6ff' : 'transparent', borderTop: '0.5px solid #f0f0ec' }}>
-                        <td style={{ padding: '9px 12px', fontWeight: 500, color: '#1a7d94' }}>
+                        <td style={{ padding: '9px 12px', fontWeight: 500, color: 'var(--primary)' }}>
                           <div>{g.booking_ref || g.id}</div>
                           {g.services.length > 1 && <div style={{ fontSize: 10, color: '#7C3AED', fontWeight: 600 }}>{g.services.length} services</div>}
                         </td>
@@ -863,14 +867,15 @@ export default function Orders() {
                           Customer submitted a payment screenshot.
                         </div>
                         <button onClick={() => setScreenshotOpen(true)}
-                          style={{ width: '100%', marginBottom: 8, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: '#1a7d94', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                          <Icon name="eye" size={12} color="#1a7d94" />View Screenshot
+                          style={{ width: '100%', marginBottom: 8, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #9ED3DC', background: '#E6F5F8', color: 'var(--primary)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                          <Icon name="eye" size={12} color="var(--primary)" />View Screenshot
                         </button>
                         {screenshotOpen && (
                           <div onClick={() => setScreenshotOpen(false)}
                             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                            <img src={selected.payment_screenshot} alt="Payment screenshot"
-                              style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,.4)' }} onClick={e => e.stopPropagation()} />
+                            <img ref={screenshotModalRef} role="dialog" aria-modal="true" aria-label="Payment screenshot" tabIndex={-1}
+                              src={selected.payment_screenshot} alt="Payment screenshot"
+                              style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,.4)', outline: 'none' }} onClick={e => e.stopPropagation()} />
                           </div>
                         )}
                         <button
@@ -1346,6 +1351,8 @@ export default function Orders() {
                 return (
                   <div key={group.label} style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
                     <div onClick={() => setExpandedMonths(p => ({ ...p, [group.label]: !isExpanded }))}
+                      role="button" tabIndex={0} aria-expanded={isExpanded} aria-label={`${group.label}, ${groupFiltered.length} orders`}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedMonths(p => ({ ...p, [group.label]: !isExpanded })); } }}
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F7F7F5', cursor: 'pointer', borderBottom: isExpanded ? '0.5px solid #e8e8e0' : 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Icon name="archive" size={16} color="#6B7280" />
@@ -1353,7 +1360,7 @@ export default function Orders() {
                         <span style={{ fontSize: 12, color: '#374151' }}>{groupFiltered.length} orders</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontWeight: 700, fontSize: 14, color: '#38a9c2' }}>₱{groupTotal.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--primary)' }}>₱{groupTotal.toLocaleString()}</span>
                         <span style={{ color: '#374151', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</span>
                       </div>
                     </div>

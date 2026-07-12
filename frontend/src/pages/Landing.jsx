@@ -357,10 +357,10 @@ function POSMockup() {
             <div key={s.name} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               background: s.selected ? '#fff' : '#F0F0EC',
-              border: s.selected ? '1.5px solid #38a9c2' : '1.5px solid transparent',
+              border: s.selected ? '1.5px solid var(--primary)' : '1.5px solid transparent',
               borderRadius: 10, padding: '10px 12px',
             }}>
-              <div style={{ width: 18, height: 18, borderRadius: 5, border: s.selected ? 'none' : '1.5px solid #D1D5DB', background: s.selected ? '#38a9c2' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: s.selected ? 'none' : '1.5px solid #D1D5DB', background: s.selected ? 'var(--primary)' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {s.selected && (
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6L9 17l-5-5"/>
@@ -369,9 +369,9 @@ function POSMockup() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>{s.unit}</div>
+                <div style={{ fontSize: 11, color: '#4B5563' }}>{s.unit}</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? '#38a9c2' : '#6B7280' }}>{s.price}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? 'var(--primary)' : '#4B5563' }}>{s.price}</div>
             </div>
           ))}
         </div>
@@ -385,7 +385,7 @@ function POSMockup() {
           ))}
           <div style={{ borderTop: '1px solid #F0F0EC', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>Total</span>
-            <span style={{ fontSize: 20, fontWeight: 900, color: '#38a9c2', letterSpacing: '-.02em' }}>₱680</span>
+            <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary)', letterSpacing: '-.02em' }}>₱680</span>
           </div>
         </div>
         {/* Payment buttons */}
