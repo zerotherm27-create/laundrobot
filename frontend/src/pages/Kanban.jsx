@@ -116,6 +116,7 @@ export default function Kanban() {
   const [dragIds,    setDragIds]    = useState(null);
   const [dragOver,   setDragOver]   = useState(null);
   const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
   const [expanded,   setExpanded]   = useState(new Set());
   const [modalOrderKey, setModalOrderKey] = useState(null);
   const [alertDismissed, setAlertDismissed] = useState(false);
@@ -132,10 +133,15 @@ export default function Kanban() {
   const [deliveryInput,   setDeliveryInput]   = useState('');
   const [deliverySaving,  setDeliverySaving]  = useState(false);
 
+  function loadOrders() {
+    setLoading(true);
+    return getOrders()
+      .then(r => { setOrders(r.data); setError(null); setLoading(false); })
+      .catch(() => { setError('Failed to load orders.'); setLoading(false); });
+  }
+
   useEffect(() => {
-    getOrders()
-      .then(r => { setOrders(r.data); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadOrders();
     getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
     const t = setInterval(() => {
       getOrders().then(r => setOrders(r.data)).catch(() => {});
@@ -317,6 +323,17 @@ export default function Kanban() {
     );
   }
 
+  if (error && orders.length === 0) {
+    return (
+      <div className="kanban-error-state">
+        <Icon name="alert-triangle" size={28} color="#A32D2D" />
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#A32D2D' }}>{error}</div>
+        <div style={{ fontSize: 12, color: '#374151' }}>Check your connection and try again.</div>
+        <button className="btn-primary" onClick={loadOrders} style={{ marginTop: 4 }}>Retry</button>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-up">
       <div style={{ marginBottom: '1rem' }}>
@@ -363,7 +380,7 @@ export default function Kanban() {
 
       <div className="kanban-wrapper">
       <div className="kanban-board" style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10, alignItems: 'start' }}>
-        {STATUSES.map(status => {
+        {STATUSES.map((status, colIdx) => {
           const raw = groupByBookingRef(orders.filter(o => o.status === status));
           const col = sortByUrgency(raw);
           const isDragTarget = dragOver === status;
@@ -379,14 +396,16 @@ export default function Kanban() {
                 borderRadius: 12, padding: '10px 8px', minHeight: 200,
                 border: isDragTarget ? '1.5px dashed #38a9c2' : '1.5px solid transparent',
                 transition: 'background .15s, border-color .15s',
+                animation: 'columnIn var(--duration-slow) var(--ease-spring) backwards',
+                '--col-i': colIdx,
               }}>
 
               {/* Column header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, paddingBottom: 8, borderBottom: '0.5px solid #E8E8E0' }}>
-                <div style={{ width: 26, height: 26, borderRadius: 7, background: STATUS_BG[status], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: STATUS_BG[status], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name={STATUS_ICON_NAMES[status]} size={13} color={STATUS_COLORS[status]} />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#374151', flex: 1, lineHeight: 1.2 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#374151', flex: 1, lineHeight: 1.2, letterSpacing: '.02em' }}>
                   {STATUS_LABELS[status]}
                 </span>
                 {col.length > 0 && (
@@ -401,7 +420,7 @@ export default function Kanban() {
               </div>
 
               {/* Cards */}
-              {col.map(g => {
+              {col.map((g, cardIdx) => {
                 const gKey     = g.booking_ref || g.id;
                 const isExpanded = expanded.has(gKey);
                 const urgency  = getUrgency(g);
@@ -427,26 +446,23 @@ export default function Kanban() {
                     role="button" tabIndex={0}
                     aria-label={`Order ${gKey} — ${g.customer_name || 'Unknown'}`}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(g, e); } }}
-                    className={urgency === 'overdue' ? 'card-overdue' : ''}
+                    className={`kanban-card${urgency === 'overdue' ? ' card-overdue' : ''}`}
                     style={{
-                      background: '#fff',
-                      border: '0.5px solid #E8E8E0',
                       borderLeft: cardBorderLeft,
-                      borderRadius: 10, padding: '9px 10px',
-                      marginBottom: 8, cursor: 'pointer',
-                      opacity: dragIds?.some(id => g.orderIds.includes(id)) ? 0.45 : 1,
-                      boxShadow: dragIds?.some(id => g.orderIds.includes(id)) ? 'none' : 'var(--shadow-xs)',
-                      transition: 'opacity .15s, box-shadow .15s, transform .15s',
+                      borderRadius: 10, padding: '10px 12px',
+                      marginBottom: 9, cursor: 'pointer',
                       userSelect: 'none',
+                      '--i': cardIdx,
+                      ...(dragIds?.some(id => g.orderIds.includes(id))
+                        ? { opacity: 0.45, boxShadow: 'none' }
+                        : {}),
                     }}
-                    onMouseEnter={e => { if (!dragIds) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                   >
                     {/* Always-visible header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <Avatar name={g.customer_name || '?'} size={26} bg={STATUS_BG[status]} color={STATUS_COLORS[status]} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {g.customer_name || 'Unknown'}
                         </div>
                         <div style={{ fontSize: 10, color: '#374151', fontFamily: 'monospace' }}>{g.booking_ref || g.id}</div>

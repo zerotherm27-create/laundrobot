@@ -134,6 +134,13 @@
 
         --sidebar-w: 230px;
         --transition: 0.15s ease;
+
+        --ease-spring:      cubic-bezier(.34, 1.56, .64, 1);
+        --duration-fast:    .12s;
+        --duration-base:    .2s;
+        --duration-slow:    .32s;
+        --stagger-step:     26ms;
+        --col-stagger-step: 45ms;
       }
 
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -363,6 +370,52 @@
 
       /* ── Kanban wrapper: lets board scroll horizontally on small screens ── */
       .kanban-wrapper { width: 100%; }
+
+      @keyframes cardIn {
+        from { opacity: 0; transform: translateY(8px) scale(.97); }
+        to   { opacity: 1; transform: none; }
+      }
+      @keyframes columnIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: none; }
+      }
+
+      /* ── Kanban card: base look, entrance stagger, hover/press/focus states.
+         Dynamic per-card values (borderLeft, drag opacity/shadow, --i/--col-i)
+         stay inline in JSX and win over these since inline styles always beat
+         an external class — this is additive, not a full takeover. ── */
+      .kanban-card {
+        background: #fff;
+        border: 0.5px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-xs);
+        animation: cardIn var(--duration-slow) var(--ease-spring) backwards;
+        animation-delay: calc(var(--col-i, 0) * var(--col-stagger-step) + var(--i, 0) * var(--stagger-step));
+        transition: box-shadow var(--duration-fast) var(--ease-spring),
+                    transform var(--duration-fast) var(--ease-spring),
+                    border-color var(--duration-fast) var(--ease-spring);
+      }
+      .kanban-card:hover {
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-2px);
+        border-color: #D8D8D0;
+      }
+      .kanban-card:active { transform: scale(.98); }
+      .kanban-card:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+
+      /* ── Kanban board load error (distinct from the empty-column state) ── */
+      .kanban-error-state {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 10px; text-align: center;
+        padding: 48px 24px;
+        background: var(--danger-bg);
+        border: 0.5px solid #F3C6C6;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xs);
+      }
 
       /* ── Table scroll wrapper ── */
       .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
