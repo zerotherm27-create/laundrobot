@@ -7,6 +7,8 @@ import { Icon } from '../components/Icons.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -176,6 +178,8 @@ function groupByMonth(orders) {
 }
 
 export default function Orders() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [orders, setOrders]           = useState([]);
   const [archived, setArchived]       = useState([]);
   const [services, setServices]       = useState([]);
@@ -386,20 +390,27 @@ export default function Orders() {
 
   async function handleDelete(orderIds) {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
-    if (!confirm(ids.length > 1 ? `Delete this booking (${ids.length} orders)?` : 'Delete this order?')) return;
+    if (!await confirm({
+      title: ids.length > 1 ? `Delete this booking (${ids.length} orders)?` : 'Delete this order?',
+      confirmLabel: 'Delete', danger: true,
+    })) return;
     await Promise.all(ids.map(id => deleteOrder(id)));
     setOrders(prev => prev.filter(o => !ids.includes(o.id)));
     setSelected(null);
   }
 
   async function handleManualArchiveMonth(year, month) {
-    if (!confirm(`Archive all COMPLETED orders from ${MONTH_NAMES[month-1]} ${year}? They will move to the Archives tab.`)) return;
+    if (!await confirm({
+      title: `Archive all COMPLETED orders from ${MONTH_NAMES[month-1]} ${year}?`,
+      message: 'They will move to the Archives tab.',
+      confirmLabel: 'Archive',
+    })) return;
     try {
       const { data } = await archiveOrderMonth(year, month);
       alert(`Archived ${data.archived} order(s).`);
       loadActive();
       setArchived([]); // force reload next time archives tab is opened
-    } catch { alert('Failed to archive.'); }
+    } catch { toast('Failed to archive.'); }
   }
 
   async function handleDownloadInvoice() {
@@ -983,10 +994,16 @@ export default function Orders() {
                       <button
                         onClick={async () => {
                           const isPaid = selected.paid;
-                          const confirmMsg = isPaid
-                            ? `Cancel this order?\n\nThis order was paid — we'll attempt an auto-refund of ₱${Number(selected.price).toLocaleString()} via Xendit.`
-                            : `Cancel this order? This cannot be undone.`;
-                          if (!confirm(confirmMsg)) return;
+                          const ok = await confirm({
+                            title: 'Cancel this order?',
+                            message: isPaid
+                              ? `We'll attempt an auto-refund of ₱${Number(selected.price).toLocaleString()} via Xendit.`
+                              : `This cannot be undone.`,
+                            confirmLabel: 'Cancel Order',
+                            cancelLabel: 'Keep Order',
+                            danger: true,
+                          });
+                          if (!ok) return;
                           setCancelling(true);
                           try {
                             const { data } = await cancelOrder(selected.orderIds[0]);
@@ -996,7 +1013,7 @@ export default function Orders() {
                             ));
                             setSelected(prev => prev ? { ...prev, status: 'CANCELLED' } : prev);
                           } catch (e) {
-                            alert('Error: ' + (e.response?.data?.error || e.message));
+                            toast('Error: ' + (e.response?.data?.error || e.message));
                           }
                           setCancelling(false);
                         }}
@@ -1395,12 +1412,12 @@ export default function Orders() {
                               <td style={{ padding: '9px 12px' }}>
                                 <button
                                   onClick={async () => {
-                                    if (!window.confirm('Move this order back to active?')) return;
+                                    if (!await confirm({ title: 'Move this order back to active?', confirmLabel: 'Unarchive' })) return;
                                     try {
                                       await unarchiveOrder(o.id);
                                       setArchived(prev => prev.filter(x => x.id !== o.id));
                                       loadActive();
-                                    } catch { alert('Failed to unarchive.'); }
+                                    } catch { toast('Failed to unarchive.'); }
                                   }}
                                   style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '0.5px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' }}
                                 >Unarchive</button>

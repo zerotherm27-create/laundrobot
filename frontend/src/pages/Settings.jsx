@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -74,6 +76,8 @@ function formatDateDisplay(dateStr) {
 }
 
 export default function Settings() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [paymentMode,    setPaymentMode]    = useState('xendit');
   const [qrImageUrl,     setQrImageUrl]     = useState('');
   const [mayaQrUrl,      setMayaQrUrl]      = useState('');
@@ -260,7 +264,7 @@ export default function Settings() {
     try {
       await deleteBlockedDate(id);
       setBlockedDates(prev => prev.filter(b => b.id !== id));
-    } catch { alert('Failed to remove blocked date.'); }
+    } catch { toast('Failed to remove blocked date.'); }
   }
 
   // Handle Facebook OAuth redirect return (code stored in sessionStorage by App.jsx Inner)
@@ -1197,18 +1201,18 @@ export default function Settings() {
                             try {
                               const { data } = await togglePromoCode(p.id, !p.active);
                               setPromos(prev => prev.map(x => x.id === p.id ? data : x));
-                            } catch { alert('Failed to update promo.'); }
+                            } catch { toast('Failed to update promo.'); }
                           }}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: `0.5px solid ${p.active ? '#C4B5FD' : '#E2E8F0'}`, background: p.active ? '#EDE9FE' : '#F3F4F6', color: p.active ? '#5B21B6' : '#374151', cursor: 'pointer' }}>
                           {p.active ? 'Disable' : 'Enable'}
                         </button>
                         <button type="button"
                           onClick={async () => {
-                            if (!confirm(`Delete promo code "${p.code}"?`)) return;
+                            if (!await confirm({ title: `Delete promo code "${p.code}"?`, confirmLabel: 'Delete', danger: true })) return;
                             try {
                               await deletePromoCode(p.id);
                               setPromos(prev => prev.filter(x => x.id !== p.id));
-                            } catch { alert('Failed to delete promo.'); }
+                            } catch { toast('Failed to delete promo.'); }
                           }}
                           style={{ fontSize: 11, padding: '4px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
                           Delete
@@ -1243,7 +1247,7 @@ export default function Settings() {
                           const [{ data: links }, { data: ch }] = await Promise.all([getReferralLinks(), getChannelSummary()]);
                           setReferrals(links);
                           setChannelSummary(ch);
-                        } catch { alert('Failed to refresh. Please try again.'); }
+                        } catch { toast('Failed to refresh. Please try again.'); }
                         finally { setRefreshingRef(false); }
                       }}
                       style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: '#F9FAFB', color: refreshingRef ? '#6B7280' : '#374151', cursor: refreshingRef ? 'not-allowed' : 'pointer', minWidth: 80 }}>
@@ -1370,7 +1374,7 @@ export default function Settings() {
                                       const { data } = await updateReferralLink(r.id, { name: editingRefName.trim() });
                                       setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, name: data.name } : x));
                                       setEditingRefId(null);
-                                    } catch { alert('Failed to rename.'); }
+                                    } catch { toast('Failed to rename.'); }
                                   }
                                 }}
                                 style={{ fontSize: 13, padding: '4px 8px', borderRadius: 6, border: '1.5px solid #38a9c2', outline: 'none', width: '100%', minWidth: 120 }}
@@ -1400,7 +1404,7 @@ export default function Settings() {
                                       const { data } = await updateReferralLink(r.id, { name: editingRefName.trim() });
                                       setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, name: data.name } : x));
                                       setEditingRefId(null);
-                                    } catch { alert('Failed to rename.'); }
+                                    } catch { toast('Failed to rename.'); }
                                   }}
                                   style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
                                   Save
@@ -1419,9 +1423,9 @@ export default function Settings() {
                                 </button>
                                 <button type="button"
                                   onClick={async () => {
-                                    if (!confirm(`Delete referral link "${r.name}"?`)) return;
+                                    if (!await confirm({ title: `Delete referral link "${r.name}"?`, confirmLabel: 'Delete', danger: true })) return;
                                     try { await deleteReferralLink(r.id); setReferrals(prev => prev.filter(x => x.id !== r.id)); }
-                                    catch { alert('Failed to delete.'); }
+                                    catch { toast('Failed to delete.'); }
                                   }}
                                   style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
                                   Delete

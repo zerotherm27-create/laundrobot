@@ -3,6 +3,8 @@ import { getFaqs, createFaq, updateFaq, deleteFaq, getTenants,
          getFaqSuggestions, generateFaqSuggestions, approveFaqSuggestion, dismissFaqSuggestion } from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const btn = (bg, color, extra = {}) => ({
   background: bg, color, border: 'none', borderRadius: 6,
@@ -13,6 +15,8 @@ const btn = (bg, color, extra = {}) => ({
 const EMPTY = { question: '', answer: '', sort_order: 0, active: true };
 
 export default function FAQs() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'superadmin';
 
@@ -74,16 +78,16 @@ export default function FAQs() {
       }
       await load();
       setModal(null);
-    } catch (e) { alert(e.response?.data?.error || e.message); }
+    } catch (e) { toast(e.response?.data?.error || e.message); }
     setSaving(false);
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this FAQ?')) return;
+    if (!await confirm({ title: 'Delete this FAQ?', confirmLabel: 'Delete', danger: true })) return;
     try {
       await deleteFaq(id, isSuperAdmin ? activeTenantId : null);
       await load();
-    } catch (e) { alert(e.response?.data?.error || e.message); }
+    } catch (e) { toast(e.response?.data?.error || e.message); }
   };
 
   const toggleActive = async (faq) => {
@@ -111,14 +115,14 @@ export default function FAQs() {
     try {
       await approveFaqSuggestion(id, isSuperAdmin ? activeTenantId : null);
       await load();
-    } catch (e) { alert(e.response?.data?.error || e.message); }
+    } catch (e) { toast(e.response?.data?.error || e.message); }
   };
 
   const dismiss = async (id) => {
     try {
       await dismissFaqSuggestion(id, isSuperAdmin ? activeTenantId : null);
       setSuggestions(s => s.filter(x => x.id !== id));
-    } catch (e) { alert(e.response?.data?.error || e.message); }
+    } catch (e) { toast(e.response?.data?.error || e.message); }
   };
 
   const activeTenantName = isSuperAdmin

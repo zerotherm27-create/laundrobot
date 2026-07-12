@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices, updateTenantPlan } from '../api.js';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', logo_url: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
@@ -11,6 +13,8 @@ const btn = (bg, color, extra = {}) => ({
 });
 
 export default function SuperAdmin() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [tab, setTab] = useState('branches'); // 'branches' | 'users' | 'clone'
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
@@ -65,17 +69,21 @@ export default function SuperAdmin() {
         setTenants(prev => prev.map(t => t.id === tenantForm.id ? data : t));
       }
       setTenantForm(null);
-    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    } catch (err) { toast('Error: ' + (err.response?.data?.error || err.message)); }
     setSavingTenant(false);
   }
 
   // ── Tenant delete ──
   async function handleDeleteTenant(t) {
-    if (!confirm(`Delete branch "${t.name}"?\n\nThis will also delete all orders, customers, and data for this branch. This cannot be undone.`)) return;
+    if (!await confirm({
+      title: `Delete branch "${t.name}"?`,
+      message: 'This will also delete all orders, customers, and data for this branch. This cannot be undone.',
+      confirmLabel: 'Delete Branch', danger: true,
+    })) return;
     try {
       await deleteTenant(t.id);
       setTenants(prev => prev.filter(x => x.id !== t.id));
-    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    } catch (err) { toast('Error: ' + (err.response?.data?.error || err.message)); }
   }
 
   // ── User save ──
@@ -86,7 +94,7 @@ export default function SuperAdmin() {
       const { data } = await createUser(userForm);
       setUsers(prev => [data, ...prev]);
       setUserForm(null);
-    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    } catch (err) { toast('Error: ' + (err.response?.data?.error || err.message)); }
     setSavingUser(false);
   }
 
@@ -101,16 +109,16 @@ export default function SuperAdmin() {
       setPwModal(null);
       setNewPw(''); setConfirmPw('');
       alert(`Password updated for ${pwModal.user.email}`);
-    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    } catch (err) { toast('Error: ' + (err.response?.data?.error || err.message)); }
     setSavingPw(false);
   }
 
   async function handleDeleteUser(user) {
-    if (!confirm(`Delete user ${user.email}? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete user ${user.email}?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
     try {
       await deleteUser(user.id);
       setUsers(prev => prev.filter(u => u.id !== user.id));
-    } catch (err) { alert('Error: ' + (err.response?.data?.error || err.message)); }
+    } catch (err) { toast('Error: ' + (err.response?.data?.error || err.message)); }
   }
 
   const tenantName = (tid) => tenants.find(t => t.id === tid)?.name || '—';
@@ -124,10 +132,10 @@ export default function SuperAdmin() {
     const srcName = tenantName(cloneSource);
     const tgtName = tenantName(cloneTarget);
     const items = selected.map(k => ({ services: 'Services', settings: 'Settings', faqs: 'FAQs', delivery_zones: 'Delivery Zones' }[k])).join(', ');
-    const confirmMsg = clearExisting
-      ? `⚠️ This will DELETE and replace ${items} in "${tgtName}" with data from "${srcName}".\n\nAre you sure?`
-      : `Copy ${items} from "${srcName}" → "${tgtName}"?\n\nExisting data in "${tgtName}" will be kept.`;
-    if (!confirm(confirmMsg)) return;
+    const ok = clearExisting
+      ? await confirm({ title: `Replace ${items} in "${tgtName}"?`, message: `This will DELETE and replace with data from "${srcName}".`, confirmLabel: 'Replace', danger: true })
+      : await confirm({ title: `Copy ${items} from "${srcName}" to "${tgtName}"?`, message: `Existing data in "${tgtName}" will be kept.`, confirmLabel: 'Copy' });
+    if (!ok) return;
     setCloning(true); setCloneResult(null);
     try {
       const { data } = await cloneServices(cloneSource, cloneTarget, clearExisting, cloneOptions);
@@ -211,7 +219,7 @@ export default function SuperAdmin() {
                           try {
                             await updateTenantPlan(t.id, plan, plan !== 'starter' ? 'active' : undefined);
                             setTenants(prev => prev.map(x => x.id === t.id ? { ...x, plan } : x));
-                          } catch { alert('Failed to update plan.'); }
+                          } catch { toast('Failed to update plan.'); }
                         }}
                         style={{
                           fontSize: 11, padding: '3px 6px', borderRadius: 5, border: '0.5px solid #ccc', cursor: 'pointer',

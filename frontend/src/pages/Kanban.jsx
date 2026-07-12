@@ -8,6 +8,8 @@ import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -108,6 +110,8 @@ function groupByBookingRef(orders) {
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function Kanban() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [orders,     setOrders]     = useState([]);
   const [dragIds,    setDragIds]    = useState(null);
   const [dragOver,   setDragOver]   = useState(null);
@@ -120,6 +124,8 @@ export default function Kanban() {
   const [shopInfo,       setShopInfo]       = useState(null);
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceResult,  setInvoiceResult]  = useState('');
+  const [showActions,      setShowActions]      = useState(false);
+  const [showCancelSection, setShowCancelSection] = useState(false);
 
   // Delivery date override state (inside modal)
   const [editingDelivery, setEditingDelivery] = useState(false);
@@ -261,6 +267,8 @@ export default function Kanban() {
     setDeliveryInput(g.delivery_date ? g.delivery_date.slice(0, 10) : '');
     setCancelResult(null);
     setInvoiceResult('');
+    setShowActions(false);
+    setShowCancelSection(false);
   }
 
   async function saveDeliveryDate() {
@@ -273,7 +281,7 @@ export default function Kanban() {
         modalOrder.orderIds.includes(o.id) ? { ...o, delivery_date: iso } : o
       ));
       setEditingDelivery(false);
-    } catch { alert('Failed to update delivery date'); }
+    } catch { toast('Failed to update delivery date'); }
     setDeliverySaving(false);
   }
 
@@ -549,8 +557,8 @@ export default function Kanban() {
               {getUrgency(modalOrder) !== 'normal' && (() => {
                 const u = URGENCY_META[getUrgency(modalOrder)];
                 return (
-                  <div style={{ padding: '4px 10px', borderRadius: 20, background: u.bg, fontSize: 12, fontWeight: 700, color: u.color }}>
-                    {u.dot} {u.label}
+                  <div style={{ padding: '4px 10px', borderRadius: 20, background: u.bg, fontSize: 12, fontWeight: 700, color: u.color, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {u.iconName && <Icon name={u.iconName} size={12} color={u.color} />} {u.label}
                   </div>
                 );
               })()}
@@ -695,20 +703,29 @@ export default function Kanban() {
 
             {/* ── Invoice / Print actions ── */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #E8E8E0' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>Actions</div>
-              <button onClick={handlePrintReceiptThermal} style={{ width: '100%', marginBottom: 6, padding: '10px 8px', fontSize: 13, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#38a9c2', border: 'none', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Icon name="printer" size={14} color="#fff" />Print to Thermal Printer
+              <button onClick={() => setShowActions(s => !s)}
+                aria-expanded={showActions}
+                style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: showActions ? 8 : 0, textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'inherit' }}>
+                Actions
+                <span style={{ transform: showActions ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▾</span>
               </button>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  <Icon name="file" size={13} color="#1D4ED8" />PDF
-                </button>
-                <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '1.5px solid #86EFAC', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                  {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Email</>}
-                </button>
-              </div>
-              {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
-              {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
+              {showActions && (
+                <>
+                  <button onClick={handlePrintReceiptThermal} style={{ width: '100%', marginBottom: 6, padding: '10px 8px', fontSize: 13, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: 'var(--primary)', border: 'none', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Icon name="printer" size={14} color="#fff" />Print to Thermal Printer
+                  </button>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button onClick={handleDownloadInvoice} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', background: '#EFF6FF', border: '1.5px solid #BFDBFE', color: '#1D4ED8', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      <Icon name="file" size={13} color="#1D4ED8" />PDF
+                    </button>
+                    <button onClick={handleSendInvoice} disabled={invoiceSending} style={{ flex: 1, minWidth: 100, padding: '9px 8px', fontSize: 12, borderRadius: 8, cursor: invoiceSending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', background: '#F0FDF4', border: '1.5px solid #86EFAC', color: '#166534', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      {invoiceSending ? 'Sending…' : <><Icon name="mail" size={12} color="#166534" />Email</>}
+                    </button>
+                  </div>
+                  {invoiceResult === 'ok' && <div style={{ marginTop: 6, fontSize: 12, color: '#166534', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check-circle" size={12} color="#166534" /> Invoice sent to {modalOrder.customer_email}</div>}
+                  {invoiceResult.startsWith?.('err:') && <div style={{ marginTop: 6, fontSize: 12, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="alert-triangle" size={12} color="#DC2626" /> {invoiceResult.slice(4)}</div>}
+                </>
+              )}
             </div>
 
             {/* Status update */}
@@ -753,14 +770,25 @@ export default function Kanban() {
                   }}>
                     <Icon name={cancelResult.refund_status === 'success' ? 'check-circle' : 'alert-triangle'} size={13} color={cancelResult.refund_status === 'success' ? '#166534' : '#92400E'} style={{ marginRight: 4 }} />{cancelResult.message}
                   </div>
+                ) : !showCancelSection ? (
+                  <button onClick={() => setShowCancelSection(true)}
+                    style={{ width: '100%', padding: '6px', fontSize: 12, fontWeight: 500, borderRadius: 7, border: 'none', background: 'none', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Cancel this order…
+                  </button>
                 ) : (
                   <button
                     onClick={async () => {
                       const isPaid = modalOrder.paid;
-                      const confirmMsg = isPaid
-                        ? `Cancel this order?\n\nThis order was paid — we'll attempt an auto-refund of ₱${Number(modalOrder.price).toLocaleString()} via Xendit.`
-                        : `Cancel this order? This cannot be undone.`;
-                      if (!confirm(confirmMsg)) return;
+                      const ok = await confirm({
+                        title: 'Cancel this order?',
+                        message: isPaid
+                          ? `We'll attempt an auto-refund of ₱${Number(modalOrder.price).toLocaleString()} via Xendit.`
+                          : `This cannot be undone.`,
+                        confirmLabel: 'Cancel Order',
+                        cancelLabel: 'Keep Order',
+                        danger: true,
+                      });
+                      if (!ok) return;
                       setCancelling(true);
                       try {
                         const { data } = await cancelOrder(modalOrder.orderIds[0]);
@@ -769,7 +797,7 @@ export default function Kanban() {
                           modalOrder.orderIds.includes(o.id) ? { ...o, status: 'CANCELLED' } : o
                         ));
                       } catch (e) {
-                        alert('Error: ' + (e.response?.data?.error || e.message));
+                        toast('Error: ' + (e.response?.data?.error || e.message));
                       }
                       setCancelling(false);
                     }}

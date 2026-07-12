@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -94,6 +95,7 @@ function timeAgo(dateStr) {
 }
 
 export default function Overview() {
+  const toast = useToast();
   const { user } = useAuth();
   const now      = new Date();
   const todayStr = now.toISOString().slice(0, 10);
@@ -150,7 +152,7 @@ export default function Overview() {
       }
       setHumanConvs(p => p.filter(c => c.fb_user_id !== fbUserId));
       setReplyMsg(p => { const n = { ...p }; delete n[fbUserId]; return n; });
-    } catch (err) { alert(err.response?.data?.error || 'Failed to release conversation.'); }
+    } catch (err) { toast(err.response?.data?.error || 'Failed to release conversation.'); }
     finally { setReleasing(null); }
   }
 
@@ -197,8 +199,8 @@ export default function Overview() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {Object.entries(sentConfirmation).map(([fbUserId, sent]) => (
               <div key={`sent-${fbUserId}`} style={{
-                background: '#F0FDF4', border: '0.5px solid #BBF7D0',
-                borderLeft: '3px solid #047857', borderRadius: 10, padding: '10px 14px',
+                background: '#F0FDF4', border: '1px solid #BBF7D0',
+                borderRadius: 10, padding: '10px 14px',
                 fontSize: 12, color: '#065F46'
               }}>
                 <strong>✓ Sent &amp; delivered</strong> — "{sent.text}"
@@ -206,8 +208,8 @@ export default function Overview() {
             ))}
             {humanConvs.map(c => (
               <div key={c.fb_user_id} style={{
-                background: '#FFFBF0', border: '0.5px solid #FCD34D',
-                borderLeft: '3px solid #F59E0B', borderRadius: 10, padding: '12px 14px'
+                background: '#FFFBF0', border: '1px solid #FCD34D',
+                borderRadius: 10, padding: '12px 14px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <Avatar name={c.customer_name || '?'} size={30} />
@@ -233,7 +235,7 @@ export default function Overview() {
                   style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 12, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 8, outline: 'none', background: '#fff' }}
                 />
                 <button onClick={() => handleRelease(c.fb_user_id)} disabled={releasing === c.fb_user_id}
-                  style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: '#38a9c2', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: releasing === c.fb_user_id ? 0.7 : 1 }}>
+                  style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: releasing === c.fb_user_id ? 0.7 : 1 }}>
                   {releasing === c.fb_user_id ? 'Releasing…' : '✓ Done — Release back to bot'}
                 </button>
               </div>
@@ -280,7 +282,6 @@ export default function Overview() {
             <div key={s.label} style={{
               background: '#fff',
               border: '0.5px solid #E8E8E0',
-              borderLeft: `3px solid ${meta.border}`,
               borderRadius: 14, padding: '1.1rem 1.25rem',
               boxShadow: 'var(--shadow-xs)',
               transition: 'box-shadow .15s, transform .15s',

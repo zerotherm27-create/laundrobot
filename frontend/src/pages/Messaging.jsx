@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
 export default function Messaging() {
+  const toast = useToast();
   const [message, setMessage] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sending, setSending] = useState(false);
@@ -26,7 +28,7 @@ export default function Messaging() {
     try {
       await releaseAi(fbUserId);
       setPausedCustomers(p => p.filter(c => c.fb_user_id !== fbUserId));
-    } catch { alert('Failed to release.'); }
+    } catch { toast('Failed to release.'); }
     finally { setReleasingId(null); }
   }
 

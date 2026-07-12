@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, deleteUser, changePassword, getTenants } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const FEATURES = [
   { key: 'Overview',      icon: '▦',  label: 'Overview' },
@@ -23,6 +25,8 @@ const btn = (bg, color, extra = {}) => ({ padding: '6px 14px', fontSize: 12, fon
 const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff', permissions: ALL_KEYS };
 
 export default function Users() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const { user: me } = useAuth();
   const isSuperAdmin = me?.role === 'superadmin';
   const isAdmin = me?.role === 'admin' || isSuperAdmin;
@@ -95,14 +99,14 @@ export default function Users() {
         }
       }
       setModal(null);
-    } catch (e) { alert(e.response?.data?.error || e.message); }
+    } catch (e) { toast(e.response?.data?.error || e.message); }
     setSaving(false);
   };
 
   const remove = async (u) => {
-    if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return;
+    if (!await confirm({ title: `Delete ${u.email}?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
     try { await deleteUser(u.id); setUsers(prev => prev.filter(x => x.id !== u.id)); }
-    catch (e) { alert(e.response?.data?.error || e.message); }
+    catch (e) { toast(e.response?.data?.error || e.message); }
   };
 
   const activeTenantName = isSuperAdmin ? tenants.find(t => t.id === selectedTenant)?.name || '' : me?.tenant_name || '';

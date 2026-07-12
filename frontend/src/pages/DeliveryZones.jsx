@@ -4,6 +4,8 @@ import {
   createDeliveryBracket, updateDeliveryBracket, deleteDeliveryBracket,
   getDeliveryZones, createDeliveryZone, updateDeliveryZone, deleteDeliveryZone,
 } from '../api.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const DEFAULT_BRACKETS = [
   { min_km: 0,  max_km: 3,  fee: 60  },
@@ -19,6 +21,8 @@ const INP = {
 };
 
 export default function DeliveryZones() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [brackets, setBrackets]       = useState([]);
   const [shopAddress, setShopAddress] = useState('');
   const [shopLat, setShopLat]         = useState(null);
@@ -82,11 +86,11 @@ export default function DeliveryZones() {
   }
 
   async function handleZoneDelete(id) {
-    if (!window.confirm('Delete this delivery zone?')) return;
+    if (!await confirm({ title: 'Delete this delivery zone?', confirmLabel: 'Delete', danger: true })) return;
     try {
       await deleteDeliveryZone(id);
       setZones(prev => prev.filter(z => z.id !== id));
-    } catch (e) { alert(e.response?.data?.error || 'Failed to delete zone.'); }
+    } catch (e) { toast(e.response?.data?.error || 'Failed to delete zone.'); }
   }
 
   async function handleZoneToggleActive(zone) {

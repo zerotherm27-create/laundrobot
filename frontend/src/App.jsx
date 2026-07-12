@@ -4,6 +4,10 @@ import Sidebar from './components/Sidebar.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
 import UpgradeModal from './components/UpgradeModal.jsx';
 import { UpgradeProvider } from './context/UpgradeContext.jsx';
+import ConfirmDialog from './components/ConfirmDialog.jsx';
+import { ConfirmProvider } from './context/ConfirmContext.jsx';
+import ToastStack from './components/ToastStack.jsx';
+import { ToastProvider } from './context/ToastContext.jsx';
 
 // Eager imports for pages used immediately or that caused issues lazy
 import Settings from './pages/Settings.jsx';
@@ -41,7 +45,7 @@ class PageErrorBoundary extends Component {
       <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 14 }}>
         Failed to load page. Please refresh.
         <button onClick={() => window.location.reload()}
-          style={{ marginLeft: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#38a9c2', color: '#fff', cursor: 'pointer', fontSize: 13 }}>
+          style={{ marginLeft: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontSize: 13 }}>
           Refresh
         </button>
       </div>
@@ -138,7 +142,7 @@ function Dashboard({ initialPage }) {
   if (subStatus === 'error') return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', color: '#374151', flexDirection: 'column', gap: 16 }}>
       <p style={{ fontSize: 15, fontWeight: 600 }}>Cannot verify subscription. Please sign in again.</p>
-      <button onClick={() => { window.dispatchEvent(new Event('auth:logout')); }} style={{ padding: '9px 22px', borderRadius: 8, background: '#38a9c2', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Sign Out</button>
+      <button onClick={() => { window.dispatchEvent(new Event('auth:logout')); }} style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>Sign Out</button>
     </div>
   );
 
@@ -151,8 +155,12 @@ function Dashboard({ initialPage }) {
   }
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
     <UpgradeProvider plan={subStatus === 'trial' ? 'pro' : subPlan}>
     <UpgradeModal />
+    <ConfirmDialog />
+    <ToastStack />
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
       {/* Trial banner — only shown for trial tenants */}
       {user.role !== 'superadmin' && <TrialBanner />}
@@ -175,11 +183,13 @@ function Dashboard({ initialPage }) {
         }}>
           {page === 'SuperAdmin' && user.role !== 'superadmin'
             ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
-            : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#9CA3AF', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page /></Suspense></PageErrorBoundary>}
+            : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#6B7280', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page /></Suspense></PageErrorBoundary>}
         </main>
       </div>
     </div>
     </UpgradeProvider>
+    </ConfirmProvider>
+    </ToastProvider>
   );
 }
 

@@ -7,8 +7,14 @@ import {
   getRefunds, markRefundIssued,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
+// Grouped for the tab bar: quick day-to-day checks vs. deeper planning/analysis views.
+const TAB_GROUPS = [
+  { label: 'Today',    tabs: ['Dashboard', 'Daily Sales', 'Refunds'] },
+  { label: 'Deep dive', tabs: ['Pricing Guide', 'Expenses', 'Monthly Summary', 'Insights'] },
+];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -775,6 +781,7 @@ function Dashboard() {
 // ─── Pricing Guide ────────────────────────────────────────────────────────────
 
 function PricingGuide() {
+  const toast = useToast();
   const [rows,    setRows]    = useState([]);
   const [editing, setEditing] = useState({});
   const [saving,  setSaving]  = useState({});
@@ -805,7 +812,7 @@ function PricingGuide() {
         const margin_pct  = price > 0 ? (grossMargin / price) * 100 : 0;
         return { ...r, cost_per_unit: cost, gross_margin: grossMargin, margin_pct };
       }));
-    } catch { alert('Failed to save cost.'); }
+    } catch { toast('Failed to save cost.'); }
     setSaving(p => ({ ...p, [id]: false }));
     setEditing(p => { const n = { ...p }; delete n[id]; return n; });
   }
@@ -1546,6 +1553,7 @@ function MonthlySummary() {
 // ─── Insights ─────────────────────────────────────────────────────────────────
 
 function Insights() {
+  const toast = useToast();
   const now = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -1582,7 +1590,7 @@ function Insights() {
     try {
       await upsertTarget({ period_type, year, amount });
       setTargets(p => ({ ...p, [period_type]: amount }));
-    } catch { alert('Failed to save target.'); }
+    } catch { toast('Failed to save target.'); }
     setSavingTarget(p => ({ ...p, [period_type]: false }));
     setEditTarget(p => { const n = { ...p }; delete n[period_type]; return n; });
   }
@@ -1812,7 +1820,7 @@ function Insights() {
         </div>
 
         {aiError && (
-          <div style={{ fontSize: 13, color: '#EF4444', background: '#FEE2E2', borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, color: '#DC2626', background: '#FEE2E2', borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
             {aiError}
           </div>
         )}
@@ -1820,8 +1828,8 @@ function Insights() {
         {aiRecs.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {aiRecs.map((rec, i) => (
-              <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: '#f9f9f7', borderRadius: 8, borderLeft: '3px solid #38a9c2' }}>
-                <span style={{ fontSize: 16, color: '#38a9c2', flexShrink: 0, marginTop: 1 }}>✦</span>
+              <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: '#f9f9f7', borderRadius: 8 }}>
+                <span style={{ fontSize: 16, color: 'var(--primary)', flexShrink: 0, marginTop: 1 }}>✦</span>
                 <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{rec}</span>
               </div>
             ))}
@@ -1846,6 +1854,7 @@ const STATUS_LABEL = {
 };
 
 function Refunds() {
+  const toast = useToast();
   const [rows,    setRows]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [noting,  setNoting]  = useState({}); // id → note text being typed
@@ -1870,7 +1879,7 @@ function Refunds() {
       ));
       setNoting(n => { const c = { ...n }; delete c[row.id]; return c; });
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to save.');
+      toast(e.response?.data?.error || 'Failed to save.');
     } finally {
       setSaving(s => ({ ...s, [row.id]: false }));
     }
@@ -2000,6 +2009,34 @@ function Refunds() {
   );
 }
 
+function TabBar({ tab, setTab }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 18, marginBottom: '1.25rem', borderBottom: '0.5px solid #e8e8e0', flexWrap: 'wrap' }}>
+      {TAB_GROUPS.map((group, gi) => (
+        <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', paddingLeft: 4 }}>
+            {group.label}
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {group.tabs.map(t => (
+              <button key={t} onClick={() => setTab(t)} style={{
+                padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer',
+                background:   tab === t ? '#fff'         : 'transparent',
+                color:        tab === t ? 'var(--primary)' : '#6B7280',
+                border:       tab === t ? '0.5px solid #e8e8e0' : '0.5px solid transparent',
+                borderBottom: tab === t ? '1px solid #fff' : 'none',
+                fontWeight:   tab === t ? 600 : 400,
+                marginBottom: tab === t ? -1  : 0,
+                fontFamily: 'inherit',
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Finance Page ────────────────────────────────────────────────────────
 
 export default function Finance() {
@@ -2009,20 +2046,7 @@ export default function Finance() {
   if (!isPro && tab !== 'Refunds') return (
     <div>
       <h2 style={{ fontSize:18, fontWeight:500, marginBottom:'1.25rem' }}>Finance</h2>
-      <div style={{ display: 'flex', gap: 4, marginBottom: '1.25rem', borderBottom: '0.5px solid #e8e8e0' }}>
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer',
-            background:   tab === t ? '#fff'    : 'transparent',
-            color:        tab === t ? '#38a9c2' : '#6B7280',
-            border:       tab === t ? '0.5px solid #e8e8e0' : '0.5px solid transparent',
-            borderBottom: tab === t ? '1px solid #fff' : 'none',
-            fontWeight:   tab === t ? 600 : 400,
-            marginBottom: tab === t ? -1  : 0,
-            fontFamily: 'inherit',
-          }}>{t}</button>
-        ))}
-      </div>
+      <TabBar tab={tab} setTab={setTab} />
       <div style={{ background:'#fff', border:'0.5px solid #e8e8e0', borderRadius:12 }}>
         <ProWall />
       </div>
@@ -2033,21 +2057,7 @@ export default function Finance() {
     <div>
       <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Finance</h2>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: '1.25rem', borderBottom: '0.5px solid #e8e8e0', flexWrap: 'wrap' }}>
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer',
-            background:   tab === t ? '#fff'         : 'transparent',
-            color:        tab === t ? '#38a9c2'      : '#6B7280',
-            border:       tab === t ? '0.5px solid #e8e8e0' : '0.5px solid transparent',
-            borderBottom: tab === t ? '1px solid #fff' : 'none',
-            fontWeight:   tab === t ? 600 : 400,
-            marginBottom: tab === t ? -1  : 0,
-            fontFamily: 'inherit',
-          }}>{t}</button>
-        ))}
-      </div>
+      <TabBar tab={tab} setTab={setTab} />
 
       {tab === 'Dashboard'       && <Dashboard />}
       {tab === 'Pricing Guide'   && <PricingGuide />}

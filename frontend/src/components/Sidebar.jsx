@@ -23,6 +23,14 @@ const NAV = [
   { key: 'Settings',      iconName: 'settings',   label: 'Settings' },
 ];
 
+// Sub-groups for the nav list — same 14 keys as NAV, just chunked so no single
+// group exceeds ~5 items (cognitive-load guideline: ≤4-7 items per group).
+const NAV_GROUPS = [
+  { label: 'Operations',        keys: ['Overview', 'Kanban', 'Orders', 'Customers', 'WalkIn'] },
+  { label: 'Setup',             keys: ['Services', 'DeliveryZones', 'Messaging', 'FAQs'] },
+  { label: 'Insights & Admin',  keys: ['Reports', 'Finance', 'Inventory', 'Users', 'Branches', 'Settings'] },
+];
+
 const GUIDE_STEPS = [
   {
     num: '1', title: 'Configure Your Shop',
@@ -221,25 +229,34 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
 
         {/* ── Nav ── */}
         <nav style={{ flex: 1, padding: '8px 0' }}>
-          <div style={{ padding: '4px 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#374151', letterSpacing: '.08em', textTransform: 'uppercase' }}>
-            Navigation
-          </div>
-
-          {visibleNav.map(n => (
-            <button
-              key={n.key}
-              onClick={() => onNav(n.key)}
-              className={`nav-item${current === n.key ? ' active' : ''}`}
-            >
-              <Icon name={n.iconName} size={15} color={current === n.key ? '#38a9c2' : '#6B7280'} style={{ width: 18, flexShrink: 0 }} />
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                {n.label}
-                {n.key === 'Finance' && !isPro && role !== 'superadmin' && (
-                  <span style={{ fontSize: 10, opacity: 0.55 }}>🔒</span>
-                )}
-              </span>
-            </button>
-          ))}
+          {NAV_GROUPS.map(group => {
+            const items = group.keys
+              .map(k => visibleNav.find(n => n.key === k))
+              .filter(Boolean);
+            if (!items.length) return null;
+            return (
+              <div key={group.label}>
+                <div style={{ padding: '10px 1.25rem 6px', fontSize: 10, fontWeight: 600, color: '#374151', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+                  {group.label}
+                </div>
+                {items.map(n => (
+                  <button
+                    key={n.key}
+                    onClick={() => onNav(n.key)}
+                    className={`nav-item${current === n.key ? ' active' : ''}`}
+                  >
+                    <Icon name={n.iconName} size={15} color={current === n.key ? 'var(--primary)' : '#6B7280'} style={{ width: 18, flexShrink: 0 }} />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {n.label}
+                      {n.key === 'Finance' && !isPro && role !== 'superadmin' && (
+                        <span style={{ fontSize: 10, opacity: 0.55 }}>🔒</span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
 
           {/* Setup Guide */}
           <div style={{ margin: '8px 12px 4px' }}>

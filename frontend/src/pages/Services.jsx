@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { getServices, createService, updateService, deleteService,
          getCategories, createCategory, updateCategory, deleteCategory } from '../api.js';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
@@ -61,6 +63,8 @@ const FIELD_TYPES = [
 ];
 
 export default function Services() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [categories,    setCategories]    = useState([]);
   const [services,      setServices]      = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -311,12 +315,12 @@ export default function Services() {
         setServices(prev => prev.map(s => s.id === svcForm.id ? data : s));
       }
       setSvcForm(null); setPreview(null); setFields([]);
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) { toast('Error: ' + err.message); }
     finally { setSaving(false); }
   }
 
   async function handleSvcDelete(id) {
-    if (!confirm('Delete this service?')) return;
+    if (!await confirm({ title: 'Delete this service?', confirmLabel: 'Delete', danger: true })) return;
     await deleteService(id);
     setServices(prev => prev.filter(s => s.id !== id));
     setSvcForm(null); setFields([]);
@@ -335,12 +339,12 @@ export default function Services() {
         setCategories(prev => prev.map(c => c.id === catForm.id ? data : c));
       }
       setCatForm(null);
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) { toast('Error: ' + err.message); }
     finally { setSaving(false); }
   }
 
   async function handleCatDelete(id) {
-    if (!confirm('Delete this category? Services in it will become uncategorized.')) return;
+    if (!await confirm({ title: 'Delete this category?', message: 'Services in it will become uncategorized.', confirmLabel: 'Delete', danger: true })) return;
     await deleteCategory(id);
     setCategories(prev => prev.filter(c => c.id !== id));
     setServices(prev => prev.map(s => s.category_id === id ? { ...s, category_id: null, category_name: null } : s));

@@ -5,6 +5,8 @@ import {
   deleteFormula, suggestFormula, getServices,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 const TABS = ['Stock', 'Stock-In / Use', 'Formulas', 'Transactions'];
 
@@ -72,6 +74,8 @@ function UnitInput({ value, onChange, onBlur, onKeyDown, autoFocus, style }) {
 // ─── Stock tab ────────────────────────────────────────────────────────────────
 
 function Stock({ items, setItems }) {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [form,    setForm]    = useState({ name:'', unit:'', reorder_threshold:'', cost_per_unit:'' });
   const [saving,  setSaving]  = useState(false);
@@ -105,16 +109,16 @@ function Stock({ items, setItems }) {
         cost_per_unit:     parseFloat(updated.cost_per_unit)||0,
       });
       setItems(p => p.map(i => i.id === item.id ? { ...i, [editing.field]: editing.value } : i));
-    } catch { alert('Failed to save.'); }
+    } catch { toast('Failed to save.'); }
     setEditing(null);
   }
 
   async function removeItem(id) {
-    if (!confirm('Delete this item? This will also remove its formulas and transaction history.')) return;
+    if (!await confirm({ title: 'Delete this item?', message: 'This will also remove its formulas and transaction history.', confirmLabel: 'Delete', danger: true })) return;
     try {
       await deleteInventoryItem(id);
       setItems(p => p.filter(i => i.id !== id));
-    } catch { alert('Failed to delete.'); }
+    } catch { toast('Failed to delete.'); }
   }
 
   const cellInput = (item, field, width=80, type='text') => {
@@ -403,6 +407,7 @@ function FormulasWall() {
 }
 
 function FormulasTab({ items, services }) {
+  const toast = useToast();
   const { isGrowthOrAbove } = usePlan();
   const [formulas,   setFormulas]   = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -510,7 +515,7 @@ function FormulasTab({ items, services }) {
       });
       closeAdd();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save formula.');
+      toast(err.response?.data?.error || 'Failed to save formula.');
     }
     setSaving(false);
   }
@@ -519,7 +524,7 @@ function FormulasTab({ items, services }) {
     try {
       await deleteFormula(id);
       setFormulas(p => p.filter(f => f.id !== id));
-    } catch { alert('Failed to delete.'); }
+    } catch { toast('Failed to delete.'); }
   }
 
   // Group: service_id → { service_name, subgroups: { variant_key → rows[] } }

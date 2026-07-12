@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getCustomers, updateCustomer, deleteCustomer } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 
 export default function Customers() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [customers, setCustomers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -121,12 +125,12 @@ export default function Customers() {
               <div style={{ fontWeight: 500, fontSize: 15 }}>Customer details</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button onClick={async () => {
-                  if (!confirm(`Delete ${selected.name || 'this customer'}? This cannot be undone.`)) return;
+                  if (!await confirm({ title: `Delete ${selected.name || 'this customer'}?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
                   try {
                     await deleteCustomer(selected.id);
                     setCustomers(prev => prev.filter(c => c.id !== selected.id));
                     setSelected(null);
-                  } catch { alert('Failed to delete customer.'); }
+                  } catch { toast('Failed to delete customer.'); }
                 }} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '0.5px solid #F09595', background: '#FCEBEB', color: '#A32D2D', cursor: 'pointer' }}>
                   Delete
                 </button>
@@ -161,7 +165,7 @@ export default function Customers() {
                   await updateCustomer(selected.id, { has_reviewed: next });
                   setSelected(s => ({ ...s, has_reviewed: next }));
                   setCustomers(prev => prev.map(c => c.id === selected.id ? { ...c, has_reviewed: next } : c));
-                } catch { alert('Failed to update.'); }
+                } catch { toast('Failed to update.'); }
               }} style={{
                 padding: '3px 12px', fontSize: 12, borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit',
                 border: selected.has_reviewed ? '0.5px solid #3B6D11' : '0.5px solid #ccc',
