@@ -28,7 +28,7 @@ function ProWall() {
         style={{ marginTop:8, padding:'12px 32px', borderRadius:10, background:'#7C3AED', color:'#fff', fontWeight:700, fontSize:14, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(124,58,237,.35)' }}>
         Upgrade to Pro →
       </button>
-      <div style={{ fontSize:12, color:'#9CA3AF' }}>₱5,499/month · 10 branches · Priority support · Cancel anytime</div>
+      <div style={{ fontSize:12, color:'#6B7280' }}>₱5,499/month · 10 branches · Priority support · Cancel anytime</div>
     </div>
   );
 }
@@ -51,8 +51,8 @@ const KPESO = v => {
   return `₱${Math.round(n)}`;
 };
 
-const CAT_COLORS = ['#38a9c2', '#7F77DD', '#059669', '#BA7517', '#EF4444', '#9CA3AF'];
-const SVC_COLORS = ['#38a9c2', '#7F77DD', '#059669', '#BA7517', '#EF4444'];
+const CAT_COLORS = ['#38a9c2', '#7F77DD', '#047857', '#BA7517', '#EF4444', '#6B7280'];
+const SVC_COLORS = ['#38a9c2', '#7F77DD', '#047857', '#BA7517', '#EF4444'];
 
 const cardStyle = { background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' };
 const thStyle   = { textAlign: 'left', fontSize: 12, color: '#6B7280', fontWeight: 600, padding: '8px 12px', whiteSpace: 'nowrap' };
@@ -76,7 +76,7 @@ function TrendChart({ months }) {
     return (
       <div style={{
         height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#9CA3AF', fontSize: 13, background: '#f9f9f7', borderRadius: 8,
+        color: '#6B7280', fontSize: 13, background: '#f9f9f7', borderRadius: 8,
       }}>
         No data yet — record orders and add expenses to see the annual trend.
       </div>
@@ -123,7 +123,7 @@ function TrendChart({ months }) {
                 stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
                 strokeWidth={i === 0 ? '1' : '0.5'} />
               {i > 0 && (
-                <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">
+                <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#6B7280">
                   {KPESO(v)}
                 </text>
               )}
@@ -155,7 +155,7 @@ function TrendChart({ months }) {
                 fill="#EF4444" rx="2" opacity={isH ? 0.9 : 0.70} />
               {/* Month label */}
               <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
-                fill={isH ? '#374151' : '#9CA3AF'}
+                fill={isH ? '#374151' : '#6B7280'}
                 fontWeight={isH ? '600' : '400'}>
                 {MONTHS[m.month - 1]}
               </text>
@@ -164,7 +164,7 @@ function TrendChart({ months }) {
         })}
 
         {/* Net Profit trend line */}
-        <polyline points={profitPts} fill="none" stroke="#059669"
+        <polyline points={profitPts} fill="none" stroke="#047857"
           strokeWidth="1.5" strokeLinejoin="round" />
 
         {/* Net Profit dots */}
@@ -174,7 +174,7 @@ function TrendChart({ months }) {
           const cy = np >= 0 ? ys(np) : PT + plotH;
           return (
             <circle key={i} cx={cx} cy={cy} r={hov === i ? 4 : 2.5}
-              fill={np >= 0 ? '#059669' : '#EF4444'}
+              fill={np >= 0 ? '#047857' : '#EF4444'}
               stroke="#fff" strokeWidth="1" />
           );
         })}
@@ -203,7 +203,7 @@ function TrendChart({ months }) {
             <div style={{ color: np >= 0 ? '#6EE7B7' : '#FCA5A5', fontWeight: 600 }}>
               Net Profit: {PESO(np)}
             </div>
-            <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>
+            <div style={{ color: '#6B7280', fontSize: 10, marginTop: 1 }}>
               Margin: {PCT(m.marginPct)} · {m.loadCount || 0} orders
             </div>
           </div>
@@ -215,7 +215,7 @@ function TrendChart({ months }) {
         {[
           { color: '#38a9c2', shape: 'bar',  label: 'Revenue' },
           { color: '#EF4444', shape: 'bar',  label: 'Expenses' },
-          { color: '#059669', shape: 'line', label: 'Net Profit' },
+          { color: '#047857', shape: 'line', label: 'Net Profit' },
         ].map(l => (
           <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
             {l.shape === 'bar'
@@ -269,7 +269,7 @@ function DonutChart({ segments, size = 92, center }) {
         />
       ))}
       {/* Center label */}
-      {center?.top    && <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#9CA3AF">{center.top}</text>}
+      {center?.top    && <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#6B7280">{center.top}</text>}
       {center?.bottom && <text x={CX} y={CY + 8}  textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#111827">{center.bottom}</text>}
     </svg>
   );
@@ -296,14 +296,14 @@ function HorizBars({ items, compact = false }) {
                 <span style={{ fontSize: compact ? 11 : 12, color: '#374151' }}>
                   {item.label}
                   {item.sub && (
-                    <span style={{ color: '#9CA3AF', marginLeft: 6, fontSize: 10 }}>{item.sub}</span>
+                    <span style={{ color: '#6B7280', marginLeft: 6, fontSize: 10 }}>{item.sub}</span>
                   )}
                 </span>
               </div>
               <span style={{ fontSize: compact ? 11 : 12, color: '#6B7280', fontVariantNumeric: 'tabular-nums' }}>
                 {PESO(item.value)}
                 {max > 1 && (
-                  <span style={{ color: '#9CA3AF', marginLeft: 4, fontSize: 10 }}>
+                  <span style={{ color: '#6B7280', marginLeft: 4, fontSize: 10 }}>
                     ({pct.toFixed(0)}%)
                   </span>
                 )}
@@ -334,7 +334,7 @@ function RetentionChart({ months }) {
     return (
       <div style={{
         height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#9CA3AF', fontSize: 13, background: '#f9f9f7', borderRadius: 8,
+        color: '#6B7280', fontSize: 13, background: '#f9f9f7', borderRadius: 8,
       }}>
         No customer data yet for this period.
       </div>
@@ -373,7 +373,7 @@ function RetentionChart({ months }) {
                 stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
                 strokeWidth={i === 0 ? '1' : '0.5'} />
               {v > 0 && (
-                <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{v}</text>
+                <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#6B7280">{v}</text>
               )}
             </g>
           );
@@ -397,13 +397,13 @@ function RetentionChart({ months }) {
               )}
               {/* New customers bar */}
               <rect x={bx}           y={ys(nc)} width={bW} height={ncH}
-                fill="#059669" rx="2" opacity={isH ? 1 : 0.82} />
+                fill="#047857" rx="2" opacity={isH ? 1 : 0.82} />
               {/* Repeat customers bar */}
               <rect x={bx + bW + 2}  y={ys(rc)} width={bW} height={rcH}
                 fill="#38a9c2" rx="2" opacity={isH ? 1 : 0.82} />
               {/* Month label */}
               <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
-                fill={isH ? '#374151' : '#9CA3AF'}
+                fill={isH ? '#374151' : '#6B7280'}
                 fontWeight={isH ? '600' : '400'}>
                 {MONTHS[m.month - 1]}
               </text>
@@ -431,7 +431,7 @@ function RetentionChart({ months }) {
             <div style={{ color: '#6EE7B7' }}>New: {m.newCustomers || 0}</div>
             <div style={{ color: '#93C5FD' }}>Repeat: {m.repeatCustomers || 0}</div>
             <div style={{ color: '#F9FAFB', fontWeight: 600 }}>Total: {m.total || 0}</div>
-            <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>Retention: {ret}%</div>
+            <div style={{ color: '#6B7280', fontSize: 10, marginTop: 1 }}>Retention: {ret}%</div>
           </div>
         );
       })()}
@@ -439,7 +439,7 @@ function RetentionChart({ months }) {
       {/* Legend */}
       <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
         {[
-          { color: '#059669', label: 'New Customers' },
+          { color: '#047857', label: 'New Customers' },
           { color: '#38a9c2', label: 'Repeat Customers' },
         ].map(l => (
           <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
@@ -487,7 +487,7 @@ function SnapshotChart({ months, net, rev, mrg }) {
               <line x1={PL} y1={y} x2={VW - PR} y2={y}
                 stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
                 strokeWidth={i === 0 ? '1' : '0.5'} />
-              {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#9CA3AF">{KPESO(v)}</text>}
+              {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#6B7280">{KPESO(v)}</text>}
             </g>
           );
         })}
@@ -507,7 +507,7 @@ function SnapshotChart({ months, net, rev, mrg }) {
               <rect x={bx + bW + 2} y={ys(mExp)} width={bW} height={Math.max(0, (mExp / maxVal) * plotH)}
                 fill="#22D3EE" rx="3" opacity={isH ? 1 : 0.75} />
               <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
-                fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '600' : '400'}>
+                fill={isH ? '#374151' : '#6B7280'} fontWeight={isH ? '600' : '400'}>
                 {MONTHS[m.month - 1]}
               </text>
             </g>
@@ -542,7 +542,7 @@ function SnapshotChart({ months, net, rev, mrg }) {
             <div style={{ color: '#A5B4FC' }}>Revenue: {PESO(m.netRevenue)}</div>
             <div style={{ color: '#67E8F9' }}>Expenses: {PESO(m.opExpenses)}</div>
             <div style={{ color: np >= 0 ? '#C4B5FD' : '#FCA5A5', fontWeight: 600 }}>Profit: {PESO(np)}</div>
-            <div style={{ color: '#9CA3AF', fontSize: 10, marginTop: 1 }}>
+            <div style={{ color: '#6B7280', fontSize: 10, marginTop: 1 }}>
               {m.loadCount || 0} orders · {PCT(m.marginPct)} margin
             </div>
           </div>
@@ -629,8 +629,8 @@ function Dashboard() {
   const kpis = data ? [
     { label: 'MTD Revenue',        val: PESO(rev), color: 'var(--primary)' },
     { label: 'MTD Expenses',       val: PESO(exp), color: '#DC2626' },
-    { label: 'Net Profit',         val: PESO(net), color: net >= 0 ? '#059669' : '#DC2626' },
-    { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#DC2626' },
+    { label: 'Net Profit',         val: PESO(net), color: net >= 0 ? '#047857' : '#DC2626' },
+    { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#047857' : '#DC2626' },
     { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD' },
     { label: 'Avg Revenue / Load', val: PESO(avg), color: '#BA7517' },
     ...(rfd > 0 ? [{ label: `Refunds (${rfc} order${rfc !== 1 ? 's' : ''})`, val: PESO(rfd), color: '#DC2626' }] : []),
@@ -638,7 +638,7 @@ function Dashboard() {
 
   // Donut: profit (green) vs expenses (red)
   const donutSegs = [
-    { value: Math.max(0, net), color: '#059669' },
+    { value: Math.max(0, net), color: '#047857' },
     { value: exp,              color: '#EF4444' },
   ].filter(s => s.value > 0);
 
@@ -688,7 +688,7 @@ function Dashboard() {
                     { label: 'Transactions', val: todayRows.length, color: '#7F77DD' },
                     { label: 'Gross Sales',  val: PESO(todayGross), color: '#38a9c2' },
                     { label: 'Net Sales',    val: PESO(todayNet),   color: '#374151' },
-                    { label: 'Collected',    val: PESO(todayPaid),  color: '#059669' },
+                    { label: 'Collected',    val: PESO(todayPaid),  color: '#047857' },
                   ].map(s => (
                     <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
                       <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
@@ -698,9 +698,9 @@ function Dashboard() {
                 </div>
 
                 {todayLoad ? (
-                  <div style={{ fontSize: 13, color: '#9CA3AF' }}>Loading…</div>
+                  <div style={{ fontSize: 13, color: '#6B7280' }}>Loading…</div>
                 ) : todayRows.length === 0 ? (
-                  <div style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', padding: '1rem 0' }}>No transactions today yet.</div>
+                  <div style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', padding: '1rem 0' }}>No transactions today yet.</div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -724,7 +724,7 @@ function Dashboard() {
                               <span style={{
                                 fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                                 background: r.status === 'COMPLETED' ? '#D1FAE5' : r.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7',
-                                color:      r.status === 'COMPLETED' ? '#059669' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
+                                color:      r.status === 'COMPLETED' ? '#047857' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
                               }}>{r.status}</span>
                             </td>
                           </tr>
@@ -744,7 +744,7 @@ function Dashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Monthly Performance Summary</div>
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{year} · hover a month for details</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{year} · hover a month for details</div>
                 </div>
                 {/* KPI pills */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -752,10 +752,10 @@ function Dashboard() {
                     { label: 'Revenue',  val: PESO(rev), color: '#6366F1' },
                     { label: 'Expenses', val: PESO(exp), color: '#22D3EE' },
                     { label: 'Profit',   val: PESO(net), color: net >= 0 ? '#7C3AED' : '#EF4444' },
-                    { label: 'Margin',   val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#EF4444' },
+                    { label: 'Margin',   val: PCT(mrg),  color: mrg >= 0 ? '#047857' : '#EF4444' },
                   ].map(p => (
                     <div key={p.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 10, color: '#9CA3AF' }}>{p.label}</div>
+                      <div style={{ fontSize: 10, color: '#6B7280' }}>{p.label}</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: p.color }}>{p.val}</div>
                     </div>
                   ))}
@@ -840,7 +840,7 @@ function PricingGuide() {
             {rows.map(r => {
               const isEditing = r.id in editing;
               const mpct      = parseFloat(r.margin_pct) || 0;
-              const mpctColor = mpct >= 50 ? '#059669' : mpct >= 20 ? '#BA7517' : '#EF4444';
+              const mpctColor = mpct >= 50 ? '#047857' : mpct >= 20 ? '#BA7517' : '#EF4444';
               const barPct    = Math.max(0, Math.min(100, (mpct / bestMpct) * 100));
 
               return (
@@ -978,7 +978,7 @@ function DailySales() {
           { label: 'Transactions', val: rows.length },
           { label: 'Gross Sales',  val: PESO(totals.gross) },
           { label: 'Net Sales',    val: PESO(totals.net) },
-          { label: 'Paid',         val: PESO(totals.paid), color: '#059669' },
+          { label: 'Paid',         val: PESO(totals.paid), color: '#047857' },
         ].map(s => (
           <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '10px 16px', minWidth: 120 }}>
             <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
@@ -1045,7 +1045,7 @@ function DailySales() {
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                         background: r.status === 'COMPLETED' ? '#D1FAE5' : r.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7',
-                        color:      r.status === 'COMPLETED' ? '#059669' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
+                        color:      r.status === 'COMPLETED' ? '#047857' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
                       }}>{r.status}</span>
                     </td>
                   </tr>
@@ -1300,7 +1300,7 @@ function MonthlySummary() {
 
   // Annual summary donut (profit vs expenses)
   const annualDonutSegs = totals ? [
-    { value: Math.max(0, totals.netProfit), color: '#059669' },
+    { value: Math.max(0, totals.netProfit), color: '#047857' },
     { value: totals.opExpenses,             color: '#EF4444' },
   ].filter(s => s.value > 0) : [];
 
@@ -1326,7 +1326,7 @@ function MonthlySummary() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{year} Annual Trend</div>
-                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Hover any month for details</div>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Hover any month for details</div>
               </div>
               {/* Annual KPI pills */}
               {totals && (
@@ -1334,11 +1334,11 @@ function MonthlySummary() {
                   {[
                     { label: 'Revenue',    value: PESO(totals.netRevenue),  color: '#38a9c2' },
                     { label: 'Expenses',   value: PESO(totals.opExpenses),  color: '#EF4444' },
-                    { label: 'Net Profit', value: PESO(totals.netProfit),   color: totals.netProfit >= 0 ? '#059669' : '#EF4444' },
-                    { label: 'Margin',     value: PCT(totalMargin),         color: totalMargin >= 0 ? '#059669' : '#EF4444' },
+                    { label: 'Net Profit', value: PESO(totals.netProfit),   color: totals.netProfit >= 0 ? '#047857' : '#EF4444' },
+                    { label: 'Margin',     value: PCT(totalMargin),         color: totalMargin >= 0 ? '#047857' : '#EF4444' },
                   ].map(p => (
                     <div key={p.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '6px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 10, color: '#9CA3AF' }}>{p.label}</div>
+                      <div style={{ fontSize: 10, color: '#6B7280' }}>{p.label}</div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: p.color }}>{p.value}</div>
                     </div>
                   ))}
@@ -1359,7 +1359,7 @@ function MonthlySummary() {
                   />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {[
-                      { color: '#059669', label: 'Profit', value: PESO(Math.max(0, totals.netProfit)) },
+                      { color: '#047857', label: 'Profit', value: PESO(Math.max(0, totals.netProfit)) },
                       { color: '#EF4444', label: 'Expenses', value: PESO(totals.opExpenses) },
                     ].map(l => (
                       <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#6B7280' }}>
@@ -1372,23 +1372,23 @@ function MonthlySummary() {
 
                 {/* Top 3 profit months */}
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>Best months by net profit</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 8 }}>Best months by net profit</div>
                   {[...data.months]
                     .filter(m => (parseFloat(m.netProfit) || 0) > 0)
                     .sort((a, b) => b.netProfit - a.netProfit)
                     .slice(0, 3)
                     .map((m, i) => (
                       <div key={m.month} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, color: '#9CA3AF', width: 14, textAlign: 'right' }}>#{i + 1}</span>
+                        <span style={{ fontSize: 11, color: '#6B7280', width: 14, textAlign: 'right' }}>#{i + 1}</span>
                         <span style={{ fontSize: 12, color: '#374151', width: 32 }}>{MONTHS[m.month - 1]}</span>
                         <div style={{ flex: 1, height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
                           <div style={{
                             height: '100%',
                             width: `${Math.min(100, (m.netProfit / Math.max(...data.months.map(x => x.netProfit), 1)) * 100)}%`,
-                            background: '#059669', borderRadius: 3,
+                            background: '#047857', borderRadius: 3,
                           }} />
                         </div>
-                        <span style={{ fontSize: 11, color: '#059669', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 11, color: '#047857', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                           {PESO(m.netProfit)}
                         </span>
                       </div>
@@ -1424,10 +1424,10 @@ function MonthlySummary() {
                       <td style={{ ...tdNum, color: m.opExpenses > 0 ? '#EF4444' : '#6B7280' }}>
                         {m.opExpenses > 0 ? PESO(m.opExpenses) : '—'}
                       </td>
-                      <td style={{ ...tdNum, fontWeight: 700, color: isNeg ? '#EF4444' : '#059669' }}>
+                      <td style={{ ...tdNum, fontWeight: 700, color: isNeg ? '#EF4444' : '#047857' }}>
                         {PESO(m.netProfit)}
                       </td>
-                      <td style={{ ...tdNum, fontWeight: 600, color: m.marginPct >= 0 ? '#059669' : '#EF4444' }}>
+                      <td style={{ ...tdNum, fontWeight: 600, color: m.marginPct >= 0 ? '#047857' : '#EF4444' }}>
                         {PCT(m.marginPct)}
                       </td>
                       <td style={{ ...tdNum, color: m.ytdCumulative >= 0 ? '#38a9c2' : '#EF4444' }}>
@@ -1455,10 +1455,10 @@ function MonthlySummary() {
                     <td style={{ ...tdNum, fontWeight: 700, color: '#EF4444' }}>
                       {totals.opExpenses > 0 ? PESO(totals.opExpenses) : '—'}
                     </td>
-                    <td style={{ ...tdNum, fontWeight: 700, color: totals.netProfit >= 0 ? '#059669' : '#EF4444' }}>
+                    <td style={{ ...tdNum, fontWeight: 700, color: totals.netProfit >= 0 ? '#047857' : '#EF4444' }}>
                       {PESO(totals.netProfit)}
                     </td>
-                    <td style={{ ...tdNum, fontWeight: 700, color: totalMargin >= 0 ? '#059669' : '#EF4444' }}>
+                    <td style={{ ...tdNum, fontWeight: 700, color: totalMargin >= 0 ? '#047857' : '#EF4444' }}>
                       {PCT(totalMargin)}
                     </td>
                     <td style={tdNum}>—</td>
@@ -1489,9 +1489,9 @@ function MonthlySummary() {
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
                     {[
                       { label: 'Total Active (YTD)',  val: totCust,            color: '#374151', fmt: v => v },
-                      { label: 'New Customers (YTD)', val: totNew,             color: '#059669', fmt: v => v },
+                      { label: 'New Customers (YTD)', val: totNew,             color: '#047857', fmt: v => v },
                       { label: 'Repeat (YTD)',        val: totRepeat,          color: '#38a9c2', fmt: v => v },
-                      { label: 'Avg Retention Rate',  val: avgRet.toFixed(0) + '%', color: avgRet >= 50 ? '#059669' : '#BA7517', fmt: v => v },
+                      { label: 'Avg Retention Rate',  val: avgRet.toFixed(0) + '%', color: avgRet >= 50 ? '#047857' : '#BA7517', fmt: v => v },
                       { label: 'All-Time Customers',  val: retData.allTimeTotal || 0, color: '#7F77DD', fmt: v => v },
                     ].map(s => (
                       <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 120 }}>
@@ -1519,12 +1519,12 @@ function MonthlySummary() {
                   <tbody>
                     {retData.months.map(m => {
                       const retRate = m.total > 0 ? (m.repeatCustomers / m.total) * 100 : 0;
-                      const retColor = retRate >= 50 ? '#059669' : retRate >= 25 ? '#BA7517' : '#6B7280';
+                      const retColor = retRate >= 50 ? '#047857' : retRate >= 25 ? '#BA7517' : '#6B7280';
                       return (
                         <tr key={m.month}>
                           <td style={{ ...tdStyle, fontWeight: 500 }}>{MONTHS[m.month - 1]}</td>
                           <td style={{ ...tdNum, fontWeight: 600 }}>{m.total || '—'}</td>
-                          <td style={{ ...tdNum, color: '#059669', fontWeight: 600 }}>{m.newCustomers || '—'}</td>
+                          <td style={{ ...tdNum, color: '#047857', fontWeight: 600 }}>{m.newCustomers || '—'}</td>
                           <td style={{ ...tdNum, color: '#38a9c2', fontWeight: 600 }}>{m.repeatCustomers || '—'}</td>
                           <td style={{ ...tdNum, color: retColor, fontWeight: 700 }}>
                             {m.total > 0 ? `${retRate.toFixed(0)}%` : '—'}
@@ -1619,7 +1619,7 @@ function Insights() {
   const beLoads      = breakeven?.breakEvenLoads ?? null;
   const currentLoads = breakeven?.loadCount || 0;
   const beGauge      = beLoads ? Math.min(100, (currentLoads / beLoads) * 100) : 0;
-  const beColor      = beGauge >= 100 ? '#059669' : beGauge >= 70 ? '#BA7517' : '#EF4444';
+  const beColor      = beGauge >= 100 ? '#047857' : beGauge >= 70 ? '#BA7517' : '#EF4444';
 
   // Break-even donut: current loads vs needed
   const beDonutSegs = beLoads ? [
@@ -1649,14 +1649,14 @@ function Insights() {
             const actual   = key === 'weekly' ? (projections?.weeklyRate || 0) : key === 'monthly' ? (dashboard?.revenue || 0) : 0;
             const target   = targets[key] || 0;
             const pct      = progressPct(actual, target);
-            const barColor = pct >= 100 ? '#059669' : pct >= 70 ? '#38a9c2' : pct >= 40 ? '#BA7517' : '#EF4444';
+            const barColor = pct >= 100 ? '#047857' : pct >= 70 ? '#38a9c2' : pct >= 40 ? '#BA7517' : '#EF4444';
             const isEditing = key in editTarget;
             return (
               <div key={key}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
-                    <span style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 6 }}>{tip}</span>
+                    <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 6 }}>{tip}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isEditing ? (
@@ -1717,7 +1717,7 @@ function Insights() {
                     segments={beDonutSegs}
                     center={{ top: 'orders', bottom: `${currentLoads}` }}
                   />
-                  <span style={{ fontSize: 10, color: '#9CA3AF' }}>of {beLoads} needed</span>
+                  <span style={{ fontSize: 10, color: '#6B7280' }}>of {beLoads} needed</span>
                 </div>
 
                 {/* Details */}
@@ -1743,7 +1743,7 @@ function Insights() {
                 <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '10px 12px' }}>
                   <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{s.label}</div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>{s.val}</div>
-                  {s.note && <div style={{ fontSize: 10, color: '#9CA3AF' }}>{s.note}</div>}
+                  {s.note && <div style={{ fontSize: 10, color: '#6B7280' }}>{s.note}</div>}
                 </div>
               ))}
             </div>
@@ -1760,7 +1760,7 @@ function Insights() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
               {[
-                { label: `${FULL_MONTHS[month - 1]} projection`, val: PESO(projections.monthEndProjection), sub: `${projections.daysRemaining} days remaining`, color: projMonthPct >= 100 ? '#059669' : '#38a9c2' },
+                { label: `${FULL_MONTHS[month - 1]} projection`, val: PESO(projections.monthEndProjection), sub: `${projections.daysRemaining} days remaining`, color: projMonthPct >= 100 ? '#047857' : '#38a9c2' },
                 { label: 'Annual projection',   val: PESO(projections.annualProjection), sub: 'based on last 3 months', color: '#7F77DD' },
                 { label: 'Daily revenue rate',  val: PESO(projections.dailyRate),        sub: "today's pace",          color: '#BA7517' },
                 { label: 'Weekly revenue rate', val: PESO(projections.weeklyRate),       sub: 'projected this week',   color: '#1D9E75' },
@@ -1768,7 +1768,7 @@ function Insights() {
                 <div key={c.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '10px 12px' }}>
                   <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 2 }}>{c.label}</div>
                   <div style={{ fontSize: 16, fontWeight: 600, color: c.color }}>{c.val}</div>
-                  <div style={{ fontSize: 10, color: '#9CA3AF' }}>{c.sub}</div>
+                  <div style={{ fontSize: 10, color: '#6B7280' }}>{c.sub}</div>
                 </div>
               ))}
             </div>
@@ -1778,14 +1778,14 @@ function Insights() {
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                   <span style={{ fontSize: 12, color: '#374151' }}>Monthly target progress (projected)</span>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: projMonthPct >= 100 ? '#059669' : '#EF4444' }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: projMonthPct >= 100 ? '#047857' : '#EF4444' }}>
                     {projMonthPct.toFixed(0)}%
                   </span>
                 </div>
                 <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${projMonthPct}%`, background: projMonthPct >= 100 ? '#059669' : '#38a9c2', borderRadius: 4, transition: 'width 0.4s ease' }} />
+                  <div style={{ height: '100%', width: `${projMonthPct}%`, background: projMonthPct >= 100 ? '#047857' : '#38a9c2', borderRadius: 4, transition: 'width 0.4s ease' }} />
                 </div>
-                <div style={{ fontSize: 12, marginTop: 6, color: projMonthPct >= 100 ? '#059669' : '#EF4444', fontWeight: 500, padding: '8px 12px', background: projMonthPct >= 100 ? '#D1FAE5' : '#FEE2E2', borderRadius: 8 }}>
+                <div style={{ fontSize: 12, marginTop: 6, color: projMonthPct >= 100 ? '#047857' : '#EF4444', fontWeight: 500, padding: '8px 12px', background: projMonthPct >= 100 ? '#D1FAE5' : '#FEE2E2', borderRadius: 8 }}>
                   {projMonthPct >= 100
                     ? `✅ On track to meet your monthly target of ${PESO(targets.monthly)}`
                     : `⚠️ Projected to reach ${PCT(projMonthPct)} of your ${PESO(targets.monthly)} monthly target`}
@@ -1801,10 +1801,10 @@ function Insights() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>AI Recommendations</div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Powered by Gemini · Based on this month's data</div>
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Powered by Gemini · Based on this month's data</div>
           </div>
           <button onClick={fetchInsights} disabled={aiLoading}
-            style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: aiLoading ? 'not-allowed' : 'pointer', background: aiLoading ? '#E5E7EB' : '#38a9c2', color: aiLoading ? '#9CA3AF' : '#fff', border: 'none', fontWeight: 600, fontFamily: 'inherit' }}>
+            style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: aiLoading ? 'not-allowed' : 'pointer', background: aiLoading ? '#E5E7EB' : '#38a9c2', color: aiLoading ? '#6B7280' : '#fff', border: 'none', fontWeight: 600, fontFamily: 'inherit' }}>
             {aiLoading ? 'Thinking…' : aiRecs.length ? 'Refresh' : 'Get AI Insights'}
           </button>
         </div>
@@ -1825,7 +1825,7 @@ function Insights() {
             ))}
           </div>
         ) : !aiLoading && !aiError && (
-          <div style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', padding: '1.5rem 0' }}>
+          <div style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', padding: '1.5rem 0' }}>
             Click "Get AI Insights" to get personalized recommendations for your shop.
           </div>
         )}
@@ -1943,7 +1943,7 @@ function Refunds() {
                         onClick={() => handleMarkIssued(row)}
                         disabled={saving[row.id]}
                         style={{ padding: '6px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
-                          background: saving[row.id] ? '#E5E7EB' : '#059669', color: saving[row.id] ? '#9CA3AF' : '#fff',
+                          background: saving[row.id] ? '#E5E7EB' : '#047857', color: saving[row.id] ? '#6B7280' : '#fff',
                           cursor: saving[row.id] ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                         {saving[row.id] ? 'Saving…' : '✓ Mark Refunded'}
                       </button>

@@ -765,7 +765,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   if (notFound) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F7F7F5' }}>
       <div style={{ textAlign: 'center', maxWidth: 360, padding: 32 }}>
-        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="search" size={48} color="#9CA3AF" /></div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="search" size={48} color="#6B7280" /></div>
         <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Shop not found</div>
         <div style={{ color: '#374151', fontSize: 14 }}>This booking link is invalid or the shop is no longer active.</div>
       </div>
@@ -1421,7 +1421,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                       <div style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
                         {addrSuggestLoading
                           ? <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid #E2E8F0', borderTopColor: '#38a9c2', animation: 'spin .7s linear infinite' }} />
-                          : <Icon name="search" size={14} color="#9CA3AF" />}
+                          : <Icon name="search" size={14} color="#6B7280" />}
                       </div>
                     </div>
                   )}
@@ -1647,7 +1647,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
 
             {/* Promo code */}
             <div style={{ marginBottom: 16 }}>
-              <label style={LABEL}>Promo Code <span style={{ fontWeight: 400, color: '#9CA3AF', fontSize: 11 }}>(optional)</span></label>
+              <label style={LABEL}>Promo Code <span style={{ fontWeight: 400, color: '#6B7280', fontSize: 11 }}>(optional)</span></label>
               {appliedPromo ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, background: '#F5F3FF', border: '1.5px solid #C4B5FD' }}>
                   <div style={{ flex: 1 }}>

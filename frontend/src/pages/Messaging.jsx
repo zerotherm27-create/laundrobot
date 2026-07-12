@@ -86,7 +86,7 @@ export default function Messaging() {
                     Send a promo or update to all your customers at once — or filter by order status. Available on <strong>Growth</strong> and above.
                   </div>
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', background: '#047857', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
                 </div>
               </div>
@@ -96,10 +96,10 @@ export default function Messaging() {
                 ))}
               </div>
               <button onClick={openUpgradeModal}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#047857', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 View plans & upgrade →
               </button>
-              <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginTop: 6 }}>₱1,666/month · 2 months free · Cancel anytime</div>
+              <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center', marginTop: 6 }}>₱1,666/month · 2 months free · Cancel anytime</div>
             </div>
           ) : (<>
             <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 5 }}>Send to</label>
@@ -113,7 +113,7 @@ export default function Messaging() {
             <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4}
               placeholder="Hi {name}, your order {order_id} is now {status}."
               style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc', resize: 'vertical', marginBottom: 8, fontFamily: 'inherit' }} />
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {['{name}', '{order_id}', '{status}', '{pickup_time}'].map(v => (
                 <span key={v} style={{ background: '#F3F4F6', borderRadius: 4, padding: '1px 6px', fontFamily: 'monospace' }}>{v}</span>
               ))}

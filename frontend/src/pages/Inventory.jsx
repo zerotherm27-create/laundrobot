@@ -188,7 +188,7 @@ function Stock({ items, setItems }) {
               style={{ padding:'6px 10px', borderRadius:6, border:'0.5px solid #ccc', fontSize:13, fontFamily:'inherit', width:100 }} />
           </div>
           <button onClick={addItem} disabled={saving}
-            style={{ padding:'7px 16px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#059669', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
+            style={{ padding:'7px 16px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#047857', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
             {saving ? 'Saving…' : 'Save'}
           </button>
           <button onClick={() => { setShowAdd(false); setErr(''); }}
@@ -231,7 +231,7 @@ function Stock({ items, setItems }) {
                       <td style={tdStyle}>
                         {low
                           ? <span style={{ fontSize:11,fontWeight:700,background:'#FEF3C7',color:'#B45309',padding:'2px 8px',borderRadius:20 }}>⚠️ Low</span>
-                          : <span style={{ fontSize:11,fontWeight:700,background:'#D1FAE5',color:'#059669',padding:'2px 8px',borderRadius:20 }}>OK</span>}
+                          : <span style={{ fontSize:11,fontWeight:700,background:'#D1FAE5',color:'#047857',padding:'2px 8px',borderRadius:20 }}>OK</span>}
                       </td>
                       <td style={tdStyle}>
                         <button onClick={() => removeItem(item.id)}
@@ -286,7 +286,7 @@ function StockInUse({ items, setItems }) {
     setSaving(false);
   }
 
-  const modeColor = mode === 'in' ? '#059669' : '#EF4444';
+  const modeColor = mode === 'in' ? '#047857' : '#EF4444';
   const modeBg    = mode === 'in' ? '#D1FAE5' : '#FEE2E2';
 
   return (
@@ -296,7 +296,7 @@ function StockInUse({ items, setItems }) {
         {[['in','Stock-In (Purchase)'],['out','Use / Consume']].map(([m,label]) => (
           <button key={m} onClick={() => { setMode(m); setMsg(''); }}
             style={{ padding:'8px 18px', fontSize:13, borderRadius:8, cursor:'pointer', fontWeight:600, fontFamily:'inherit',
-              background: mode===m ? (m==='in'?'#059669':'#EF4444') : '#F3F4F6',
+              background: mode===m ? (m==='in'?'#047857':'#EF4444') : '#F3F4F6',
               color:      mode===m ? '#fff' : '#6B7280',
               border:     'none' }}>
             {label}
@@ -347,13 +347,13 @@ function StockInUse({ items, setItems }) {
           <button type="submit" disabled={saving}
             style={{ padding:'9px 20px', fontSize:13, borderRadius:8, cursor:saving?'not-allowed':'pointer',
               background: saving ? '#E5E7EB' : modeColor,
-              color: saving ? '#9CA3AF' : '#fff',
+              color: saving ? '#6B7280' : '#fff',
               border:'none', fontWeight:600, fontFamily:'inherit', alignSelf:'flex-start' }}>
             {saving ? 'Saving…' : mode==='in' ? 'Log Stock-In' : 'Log Usage'}
           </button>
         </form>
         {msg && (
-          <div style={{ marginTop:12, fontSize:13, color: isErr ? '#EF4444' : '#059669', background: isErr ? '#FEE2E2' : modeBg, borderRadius:8, padding:'10px 12px' }}>
+          <div style={{ marginTop:12, fontSize:13, color: isErr ? '#EF4444' : '#047857', background: isErr ? '#FEE2E2' : modeBg, borderRadius:8, padding:'10px 12px' }}>
             {msg}
           </div>
         )}
@@ -392,10 +392,10 @@ function FormulasWall() {
       </div>
       <button
         onClick={() => openUpgradeModal('growth')}
-        style={{ marginTop:6, padding:'11px 28px', borderRadius:10, background:'#059669', color:'#fff', fontWeight:700, fontSize:13, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(5,150,105,.3)' }}>
+        style={{ marginTop:6, padding:'11px 28px', borderRadius:10, background:'#047857', color:'#fff', fontWeight:700, fontSize:13, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:'0 4px 14px rgba(5,150,105,.3)' }}>
         Upgrade to Growth →
       </button>
-      <div style={{ fontSize:11, color:'#9CA3AF' }}>₱1,999/month · 5 staff accounts · Auto payment reminders · Cancel anytime</div>
+      <div style={{ fontSize:11, color:'#6B7280' }}>₱1,999/month · 5 staff accounts · Auto payment reminders · Cancel anytime</div>
     </div>
   );
 }
@@ -576,7 +576,7 @@ function FormulasTab({ items, services }) {
             {/* AI suggest button */}
             <div style={{ display:'flex', alignItems:'flex-end' }}>
               <button type="button" onClick={handleAiSuggest} disabled={suggesting || !serviceId}
-                style={{ padding:'6px 14px', fontSize:13, borderRadius:6, cursor: serviceId ? 'pointer' : 'not-allowed', background: serviceId ? '#7C3AED' : '#E5E7EB', color: serviceId ? '#fff' : '#9CA3AF', border:'none', fontWeight:600, fontFamily:'inherit', display:'flex', alignItems:'center', gap:5, opacity: suggesting ? 0.7 : 1 }}>
+                style={{ padding:'6px 14px', fontSize:13, borderRadius:6, cursor: serviceId ? 'pointer' : 'not-allowed', background: serviceId ? '#7C3AED' : '#E5E7EB', color: serviceId ? '#fff' : '#6B7280', border:'none', fontWeight:600, fontFamily:'inherit', display:'flex', alignItems:'center', gap:5, opacity: suggesting ? 0.7 : 1 }}>
                 {suggesting ? '✨ Thinking…' : '✨ AI Suggest'}
               </button>
             </div>
@@ -639,11 +639,11 @@ function FormulasTab({ items, services }) {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color:'#9CA3AF', fontSize:12 }}>—</span>
+                          <span style={{ color:'#6B7280', fontSize:12 }}>—</span>
                         )}
                       </td>
-                      <td style={{ ...tdStyle, fontSize:11, color: isIncompat ? '#EF4444' : '#059669', whiteSpace:'nowrap' }}>
-                        {preview || (selItem && effectiveUnit === selItem.unit ? <span style={{ color:'#9CA3AF' }}>same unit</span> : null)}
+                      <td style={{ ...tdStyle, fontSize:11, color: isIncompat ? '#EF4444' : '#047857', whiteSpace:'nowrap' }}>
+                        {preview || (selItem && effectiveUnit === selItem.unit ? <span style={{ color:'#6B7280' }}>same unit</span> : null)}
                       </td>
                       {rows[0]?.reason && (
                         <td style={{ ...tdStyle, fontSize:11, color:'#7C3AED', maxWidth:200 }}>{row.reason || ''}</td>
@@ -667,7 +667,7 @@ function FormulasTab({ items, services }) {
               </button>
               <div style={{ display:'flex', gap:8 }}>
                 <button type="submit" disabled={saving || !serviceId || !rows.some(r => r.item_id && r.quantity)}
-                  style={{ padding:'7px 18px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#059669', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
+                  style={{ padding:'7px 18px', fontSize:13, borderRadius:6, cursor:'pointer', background:'#047857', color:'#fff', border:'none', fontWeight:600, fontFamily:'inherit' }}>
                   {saving ? 'Saving…' : `Save ${rows.filter(r=>r.item_id&&r.quantity).length} material${rows.filter(r=>r.item_id&&r.quantity).length===1?'':'s'}`}
                 </button>
                 <button type="button" onClick={closeAdd}
@@ -726,7 +726,7 @@ function FormulasTab({ items, services }) {
                         <td style={tdStyle}>{f.item_name}</td>
                         <td style={{ ...tdStyle, color:'#6B7280' }}>
                           {f.consumption_unit && f.consumption_unit !== f.unit
-                            ? <><strong>{f.consumption_unit}</strong> <span style={{ color:'#9CA3AF' }}>→ {f.unit}</span></>
+                            ? <><strong>{f.consumption_unit}</strong> <span style={{ color:'#6B7280' }}>→ {f.unit}</span></>
                             : f.unit}
                         </td>
                         <td style={tdNum}>{Number(f.quantity_per_order).toLocaleString('en-PH')} {f.consumption_unit || f.unit}</td>
@@ -780,7 +780,7 @@ function TransactionsTab({ items }) {
         </select>
         {filter && (
           <div style={{ display:'flex', gap:8 }}>
-            <span style={{ fontSize:12, background:'#D1FAE5', color:'#059669', borderRadius:20, padding:'3px 10px', fontWeight:600 }}>
+            <span style={{ fontSize:12, background:'#D1FAE5', color:'#047857', borderRadius:20, padding:'3px 10px', fontWeight:600 }}>
               +{Number(inTotal).toLocaleString('en-PH')} {unit} in
             </span>
             <span style={{ fontSize:12, background:'#FEE2E2', color:'#EF4444', borderRadius:20, padding:'3px 10px', fontWeight:600 }}>
@@ -788,7 +788,7 @@ function TransactionsTab({ items }) {
             </span>
           </div>
         )}
-        <span style={{ fontSize:12, color:'#9CA3AF', marginLeft:'auto' }}>{filtered.length} entries</span>
+        <span style={{ fontSize:12, color:'#6B7280', marginLeft:'auto' }}>{filtered.length} entries</span>
       </div>
 
       <div style={cardStyle}>
@@ -815,10 +815,10 @@ function TransactionsTab({ items }) {
                       <span style={{
                         fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20,
                         background: r.type==='in' ? '#D1FAE5' : '#FEE2E2',
-                        color:      r.type==='in' ? '#059669'  : '#EF4444',
+                        color:      r.type==='in' ? '#047857'  : '#EF4444',
                       }}>{r.type === 'in' ? 'Stock-In' : 'Consumed'}</span>
                     </td>
-                    <td style={{ ...tdNum, color: r.type==='in'?'#059669':'#EF4444', fontWeight:600 }}>
+                    <td style={{ ...tdNum, color: r.type==='in'?'#047857':'#EF4444', fontWeight:600 }}>
                       {r.type==='in'?'+':'-'}{Number(r.quantity).toLocaleString('en-PH')} {r.unit}
                     </td>
                     <td style={{ ...tdStyle, color:'#6B7280' }}>{r.note || '—'}</td>

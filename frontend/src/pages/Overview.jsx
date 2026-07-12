@@ -43,9 +43,9 @@ function MiniRetentionChart({ months }) {
           return (
             <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
               {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH} fill="#38a9c2" fillOpacity="0.06" rx="2" />}
-              <rect x={bx}          y={ys(nc)} width={bW} height={Math.max(0, (nc / maxVal) * plotH)} fill="#059669" rx="1" opacity={isH ? 1 : 0.80} />
+              <rect x={bx}          y={ys(nc)} width={bW} height={Math.max(0, (nc / maxVal) * plotH)} fill="#047857" rx="1" opacity={isH ? 1 : 0.80} />
               <rect x={bx + bW + 2} y={ys(rc)} width={bW} height={Math.max(0, (rc / maxVal) * plotH)} fill="#38a9c2" rx="1" opacity={isH ? 1 : 0.80} />
-              <text x={cx} y={VH - 4} textAnchor="middle" fontSize="7.5" fill={isH ? '#374151' : '#9CA3AF'} fontWeight={isH ? '700' : '400'}>
+              <text x={cx} y={VH - 4} textAnchor="middle" fontSize="7.5" fill={isH ? '#374151' : '#6B7280'} fontWeight={isH ? '700' : '400'}>
                 {MO[m.month - 1]}
               </text>
             </g>
@@ -68,12 +68,12 @@ function MiniRetentionChart({ months }) {
             <div style={{ fontWeight: 700, marginBottom: 1 }}>{MO2[m.month - 1]}</div>
             <div style={{ color: '#6EE7B7' }}>New: {m.newCustomers || 0}</div>
             <div style={{ color: '#93C5FD' }}>Repeat: {m.repeatCustomers || 0}</div>
-            <div style={{ color: '#9CA3AF' }}>Retention: {ret}%</div>
+            <div style={{ color: '#6B7280' }}>Retention: {ret}%</div>
           </div>
         );
       })()}
       <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 6 }}>
-        {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
+        {[{ c: '#047857', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
           <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#6B7280' }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
             {x.l}
@@ -198,7 +198,7 @@ export default function Overview() {
             {Object.entries(sentConfirmation).map(([fbUserId, sent]) => (
               <div key={`sent-${fbUserId}`} style={{
                 background: '#F0FDF4', border: '0.5px solid #BBF7D0',
-                borderLeft: '3px solid #059669', borderRadius: 10, padding: '10px 14px',
+                borderLeft: '3px solid #047857', borderRadius: 10, padding: '10px 14px',
                 fontSize: 12, color: '#065F46'
               }}>
                 <strong>✓ Sent &amp; delivered</strong> — "{sent.text}"
@@ -301,7 +301,7 @@ export default function Overview() {
                   {s.val}
                 </div>
               )}
-              <div style={{ fontSize: 11, color: '#9CA3AF' }}>{s.sub}</div>
+              <div style={{ fontSize: 11, color: '#6B7280' }}>{s.sub}</div>
             </div>
           );
         })}
@@ -342,7 +342,7 @@ export default function Overview() {
       <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)', marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Customer Retention</div>
-          <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+          <span style={{ fontSize: 11, color: '#6B7280' }}>
             {new Date().toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}
           </span>
         </div>
@@ -351,11 +351,11 @@ export default function Overview() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginBottom: 16 }}>
           {[
             { label: 'Total Customers', val: retention?.total           ?? '—', color: '#374151', bg: '#F9FAFB', border: '#E5E7EB' },
-            { label: 'New Customers',   val: retention?.newCustomers    ?? '—', color: '#059669', bg: '#F0FDF4', border: '#BBF7D0' },
+            { label: 'New Customers',   val: retention?.newCustomers    ?? '—', color: '#047857', bg: '#F0FDF4', border: '#BBF7D0' },
             { label: 'Repeat Customers',val: retention?.repeatCustomers ?? '—', color: '#38a9c2', bg: '#F0F9FF', border: '#BAE6FD' },
             { label: 'All-Time Total',  val: retention?.allTimeTotal    ?? '—', color: '#7F77DD', bg: '#F5F3FF', border: '#DDD6FE' },
             { label: 'Retention Rate',  val: retention?.total > 0 ? `${Math.round(retention.retentionRate)}%` : '—',
-              color: retention?.retentionRate >= 50 ? '#059669' : '#BA7517',
+              color: retention?.retentionRate >= 50 ? '#047857' : '#BA7517',
               bg: '#FFFBEB', border: '#FDE68A' },
           ].map(s => (
             <div key={s.label} style={{ background: s.bg, border: `0.5px solid ${s.border}`, borderRadius: 10, padding: '10px 12px' }}>
@@ -376,7 +376,7 @@ export default function Overview() {
         <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Orders by status</div>
-            {!loading && <span style={{ fontSize: 11, color: '#9CA3AF' }}>{orders.length} total</span>}
+            {!loading && <span style={{ fontSize: 11, color: '#6B7280' }}>{orders.length} total</span>}
           </div>
           {loading ? (
             <div className="skeleton" style={{ height: 120 }} />
@@ -392,7 +392,7 @@ export default function Overview() {
                       <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{s}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 10, color: '#9CA3AF' }}>{pct}%</span>
+                      <span style={{ fontSize: 10, color: '#6B7280' }}>{pct}%</span>
                       <span style={{ minWidth: 22, textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#fff', background: STATUS_COLORS[s], borderRadius: 20, padding: '1px 7px' }}>{count}</span>
                     </div>
                   </div>
@@ -409,7 +409,7 @@ export default function Overview() {
         <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Recent orders</div>
-            <span style={{ fontSize: 11, color: '#9CA3AF' }}>Last {Math.min(orders.length, 7)}</span>
+            <span style={{ fontSize: 11, color: '#6B7280' }}>Last {Math.min(orders.length, 7)}</span>
           </div>
 
           {loading ? (
@@ -417,7 +417,7 @@ export default function Overview() {
               {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 42 }} />)}
             </div>
           ) : orders.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#9CA3AF' }}>
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: '#6B7280' }}>
               <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}><Icon name="inbox" size={32} color="#D1D5DB" strokeWidth={1} /></div>
               <div style={{ fontSize: 13, fontWeight: 500 }}>No orders yet</div>
               <div style={{ fontSize: 11, marginTop: 4 }}>Orders will appear here</div>
@@ -431,7 +431,7 @@ export default function Overview() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {o.customer_name || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                    <div style={{ fontSize: 11, color: '#6B7280' }}>
                       {o.booking_ref && <span style={{ color: '#38a9c2', fontWeight: 500, marginRight: 4 }}>{o.booking_ref}</span>}
                       {o.service_name}
                     </div>

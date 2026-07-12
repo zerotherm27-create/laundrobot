@@ -444,7 +444,7 @@ export default function Kanban() {
                         <div style={{ fontSize: 10, color: '#374151', fontFamily: 'monospace' }}>{g.booking_ref || g.id}</div>
                       </div>
                       <button onClick={e => toggleCard(gKey, e)} title={isExpanded ? 'Minimize' : 'Expand'}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 11, padding: '2px', lineHeight: 1, flexShrink: 0 }}>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: 11, padding: '2px', lineHeight: 1, flexShrink: 0 }}>
                         {isExpanded ? '▲' : '▼'}
                       </button>
                     </div>
@@ -522,7 +522,7 @@ export default function Kanban() {
 
               {col.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: '#374151', fontSize: 12 }}>
-                  <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'center' }}><Icon name="inbox" size={22} color="#9CA3AF" /></div>
+                  <div style={{ marginBottom: 6, display: 'flex', justifyContent: 'center' }}><Icon name="inbox" size={22} color="#6B7280" /></div>
                   No orders
                 </div>
               )}
@@ -675,7 +675,7 @@ export default function Kanban() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 600, color: modalOrder.delivery_date ? URGENCY_META[getUrgency(modalOrder)].color || '#111827' : '#9CA3AF' }}>
+                  <span style={{ fontWeight: 600, color: modalOrder.delivery_date ? URGENCY_META[getUrgency(modalOrder)].color || '#111827' : '#6B7280' }}>
                     {modalOrder.delivery_date ? fmtDate(modalOrder.delivery_date) : 'Not set'}
                   </span>
                   <button onClick={() => { setEditingDelivery(true); setDeliveryInput(modalOrder.delivery_date ? modalOrder.delivery_date.slice(0,10) : ''); }}
@@ -730,7 +730,7 @@ export default function Kanban() {
               </div>
             </div>
 
-            <div style={{ marginTop: 8, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280', textAlign: 'center' }}>
               Created {modalOrder.created_at ? new Date(modalOrder.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
             </div>
 

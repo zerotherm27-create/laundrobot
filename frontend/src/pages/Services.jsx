@@ -409,9 +409,9 @@ export default function Services() {
                         onDragStart={e => handleCatDragStart(e, cat)}
                         onDragEnd={handleDragEnd}
                         title="Drag to reorder category"
-                        style={{ cursor: 'grab', color: '#9CA3AF', fontSize: 14, lineHeight: 1, userSelect: 'none', padding: '2px 4px', borderRadius: 4 }}
+                        style={{ cursor: 'grab', color: '#6B7280', fontSize: 14, lineHeight: 1, userSelect: 'none', padding: '2px 4px', borderRadius: 4 }}
                         onMouseEnter={e => e.currentTarget.style.color = '#6B7280'}
-                        onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
+                        onMouseLeave={e => e.currentTarget.style.color = '#6B7280'}
                       >⠿</div>
                     )}
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -442,7 +442,7 @@ export default function Services() {
                         style={{ background: '#fff', border: isOver ? '2px solid #38a9c2' : '0.5px solid #e8e8e0', borderRadius: 10, overflow: 'hidden', opacity: isDragging ? 0.4 : (s.active ? 1 : 0.55), cursor: 'grab', transition: 'border-color .1s, opacity .1s', position: 'relative' }}
                       >
                         {/* Drag handle overlay */}
-                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '1px 4px', fontSize: 13, color: '#9CA3AF', cursor: 'grab', lineHeight: 1, pointerEvents: 'none' }}>⠿</div>
+                        <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '1px 4px', fontSize: 13, color: '#6B7280', cursor: 'grab', lineHeight: 1, pointerEvents: 'none' }}>⠿</div>
                         {s.image_url
                           ? <img src={s.image_url} alt={s.name} style={{ width: '100%', height: 110, objectFit: 'cover' }} />
                           : <div style={{ width: '100%', height: 110, background: '#f5f5f3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>🧺</div>
@@ -868,7 +868,7 @@ export default function Services() {
                                 ? '↩ Switch to fixed price'
                                 : '= Switch to copy base price (e.g. Express doubles the bag price)'}
                             </button>
-                            <span style={{ fontSize: 11, color: '#9CA3AF' }}>⏱ days = optional turnaround override (e.g. 1 for Express)</span>
+                            <span style={{ fontSize: 11, color: '#6B7280' }}>⏱ days = optional turnaround override (e.g. 1 for Express)</span>
                           </div>
                         </div>
                       )}

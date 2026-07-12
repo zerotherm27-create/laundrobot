@@ -345,7 +345,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
 
               {/* ══ Section 1: Service Picker ══ */}
               <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 10 }}>
                   Add Service
                 </div>
 
@@ -457,7 +457,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               {/* ══ Cart ══ */}
               {cart.length > 0 && (
                 <div style={{ margin: '12px 0 4px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 8 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 8 }}>
                     Cart · {cart.length} {cart.length === 1 ? 'item' : 'items'}
                   </div>
                   <div style={{ border: '1px solid #E2E8F0', borderRadius: 10, overflow: 'hidden' }}>
@@ -493,7 +493,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               )}
 
               {cart.length === 0 && !selectedSvc && (
-                <div style={{ textAlign: 'center', padding: '10px 0 6px', fontSize: 12, color: '#9CA3AF' }}>
+                <div style={{ textAlign: 'center', padding: '10px 0 6px', fontSize: 12, color: '#6B7280' }}>
                   Select a service above to get started
                 </div>
               )}
@@ -501,7 +501,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               <div style={{ height: 1, background: '#E8E8E0', margin: '14px 0' }} />
 
               {/* ══ Customer ══ */}
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
                 Customer
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
@@ -519,7 +519,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               <div style={{ height: 1, background: '#E8E8E0', margin: '4px 0 16px' }} />
 
               {/* ══ Delivery ══ */}
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
                 Delivery
               </div>
               <div style={{ marginBottom: 14 }}>
@@ -583,7 +583,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               <div style={{ height: 1, background: '#E8E8E0', margin: '4px 0 16px' }} />
 
               {/* ══ Order Settings ══ */}
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 12 }}>
                 Settings
               </div>
               <div className="modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>

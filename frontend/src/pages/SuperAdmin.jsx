@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices, updateTenantPlan } from '../api.js';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const emptyTenant = { name: '', fb_page_id: '', fb_page_access_token: '', xendit_api_key: '', logo_url: '', admin_email: '', admin_password: '', active: true };
 const emptyUser = { name: '', email: '', password: '', role: 'admin', tenant_id: '' };
@@ -18,16 +19,19 @@ export default function SuperAdmin() {
   // Tenant form
   const [tenantForm, setTenantForm] = useState(null);
   const [savingTenant, setSavingTenant] = useState(false);
+  const tenantModalRef = useModalA11y(() => setTenantForm(null), !!tenantForm);
 
   // User form
   const [userForm, setUserForm] = useState(null);
   const [savingUser, setSavingUser] = useState(false);
+  const userModalRef = useModalA11y(() => setUserForm(null), !!userForm);
 
   // Change password modal
   const [pwModal, setPwModal] = useState(null); // { user }
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
+  const pwModalRef = useModalA11y(() => setPwModal(null), !!pwModal);
   const [showPw, setShowPw] = useState(false);
 
   // Show/hide toggles for credential fields in tenant form
@@ -428,7 +432,8 @@ export default function SuperAdmin() {
       {pwModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={e => e.target === e.currentTarget && setPwModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 380, border: '0.5px solid #e8e8e0' }}>
+          <div ref={pwModalRef} role="dialog" aria-modal="true" aria-label="Change Password" tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 380, border: '0.5px solid #e8e8e0', outline: 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>🔑 Change Password</div>
             <div style={{ fontSize: 12, color: '#374151', marginBottom: 20 }}>For: {pwModal.user.email}</div>
 
@@ -454,7 +459,7 @@ export default function SuperAdmin() {
 
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleChangePw} disabled={savingPw}
-                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingPw ? '#aaa' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
+                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingPw ? '#aaa' : 'var(--primary)', color: '#fff', border: 'none', fontWeight: 500 }}>
                 {savingPw ? 'Saving...' : 'Update Password'}
               </button>
               <button onClick={() => setPwModal(null)}
@@ -470,7 +475,8 @@ export default function SuperAdmin() {
       {userForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}
           onClick={e => e.target === e.currentTarget && setUserForm(null)}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 400, border: '0.5px solid #e8e8e0' }}>
+          <div ref={userModalRef} role="dialog" aria-modal="true" aria-label="Add User" tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 400, border: '0.5px solid #e8e8e0', outline: 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 20 }}>+ Add User</div>
             {[['name','Full Name','text'],['email','Email','email'],['password','Password','password']].map(([f, l, t]) => (
               <div key={f} style={{ marginBottom: 12 }}>
@@ -497,7 +503,7 @@ export default function SuperAdmin() {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleSaveUser} disabled={savingUser}
-                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingUser ? '#aaa' : '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>
+                style={{ flex: 1, padding: 9, fontSize: 13, borderRadius: 6, cursor: 'pointer', background: savingUser ? '#aaa' : 'var(--primary)', color: '#fff', border: 'none', fontWeight: 500 }}>
                 {savingUser ? 'Saving...' : 'Create User'}
               </button>
               <button onClick={() => setUserForm(null)}
@@ -512,7 +518,8 @@ export default function SuperAdmin() {
       {/* ── TENANT FORM MODAL ── */}
       {tenantForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div ref={tenantModalRef} role="dialog" aria-modal="true" aria-label={tenantForm.isNew ? 'Add branch' : 'Edit branch'} tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, border: '0.5px solid #e8e8e0', maxHeight: '90vh', overflowY: 'auto', outline: 'none' }}>
             <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 16 }}>{tenantForm.isNew ? 'Add branch' : 'Edit branch'}</div>
             {[['name','Branch name','text'],['fb_page_id','Facebook Page ID','text'],['logo_url','Logo URL','text']].map(([field, label, type]) => (
               <div key={field} style={{ marginBottom: 12 }}>
@@ -559,7 +566,7 @@ export default function SuperAdmin() {
               <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>AI daily reply cap</label>
               <input type="number" min="0" value={tenantForm.ai_daily_cap ?? 200} onChange={e => setTenantForm(p => ({ ...p, ai_daily_cap: e.target.value }))}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Auto-set by plan: Starter=100, Growth=500, Pro=9999. Override here if needed.</div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>Auto-set by plan: Starter=100, Growth=500, Pro=9999. Override here if needed.</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <input type="checkbox" id="activeT" checked={tenantForm.active} onChange={e => setTenantForm(p => ({ ...p, active: e.target.checked }))} />

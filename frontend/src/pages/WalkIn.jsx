@@ -97,10 +97,10 @@ function QRModal({ label, accentColor, total, qrUrl, submitting, error, onConfir
         ) : (
           <div style={{ textAlign: 'center', marginBottom: 20, padding: '24px', background: '#F7F7F5', borderRadius: 12, border: '1px dashed #D1D5DB' }}>
             <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-              <Icon name="walkin" size={28} color="#9CA3AF" />
+              <Icon name="walkin" size={28} color="#6B7280" />
             </div>
             <div style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>No {label} QR image set</div>
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>Add your {label} QR in Settings → Walk-in {label} QR</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>Add your {label} QR in Settings → Walk-in {label} QR</div>
           </div>
         )}
 
@@ -114,7 +114,7 @@ function QRModal({ label, accentColor, total, qrUrl, submitting, error, onConfir
           style={{
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
             border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
-            background: submitting ? '#E2E8F0' : '#fdca00', color: submitting ? '#9CA3AF' : '#1F2937',
+            background: submitting ? '#E2E8F0' : '#fdca00', color: submitting ? '#6B7280' : '#1F2937',
             fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
           {submitting
@@ -207,7 +207,7 @@ function CashModal({ total, cashTendered, onChangeTendered, submitting, error, o
             width: '100%', padding: '13px', fontSize: 14, fontWeight: 700, borderRadius: 10,
             border: 'none', cursor: (canPay && !submitting) ? 'pointer' : 'not-allowed',
             background: (canPay && !submitting) ? '#fdca00' : '#E2E8F0',
-            color: (canPay && !submitting) ? '#1F2937' : '#9CA3AF',
+            color: (canPay && !submitting) ? '#1F2937' : '#6B7280',
             fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
           {submitting
@@ -1299,7 +1299,7 @@ export default function WalkIn() {
 
             {/* Payment method selector */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: privacyConsent ? '#374151' : '#9CA3AF', marginBottom: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: privacyConsent ? '#374151' : '#6B7280', marginBottom: 8 }}>
                 {privacyConsent ? 'Select payment method:' : 'Accept the privacy consent above to proceed'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1325,7 +1325,7 @@ export default function WalkIn() {
                       : m.logo
                     }
                     {m.label && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: privacyConsent ? '#374151' : '#9CA3AF', letterSpacing: '.02em' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: privacyConsent ? '#374151' : '#6B7280', letterSpacing: '.02em' }}>
                         {m.label}
                       </span>
                     )}

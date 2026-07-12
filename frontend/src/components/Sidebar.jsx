@@ -168,7 +168,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                   {user?.tenant_name || 'Branch'}
                 </span>
               </span>
-              <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>{branchDropOpen ? '▲' : '▼'}</span>
+              <span style={{ fontSize: 10, color: '#6B7280', flexShrink: 0 }}>{branchDropOpen ? '▲' : '▼'}</span>
             </button>
 
             {branchDropOpen && (
@@ -203,7 +203,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                       padding: '8px 12px', background: 'transparent', border: 'none',
                       cursor: branches.length >= branchLimit ? 'not-allowed' : 'pointer',
                       fontFamily: 'inherit', fontSize: 12,
-                      color: branches.length >= branchLimit ? '#9CA3AF' : '#38a9c2',
+                      color: branches.length >= branchLimit ? '#6B7280' : '#38a9c2',
                       fontWeight: 600, textAlign: 'left',
                     }}
                   >
@@ -331,7 +331,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                 <div key={step.num} style={{ display: 'flex', gap: 14, marginBottom: i < GUIDE_STEPS.length - 1 ? 20 : 0 }}>
                   {/* Step number + connector line */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ECFDF5', border: '1.5px solid #6EE7B7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#059669' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ECFDF5', border: '1.5px solid #6EE7B7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#047857' }}>
                       {step.num}
                     </div>
                     {i < GUIDE_STEPS.length - 1 && (

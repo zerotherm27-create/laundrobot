@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const PLAN_TIERS = [
   { key: 'starter_monthly', label: 'Starter', price: '₱999',   per: '/month', badge: null,              color: '#38a9c2', lightBg: '#F0FBFD' },
-  { key: 'growth_monthly',  label: 'Growth',  price: '₱1,999', per: '/month', badge: '⭐ Most Popular',  color: '#059669', lightBg: '#F0FDF4' },
+  { key: 'growth_monthly',  label: 'Growth',  price: '₱1,999', per: '/month', badge: '⭐ Most Popular',  color: '#047857', lightBg: '#F0FDF4' },
   { key: 'pro_monthly',     label: 'Pro',     price: '₱5,499', per: '/month', badge: '🌐 White-label',   color: '#7C3AED', lightBg: '#F5F3FF' },
 ];
 
@@ -115,12 +115,12 @@ export default function PaywallScreen() {
               : `Pay with Xendit →`}
           </button>
 
-          <p style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 16 }}>
+          <p style={{ fontSize: 11, color: '#6B7280', marginBottom: 16 }}>
             Secure payment via Xendit. You'll be redirected to complete payment and then automatically redirected back.
           </p>
 
           <button onClick={logout}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9CA3AF', fontFamily: 'inherit' }}>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#6B7280', fontFamily: 'inherit' }}>
             Sign out
           </button>
         </div>

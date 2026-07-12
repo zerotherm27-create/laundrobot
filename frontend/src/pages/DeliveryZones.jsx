@@ -211,7 +211,7 @@ export default function DeliveryZones() {
 
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>
-              Delivery Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(shown to customers on booking form)</span>
+              Delivery Note <span style={{ fontWeight: 400, color: '#6B7280' }}>(shown to customers on booking form)</span>
             </label>
             <textarea style={{ ...INP, resize: 'vertical', minHeight: 60 }} value={deliveryNote}
               onChange={e => setDeliveryNote(e.target.value)}

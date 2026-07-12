@@ -68,7 +68,7 @@ export default function Signup() {
 
         {/* Trial badge */}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EAF9F2', border: '0.5px solid #6EE7B7', borderRadius: 20, padding: '5px 12px', marginBottom: 20 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#047857" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
             <path d="M20 6L9 17l-5-5"/>
           </svg>
           <span style={{ fontSize: 12, fontWeight: 600, color: '#065F46' }}>14-day free trial — no credit card required</span>
@@ -106,7 +106,7 @@ export default function Signup() {
 
           <div style={{ marginBottom: 22 }}>
             <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
-              Password <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(min. 8 characters)</span>
+              Password <span style={{ color: '#6B7280', fontWeight: 400 }}>(min. 8 characters)</span>
             </label>
             <div style={{ position: 'relative' }}>
               <input
@@ -157,10 +157,10 @@ export default function Signup() {
           <a href="/login" style={{ color: '#38a9c2', fontWeight: 600, textDecoration: 'none' }}>Sign in</a>
         </p>
 
-        <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', marginTop: 12, lineHeight: 1.5 }}>
+        <p style={{ textAlign: 'center', fontSize: 11, color: '#6B7280', marginTop: 12, lineHeight: 1.5 }}>
           By signing up you agree to our{' '}
-          <a href="/terms" style={{ color: '#9CA3AF' }}>Terms of Service</a> and{' '}
-          <a href="/privacy" style={{ color: '#9CA3AF' }}>Privacy Policy</a>.
+          <a href="/terms" style={{ color: '#6B7280' }}>Terms of Service</a> and{' '}
+          <a href="/privacy" style={{ color: '#6B7280' }}>Privacy Policy</a>.
         </p>
       </div>
     </div>

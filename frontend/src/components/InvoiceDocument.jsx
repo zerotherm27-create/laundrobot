@@ -1,6 +1,6 @@
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
 
-const C = { brand: '#38a9c2', dark: '#111827', mid: '#374151', muted: '#6B7280', border: '#E5E7EB', bg: '#F9FAFB', green: '#059669', greenBg: '#DCFCE7', amber: '#92400E', amberBg: '#FEF9C3' };
+const C = { brand: '#38a9c2', dark: '#111827', mid: '#374151', muted: '#6B7280', border: '#E5E7EB', bg: '#F9FAFB', green: '#047857', greenBg: '#DCFCE7', amber: '#92400E', amberBg: '#FEF9C3' };
 
 const s = StyleSheet.create({
   page:        { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: C.dark, backgroundColor: '#fff' },
@@ -33,7 +33,7 @@ const s = StyleSheet.create({
   notes:       { marginTop: 24, padding: '10 14', backgroundColor: C.bg, borderRadius: 4 },
   notesTxt:    { fontSize: 9, color: C.mid, marginTop: 4 },
   footer:      { position: 'absolute', bottom: 24, left: 40, right: 40, borderTop: `0.5px solid ${C.border}`, paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' },
-  footerTxt:   { fontSize: 8, color: '#9CA3AF' },
+  footerTxt:   { fontSize: 8, color: '#6B7280' },
 });
 
 function fmt(n) {

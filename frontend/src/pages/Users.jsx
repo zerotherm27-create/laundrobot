@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getUsers, createUser, updateUser, deleteUser, changePassword, getTenants } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const FEATURES = [
   { key: 'Overview',      icon: '▦',  label: 'Overview' },
@@ -31,6 +32,7 @@ export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
+  const modalRef = useModalA11y(() => setModal(null), !!modal);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [pwSection, setPwSection] = useState(false);
@@ -190,7 +192,8 @@ export default function Users() {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
           onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,.18)' }}>
+          <div ref={modalRef} role="dialog" aria-modal="true" aria-label={modal === 'add' ? 'Add User' : 'Edit User'} tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 14, padding: 28, width: '100%', maxWidth: 540, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,.18)', outline: 'none' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>
               {modal === 'add' ? '+ Add User' : '✏️ Edit User'}
             </h3>

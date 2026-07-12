@@ -99,13 +99,13 @@ export default function Branches() {
           style={{
             display: 'flex', alignItems: 'center', gap: 7,
             background: canAdd ? '#38a9c2' : '#E5E7EB',
-            color: canAdd ? '#fff' : '#9CA3AF',
+            color: canAdd ? '#fff' : '#6B7280',
             border: 'none', borderRadius: 8, padding: '9px 18px',
             fontSize: 13, fontWeight: 600, cursor: canAdd ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit',
           }}
         >
-          <Icon name="plus" size={14} color={canAdd ? '#fff' : '#9CA3AF'} />
+          <Icon name="plus" size={14} color={canAdd ? '#fff' : '#6B7280'} />
           Add Branch
           {!canAdd && <span style={{ fontSize: 11 }}>🔒</span>}
         </button>
@@ -139,7 +139,7 @@ export default function Branches() {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
                   {b.primary_tenant_id ? 'Sub-branch' : 'Primary'} · ID: {b.id.slice(0, 8)}…
                 </div>
               </div>
@@ -176,7 +176,7 @@ export default function Branches() {
       </div>
 
       {branches.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#9CA3AF', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#6B7280', fontSize: 14 }}>
           No branches yet. Click "Add Branch" to create your first sub-location.
         </div>
       )}
@@ -210,7 +210,7 @@ export default function Branches() {
               {branches.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
-                    Clone from existing branch <span style={{ color: '#9CA3AF', fontWeight: 400 }}>(optional)</span>
+                    Clone from existing branch <span style={{ color: '#6B7280', fontWeight: 400 }}>(optional)</span>
                   </label>
                   <select
                     value={cloneFrom}

@@ -13,7 +13,7 @@ const PLANS = [
   {
     tier: 'growth', label: 'Growth', tagline: 'Works harder than a part-time staff — for less',
     monthly: 1999, annualMo: 1666, annualTotal: '₱19,990',
-    color: '#059669', lightBg: '#F0FDF4', badge: 'Most Popular',
+    color: '#047857', lightBg: '#F0FDF4', badge: 'Most Popular',
     features: ['Everything in Starter', 'Up to 3 branches · 5 staff accounts', 'Blast messaging to all your customers', 'Promo codes & referral links', 'Auto payment reminders (4-stage follow-up)', 'Auto-cancel unpaid orders after 24 hours', 'Revenue reports & analytics', 'Up to 1,000 orders/month'],
   },
   {
@@ -112,12 +112,12 @@ export default function UpgradeModal() {
               } catch { alert('Could not open payment page. Please try again.'); }
               finally { setUpgrading(false); }
             }}
-            style={{ width: '100%', padding: '13px', borderRadius: 12, background: chosen?.color || '#059669', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+            style={{ width: '100%', padding: '13px', borderRadius: 12, background: chosen?.color || '#047857', color: '#fff', fontWeight: 800, fontSize: 14, border: 'none', cursor: upgrading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
             {upgrading
               ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2, borderColor: 'rgba(255,255,255,.4)', borderTopColor: '#fff' }} />Opening payment…</>
               : `Upgrade to ${upgradeTier.charAt(0).toUpperCase() + upgradeTier.slice(1)} →`}
           </button>
-          <p style={{ textAlign: 'center', fontSize: 11, color: '#9CA3AF', margin: 0 }}>Secure payment via Xendit · Cancel anytime</p>
+          <p style={{ textAlign: 'center', fontSize: 11, color: '#6B7280', margin: 0 }}>Secure payment via Xendit · Cancel anytime</p>
         </div>
 
       </div>

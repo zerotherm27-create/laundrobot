@@ -778,7 +778,7 @@ export default function Orders() {
                               {savedDiff.changes.map((c, i) => (
                                 <div key={i} style={{ fontSize: 12, marginBottom: 4, display: 'flex', gap: 6, alignItems: 'baseline' }}>
                                   {c.type === 'removed' && (
-                                    <span style={{ color: '#A32D2D' }}>✕ <strong>Removed:</strong> {c.label} <span style={{ textDecoration: 'line-through', color: '#9CA3AF' }}>₱{Number(c.oldPrice).toLocaleString()}</span></span>
+                                    <span style={{ color: '#A32D2D' }}>✕ <strong>Removed:</strong> {c.label} <span style={{ textDecoration: 'line-through', color: '#6B7280' }}>₱{Number(c.oldPrice).toLocaleString()}</span></span>
                                   )}
                                   {c.type === 'added' && (
                                     <span style={{ color: '#166534' }}>＋ <strong>Added:</strong> {c.label} — ₱{Number(c.newPrice).toLocaleString()}</span>
@@ -835,7 +835,7 @@ export default function Orders() {
                                   <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4 }}>{notifyResult.slice(4)}</div>
                                 )}
                                 <button onClick={handleNotify} disabled={notifySending}
-                                  style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#9CA3AF' : '#1877F2', color: '#fff', border: 'none' }}>
+                                  style={{ marginTop: 6, width: '100%', padding: '8px', fontSize: 13, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: notifySending ? '#6B7280' : '#1877F2', color: '#fff', border: 'none' }}>
                                   <Icon name="messenger" size={13} color="#fff" style={{ marginRight: 5 }} />{notifySending ? 'Sending…' : 'Send Update via Messenger'}
                                 </button>
                               </div>
@@ -885,7 +885,7 @@ export default function Orders() {
                           }}
                           disabled={qrConfirming}
                           style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', cursor: qrConfirming ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                            background: qrConfirming ? '#9CA3AF' : '#16a34a', color: '#fff' }}>
+                            background: qrConfirming ? '#6B7280' : '#16a34a', color: '#fff' }}>
                           {qrConfirming ? 'Confirming…' : <><Icon name="check-circle" size={13} color="#fff" style={{ marginRight: 5 }} />Confirm Payment</>}
                         </button>
                         {qrConfirmErr && <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 6 }}>{qrConfirmErr}</div>}
@@ -1155,7 +1155,7 @@ export default function Orders() {
                         {/* Custom note */}
                         <div style={{ marginBottom: 10 }}>
                           <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
-                            Custom Note <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional — included in summary</span>
+                            Custom Note <span style={{ fontWeight: 400, color: '#6B7280' }}>optional — included in summary</span>
                           </label>
                           <textarea value={editCustomNote} onChange={e => setEditCustomNote(e.target.value)}
                             placeholder="e.g. Free pick-up applied. Extra bag added. Special handling required."
@@ -1166,7 +1166,7 @@ export default function Orders() {
                         {/* Additional price */}
                         <div style={{ marginBottom: 12 }}>
                           <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
-                            Additional Amount (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional — added to total</span>
+                            Additional Amount (₱) <span style={{ fontWeight: 400, color: '#6B7280' }}>optional — added to total</span>
                           </label>
                           <input type="number" min="0" step="1" value={editCustomPrice}
                             onChange={e => setEditCustomPrice(e.target.value)}
@@ -1197,7 +1197,7 @@ export default function Orders() {
                           </select>
                         </div>
                         <div style={{ marginBottom: 10 }}>
-                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Weight (kg) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>optional</span></label>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Weight (kg) <span style={{ fontWeight: 400, color: '#6B7280' }}>optional</span></label>
                           <input type="number" min="0" step="0.1" value={editForm.weight}
                             onChange={e => {
                               const w = parseFloat(e.target.value) || 0;
@@ -1209,7 +1209,7 @@ export default function Orders() {
                             style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
                         </div>
                         <div style={{ marginBottom: 10 }}>
-                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Price (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>override</span></label>
+                          <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Price (₱) <span style={{ fontWeight: 400, color: '#6B7280' }}>override</span></label>
                           <input type="number" min="0" step="1" value={editForm.price}
                             onChange={e => setEditForm(p => ({ ...p, price: e.target.value }))}
                             style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', fontSize: 13, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', outline: 'none' }} />
@@ -1324,7 +1324,7 @@ export default function Orders() {
             <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading archives…</div>
           ) : archived.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '3rem', textAlign: 'center', color: '#374151', fontSize: 14 }}>
-              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="archive" size={40} color="#9CA3AF" strokeWidth={1} /></div>
+              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="archive" size={40} color="#6B7280" strokeWidth={1} /></div>
               No archived orders yet. Completed orders are automatically archived monthly.
             </div>
           ) : (

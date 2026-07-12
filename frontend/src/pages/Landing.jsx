@@ -195,8 +195,8 @@ function MessengerMockup() {
           {[{ n: 1, label: 'SERVICE', active: true }, { n: 2, label: 'DETAILS', active: false }, { n: 3, label: 'REVIEW', active: false }].map((s, i) => (
             <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', background: s.active ? '#38a9c2' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: s.active ? '#fff' : '#9CA3AF' }}>{s.n}</div>
-                <div style={{ fontSize: 7, fontWeight: 700, color: s.active ? '#38a9c2' : '#9CA3AF', letterSpacing: '.03em' }}>{s.label}</div>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: s.active ? '#38a9c2' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: s.active ? '#fff' : '#6B7280' }}>{s.n}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: s.active ? '#38a9c2' : '#6B7280', letterSpacing: '.03em' }}>{s.label}</div>
               </div>
               {i < 2 && <div style={{ flex: 1, height: 1, background: '#e0e0e0', margin: '0 3px', marginBottom: 10 }} />}
             </div>
@@ -225,9 +225,9 @@ function MessengerMockup() {
                     <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 8, color: '#9CA3AF' }}>Starts at</div>
+                    <div style={{ fontSize: 8, color: '#6B7280' }}>Starts at</div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
-                    <div style={{ fontSize: 8, color: '#9CA3AF' }}>{s.unit}</div>
+                    <div style={{ fontSize: 8, color: '#6B7280' }}>{s.unit}</div>
                   </div>
                 </div>
               ))}
@@ -253,9 +253,9 @@ function MessengerMockup() {
                   <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 8, color: '#9CA3AF' }}>Starts at</div>
+                  <div style={{ fontSize: 8, color: '#6B7280' }}>Starts at</div>
                   <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
-                  <div style={{ fontSize: 8, color: '#9CA3AF' }}>{s.unit}</div>
+                  <div style={{ fontSize: 8, color: '#6B7280' }}>{s.unit}</div>
                 </div>
               </div>
             ))
@@ -271,7 +271,7 @@ function MessengerMockup() {
           ) : (
             <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 10, padding: '9px', textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: '#fff' }}>Continue →</div>
           )}
-          <div style={{ textAlign: 'center', marginTop: 6, fontSize: 8.5, color: '#9CA3AF' }}>Powered by <strong>LaundroBot</strong></div>
+          <div style={{ textAlign: 'center', marginTop: 6, fontSize: 8.5, color: '#6B7280' }}>Powered by <strong>LaundroBot</strong></div>
         </div>
       </div>
     </div>
@@ -347,7 +347,7 @@ function POSMockup() {
         <div style={{ background: '#fff', padding: '14px 18px', borderBottom: '1px solid #F0F0EC', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#0D1117' }}>New Walk-in Order</div>
-            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>Select services for the customer</div>
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>Select services for the customer</div>
           </div>
           <div style={{ background: '#e6f5f8', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: '#1a7d94' }}>POS Mode</div>
         </div>
@@ -369,9 +369,9 @@ function POSMockup() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: '#9CA3AF' }}>{s.unit}</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>{s.unit}</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? '#38a9c2' : '#9CA3AF' }}>{s.price}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? '#38a9c2' : '#6B7280' }}>{s.price}</div>
             </div>
           ))}
         </div>
@@ -550,7 +550,7 @@ function Hero() {
                 Book a free demo
               </a>
             </div>
-            <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: '1rem', fontWeight: 500 }}>
+            <p style={{ fontSize: 12, color: '#6B7280', marginTop: '1rem', fontWeight: 500 }}>
               14-day free trial · No credit card required · Cancel anytime
             </p>
           </div>
@@ -632,7 +632,7 @@ function Testimonials() {
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.initial}</div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: '#9CA3AF' }}>{t.shop}</div>
+                  <div style={{ fontSize: 12, color: '#6B7280' }}>{t.shop}</div>
                 </div>
               </div>
             </div>
@@ -744,7 +744,7 @@ function Features() {
         </div>
         {/* Also included */}
         <div style={{ marginTop: '2.25rem', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '1rem' }}>Also included</p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '1rem' }}>Also included</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
             {ALSO_INCLUDED.map(f => (
               <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#374151', fontWeight: 500 }}>
@@ -957,11 +957,11 @@ function PricingCard({ plan, annual }) {
         {/* Price */}
         <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #F0F0EC' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#9CA3AF', alignSelf: 'flex-start', marginTop: 8 }}>₱</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', alignSelf: 'flex-start', marginTop: 8 }}>₱</span>
             <span style={{ fontSize: 'clamp(2.2rem,4vw,2.8rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', lineHeight: 1 }}>
               {price.toLocaleString()}
             </span>
-            <span style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 4 }}>/month</span>
+            <span style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>/month</span>
           </div>
           {annual && (
             <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 4 }}>
@@ -969,7 +969,7 @@ function PricingCard({ plan, annual }) {
             </div>
           )}
           {!annual && (
-            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>or save {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} with annual billing</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>or save {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} with annual billing</div>
           )}
         </div>
 
@@ -1033,12 +1033,12 @@ function Pricing() {
             <div style={{ background: '#FFF1F1', padding: '1.25rem 1.5rem', borderRight: '1px solid #FECACA' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#EF4444', marginBottom: 8 }}><Icon name="x-circle" size={13} color="#EF4444" /> Part-time staff</div>
               <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#EF4444', letterSpacing: '-.03em', lineHeight: 1 }}>₱7,000</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 8am–5pm only</div>
+              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: 500 }}>per month · 8am–5pm only</div>
             </div>
             <div style={{ background: '#E6F7FB', padding: '1.25rem 1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: 8 }}><Icon name="check-circle" size={13} color="#38a9c2" /> LaundroBot</div>
               <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#38a9c2', letterSpacing: '-.03em', lineHeight: 1 }}>₱1,999</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, fontWeight: 500 }}>per month · 24/7 in Tagalog</div>
+              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: 500 }}>per month · 24/7 in Tagalog</div>
             </div>
           </div>
           {/* Row-by-row comparison */}
@@ -1046,7 +1046,7 @@ function Pricing() {
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #F0F0F0' }}>
               <div style={{ background: i % 2 === 0 ? '#FFFAFA' : '#FFF5F5', padding: '.85rem 1.5rem', display: 'flex', alignItems: 'center', gap: 10, borderRight: '1px solid #F0F0F0' }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: '#EF4444', fontWeight: 900 }}>✕</span>
-                <span style={{ fontSize: 12.5, color: '#9CA3AF', lineHeight: 1.4, textDecoration: 'line-through', textDecorationColor: '#FECACA' }}>{c.before}</span>
+                <span style={{ fontSize: 12.5, color: '#6B7280', lineHeight: 1.4, textDecoration: 'line-through', textDecorationColor: '#FECACA' }}>{c.before}</span>
               </div>
               <div style={{ background: i % 2 === 0 ? '#F5FCFE' : '#EEF9FD', padding: '.85rem 1.5rem', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#CCEEF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: '#38a9c2', fontWeight: 900 }}>✓</span>
@@ -1081,10 +1081,10 @@ function Pricing() {
 
         {/* Footer note */}
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 .5rem' }}>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 .5rem' }}>
             14-day free trial on all plans · No credit card required · Cancel anytime
           </p>
-          <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+          <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
             Not sure which plan? <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}>Book a free demo →</a>
           </p>
         </div>
@@ -1149,13 +1149,13 @@ function Footer() {
               <img src="/logo.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
               <span style={{ fontSize: 14, fontWeight: 800, color: '#0D1117' }}>LaundroBot</span>
             </div>
-            <p style={{ fontSize: 13, color: '#9CA3AF', lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>
               Laundry shop management software built by a laundry shop owner, for laundry shop owners.
             </p>
           </div>
           {/* Product links */}
           <div style={{ flex: '1 1 130px' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Product</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Product</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <FooterLink href="#features">Features</FooterLink>
               <FooterLink href="#pricing">Pricing</FooterLink>
@@ -1165,7 +1165,7 @@ function Footer() {
           </div>
           {/* Support links */}
           <div style={{ flex: '1 1 130px' }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Support</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Support</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <FooterLink href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer">Book a demo</FooterLink>
               <FooterLink href="/login">Sign in</FooterLink>
@@ -1177,7 +1177,7 @@ function Footer() {
         </div>
         {/* Bottom row */}
         <div style={{ borderTop: '1px solid #F0F0EC', paddingTop: '1.25rem' }}>
-          <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: '#6B7280', margin: 0, textAlign: 'center' }}>
             © {new Date().getFullYear()} Rinselab Inc. · LaundroBot · Built for laundry businesses in the Philippines
           </p>
         </div>

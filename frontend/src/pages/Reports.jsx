@@ -132,7 +132,7 @@ export default function Reports() {
                 Track revenue, order volume, and trends over time. Available on <strong>Growth</strong> and above.
               </div>
             </div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', background: '#047857', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
               <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
             </div>
           </div>
@@ -142,10 +142,10 @@ export default function Reports() {
             ))}
           </div>
           <button onClick={openUpgradeModal}
-            style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
+            style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#047857', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
             View plans & upgrade →
           </button>
-          <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
+          <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
         </div>
       </div>
     );
@@ -255,7 +255,7 @@ export default function Reports() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
               {[
                 { label: 'Total Customers',   val: retentionTotal,       color: '#374151' },
-                { label: 'New Customers',      val: retentionNewCount,    color: '#059669' },
+                { label: 'New Customers',      val: retentionNewCount,    color: '#047857' },
                 { label: 'Repeat Customers',   val: retentionRepeatCount, color: '#38a9c2' },
                 { label: 'All-Time Total',     val: allTimeCustomers,     color: '#7F77DD' },
               ].map(s => (
@@ -267,7 +267,7 @@ export default function Reports() {
               {retentionTotal > 0 && (
                 <div style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
                   <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>Retention Rate</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: retentionRate >= 50 ? '#059669' : '#BA7517' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: retentionRate >= 50 ? '#047857' : '#BA7517' }}>
                     {retentionRate.toFixed(0)}%
                   </div>
                 </div>
@@ -281,7 +281,7 @@ export default function Reports() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 4 }}>
                   {(() => {
                     const segs = [
-                      { value: retentionNewCount,    color: '#059669' },
+                      { value: retentionNewCount,    color: '#047857' },
                       { value: retentionRepeatCount, color: '#38a9c2' },
                     ].filter(s => s.value > 0);
                     const total = segs.reduce((s, x) => s + x.value, 0);
@@ -303,7 +303,7 @@ export default function Reports() {
                             strokeDashoffset={arc.off}
                             transform={`rotate(-90 ${CX} ${CY})`} />
                         ))}
-                        <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#9CA3AF">Return</text>
+                        <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#6B7280">Return</text>
                         <text x={CX} y={CY + 8}  textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#111827">
                           {retentionRate.toFixed(0)}%
                         </text>
@@ -311,7 +311,7 @@ export default function Reports() {
                     );
                   })()}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {[{ color: '#059669', label: 'New' }, { color: '#38a9c2', label: 'Repeat' }].map(l => (
+                    {[{ color: '#047857', label: 'New' }, { color: '#38a9c2', label: 'Repeat' }].map(l => (
                       <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />
                         {l.label}
@@ -323,15 +323,15 @@ export default function Reports() {
                 {/* Split bar */}
                 <div style={{ flex: 1, minWidth: 180, paddingTop: 4 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6B7280', marginBottom: 6 }}>
-                    <span>New <strong style={{ color: '#059669' }}>{retentionNewCount}</strong></span>
+                    <span>New <strong style={{ color: '#047857' }}>{retentionNewCount}</strong></span>
                     <span>Repeat <strong style={{ color: '#38a9c2' }}>{retentionRepeatCount}</strong></span>
                   </div>
                   <div style={{ height: 10, background: '#F3F4F6', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
-                    <div style={{ height: '100%', width: `${(retentionNewCount / retentionTotal) * 100}%`, background: '#059669', transition: 'width .5s' }} />
+                    <div style={{ height: '100%', width: `${(retentionNewCount / retentionTotal) * 100}%`, background: '#047857', transition: 'width .5s' }} />
                     <div style={{ height: '100%', width: `${(retentionRepeatCount / retentionTotal) * 100}%`, background: '#38a9c2', transition: 'width .5s' }} />
                   </div>
                   <div style={{ display: 'flex', gap: 14, marginTop: 10 }}>
-                    {[{ c: '#059669', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
+                    {[{ c: '#047857', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
                       <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
                         <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
                         {x.l}
@@ -344,7 +344,7 @@ export default function Reports() {
                 </div>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, padding: '1rem 0' }}>
+              <div style={{ textAlign: 'center', color: '#6B7280', fontSize: 13, padding: '1rem 0' }}>
                 No customer data for this period.
               </div>
             )}

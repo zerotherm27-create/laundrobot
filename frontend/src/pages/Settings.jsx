@@ -39,7 +39,7 @@ function UpgradeCta({ title, desc, features }) {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 3 }}>{title}</div>
           <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{desc}</div>
         </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', background: '#059669', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', background: '#047857', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
           <span style={{ fontSize: 10, fontWeight: 800, color: '#fff' }}>GROWTH</span>
         </div>
       </div>
@@ -49,10 +49,10 @@ function UpgradeCta({ title, desc, features }) {
         ))}
       </div>
       <button onClick={openUpgradeModal}
-        style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#059669', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
+        style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#047857', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
         View plans & upgrade →
       </button>
-      <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
+      <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
     </div>
   );
 }
@@ -61,7 +61,7 @@ function GroupHeader({ label }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, marginTop: 24 }}>
       <div style={{ flex: 1, height: 1, background: '#E8E8E0' }} />
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.07em', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.07em', whiteSpace: 'nowrap' }}>{label}</span>
       <div style={{ flex: 1, height: 1, background: '#E8E8E0' }} />
     </div>
   );
@@ -374,7 +374,7 @@ export default function Settings() {
                   style={{ width: 80, height: 80, borderRadius: 12, border: '1.5px dashed #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#F9FAFB', flexShrink: 0 }}>
                   {logoUrl
                     ? <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    : <div style={{ textAlign: 'center', color: '#9CA3AF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}><Icon name="camera" size={22} color="#9CA3AF" /><div style={{ fontSize: 10 }}>Upload</div></div>}
+                    : <div style={{ textAlign: 'center', color: '#6B7280', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}><Icon name="camera" size={22} color="#6B7280" /><div style={{ fontSize: 10 }}>Upload</div></div>}
                 </div>
                 <input ref={logoFileRef} type="file" accept="image/*" style={{ display: 'none' }}
                   onChange={e => {
@@ -395,7 +395,7 @@ export default function Settings() {
                       Remove
                     </button>
                   )}
-                  <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>PNG or JPG, max 2MB</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>PNG or JPG, max 2MB</div>
                 </div>
               </div>
               )}
@@ -510,7 +510,7 @@ export default function Settings() {
                         style={{ ...INPUT }} onFocus={FOCUS} onBlur={BLUR} />
                     </div>
                     <div>
-                      <label style={LABEL}>Reason <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
+                      <label style={LABEL}>Reason <span style={{ fontWeight: 400, color: '#6B7280' }}>(optional)</span></label>
                       <input type="text" value={newReason} onChange={e => setNewReason(e.target.value)}
                         placeholder="e.g. Holiday, Staff Day Off" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
                     </div>
@@ -828,7 +828,7 @@ export default function Settings() {
                       <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, display: 'inline-block', margin: '4px 0' }}>book.yourdomain.com → cname.vercel-dns.com</code><br />
                       Step 2 — Enter your domain above and save.<br />
                       Step 3 — Send your domain to <strong>hello@laundrobot.app</strong> so we can activate it (takes ~5 min).<br />
-                      <span style={{ color: '#9CA3AF' }}>DNS propagation can take up to 24 hours.</span>
+                      <span style={{ color: '#6B7280' }}>DNS propagation can take up to 24 hours.</span>
                     </div>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
@@ -984,7 +984,7 @@ export default function Settings() {
                   {igConnectMsg}
                 </div>
               )}
-              <div style={{ marginTop: 10, fontSize: 11, color: '#9CA3AF' }}>
+              <div style={{ marginTop: 10, fontSize: 11, color: '#6B7280' }}>
                 Requires your Instagram Business account to be linked to your Facebook Page in Meta Business Suite.
               </div>
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '0.5px solid #F3F4F6', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
@@ -1126,19 +1126,19 @@ export default function Settings() {
                       style={INPUT} onFocus={FOCUS} onBlur={BLUR} required />
                   </div>
                   <div>
-                    <label style={LABEL}>Min. Order (₱) <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
+                    <label style={LABEL}>Min. Order (₱) <span style={{ fontWeight: 400, color: '#6B7280' }}>(optional)</span></label>
                     <input type="number" min="0" step="1" value={promoForm.min_order}
                       onChange={e => setPromoForm(p => ({ ...p, min_order: e.target.value }))}
                       placeholder="e.g. 300" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
                   </div>
                   <div>
-                    <label style={LABEL}>Max Uses <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional, blank = unlimited)</span></label>
+                    <label style={LABEL}>Max Uses <span style={{ fontWeight: 400, color: '#6B7280' }}>(optional, blank = unlimited)</span></label>
                     <input type="number" min="1" step="1" value={promoForm.max_uses}
                       onChange={e => setPromoForm(p => ({ ...p, max_uses: e.target.value }))}
                       placeholder="e.g. 100" style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
                   </div>
                   <div>
-                    <label style={LABEL}>Expires On <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(optional)</span></label>
+                    <label style={LABEL}>Expires On <span style={{ fontWeight: 400, color: '#6B7280' }}>(optional)</span></label>
                     <input type="date" value={promoForm.expires_at}
                       onChange={e => setPromoForm(p => ({ ...p, expires_at: e.target.value }))}
                       style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
@@ -1172,8 +1172,8 @@ export default function Settings() {
                     <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, background: inactive ? '#F9FAFB' : '#F5F3FF', border: `0.5px solid ${inactive ? '#E2E8F0' : '#C4B5FD'}` }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: inactive ? '#9CA3AF' : '#5B21B6', letterSpacing: '.05em' }}>{p.code}</span>
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: inactive ? '#E2E8F0' : '#EDE9FE', color: inactive ? '#9CA3AF' : '#7C3AED' }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: inactive ? '#6B7280' : '#5B21B6', letterSpacing: '.05em' }}>{p.code}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: inactive ? '#E2E8F0' : '#EDE9FE', color: inactive ? '#6B7280' : '#7C3AED' }}>
                             {p.discount_type === 'percent' ? `${p.discount_value}% off` : `₱${Number(p.discount_value).toLocaleString()} off`}
                           </span>
                           {inactive && <span style={{ fontSize: 11, color: '#A32D2D', fontWeight: 600 }}>{!p.active ? 'Disabled' : expired ? 'Expired' : 'Limit reached'}</span>}
@@ -1239,7 +1239,7 @@ export default function Settings() {
                         } catch { alert('Failed to refresh. Please try again.'); }
                         finally { setRefreshingRef(false); }
                       }}
-                      style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: '#F9FAFB', color: refreshingRef ? '#9CA3AF' : '#374151', cursor: refreshingRef ? 'not-allowed' : 'pointer', minWidth: 80 }}>
+                      style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid #E2E8F0', background: '#F9FAFB', color: refreshingRef ? '#6B7280' : '#374151', cursor: refreshingRef ? 'not-allowed' : 'pointer', minWidth: 80 }}>
                       {refreshingRef ? 'Refreshing…' : '↻ Refresh'}
                     </button>
                     <button type="button" onClick={() => { setAddingRef(true); setRefForm({ name: '', ref: '' }); setRefErr(''); }}
@@ -1274,18 +1274,18 @@ export default function Settings() {
                         <div key={c.source} style={{ flex: '1 1 140px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 10, padding: '12px 14px' }}>
                           <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{CHANNEL_LABEL[c.source] || c.source}</div>
                           <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{c.order_count}</div>
-                          <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₱{Number(c.revenue).toLocaleString('en-PH')}</div>
+                          <div style={{ fontSize: 12, color: '#047857', fontWeight: 600 }}>₱{Number(c.revenue).toLocaleString('en-PH')}</div>
                           <div style={{ marginTop: 6, height: 4, borderRadius: 4, background: '#E5E7EB' }}>
                             <div style={{ height: 4, borderRadius: 4, background: '#38a9c2', width: `${pct}%` }} />
                           </div>
-                          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>{pct}% of revenue</div>
+                          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>{pct}% of revenue</div>
                         </div>
                       );
                     })}
                     <div style={{ flex: '1 1 140px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 10, padding: '12px 14px' }}>
                       <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>📊 Total</div>
                       <div style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>{totalOrders}</div>
-                      <div style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₱{totalRevenue.toLocaleString('en-PH')}</div>
+                      <div style={{ fontSize: 12, color: '#047857', fontWeight: 600 }}>₱{totalRevenue.toLocaleString('en-PH')}</div>
                     </div>
                   </div>
                 </div>
@@ -1328,7 +1328,7 @@ export default function Settings() {
             )}
 
             {referrals.length === 0 && !addingRef ? (
-              <div style={{ textAlign: 'center', padding: '28px 0', color: '#9CA3AF', fontSize: 14 }}>
+              <div style={{ textAlign: 'center', padding: '28px 0', color: '#6B7280', fontSize: 14 }}>
                 No referral links yet. Add one to start tracking.
               </div>
             ) : (
@@ -1380,9 +1380,9 @@ export default function Settings() {
                             </button>
                           </td>
                           <td style={{ padding: '10px 10px', color: '#374151' }}>{r.click_count}</td>
-                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>{r.order_count}</td>
-                          <td style={{ padding: '10px 10px', color: '#059669', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
-                          <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#059669' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
+                          <td style={{ padding: '10px 10px', color: '#047857', fontWeight: 600 }}>{r.order_count}</td>
+                          <td style={{ padding: '10px 10px', color: '#047857', fontWeight: 600 }}>₱{Number(r.revenue).toLocaleString('en-PH')}</td>
+                          <td style={{ padding: '10px 10px', color: conv !== '—' && Number(conv) >= 20 ? '#047857' : '#374151', fontWeight: 600 }}>{conv !== '—' ? `${conv}%` : '—'}</td>
                           <td style={{ padding: '10px 10px', display: 'flex', gap: 6 }}>
                             {isEditing ? (
                               <>
