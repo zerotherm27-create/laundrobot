@@ -80,8 +80,10 @@ router.post('/', async (req, res) => {
       return res.sendStatus(200);
     }
 
-    // Strip the "-MANUAL-<timestamp>" suffix added by admin-generated payment links
-    const refId = String(external_id).replace(/-MANUAL-\d+$/, '');
+    // Strip the "-MANUAL-<timestamp>" / "-ADJ-<timestamp>" suffixes added by
+    // admin-generated payment links and booking-edit adjustment invoices —
+    // otherwise the lookup below never matches the real booking_ref.
+    const refId = String(external_id).replace(/-(MANUAL|ADJ)-\d+$/, '');
     const isBkgRef = refId.startsWith('BKG-');
 
     if (isBkgRef) {

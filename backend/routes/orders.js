@@ -818,15 +818,30 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
     const { rows: [tenant] } = await db.query('SELECT xendit_api_key FROM tenants WHERE id=$1', [req.user.tenant_id]);
     if (!tenant?.xendit_api_key) return res.status(400).json({ error: 'Xendit not configured.' });
 
-    const { status } = await getInvoiceStatus(tenant.xendit_api_key, order.xendit_invoice_id);
+    const { status, amount: invoiceAmount } = await getInvoiceStatus(tenant.xendit_api_key, order.xendit_invoice_id);
     if (status !== 'PAID') {
       return res.status(400).json({ error: `Invoice is not paid yet — current status: ${status}` });
     }
 
+    // This invoice may predate a later edit that raised the booking's total
+    // (e.g. an admin added items after the original invoice was paid). Only
+    // trust it to cover the booking if its amount matches what's currently
+    // unpaid — otherwise a stale invoice would wrongly clear a real balance.
+    const { rows: [{ unpaid_total }] } = await db.query(
+      `SELECT COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0) AS unpaid_total
+       FROM orders WHERE booking_ref=$1 AND tenant_id=$2 AND paid=FALSE`,
+      [order.booking_ref, req.user.tenant_id]
+    );
+    if (Number(invoiceAmount) < Number(unpaid_total)) {
+      return res.status(400).json({
+        error: `This invoice (₱${Number(invoiceAmount).toLocaleString('en-PH')}) doesn't cover the current outstanding balance (₱${Number(unpaid_total).toLocaleString('en-PH')}). The booking total likely changed since this invoice was created — a new payment link is needed.`,
+      });
+    }
+
     // Confirmed paid — update all orders in the same booking
     await db.query(
-      `UPDATE orders SET paid=TRUE, reminder_count=99 WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2`,
-      [req.params.id, req.user.tenant_id]
+      `UPDATE orders SET paid=TRUE, reminder_count=99 WHERE booking_ref=$1 AND tenant_id=$2`,
+      [order.booking_ref, req.user.tenant_id]
     );
     res.json({ ok: true });
   } catch (err) {

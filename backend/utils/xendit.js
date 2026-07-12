@@ -45,7 +45,7 @@ async function getInvoiceStatus(apiKey, invoiceId) {
     `https://api.xendit.co/v2/invoices/${invoiceId}`,
     { auth: { username: apiKey, password: '' } }
   );
-  return { status: data.status, id: data.id };
+  return { status: data.status, id: data.id, amount: data.amount };
 }
 
 module.exports = { createInvoice, createRefund, getInvoiceStatus };
