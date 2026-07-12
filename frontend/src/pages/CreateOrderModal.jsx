@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getServices, getCategories, getDeliveryZones, createPublicOrder } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const STATUSES = ['NEW ORDER', 'FOR PICK UP', 'PROCESSING', 'FOR DELIVERY', 'COMPLETED'];
 
@@ -91,6 +92,7 @@ function Field({ label, required, children }) {
 export default function CreateOrderModal({ onClose, onCreated }) {
   const { user } = useAuth();
   const tenantId = user?.tenant_id;
+  const modalRef = useModalA11y(onClose);
 
   const [loadingData, setLoadingData] = useState(true);
   const [services,    setServices]   = useState([]);
@@ -258,7 +260,8 @@ export default function CreateOrderModal({ onClose, onCreated }) {
   // ── Render ──
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card" style={{ width: 580, maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="New Order" tabIndex={-1}
+        className="modal-card" style={{ width: 580, maxHeight: '92vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', outline: 'none' }}>
 
         {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid #E8E8E0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -270,7 +273,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               Create an order on behalf of a customer
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6B7280', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#6B7280', lineHeight: 1 }}>×</button>
         </div>
 
         {/* Body */}
@@ -330,7 +333,7 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               )}
 
               <button onClick={onClose}
-                style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none', background: '#38a9c2', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 Done
               </button>
             </div>
@@ -477,9 +480,9 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                           <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', flexShrink: 0 }}>
                             ₱{total.toLocaleString()}
                           </div>
-                          <button type="button" onClick={() => removeCartItem(item.tempId)}
+                          <button type="button" onClick={() => removeCartItem(item.tempId)} aria-label="Remove item"
                             style={{ flexShrink: 0, width: 26, height: 26, borderRadius: 6, border: '1px solid #E2E8F0',
-                              background: '#fff', cursor: 'pointer', color: '#9CA3AF', fontSize: 15, lineHeight: 1,
+                              background: '#fff', cursor: 'pointer', color: '#6B7280', fontSize: 15, lineHeight: 1,
                               display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}
                             title="Remove">×</button>
                         </div>

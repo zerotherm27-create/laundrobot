@@ -4,6 +4,7 @@ import { saveWalkInCache, loadWalkInCache, enqueueOrder, getPendingOrders, syncP
 import { Icon } from '../components/Icons.jsx';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,14 +67,16 @@ function blurInput(e) {
 // ── QR Payment modal (GCash / Maya) ──────────────────────────────────────────
 
 function QRModal({ label, accentColor, total, qrUrl, submitting, error, onConfirm, onCancel }) {
+  const modalRef = useModalA11y(onCancel);
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
-        style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label={`${label} Payment`} tabIndex={-1}
+        className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
+        style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto', outline: 'none' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>{label} Payment</div>
-          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
+          <button onClick={onCancel} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -134,15 +137,17 @@ function CashModal({ total, cashTendered, onChangeTendered, submitting, error, o
   const tendered = parseFloat(cashTendered) || 0;
   const change   = tendered - total;
   const canPay   = tendered >= total && total > 0;
+  const modalRef = useModalA11y(onCancel);
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
-        style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Cash Payment" tabIndex={-1}
+        className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
+        style={{ width: 360, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto', outline: 'none' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Cash Payment</div>
-          <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
+          <button onClick={onCancel} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', padding: '8px', margin: '-8px' }}>×</button>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -223,6 +228,7 @@ function CashModal({ total, cashTendered, onChangeTendered, submitting, error, o
 
 function CreditCardModal({ total, paymentUrl, onCancel }) {
   const [copied, setCopied] = useState(false);
+  const modalRef = useModalA11y(onCancel);
   const qrSrc = paymentUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentUrl)}`
     : null;
@@ -236,8 +242,9 @@ function CreditCardModal({ total, paymentUrl, onCancel }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
-        style={{ width: 380, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Credit Card Payment" tabIndex={-1}
+        className="modal-card modal-close-mobile" onClick={e => e.stopPropagation()}
+        style={{ width: 380, padding: '1.75rem', maxHeight: '90vh', overflowY: 'auto', outline: 'none' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Credit Card Payment</div>
@@ -1062,15 +1069,15 @@ export default function WalkIn() {
           {/* Cart summary */}
           {cart.length > 0 && (
             <div style={{ background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8', padding: '1.25rem', marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: '#1a7d94', marginBottom: 10 }}>Order so far</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--primary)', marginBottom: 10 }}>Order so far</div>
               {cart.map((item, idx) => (
                 <div key={item._id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: idx < cart.length - 1 ? '0.5px solid #E2E8F0' : 'none' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{item.service_name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#38a9c2' }}>₱{item.itemTotal.toLocaleString()}</span>
-                      <button onClick={() => setCart(p => p.filter(c => c._id !== item._id))}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>₱{item.itemTotal.toLocaleString()}</span>
+                      <button onClick={() => setCart(p => p.filter(c => c._id !== item._id))} aria-label={`Remove ${item.service_name}`}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: 16, padding: 0, lineHeight: 1 }}>×</button>
                     </div>
                   </div>
                   {item.displayLines.filter(l => l.label !== item.service_name).map((l, i) => (
@@ -1258,7 +1265,7 @@ export default function WalkIn() {
                 <span style={{ fontSize: 13, color: '#7F77DD', fontWeight: 600 }}>🎟️ {appliedPromo.code}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#7F77DD' }}>−₱{promoDiscount.toLocaleString()}</span>
-                  <button onClick={() => { setAppliedPromo(null); setPromoInput(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', fontSize: 16, padding: 0 }}>×</button>
+                  <button onClick={() => { setAppliedPromo(null); setPromoInput(''); }} aria-label="Remove promo code" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', fontSize: 16, padding: 0 }}>×</button>
                 </div>
               </div>
             )}

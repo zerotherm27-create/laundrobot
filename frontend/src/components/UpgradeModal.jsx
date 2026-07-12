@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createSubscriptionInvoice } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const PLANS = [
   {
@@ -28,6 +29,7 @@ export default function UpgradeModal() {
   const [upgradeAnnual, setUpgradeAnnual] = useState(true);
   const [upgradeTier,   setUpgradeTier]   = useState('growth');
   const [upgrading,     setUpgrading]     = useState(false);
+  const modalRef = useModalA11y(() => setUpgradeModalOpen(false), upgradeModalOpen);
 
   // When modal opens, sync to the requested tier (e.g. Finance requests 'pro')
   useEffect(() => {
@@ -43,7 +45,8 @@ export default function UpgradeModal() {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
       onClick={e => { if (e.target === e.currentTarget) setUpgradeModalOpen(false); }}>
-      <div style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 600, boxShadow: '0 24px 64px rgba(0,0,0,.2)', maxHeight: '92vh', overflowY: 'auto' }}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Choose your plan" tabIndex={-1}
+        style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 600, boxShadow: '0 24px 64px rgba(0,0,0,.2)', maxHeight: '92vh', overflowY: 'auto', outline: 'none' }}>
 
         {/* Header */}
         <div style={{ padding: '1.25rem 1.5rem 1rem', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
@@ -58,7 +61,7 @@ export default function UpgradeModal() {
               ))}
             </div>
           </div>
-          <button onClick={() => setUpgradeModalOpen(false)}
+          <button onClick={() => setUpgradeModalOpen(false)} aria-label="Close"
             style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: '#374151', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'inherit' }}>
             ×
           </button>

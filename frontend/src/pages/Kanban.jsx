@@ -7,6 +7,7 @@ import { STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
@@ -282,6 +283,7 @@ export default function Kanban() {
   const modalOrder = modalOrderKey
     ? allGroups.find(g => (g.booking_ref || g.id) === modalOrderKey) ?? null
     : null;
+  const modalRef = useModalA11y(() => setModalOrderKey(null), !!modalOrder);
   const urgencyCounts = allGroups.reduce((acc, g) => {
     const u = getUrgency(g);
     if (u !== 'normal') acc[u] = (acc[u] || 0) + 1;
@@ -346,8 +348,8 @@ export default function Kanban() {
               </span>
             )}
           </div>
-          <button onClick={() => setAlertDismissed(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9CA3AF', padding: 0, lineHeight: 1 }}>×</button>
+          <button onClick={() => setAlertDismissed(true)} aria-label="Dismiss"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#374151', padding: 0, lineHeight: 1 }}>×</button>
         </div>
       )}
 
@@ -414,6 +416,9 @@ export default function Kanban() {
                     onDragStart={() => setDragIds(g.orderIds)}
                     onDragEnd={() => { setDragIds(null); setDragOver(null); }}
                     onClick={e => openModal(g, e)}
+                    role="button" tabIndex={0}
+                    aria-label={`Order ${gKey} — ${g.customer_name || 'Unknown'}`}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(g, e); } }}
                     className={urgency === 'overdue' ? 'card-overdue' : ''}
                     style={{
                       background: '#fff',
@@ -530,8 +535,9 @@ export default function Kanban() {
       {/* ── Order Detail Modal ── */}
       {modalOrder && (
         <div className="modal-overlay" onClick={() => setModalOrderKey(null)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}
-            style={{ width: 420, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div ref={modalRef} role="dialog" aria-modal="true" aria-label="Order Details" tabIndex={-1}
+            className="modal-card" onClick={e => e.stopPropagation()}
+            style={{ width: 420, padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto', outline: 'none' }}>
 
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -548,7 +554,7 @@ export default function Kanban() {
                   </div>
                 );
               })()}
-              <button onClick={() => setModalOrderKey(null)}
+              <button onClick={() => setModalOrderKey(null)} aria-label="Close"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#374151', lineHeight: 1, padding: '8px', margin: '-8px' }}>×</button>
             </div>
 

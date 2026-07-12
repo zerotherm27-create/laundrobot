@@ -572,7 +572,7 @@ function SnapshotChart({ months, net, rev, mrg }) {
         <div style={{
           marginTop: 14, padding: '8px 12px', borderRadius: 8,
           background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
-          fontSize: 12, color: net >= 0 ? '#7C3AED' : '#EF4444',
+          fontSize: 12, color: net >= 0 ? '#7C3AED' : '#DC2626',
         }}>
           {net >= 0
             ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned this month`
@@ -627,10 +627,10 @@ function Dashboard() {
   const rfc = Number(data?.refundCount             ?? 0);
 
   const kpis = data ? [
-    { label: 'MTD Revenue',        val: PESO(rev), color: '#38a9c2' },
-    { label: 'MTD Expenses',       val: PESO(exp), color: '#EF4444' },
-    { label: 'Net Profit',         val: PESO(net), color: net >= 0 ? '#059669' : '#EF4444' },
-    { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#EF4444' },
+    { label: 'MTD Revenue',        val: PESO(rev), color: 'var(--primary)' },
+    { label: 'MTD Expenses',       val: PESO(exp), color: '#DC2626' },
+    { label: 'Net Profit',         val: PESO(net), color: net >= 0 ? '#059669' : '#DC2626' },
+    { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#059669' : '#DC2626' },
     { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD' },
     { label: 'Avg Revenue / Load', val: PESO(avg), color: '#BA7517' },
     ...(rfd > 0 ? [{ label: `Refunds (${rfc} order${rfc !== 1 ? 's' : ''})`, val: PESO(rfd), color: '#DC2626' }] : []),
@@ -850,7 +850,12 @@ function PricingGuide() {
                   <td style={{ ...tdStyle, color: '#6B7280' }}>{r.unit}</td>
                   <td style={tdNum}>{PESO(r.price)}</td>
                   <td style={{ ...tdNum, cursor: 'pointer' }}
-                    onClick={() => !isEditing && startEdit(r.id, r.cost_per_unit)}>
+                    onClick={() => !isEditing && startEdit(r.id, r.cost_per_unit)}
+                    {...(!isEditing ? {
+                      role: 'button', tabIndex: 0,
+                      'aria-label': `Edit cost per unit, currently ${PESO(r.cost_per_unit)}`,
+                      onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(r.id, r.cost_per_unit); } },
+                    } : {})}>
                     {isEditing ? (
                       <input
                         autoFocus type="number" min="0" step="0.01"
@@ -861,7 +866,7 @@ function PricingGuide() {
                           if (e.key === 'Enter')  saveEdit(r.id);
                           if (e.key === 'Escape') setEditing(p => { const n = { ...p }; delete n[r.id]; return n; });
                         }}
-                        style={{ width: 80, padding: '3px 6px', borderRadius: 4, border: '1px solid #38a9c2', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
+                        style={{ width: 80, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
                         disabled={saving[r.id]}
                       />
                     ) : (
@@ -1181,7 +1186,12 @@ function Expenses() {
                         const isSaving  = saving[key];
                         return (
                           <td key={m} style={{ ...tdNum, cursor: 'pointer' }}
-                            onClick={() => !isEditing && setEditing(p => ({ ...p, [key]: getAmount(label, m) }))}>
+                            onClick={() => !isEditing && setEditing(p => ({ ...p, [key]: getAmount(label, m) }))}
+                            {...(!isEditing ? {
+                              role: 'button', tabIndex: 0,
+                              'aria-label': `Edit ${label} for month ${m}`,
+                              onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(p => ({ ...p, [key]: getAmount(label, m) })); } },
+                            } : {})}>
                             {isEditing ? (
                               <input
                                 autoFocus type="number" min="0" step="1"
@@ -1193,7 +1203,7 @@ function Expenses() {
                                   if (e.key === 'Escape') setEditing(p => { const n = { ...p }; delete n[key]; return n; });
                                 }}
                                 disabled={isSaving}
-                                style={{ width: 64, padding: '2px 4px', borderRadius: 4, border: '1px solid #38a9c2', fontSize: 12, textAlign: 'right', fontFamily: 'inherit' }}
+                                style={{ width: 64, padding: '2px 4px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 12, textAlign: 'right', fontFamily: 'inherit' }}
                               />
                             ) : (
                               <span style={{ color: parseFloat(getAmount(label, m)) > 0 ? '#111827' : '#D1D5DB' }}>

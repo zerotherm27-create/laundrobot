@@ -438,9 +438,10 @@ export default function SuperAdmin() {
                 <input type={showPw ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)}
                   placeholder="At least 8 characters"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', borderRadius: 8, border: '0.5px solid #ccc', fontSize: 13 }} />
-                <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                <button type="button" onClick={() => setShowPw(s => !s)} aria-label={showPw ? 'Hide password' : 'Show password'}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151', background: 'none', border: 'none', padding: 4 }}>
                   {showPw ? '🙈' : '👁'}
-                </span>
+                </button>
               </div>
             </div>
 
@@ -525,9 +526,10 @@ export default function SuperAdmin() {
               <div style={{ position: 'relative' }}>
                 <input type={showFbToken ? 'text' : 'password'} value={tenantForm.fb_page_access_token || ''} onChange={e => setTenantForm(p => ({ ...p, fb_page_access_token: e.target.value }))}
                   style={{ width: '100%', boxSizing: 'border-box', padding: '7px 36px 7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
-                <span onClick={() => setShowFbToken(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                <button type="button" onClick={() => setShowFbToken(s => !s)} aria-label={showFbToken ? 'Hide token' : 'Show token'}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151', background: 'none', border: 'none', padding: 4 }}>
                   {showFbToken ? '🙈' : '👁'}
-                </span>
+                </button>
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
@@ -535,9 +537,10 @@ export default function SuperAdmin() {
               <div style={{ position: 'relative' }}>
                 <input type={showXenditKey ? 'text' : 'password'} value={tenantForm.xendit_api_key || ''} onChange={e => setTenantForm(p => ({ ...p, xendit_api_key: e.target.value }))}
                   style={{ width: '100%', boxSizing: 'border-box', padding: '7px 36px 7px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
-                <span onClick={() => setShowXenditKey(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151' }}>
+                <button type="button" onClick={() => setShowXenditKey(s => !s)} aria-label={showXenditKey ? 'Hide key' : 'Show key'}
+                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', fontSize: 14, color: '#374151', background: 'none', border: 'none', padding: 4 }}>
                   {showXenditKey ? '🙈' : '👁'}
-                </span>
+                </button>
               </div>
             </div>
             {tenantForm.isNew && (

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { getMyBranches, createBranch, syncBranch, cloneServices } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const CLONE_OPTIONS = [
   { key: 'services',       label: 'Services & Pricing' },
@@ -25,6 +26,8 @@ export default function Branches() {
   const [addOpen,  setAddOpen]  = useState(false);
   const [syncOpen, setSyncOpen] = useState(null); // branch object to sync INTO
   const [syncMsg,  setSyncMsg]  = useState('');
+  const addModalRef  = useModalA11y(() => setAddOpen(false), addOpen);
+  const syncModalRef = useModalA11y(() => setSyncOpen(null), !!syncOpen);
 
   // Add-branch wizard state
   const [addName,    setAddName]    = useState('');
@@ -181,7 +184,8 @@ export default function Branches() {
       {/* ── Add Branch Modal ── */}
       {addOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setAddOpen(false)}>
-          <div className="modal-card" style={{ width: 460, padding: '1.75rem' }}>
+          <div ref={addModalRef} role="dialog" aria-modal="true" aria-label="Add Branch" tabIndex={-1}
+            className="modal-card" style={{ width: 460, padding: '1.75rem', outline: 'none' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icon name="plus" size={16} color="#374151" /> Add Branch
             </div>
@@ -247,7 +251,7 @@ export default function Branches() {
                   Cancel
                 </button>
                 <button type="submit" disabled={adding}
-                  style={{ padding: '9px 18px', borderRadius: 8, background: '#38a9c2', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: adding ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  style={{ padding: '9px 18px', borderRadius: 8, background: 'var(--primary)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: adding ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                   {adding ? 'Creating…' : 'Create Branch'}
                 </button>
               </div>
@@ -259,9 +263,10 @@ export default function Branches() {
       {/* ── Re-sync Modal ── */}
       {syncOpen && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSyncOpen(null)}>
-          <div className="modal-card" style={{ width: 440, padding: '1.75rem' }}>
+          <div ref={syncModalRef} role="dialog" aria-modal="true" aria-label={`Re-sync to ${syncOpen.name}`} tabIndex={-1}
+            className="modal-card" style={{ width: 440, padding: '1.75rem', outline: 'none' }}>
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-              Re-sync to <span style={{ color: '#38a9c2' }}>{syncOpen.name}</span>
+              Re-sync to <span style={{ color: 'var(--primary)' }}>{syncOpen.name}</span>
             </div>
             <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 20 }}>
               Choose source branch and what data to push. Existing synced items will be updated.

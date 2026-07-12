@@ -617,7 +617,7 @@ export default function Orders() {
                       {selected.created_at ? new Date(selected.created_at).toLocaleString() : ''}
                     </div>
                   </div>
-                  <button onClick={() => { setSelected(null); setEditMode(false); setSavedDiff(null); }}
+                  <button onClick={() => { setSelected(null); setEditMode(false); setSavedDiff(null); }} aria-label="Close"
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#374151' }}>×</button>
                 </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getFaqs, createFaq, updateFaq, deleteFaq, getTenants,
          getFaqSuggestions, generateFaqSuggestions, approveFaqSuggestion, dismissFaqSuggestion } from '../api';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useModalA11y } from '../hooks/useModalA11y.js';
 
 const btn = (bg, color, extra = {}) => ({
   background: bg, color, border: 'none', borderRadius: 6,
@@ -21,6 +22,7 @@ export default function FAQs() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
+  const modalRef = useModalA11y(() => setModal(null), !!modal);
 
   const [suggestions, setSuggestions] = useState([]);
   const [generating, setGenerating] = useState(false);
@@ -255,7 +257,8 @@ export default function FAQs() {
       {modal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
           onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.18)' }}>
+          <div ref={modalRef} role="dialog" aria-modal="true" aria-label={modal === 'add' ? 'Add FAQ' : 'Edit FAQ'} tabIndex={-1}
+            style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.18)', outline: 'none' }}>
             <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 600 }}>
               {modal === 'add' ? '+ Add FAQ' : '✏️ Edit FAQ'}
               {isSuperAdmin && <span style={{ fontSize: 12, color: '#374151', fontWeight: 400, marginLeft: 8 }}>for {activeTenantName}</span>}
@@ -289,7 +292,7 @@ export default function FAQs() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button onClick={() => setModal(null)} style={btn('#f0f2f5', '#333')}>Cancel</button>
-              <button onClick={save} disabled={saving} style={btn('#38a9c2', '#fff', { opacity: saving ? 0.6 : 1 })}>
+              <button onClick={save} disabled={saving} style={btn('var(--primary)', '#fff', { opacity: saving ? 0.6 : 1 })}>
                 {saving ? 'Saving…' : modal === 'add' ? 'Add FAQ' : 'Save Changes'}
               </button>
             </div>

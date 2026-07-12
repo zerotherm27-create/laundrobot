@@ -137,13 +137,13 @@ export default function Login() {
                     type="checkbox"
                     checked={keepLoggedIn}
                     onChange={e => setKeepLoggedIn(e.target.checked)}
-                    style={{ width: 15, height: 15, accentColor: '#38a9c2', cursor: 'pointer' }}
+                    style={{ width: 15, height: 15, accentColor: 'var(--primary)', cursor: 'pointer' }}
                   />
                   <span style={{ fontSize: 12, color: '#374151' }}>Keep me logged in</span>
                 </label>
                 <button type="button"
                   onClick={() => { setView('forgot'); setFpEmail(email); setFpError(''); setFpMsg(''); setFpSent(false); }}
-                  style={{ fontSize: 12, color: '#38a9c2', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>
+                  style={{ fontSize: 12, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: 'inherit' }}>
                   Forgot password?
                 </button>
               </div>

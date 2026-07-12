@@ -810,9 +810,9 @@ export default function Services() {
                                         ⏱ {optTurnaround}d
                                       </span>
                                     )}
-                                    <button onClick={() => startEditOption(idx, oi)} title="Edit option"
+                                    <button onClick={() => startEditOption(idx, oi)} title="Edit option" aria-label="Edit option"
                                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#374151', fontSize: 13, padding: '0 2px', lineHeight: 1 }}>✎</button>
-                                    <button onClick={() => removeOption(idx, oi)}
+                                    <button onClick={() => removeOption(idx, oi)} aria-label="Remove option"
                                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#A32D2D', fontSize: 15, padding: '0 2px', lineHeight: 1 }}>×</button>
                                   </div>
                                 );

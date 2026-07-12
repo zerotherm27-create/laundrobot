@@ -272,16 +272,17 @@ export default function Users() {
             {modal !== 'add' && (
               <div style={{ marginBottom: 20, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
                 <button type="button" onClick={() => { setPwSection(s => !s); setNewPw(''); }}
-                  style={btn(pwSection ? '#f0f2f5' : '#e6f5f8', pwSection ? '#555' : '#1a7d94', { width: '100%', padding: '8px' })}>
+                  style={btn(pwSection ? '#f0f2f5' : '#e6f5f8', pwSection ? '#555' : 'var(--primary)', { width: '100%', padding: '8px' })}>
                   🔑 {pwSection ? 'Cancel password change' : 'Change password for this user'}
                 </button>
                 {pwSection && (
                   <div style={{ marginTop: 10, position: 'relative' }}>
                     <input type={showPw ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="New password (min. 6 characters)"
                       style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
-                    <span onClick={() => setShowPw(s => !s)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#374151', fontSize: 13 }}>
+                    <button type="button" onClick={() => setShowPw(s => !s)} aria-label={showPw ? 'Hide password' : 'Show password'}
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#374151', fontSize: 13, background: 'none', border: 'none', padding: 4 }}>
                       {showPw ? '🙈' : '👁'}
-                    </span>
+                    </button>
                   </div>
                 )}
               </div>
