@@ -1,45 +1,66 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { isBotOwnEcho, BOT_METADATA_TAG } = require('./botEchoTracker');
+const { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
 
-// Regression guard for the recurring "AI keeps talking after a human takes over" bug.
-// Fix: classify message_echoes purely by the metadata tag we stamp on every bot
-// send. NOT by app_id (Meta stamps human Business-Suite replies with the connected
-// app's id too) and NOT by an in-memory counter (it mislabels human replies when
-// echoes arrive out of order — the original failure).
+// ── mid-based detection (primary path) ───────────────────────────────────────
+// Meta returns message_id on every Send API call; the same id comes back as
+// message.mid in the echo. This is the only reliable discriminator because it
+// is Meta's own ID — never forgeable, always present, independent of app_id or
+// custom metadata fields.
 
-test('echo carrying our metadata tag is the bot — no pause', () => {
-  const echo = { is_echo: true, metadata: BOT_METADATA_TAG, app_id: 12345 };
+test('bot echo with a recorded mid is the bot — no pause', () => {
+  noteBotSend('mid_bot_001');
+  const echo = { is_echo: true, mid: 'mid_bot_001' };
   assert.equal(isBotOwnEcho(echo), true);
 });
 
-test('human inbox reply (no metadata tag) is NOT the bot — pause', () => {
-  // The dangerous case: Meta stamps the human reply with OUR app_id. It must still
-  // be treated as a human because it lacks our metadata tag.
-  const humanEcho = { is_echo: true, app_id: 12345, text: 'staff here, let me check' };
+test('human inbox reply with an unknown mid triggers a pause', () => {
+  // Human replies from Business Suite carry a mid Meta generated for them,
+  // which we never recorded via noteBotSend.
+  const humanEcho = { is_echo: true, mid: 'mid_human_999', app_id: 12345, text: 'staff here' };
   assert.equal(isBotOwnEcho(humanEcho), false);
 });
 
-test('echo with a different/empty metadata value is treated as human', () => {
+test('each mid is independent — recording one does not unlock others', () => {
+  noteBotSend('mid_bot_A');
+  assert.equal(isBotOwnEcho({ mid: 'mid_bot_A' }), true);
+  assert.equal(isBotOwnEcho({ mid: 'mid_bot_B' }), false); // different mid
+});
+
+test('out-of-order delivery: human reply before bot echo — human still detected', () => {
+  noteBotSend('mid_bot_ooo');
+  // Human echo arrives BEFORE the bot's own echo in this test
+  const humanEcho = { is_echo: true, mid: 'mid_human_ooo' };
+  const botEcho   = { is_echo: true, mid: 'mid_bot_ooo' };
+  assert.equal(isBotOwnEcho(humanEcho), false); // human first — must pause
+  assert.equal(isBotOwnEcho(botEcho),   true);  // bot after — no pause
+  assert.equal(isBotOwnEcho(humanEcho), false); // human again — still pauses
+});
+
+// ── metadata fallback (secondary path, no mid present) ───────────────────────
+
+test('echo with our metadata tag and no mid is the bot — fallback path', () => {
+  const echo = { is_echo: true, metadata: BOT_METADATA_TAG };
+  assert.equal(isBotOwnEcho(echo), true);
+});
+
+test('echo with wrong/missing metadata and no mid is human — fallback path', () => {
   assert.equal(isBotOwnEcho({ is_echo: true, metadata: '' }), false);
-  assert.equal(isBotOwnEcho({ is_echo: true, metadata: 'someone_elses_tag' }), false);
-  assert.equal(isBotOwnEcho({ is_echo: true, metadata: null }), false);
+  assert.equal(isBotOwnEcho({ is_echo: true, metadata: 'other_tag' }), false);
+  assert.equal(isBotOwnEcho({ is_echo: true }), false);
 });
 
-test('classification is stateless — order of bot vs human echoes never matters', () => {
-  // Out-of-order delivery: a human reply arrives BEFORE the bot's own echo. The old
-  // counter would consume the outstanding bot send and mislabel the human as "bot".
-  // With pure metadata there is no state, so each echo is judged on its own tag.
-  const botEcho   = { is_echo: true, metadata: BOT_METADATA_TAG };
-  const humanEcho = { is_echo: true }; // no tag
-  assert.equal(isBotOwnEcho(humanEcho), false); // human first
-  assert.equal(isBotOwnEcho(botEcho),   true);  // bot echo after — still bot
-  assert.equal(isBotOwnEcho(humanEcho), false); // repeat — still human, no leakage
-});
+// ── edge cases ────────────────────────────────────────────────────────────────
 
-test('robust to missing message object', () => {
+test('robust to missing / null message object', () => {
   assert.equal(isBotOwnEcho(undefined), false);
   assert.equal(isBotOwnEcho(null), false);
   assert.equal(isBotOwnEcho({}), false);
+});
+
+test('noteBotSend ignores falsy mids silently', () => {
+  assert.doesNotThrow(() => noteBotSend(null));
+  assert.doesNotThrow(() => noteBotSend(undefined));
+  assert.doesNotThrow(() => noteBotSend(''));
 });

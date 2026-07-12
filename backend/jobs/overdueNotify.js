@@ -2,18 +2,15 @@ const db = require('../db');
 const { sendPushToTenant } = require('../utils/push');
 
 async function runOverdueNotify() {
-  // Find FOR PICK UP orders where pickup_date has passed
-  // and FOR DELIVERY orders where delivery_date has passed
-  // that haven't been push-notified yet
   const { rows } = await db.query(`
     SELECT id, tenant_id, booking_ref, status
     FROM orders
     WHERE archived = FALSE
       AND overdue_notified = FALSE
       AND (
-        (status = 'FOR PICK UP'  AND pickup_date   < NOW())
+        (status = 'FOR PICK UP'  AND pickup_date::timestamptz   < NOW())
         OR
-        (status = 'FOR DELIVERY' AND delivery_date < NOW())
+        (status = 'FOR DELIVERY' AND delivery_date::timestamptz < NOW())
       )
   `);
 

@@ -29,6 +29,15 @@ async function runCartReminder() {
     `);
 
     for (const cart of carts) {
+      // Claim this cart atomically: only proceed if reminder_count hasn't changed.
+      // Concurrent runs that read the same row will get rowCount=0 here and skip.
+      const claim = await db.query(
+        `UPDATE carts SET reminder_count = reminder_count + 1, reminded_at = NOW()
+         WHERE id = $1 AND reminder_count = $2`,
+        [cart.id, cart.reminder_count]
+      );
+      if (claim.rowCount === 0) continue;
+
       try {
         const items = Array.isArray(cart.items) ? cart.items : [];
         const serviceNames = [...new Set(items.map(i => i.service_name).filter(Boolean))];
@@ -38,7 +47,6 @@ async function runCartReminder() {
         const bookUrl = appUrl ? `${appUrl}/book/${cart.tenant_id}` : null;
         const message = `Hi! 👋 We noticed you started booking with ${cart.shop_name} but didn't finish.${listLine}\n\nIt only takes a minute — tap below to complete your booking!`;
 
-        // Reminders 0-2: include "Get Updates" to unlock window for reminders 3-4
         const includeSubscribeBtn = cart.reminder_count < 3;
 
         if (bookUrl) {
@@ -59,17 +67,9 @@ async function runCartReminder() {
           await sendMessage(cart.fb_page_access_token, cart.fb_user_id, message + '\n\nType "book" to get started!');
         }
 
-        await db.query(
-          `UPDATE carts SET reminder_count = reminder_count + 1, reminded_at = NOW() WHERE id = $1`,
-          [cart.id]
-        );
         console.log(`[cart-reminder] #${cart.reminder_count + 1} sent to ${cart.fb_user_id} (tenant ${cart.tenant_id})`);
       } catch (err) {
         console.error(`[cart-reminder] failed for cart ${cart.id}:`, err.response?.data || err.message);
-        await db.query(
-          `UPDATE carts SET reminder_count = reminder_count + 1, reminded_at = NOW() WHERE id = $1`,
-          [cart.id]
-        ).catch(() => {});
       }
     }
 
