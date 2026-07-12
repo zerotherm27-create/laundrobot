@@ -425,9 +425,6 @@ export default function Kanban() {
                 const isExpanded = expanded.has(gKey);
                 const urgency  = getUrgency(g);
                 const umeta    = URGENCY_META[urgency];
-                const cardBorderLeft = umeta.border
-                  ? `3px solid ${umeta.border}`
-                  : `3px solid ${STATUS_COLORS[status]}`;
 
                 // Which date label to show on card
                 const showDate = PICKUP_STATUSES.has(g.status)
@@ -448,7 +445,6 @@ export default function Kanban() {
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(g, e); } }}
                     className={`kanban-card${urgency === 'overdue' ? ' card-overdue' : ''}`}
                     style={{
-                      borderLeft: cardBorderLeft,
                       borderRadius: 10, padding: '10px 12px',
                       marginBottom: 9, cursor: 'pointer',
                       userSelect: 'none',
