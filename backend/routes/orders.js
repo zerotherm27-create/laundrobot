@@ -918,12 +918,14 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
     const { rows: allOrders } = await db.query(
       `UPDATE orders SET paid=TRUE, reminder_count=99
        WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2
-       RETURNING id, price, booking_ref`,
+       RETURNING id, price, delivery_fee, promo_discount, booking_ref`,
       [req.params.id, req.user.tenant_id]
     );
 
     const bookingRef = order.booking_ref || req.params.id;
-    const total = allOrders.reduce((s, o) => s + Number(o.price), 0);
+    // Grand total = price + delivery_fee - promo_discount (see frontend/src/utils/orderPrice.js) —
+    // summing price alone silently drops the delivery fee from the "Amount Paid" notification.
+    const total = allOrders.reduce((s, o) => s + Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0), 0);
 
     // Load service names for notifications
     const { rows: orderDetails } = await db.query(

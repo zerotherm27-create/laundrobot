@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
   }
   console.log('[xendit] callback token check passed');
 
-  const { external_id, status, id: xenditInvoiceId } = req.body;
+  const { external_id, status, id: xenditInvoiceId, amount } = req.body;
 
   if (status !== 'PAID') return res.sendStatus(200);
 
@@ -118,14 +118,19 @@ router.post('/', async (req, res) => {
       if (orders.length > 0) {
         const first = orders[0];
 
-        // Email notifications (non-blocking)
+        // Email notifications (non-blocking). Use the invoice's own amount —
+        // the authoritative figure for what was actually paid in THIS
+        // transaction — rather than re-summing order rows, which omits
+        // delivery_fee/promo_discount and, for adjustment invoices, includes
+        // rows that were already paid separately.
+        const totalPaid = Number(amount);
         sendCustomerPaymentEmail(first.tenant_id, {
           orderId: first.booking_ref || first.id,
           customerName: first.customer_name,
           customerEmail: first.customer_email,
           serviceName: orders.map(o => o.service_name).join(', '),
           address: first.address,
-          total: orders.reduce((s, o) => s + Number(o.price), 0),
+          total: totalPaid,
         }).catch(e => console.warn('[xendit] customer payment email failed:', e.message));
 
         sendPaidOrderEmail(first.tenant_id, {
@@ -134,7 +139,7 @@ router.post('/', async (req, res) => {
           customerName: first.customer_name,
           customerPhone: first.customer_phone,
           address: first.address,
-          total: orders.reduce((s, o) => s + Number(o.price), 0),
+          total: totalPaid,
         }).catch(() => {});
 
         // Messenger confirmation to customer (if they have fb_id)
@@ -144,7 +149,6 @@ router.post('/', async (req, res) => {
             [first.tenant_id]
           );
           if (tenant?.fb_page_access_token) {
-            const totalPaid = orders.reduce((s, o) => s + Number(o.price), 0);
             const isDropoff = orders.some(o => o.is_dropoff);
             let msg = isDropoff
               ? `✅ Payment Confirmed! You're all set.\n\n` +
