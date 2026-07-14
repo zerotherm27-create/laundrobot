@@ -87,17 +87,63 @@ router.post('/', async (req, res) => {
     const isBkgRef = refId.startsWith('BKG-');
 
     if (isBkgRef) {
-      await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
-         WHERE booking_ref=$2 AND tenant_id = (SELECT tenant_id FROM orders WHERE booking_ref=$2 LIMIT 1)`,
-        [xenditInvoiceId, refId]
+      const { rows: [ctx] } = await db.query(
+        `SELECT tenant_id FROM orders WHERE booking_ref=$1 LIMIT 1`, [refId]
       );
+      if (ctx) {
+        // Record the payment amount in the ledger (idempotent on invoice id —
+        // Xendit retries callbacks). Amounts, not just flags: an edited booking
+        // can be partially paid, and the edit/payment-link routes bill
+        // grand total − SUM(ledger).
+        await db.query(
+          `INSERT INTO booking_payments (tenant_id, booking_ref, xendit_invoice_id, external_id, amount, method)
+           VALUES ($1,$2,$3,$4,$5,'xendit')
+           ON CONFLICT (xendit_invoice_id) DO NOTHING`,
+          [ctx.tenant_id, refId, xenditInvoiceId, external_id, Number(amount) || 0]
+        );
+        // Only flip the booking to paid when recorded payments cover the current
+        // grand total — paying a stale adjustment link for less than the balance
+        // must not clear the whole booking (BKG-000131 incident, 2026-07-14).
+        const { rows: [{ total_due, total_paid }] } = await db.query(
+          `SELECT
+             (SELECT COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0)
+              FROM orders WHERE booking_ref=$1 AND tenant_id=$2 AND status != 'CANCELLED') AS total_due,
+             (SELECT COALESCE(SUM(amount), 0)
+              FROM booking_payments WHERE booking_ref=$1 AND tenant_id=$2) AS total_paid`,
+          [refId, ctx.tenant_id]
+        );
+        if (Number(total_paid) >= Number(total_due)) {
+          await db.query(
+            `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+             WHERE booking_ref=$2 AND tenant_id=$3`,
+            [xenditInvoiceId, refId, ctx.tenant_id]
+          );
+        } else {
+          // Partial payment: silence reminders for this booking but keep it unpaid.
+          await db.query(
+            `UPDATE orders SET reminder_count=99 WHERE booking_ref=$1 AND tenant_id=$2`,
+            [refId, ctx.tenant_id]
+          );
+          console.log(`[xendit] partial payment on ${refId}: paid ${total_paid} of ${total_due} — booking stays unpaid`);
+        }
+      }
     } else {
-      await db.query(
-        `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
-         WHERE id=$2 AND tenant_id = (SELECT tenant_id FROM orders WHERE id=$2 LIMIT 1)`,
-        [xenditInvoiceId, refId]
+      const { rows: [ctx] } = await db.query(
+        `SELECT tenant_id FROM orders WHERE id=$1 LIMIT 1`, [refId]
       );
+      if (ctx) {
+        await db.query(
+          `INSERT INTO booking_payments (tenant_id, order_id, xendit_invoice_id, external_id, amount, method)
+           VALUES ($1,$2,$3,$4,$5,'xendit')
+           ON CONFLICT (xendit_invoice_id) DO NOTHING`,
+          [ctx.tenant_id, refId, xenditInvoiceId, external_id, Number(amount) || 0]
+        );
+        await db.query(
+          `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+           WHERE id=$2 AND tenant_id=$3`,
+          [xenditInvoiceId, refId, ctx.tenant_id]
+        );
+      }
     }
 
     // Load order + customer + tenant for notifications

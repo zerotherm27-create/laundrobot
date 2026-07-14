@@ -153,6 +153,13 @@ async function runFollowUp() {
         AND (o.source IS NULL OR o.source != 'admin')
         AND o.created_at < NOW() - make_interval(mins => $1::int)
         AND t.plan IN ('growth', 'pro')
+        -- Partially-paid bookings (ledger has money but rows stay paid=FALSE
+        -- after an edit raised the total) must never be auto-cancelled.
+        AND NOT EXISTS (
+          SELECT 1 FROM booking_payments bp
+          WHERE bp.tenant_id = o.tenant_id
+            AND (bp.booking_ref = o.booking_ref OR bp.order_id = o.id::text)
+        )
       GROUP BY COALESCE(o.booking_ref, o.id::text), c.id, t.id
     `, [CANCEL_AFTER_MINUTES]);
 
@@ -162,7 +169,12 @@ async function runFollowUp() {
           `UPDATE orders SET status = 'CANCELLED'
            WHERE tenant_id = $1 AND COALESCE(booking_ref, id::text) = $2
              AND paid = FALSE AND status != 'CANCELLED'
-             AND (source IS NULL OR source != 'admin')`,
+             AND (source IS NULL OR source != 'admin')
+             AND NOT EXISTS (
+               SELECT 1 FROM booking_payments bp
+               WHERE bp.tenant_id = orders.tenant_id
+                 AND (bp.booking_ref = orders.booking_ref OR bp.order_id = orders.id::text)
+             )`,
           [order.tenant_id, order.ref]
         );
         if (order.fb_id) {
@@ -204,6 +216,15 @@ async function runFollowUp() {
           AND (c.fb_id IS NOT NULL OR c.email IS NOT NULL)
           AND o.created_at < NOW() - make_interval(mins => $2::int)
           AND t.plan IN ('growth', 'pro')
+          -- Skip partially-paid bookings: the reminder quotes the FULL grand
+          -- total and getOrCreatePaymentUrl invoices it, which re-bills money
+          -- already in the ledger. Staff handle these via the edit flow's
+          -- balance link instead.
+          AND NOT EXISTS (
+            SELECT 1 FROM booking_payments bp
+            WHERE bp.tenant_id = o.tenant_id
+              AND (bp.booking_ref = o.booking_ref OR bp.order_id = o.id::text)
+          )
         GROUP BY COALESCE(o.booking_ref, o.id::text), c.id, t.id
         HAVING MIN(o.reminder_count) = $1
       `, [reminder - 1, afterMinutes]);

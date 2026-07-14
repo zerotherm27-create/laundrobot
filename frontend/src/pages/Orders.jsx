@@ -774,10 +774,10 @@ export default function Orders() {
                       savedDiff.isBooking ? (
                         /* Booking summary with copyable text */
                         <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8,
-                          background: savedDiff.diff > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5',
-                          border: `1px solid ${savedDiff.diff > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
+                          background: savedDiff.balance > 0 ? '#FEF3C7' : savedDiff.diff < 0 ? '#EAF3DE' : '#F7F7F5',
+                          border: `1px solid ${savedDiff.balance > 0 ? '#FCD34D' : savedDiff.diff < 0 ? '#86EFAC' : '#E2E8F0'}` }}>
                           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-                            {savedDiff.diff > 0 ? <><Icon name="alert-triangle" size={13} color="#92400E" style={{ marginRight: 4 }} />Additional payment needed</> : savedDiff.diff < 0 ? <><Icon name="check-circle" size={13} color="#166534" style={{ marginRight: 4 }} />Price reduced</> : <><Icon name="check" size={13} color="#374151" style={{ marginRight: 4 }} />Booking updated</>}
+                            {savedDiff.balance > 0 ? <><Icon name="alert-triangle" size={13} color="#92400E" style={{ marginRight: 4 }} />Balance due: ₱{Number(savedDiff.balance).toLocaleString()}</> : savedDiff.diff < 0 ? <><Icon name="check-circle" size={13} color="#166534" style={{ marginRight: 4 }} />Price reduced</> : <><Icon name="check" size={13} color="#374151" style={{ marginRight: 4 }} />Booking updated</>}
                           </div>
                           <div style={{ fontSize: 12, color: '#374151', marginBottom: 10 }}>
                             ₱{Number(savedDiff.old_total).toLocaleString()} → ₱{Number(savedDiff.new_total).toLocaleString()}
@@ -785,6 +785,14 @@ export default function Orders() {
                               <strong style={{ marginLeft: 6, color: savedDiff.diff > 0 ? '#92400E' : '#166534' }}>
                                 ({savedDiff.diff > 0 ? '+' : ''}₱{Number(savedDiff.diff).toLocaleString()})
                               </strong>
+                            )}
+                            {savedDiff.amount_paid > 0 && (
+                              <span style={{ display: 'block', marginTop: 2 }}>
+                                Paid so far: <strong>₱{Number(savedDiff.amount_paid).toLocaleString()}</strong>
+                                {savedDiff.balance > 0
+                                  ? <> · Remaining: <strong style={{ color: '#92400E' }}>₱{Number(savedDiff.balance).toLocaleString()}</strong></>
+                                  : <> · <strong style={{ color: '#166534' }}>Fully covered</strong></>}
+                              </span>
                             )}
                           </div>
                           {savedDiff.changes?.length > 0 && (

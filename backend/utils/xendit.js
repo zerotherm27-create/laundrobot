@@ -48,4 +48,16 @@ async function getInvoiceStatus(apiKey, invoiceId) {
   return { status: data.status, id: data.id, amount: data.amount };
 }
 
-module.exports = { createInvoice, createRefund, getInvoiceStatus };
+// Voids a PENDING invoice so a customer can't pay a stale amount after the
+// booking total changed. Errors on already-PAID/EXPIRED invoices — callers
+// treat this as best-effort.
+async function expireInvoice(apiKey, invoiceId) {
+  const { data } = await axios.post(
+    `https://api.xendit.co/invoices/${invoiceId}/expire!`,
+    {},
+    { auth: { username: apiKey, password: '' } }
+  );
+  return { status: data.status, id: data.id };
+}
+
+module.exports = { createInvoice, createRefund, getInvoiceStatus, expireInvoice };

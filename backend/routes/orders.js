@@ -3,7 +3,7 @@ const { randomUUID } = require('crypto');
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { sendTaggedMessage, sendStatusUpdate, sendButtons } = require('../utils/messenger');
-const { createInvoice, createRefund, getInvoiceStatus } = require('../utils/xendit');
+const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
 
@@ -206,7 +206,24 @@ router.put('/booking/:ref', auth, async (req, res) => {
     // never inherit their status/source when inserting new items.
     const activeRows = existing.filter(o => o.status !== 'CANCELLED');
     const first = activeRows[0] || existing[0];
-    const oldTotal = existing.reduce((s, o) => s + Number(o.price), 0);
+    // Grand total = price + delivery_fee - promo_discount (frontend/src/utils/orderPrice.js).
+    // Summing price alone here under-reports the total for any booking with a delivery fee.
+    const rowTotal = o => Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0);
+    const oldTotal = activeRows.reduce((s, o) => s + rowTotal(o), 0);
+
+    // Amount actually paid on this booking. The ledger (written by the Xendit
+    // webhook / verify-payment) is authoritative; bookings that predate it or
+    // were settled by cash/manual toggle fall back to rows flagged paid.
+    // Billing must be grand total − amount paid: diffing totals between edits
+    // loses partial payments the moment a booking is edited twice (BKG-000131
+    // incident, 2026-07-14 — a ₱3,600 payment vanished from the books).
+    const { rows: [{ ledger_paid }] } = await client.query(
+      `SELECT COALESCE(SUM(amount),0) AS ledger_paid
+       FROM booking_payments WHERE booking_ref=$1 AND tenant_id=$2`,
+      [req.params.ref, req.user.tenant_id]
+    );
+    const paidRowsCovered = activeRows.filter(o => o.paid).reduce((s, o) => s + rowTotal(o), 0);
+    const amountPaid = Number(ledger_paid) > 0 ? Number(ledger_paid) : paidRowsCovered;
     const editStamp = `[Edited by admin — ${new Date().toLocaleDateString('en-PH', { dateStyle: 'short' })}]`;
 
     // Remove items the admin deleted (scoped to this booking + tenant)
@@ -245,13 +262,21 @@ router.put('/booking/:ref', auth, async (req, res) => {
       );
     }
 
-    // If the edit raised the booking's total, the previously-recorded paid
-    // status no longer covers the new balance — reflect that immediately so
-    // Kanban/order-status don't keep showing "Paid" for an unpaid balance.
-    const editedTotal = items.reduce((s, i) => s + Number(i.price), 0) + extraAmount;
-    if (editedTotal - oldTotal > 0) {
+    // If payments no longer cover the edited total, the booking must show as
+    // unpaid immediately so Kanban/order-status don't keep showing "Paid" for
+    // an outstanding balance. Query the post-edit rows directly (rather than
+    // re-deriving from `items`, which doesn't carry delivery_fee/promo_discount)
+    // so deletes/inserts above are reflected.
+    const { rows: [{ current_total }] } = await client.query(
+      `SELECT COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0) AS current_total
+       FROM orders WHERE booking_ref=$1 AND tenant_id=$2 AND status != 'CANCELLED'`,
+      [req.params.ref, req.user.tenant_id]
+    );
+    const editedTotal = Number(current_total) + extraAmount;
+    const balance = Math.max(0, editedTotal - amountPaid);
+    if (balance > 0) {
       await client.query(
-        `UPDATE orders SET paid = FALSE WHERE booking_ref=$1 AND tenant_id=$2`,
+        `UPDATE orders SET paid = FALSE WHERE booking_ref=$1 AND tenant_id=$2 AND status != 'CANCELLED'`,
         [req.params.ref, req.user.tenant_id]
       );
     }
@@ -264,7 +289,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
        WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
       [req.params.ref, req.user.tenant_id]
     );
-    const newTotal = updated.reduce((s, o) => s + Number(o.price), 0) + extraAmount;
+    const activeUpdated = updated.filter(o => o.status !== 'CANCELLED');
+    const newTotal = activeUpdated.reduce((s, o) => s + rowTotal(o), 0) + extraAmount;
     const diff = newTotal - oldTotal;
 
     const { rows: [tenant] } = await db.query(
@@ -272,16 +298,28 @@ router.put('/booking/:ref', auth, async (req, res) => {
     );
 
     let paymentUrl = null;
-    if (diff > 0 && tenant?.xendit_api_key) {
+    if (balance > 0 && tenant?.xendit_api_key) {
       try {
+        // The previous link is now for a wrong amount — void it (best-effort;
+        // a PAID or already-EXPIRED invoice just rejects the call) so the
+        // customer can't pay a stale figure from an old chat message.
+        const prevInvoiceId = existing.find(o => o.xendit_invoice_id)?.xendit_invoice_id;
+        if (prevInvoiceId) {
+          await expireInvoice(tenant.xendit_api_key, prevInvoiceId).catch(() => {});
+        }
         const adjRef = `${req.params.ref}-ADJ-${Date.now()}`;
         const invoice = await createInvoice(tenant.xendit_api_key, {
           externalId: adjRef,
-          amount: diff,
+          amount: balance,
           payerEmail: first.customer_email || undefined,
-          description: `Additional payment for ${req.params.ref}`,
+          description: `Balance for ${req.params.ref} (total ₱${newTotal.toLocaleString('en-PH')} less ₱${amountPaid.toLocaleString('en-PH')} paid)`,
         });
         paymentUrl = invoice.invoiceUrl;
+        await db.query(
+          `UPDATE orders SET xendit_invoice_id=$1, xendit_invoice_url=$2
+           WHERE booking_ref=$3 AND tenant_id=$4`,
+          [invoice.id, invoice.invoiceUrl, req.params.ref, req.user.tenant_id]
+        );
       } catch (e) {
         console.warn('[booking update] xendit invoice failed:', e.message);
       }
@@ -293,8 +331,12 @@ router.put('/booking/:ref', auth, async (req, res) => {
       `Hi ${first.customer_name || 'there'}! Here's your updated order summary.`,
       ``,
       `Services:`,
-      ...updated.map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
+      ...activeUpdated.map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
     ];
+    const deliveryTotal = activeUpdated.reduce((s, o) => s + Number(o.delivery_fee || 0), 0);
+    if (deliveryTotal > 0) {
+      lines.push(`• Delivery fee — ₱${deliveryTotal.toLocaleString('en-PH')}`);
+    }
     if (extraAmount > 0) {
       lines.push(`• Additional charges — ₱${extraAmount.toLocaleString('en-PH')}`);
     }
@@ -302,9 +344,14 @@ router.put('/booking/:ref', auth, async (req, res) => {
       lines.push(``, custom_note.trim());
     }
     lines.push(``, `Total: ₱${newTotal.toLocaleString('en-PH')}`);
-    if (diff > 0) {
-      lines.push(`Additional Payment: ₱${diff.toLocaleString('en-PH')}`);
+    if (amountPaid > 0) {
+      lines.push(`Amount Paid: ₱${amountPaid.toLocaleString('en-PH')}`);
+    }
+    if (balance > 0) {
+      lines.push(`Balance Due: ₱${balance.toLocaleString('en-PH')}`);
       if (paymentUrl) lines.push(`💳 Pay: ${paymentUrl}`);
+    } else if (amountPaid > 0) {
+      lines.push(`✅ Fully paid — no balance due.`);
     } else if (diff < 0) {
       lines.push(`Price reduction: ₱${Math.abs(diff).toLocaleString('en-PH')} less than original.`);
     }
@@ -317,6 +364,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
       old_total: oldTotal,
       new_total: newTotal,
       diff,
+      amount_paid: amountPaid,
+      balance,
       payment_url: paymentUrl,
       summary_text: lines.join('\n'),
       orders: updated,
@@ -615,14 +664,25 @@ router.post('/:id/payment-link', auth, async (req, res) => {
     }
 
     // Total = only unpaid items (avoid double-charging already-paid services)
-    const unpaidOrders = relatedOrders.filter(o => !o.paid);
+    const unpaidOrders = relatedOrders.filter(o => !o.paid && o.status !== 'CANCELLED');
     if (unpaidOrders.length === 0) {
       return res.status(400).json({ error: 'This booking is already fully paid.' });
     }
-    const total = unpaidOrders.reduce((s, o) => s + Number(o.price || 0) + Number(o.delivery_fee || 0), 0);
-    if (total <= 0) return res.status(400).json({ error: 'Order total is ₱0 — cannot generate a payment link.' });
+    const rowsTotal = unpaidOrders.reduce((s, o) =>
+      s + Number(o.price || 0) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0), 0);
 
     const ref = order.booking_ref || order.id;
+
+    // Subtract ledger-recorded payments: a partially-paid booking keeps every
+    // row paid=FALSE (the flags can't represent a partial amount), so without
+    // this the link re-bills money the customer already sent (BKG-000131).
+    const { rows: [{ ledger_paid }] } = await db.query(
+      `SELECT COALESCE(SUM(amount),0) AS ledger_paid
+       FROM booking_payments WHERE tenant_id=$1 AND (booking_ref=$2 OR order_id=$2)`,
+      [req.user.tenant_id, ref]
+    );
+    const total = rowsTotal - Number(ledger_paid);
+    if (total <= 0) return res.status(400).json({ error: 'Order total is ₱0 — cannot generate a payment link.' });
 
     const invoice = await createInvoice(tenant.xendit_api_key, {
       externalId:        `${ref}-MANUAL-${Date.now()}`,
@@ -825,23 +885,42 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
 
     // This invoice may predate a later edit that raised the booking's total
     // (e.g. an admin added items after the original invoice was paid). Only
-    // trust it to cover the booking if its amount matches what's currently
-    // unpaid — otherwise a stale invoice would wrongly clear a real balance.
-    const { rows: [{ unpaid_total }] } = await db.query(
-      `SELECT COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0) AS unpaid_total
-       FROM orders WHERE booking_ref=$1 AND tenant_id=$2 AND paid=FALSE`,
-      [order.booking_ref, req.user.tenant_id]
+    // trust it to cover the booking if its amount covers what's currently
+    // unpaid, net of payments already recorded in the ledger — otherwise a
+    // stale invoice would wrongly clear a real balance.
+    const ref = order.booking_ref || order.id;
+    const { rows: [{ unpaid_total, ledger_paid }] } = await db.query(
+      `SELECT
+         (SELECT COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0)
+          FROM orders
+          WHERE tenant_id=$1 AND paid=FALSE AND status != 'CANCELLED'
+            AND ${order.booking_ref ? 'booking_ref=$2' : 'id=$2'}) AS unpaid_total,
+         (SELECT COALESCE(SUM(amount), 0)
+          FROM booking_payments
+          WHERE tenant_id=$1 AND (booking_ref=$2 OR order_id=$2)
+            AND xendit_invoice_id != $3) AS ledger_paid`,
+      [req.user.tenant_id, ref, order.xendit_invoice_id]
     );
-    if (Number(invoiceAmount) < Number(unpaid_total)) {
+    const stillOwed = Number(unpaid_total) - Number(ledger_paid);
+    if (Number(invoiceAmount) < stillOwed) {
       return res.status(400).json({
-        error: `This invoice (₱${Number(invoiceAmount).toLocaleString('en-PH')}) doesn't cover the current outstanding balance (₱${Number(unpaid_total).toLocaleString('en-PH')}). The booking total likely changed since this invoice was created — a new payment link is needed.`,
+        error: `This invoice (₱${Number(invoiceAmount).toLocaleString('en-PH')}) doesn't cover the current outstanding balance (₱${stillOwed.toLocaleString('en-PH')}). The booking total likely changed since this invoice was created — a new payment link is needed.`,
       });
     }
 
-    // Confirmed paid — update all orders in the same booking
+    // Record the payment in the ledger (idempotent — the webhook may have
+    // already written it) and mark the booking paid.
     await db.query(
-      `UPDATE orders SET paid=TRUE, reminder_count=99 WHERE booking_ref=$1 AND tenant_id=$2`,
-      [order.booking_ref, req.user.tenant_id]
+      `INSERT INTO booking_payments (tenant_id, booking_ref, order_id, xendit_invoice_id, amount, method)
+       VALUES ($1,$2,$3,$4,$5,'xendit')
+       ON CONFLICT (xendit_invoice_id) DO NOTHING`,
+      [req.user.tenant_id, order.booking_ref || null, order.booking_ref ? null : order.id,
+       order.xendit_invoice_id, Number(invoiceAmount) || 0]
+    );
+    await db.query(
+      `UPDATE orders SET paid=TRUE, reminder_count=99
+       WHERE tenant_id=$1 AND ${order.booking_ref ? 'booking_ref=$2' : 'id=$2'}`,
+      [req.user.tenant_id, ref]
     );
     res.json({ ok: true });
   } catch (err) {
