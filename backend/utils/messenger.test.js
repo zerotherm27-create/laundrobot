@@ -31,3 +31,17 @@ test('an unrelated Graph API error (not the unapproved-tag rejection) is not swa
   const fnBody = src.split('async function sendHumanAgentMessage')[1]?.split('\nasync function')[0] || '';
   assert.match(fnBody, /throw/, 'other errors (e.g. outside the RESPONSE window, invalid recipient) must still propagate');
 });
+
+// sendUtilityTemplate must include a top-level `tag` alongside messaging_type
+// 'MESSAGE_TAG'. Confirmed live in production (2026-07-14) via booking
+// BKG-000130: every MESSAGE_TAG send Meta received was rejected with
+// "(#100/2018199) Tag is required for MESSAGE_TAG messaging type" because the
+// request body never set `tag`. This silently broke every
+// PROCESSING/FOR DELIVERY/COMPLETED notification for customers outside the
+// 24h RESPONSE window, with the failure only ever logged server-side.
+// `tag: 'UTILITY'` matches the approved template's category.
+test('sendUtilityTemplate sets a top-level tag alongside messaging_type MESSAGE_TAG', () => {
+  const fnBody = src.split('async function sendUtilityTemplate')[1]?.split('\nasync function')[0] || '';
+  assert.match(fnBody, /messaging_type:\s*'MESSAGE_TAG'/, 'must use MESSAGE_TAG messaging_type for the utility template send');
+  assert.match(fnBody, /tag:\s*'UTILITY'/, 'must set a top-level tag - Meta rejects MESSAGE_TAG sends without one (#100/2018199)');
+});

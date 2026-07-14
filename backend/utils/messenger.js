@@ -163,7 +163,10 @@ async function sendUtilityTemplate(pageId, token, recipientId, customerName, ord
 
   let lastErr;
   for (const c of candidates) {
-    const body = { messaging_type: 'MESSAGE_TAG', recipient: { id: recipientId }, ...c };
+    // Meta rejects MESSAGE_TAG sends with (#100/2018199) "Tag is required for
+    // MESSAGE_TAG messaging type" unless a top-level `tag` accompanies messaging_type.
+    // 'UTILITY' matches the template's approved category.
+    const body = { messaging_type: 'MESSAGE_TAG', tag: 'UTILITY', recipient: { id: recipientId }, ...c };
     try {
       const resp = await axios.post(url, body, { params: { access_token: token } });
       const mid = resp.data?.message_id;

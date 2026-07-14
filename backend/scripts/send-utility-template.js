@@ -99,7 +99,7 @@ function candidates() {
   console.log(`→ Template:  ${templateName}\n`);
 
   for (const c of candidates()) {
-    const body = { messaging_type: 'MESSAGE_TAG', recipient: { id: psid }, ...c };
+    const body = { messaging_type: 'MESSAGE_TAG', tag: 'UTILITY', recipient: { id: psid }, ...c };
     try {
       const { data } = await axios.post(url, body, { params: { access_token: tenant.fb_page_access_token } });
       console.log(`✅ ${c.label}\n   ACCEPTED →`, JSON.stringify(data));
