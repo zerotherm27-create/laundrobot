@@ -72,3 +72,26 @@ test('grand total includes delivery fee and promo discount', () => {
     'reminder total must be SUM(price) + SUM(delivery_fee) − SUM(promo_discount)'
   );
 });
+
+// ── Regression: auto-cancel must not fire on a booking staff already picked up ──
+// BKG-000123 (2026-07-17): a web booking's unpaid rows sat past 24h with no
+// booking_payments entry, so the cron cancelled them and told the customer their
+// order was cancelled — even though staff had already added an admin-sourced,
+// unpaid, still-active (FOR DELIVERY) row to the SAME booking_ref. The booking
+// was live, not abandoned; the "cancelled" message was misleading. Both the
+// candidate SELECT and the cancelling UPDATE must skip a booking_ref that has
+// any other non-cancelled sibling row that is admin-sourced or already paid.
+
+test('auto-cancel SELECT skips bookings with an active admin/paid sibling row', () => {
+  const selectGuards = src.match(/SELECT 1 FROM orders o2[^)]*\)[^)]*\)[^)]*\)/g) || [];
+  assert.ok(selectGuards.length >= 1, 'expected a NOT EXISTS guard against sibling orders rows');
+  assert.match(selectGuards[0], /o2\.booking_ref = o\.booking_ref/);
+  assert.match(selectGuards[0], /o2\.status != 'CANCELLED'/);
+  assert.match(selectGuards[0], /o2\.source = 'admin' OR o2\.paid = TRUE/);
+});
+
+test('auto-cancel UPDATE re-checks the same sibling-row guard (race safety)', () => {
+  const updateBlock = src.match(/UPDATE orders SET status = 'CANCELLED'[\s\S]*?\[order\.tenant_id, order\.ref\]/)[0];
+  assert.match(updateBlock, /o2\.booking_ref = orders\.booking_ref/, 'UPDATE must re-check the sibling-row guard, not just the SELECT');
+  assert.match(updateBlock, /o2\.source = 'admin' OR o2\.paid = TRUE/);
+});

@@ -160,6 +160,18 @@ async function runFollowUp() {
           WHERE bp.tenant_id = o.tenant_id
             AND (bp.booking_ref = o.booking_ref OR bp.order_id = o.id::text)
         )
+        -- Bookings staff have already picked up (an admin-added or already-paid
+        -- sibling row on the same booking_ref) are live, not abandoned — cancelling
+        -- just the unpaid web/messenger rows sends a misleading "cancelled" message
+        -- for a booking that's still being fulfilled (BKG-000123 incident, 2026-07-17).
+        AND NOT EXISTS (
+          SELECT 1 FROM orders o2
+          WHERE o2.tenant_id = o.tenant_id
+            AND o2.booking_ref = o.booking_ref
+            AND o2.id != o.id
+            AND o2.status != 'CANCELLED'
+            AND (o2.source = 'admin' OR o2.paid = TRUE)
+        )
       GROUP BY COALESCE(o.booking_ref, o.id::text), c.id, t.id
     `, [CANCEL_AFTER_MINUTES]);
 
@@ -174,6 +186,14 @@ async function runFollowUp() {
                SELECT 1 FROM booking_payments bp
                WHERE bp.tenant_id = orders.tenant_id
                  AND (bp.booking_ref = orders.booking_ref OR bp.order_id = orders.id::text)
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM orders o2
+               WHERE o2.tenant_id = orders.tenant_id
+                 AND o2.booking_ref = orders.booking_ref
+                 AND o2.id != orders.id
+                 AND o2.status != 'CANCELLED'
+                 AND (o2.source = 'admin' OR o2.paid = TRUE)
              )`,
           [order.tenant_id, order.ref]
         );
