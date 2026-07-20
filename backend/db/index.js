@@ -1,5 +1,12 @@
 const { Pool } = require('pg');
 const fs = require('fs');
+const dns = require('dns');
+
+// Node 18+ defaults to 'verbatim' DNS ordering, so the Supabase pooler
+// hostname's AAAA record can be picked over its A record. Railway has no
+// IPv6 egress, so that intermittently fails every new connection with
+// ENETUNREACH. Force IPv4 first so pool connections are reachable.
+dns.setDefaultResultOrder('ipv4first');
 
 function buildSslConfig() {
   const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === 'true';
