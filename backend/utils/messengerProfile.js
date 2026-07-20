@@ -25,10 +25,11 @@ async function setupMessengerProfile(pageToken, tenantName, tenantId, appUrl, ig
       );
       console.log(`[messenger-profile] webhook subscribed with Instagram for page ${pageId}`);
     } catch (igErr) {
+      const igSubMsg = igErr.response?.data?.error?.message || igErr.message;
       await axios.post(
         `${GRAPH}/${pageId}/subscribed_apps?access_token=${pageToken}&subscribed_fields=${messengerFields}`
       );
-      console.log(`[messenger-profile] webhook subscribed (Messenger only) for page ${pageId} — instagram_manage_messages not yet approved`);
+      console.log(`[messenger-profile] webhook subscribed (Messenger only) for page ${pageId} — instagram_manage_messages rejected: ${igSubMsg}`);
     }
   } catch (e) {
     console.warn(`[messenger-profile] webhook subscription failed for ${name}:`, e.response?.data?.error?.message || e.message);
