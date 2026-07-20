@@ -335,6 +335,13 @@ export default function Settings() {
         <p style={{ fontSize: 13, color: '#374151', marginTop: 2 }}>Manage your shop preferences and customer-facing info.</p>
       </div>
 
+      <a href="#facebook-login-section"
+        onClick={e => { e.preventDefault(); document.getElementById('facebook-login-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', background: '#EBF3FD', border: '1.5px solid #1877F2', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, fontWeight: 600, color: '#1877F2' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Log in with Facebook — jump to the connection section ↓
+      </a>
+
       {loading ? (
         <div style={{ color: '#374151', fontSize: 14 }}>Loading…</div>
       ) : (
@@ -874,6 +881,7 @@ export default function Settings() {
           <GroupHeader label="Messaging & Integrations" />
 
           {/* Facebook Page Connect */}
+          <div id="facebook-login-section">
           <SectionCard icon={<Icon name="messenger" size={18} color="#1877F2" />} iconBg="#EBF3FD" title="Connect Facebook Page"
             subtitle="Link your Facebook Page so customers can order via Messenger">
             {fbMsg && (
@@ -890,6 +898,7 @@ export default function Settings() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                   <div style={{ fontSize: 13, color: '#15803D', flex: 1 }}>
                     <strong>Page connected</strong> — ID: <code style={{ background: '#D1FAE5', padding: '1px 5px', borderRadius: 4 }}>{fbPageId}</code>
+                    <div style={{ fontSize: 11, color: '#374151', marginTop: 3, fontWeight: 400 }}>To test the Facebook Login flow itself, click "Log in with Facebook" below — it re-opens the official Facebook OAuth dialog.</div>
                   </div>
                   <button type="button" disabled={fbTesting} onClick={async () => {
                     setFbTesting(true); setFbTestResult(null);
@@ -949,7 +958,7 @@ export default function Settings() {
                     color: '#fff', fontWeight: 700, fontSize: 13,
                     cursor: fbConnecting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                  {fbConnecting ? 'Connecting…' : fbPageId ? 'Reconnect Facebook Page' : 'Connect Facebook Page'}
+                  {fbConnecting ? 'Connecting…' : 'Log in with Facebook'}
                 </button>
                 {!import.meta.env.VITE_FB_APP_ID && (
                   <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 600 }}>VITE_FB_APP_ID is not set — contact support</div>
@@ -962,6 +971,7 @@ export default function Settings() {
               If the login fails, email <strong>hello@laundrobot.app</strong> and we'll connect your page manually.
             </div>
           </SectionCard>
+          </div>
 
           {/* Instagram Messaging */}
           <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
