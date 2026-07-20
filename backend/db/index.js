@@ -2,11 +2,24 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const dns = require('dns');
 
-// Node 18+ defaults to 'verbatim' DNS ordering, so the Supabase pooler
-// hostname's AAAA record can be picked over its A record. Railway has no
-// IPv6 egress, so that intermittently fails every new connection with
-// ENETUNREACH. Force IPv4 first so pool connections are reachable.
-dns.setDefaultResultOrder('ipv4first');
+// Railway resolves the Supabase pooler hostname to an AAAA (IPv6) address
+// that Railway's network cannot route, so every fresh pg connection failed
+// with ENETUNREACH. dns.setDefaultResultOrder('ipv4first') alone did not
+// fix this (Node's Happy Eyeballs / autoSelectFamily, on by default since
+// Node 20, still raced the IPv6 candidate) — force every dns.lookup() in
+// the process to request A records only, so no IPv6 candidate ever exists
+// to race or connect to. pg opens its socket via plain net.Socket#connect
+// (no family option), so this global override is the only hook available.
+const systemLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  } else if (typeof options === 'number') {
+    options = { family: options };
+  }
+  return systemLookup(hostname, { ...options, family: 4 }, callback);
+};
 
 function buildSslConfig() {
   const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED === 'true';
