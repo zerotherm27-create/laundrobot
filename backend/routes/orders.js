@@ -262,6 +262,31 @@ router.put('/booking/:ref', auth, async (req, res) => {
       );
     }
 
+    // Persist the "Additional Amount" as its own row so it's a permanent part
+    // of the booking total. It previously only fed the invoice `balance` and
+    // the one-time response `new_total` — never written to `orders` — so the
+    // stored total (and everything computed from it: Kanban, order list,
+    // future edits) silently dropped it the moment this response left the
+    // server (BKG-000156 incident, 2026-07-26: admin added ₱800, the invoice
+    // was correctly created for it, but the displayed total never moved).
+    const extraChargeId = extraAmount > 0 ? randomUUID() : null;
+    if (extraChargeId) {
+      const cleanNote = (custom_note || '').trim();
+      const notes = cleanNote ? `${cleanNote}\n${editStamp}` : `Additional charge (admin)\n${editStamp}`;
+      await client.query(
+        `INSERT INTO orders (id, tenant_id, customer_id, service_id, weight, price, pickup_date,
+                             address, delivery_fee, delivery_zone, notes, status, booking_ref,
+                             custom_selections, paid, delivery_date, source,
+                             promo_code, promo_discount, referral_ref, is_dropoff)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+        [extraChargeId, first.tenant_id, first.customer_id, null,
+         null, extraAmount, first.pickup_date,
+         first.address, 0, null, notes, first.status, first.booking_ref,
+         null, false, first.delivery_date, 'admin',
+         null, 0, null, first.is_dropoff || false]
+      );
+    }
+
     // If payments no longer cover the edited total, the booking must show as
     // unpaid immediately so Kanban/order-status don't keep showing "Paid" for
     // an outstanding balance. Query the post-edit rows directly (rather than
@@ -272,7 +297,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
        FROM orders WHERE booking_ref=$1 AND tenant_id=$2 AND status != 'CANCELLED'`,
       [req.params.ref, req.user.tenant_id]
     );
-    const editedTotal = Number(current_total) + extraAmount;
+    // current_total already includes the extra-charge row inserted above.
+    const editedTotal = Number(current_total);
     const balance = Math.max(0, editedTotal - amountPaid);
     if (balance > 0) {
       await client.query(
@@ -290,7 +316,8 @@ router.put('/booking/:ref', auth, async (req, res) => {
       [req.params.ref, req.user.tenant_id]
     );
     const activeUpdated = updated.filter(o => o.status !== 'CANCELLED');
-    const newTotal = activeUpdated.reduce((s, o) => s + rowTotal(o), 0) + extraAmount;
+    // newTotal already includes the extra-charge row (it's now a real order row).
+    const newTotal = activeUpdated.reduce((s, o) => s + rowTotal(o), 0);
     const diff = newTotal - oldTotal;
 
     const { rows: [tenant] } = await db.query(
@@ -331,7 +358,10 @@ router.put('/booking/:ref', auth, async (req, res) => {
       `Hi ${first.customer_name || 'there'}! Here's your updated order summary.`,
       ``,
       `Services:`,
-      ...activeUpdated.map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
+      // The extra-charge row (if any) is listed separately below as "Additional
+      // charges" rather than here as a generic "Service" line.
+      ...activeUpdated.filter(o => o.id !== extraChargeId)
+        .map(o => `• ${o.service_name || 'Service'} — ₱${Number(o.price).toLocaleString('en-PH')}`),
     ];
     const deliveryTotal = activeUpdated.reduce((s, o) => s + Number(o.delivery_fee || 0), 0);
     if (deliveryTotal > 0) {

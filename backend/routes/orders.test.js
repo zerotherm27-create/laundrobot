@@ -98,3 +98,30 @@ test('the paid=FALSE update is scoped to the booking_ref and tenant', () => {
   assert.match(stmt, /booking_ref\s*=\s*\$1/);
   assert.match(stmt, /tenant_id\s*=\s*\$2/);
 });
+
+// ── "Additional Amount" must persist as a real row (BKG-000156 incident, 2026-07-26) ──
+// custom_price (the "Additional Amount" edit-form field) used to only feed the
+// invoice `balance` and the one-time response `new_total` — never written to
+// `orders`. The Xendit invoice was correctly generated for it, but the stored
+// total (and everything computed from it afterward: Kanban, order list, the
+// next edit) silently dropped the amount the moment the response left the
+// server. It must now be persisted as its own order row, and the in-request
+// totals must not double-count it once that row exists.
+
+test('extraAmount (Additional Amount) is persisted as an orders row, not just added in memory', () => {
+  assert.match(editBlock, /extraAmount\s*>\s*0/,
+    'must gate a DB write on extraAmount > 0');
+  const insertBlock = editBlock.slice(editBlock.search(/extraAmount\s*>\s*0/));
+  assert.match(insertBlock.slice(0, insertBlock.indexOf('current_total')), /INSERT INTO orders/,
+    'a new orders row must be inserted for the additional amount before totals are recomputed');
+});
+
+test('editedTotal is not double-counted once the extra-charge row is persisted', () => {
+  assert.doesNotMatch(editBlock, /current_total\)\s*\+\s*extraAmount/,
+    'editedTotal must read current_total alone — it already includes the persisted extra-charge row');
+});
+
+test('newTotal is not double-counted once the extra-charge row is persisted', () => {
+  assert.doesNotMatch(editBlock, /rowTotal\(o\),\s*0\)\s*\)\s*\+\s*extraAmount/,
+    'newTotal must not add extraAmount again — activeUpdated already includes the persisted row');
+});
