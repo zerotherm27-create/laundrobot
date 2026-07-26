@@ -32,16 +32,20 @@ test('an unrelated Graph API error (not the unapproved-tag rejection) is not swa
   assert.match(fnBody, /throw/, 'other errors (e.g. outside the RESPONSE window, invalid recipient) must still propagate');
 });
 
-// sendUtilityTemplate must include a top-level `tag` alongside messaging_type
-// 'MESSAGE_TAG'. Confirmed live in production (2026-07-14) via booking
-// BKG-000130: every MESSAGE_TAG send Meta received was rejected with
-// "(#100/2018199) Tag is required for MESSAGE_TAG messaging type" because the
-// request body never set `tag`. This silently broke every
+// sendUtilityTemplate must use messaging_type 'UTILITY' with NO top-level
+// `tag` field. Confirmed live in production (2026-07-26): the prior
+// implementation sent messaging_type: 'MESSAGE_TAG' + tag: 'UTILITY' (added in
+// commit 2321a5d to fix an earlier "(#100/2018199) Tag is required" error),
+// but Meta rejected every single send with "(#100) Invalid tag." because
+// 'UTILITY' is a messaging_type value, not a MESSAGE_TAG tag value — there is
+// no MESSAGE_TAG variant for utility templates. This silently broke every
 // PROCESSING/FOR DELIVERY/COMPLETED notification for customers outside the
-// 24h RESPONSE window, with the failure only ever logged server-side.
-// `tag: 'UTILITY'` matches the approved template's category.
-test('sendUtilityTemplate sets a top-level tag alongside messaging_type MESSAGE_TAG', () => {
+// 24h RESPONSE window (the common case), with the failure only ever logged
+// server-side. Per Meta's Utility Messages docs, messaging_type: 'UTILITY'
+// is the whole mechanism — no tag required or accepted.
+test('sendUtilityTemplate uses messaging_type UTILITY with no top-level tag', () => {
   const fnBody = src.split('async function sendUtilityTemplate')[1]?.split('\nasync function')[0] || '';
-  assert.match(fnBody, /messaging_type:\s*'MESSAGE_TAG'/, 'must use MESSAGE_TAG messaging_type for the utility template send');
-  assert.match(fnBody, /tag:\s*'UTILITY'/, 'must set a top-level tag - Meta rejects MESSAGE_TAG sends without one (#100/2018199)');
+  assert.match(fnBody, /messaging_type:\s*'UTILITY'/, 'must use messaging_type UTILITY for the utility template send');
+  assert.doesNotMatch(fnBody, /tag:\s*'UTILITY'/, 'must not set a MESSAGE_TAG-style tag — UTILITY is a messaging_type, not a tag');
+  assert.doesNotMatch(fnBody, /messaging_type:\s*'MESSAGE_TAG'/, 'must not use MESSAGE_TAG messaging_type for utility templates');
 });

@@ -114,73 +114,37 @@ async function sendTaggedMessage(token, recipientId, text) {
 // Send the approved utility template `order_status_update_v2`.
 // Template body params: {{1}} customerName, {{2}} orderRef, {{3}} statusPhrase.
 // pageId is the FB page id (not the token) — utility templates require /{pageId}/messages.
-// Meta's exact Send API shape for utility templates is undocumented so we try candidates
-// in order (same as scripts/send-utility-template.js) and use the first accepted one.
+//
+// Utility Messages are a distinct Send API messaging_type ('UTILITY'), NOT a
+// MESSAGE_TAG variant — there is no top-level `tag` field. The previous
+// implementation probed 3 candidate shapes all using messaging_type:
+// 'MESSAGE_TAG' + tag: 'UTILITY', which Meta rejects with "(#100) Invalid tag."
+// (confirmed live in Railway logs across every PROCESSING/FOR DELIVERY/COMPLETED
+// send outside the 24h RESPONSE window, root-caused 2026-07-26). Per Meta's
+// Utility Messages docs (developers.facebook.com/docs/messenger-platform/
+// send-messages/utility-messages), the correct shape is messaging_type:
+// 'UTILITY' with message.template — no tag, no attachment wrapper.
 async function sendUtilityTemplate(pageId, token, recipientId, customerName, orderRef, statusPhrase) {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${pageId}/messages`;
   const params_list = [customerName, orderRef, statusPhrase].map(t => ({ type: 'text', text: t }));
 
-  const candidates = [
-    {
-      label: 'A',
-      message: {
-        attachment: {
-          type: 'template',
-          payload: {
-            template_type: 'utility',
-            name: UTILITY_TEMPLATE,
-            language: 'en_US',
-            components: [{ type: 'body', parameters: params_list }],
-          },
-        },
+  const body = {
+    messaging_type: 'UTILITY',
+    recipient: { id: recipientId },
+    message: {
+      template: {
+        name: UTILITY_TEMPLATE,
+        language: { code: 'en_US' },
+        components: [{ type: 'body', parameters: params_list }],
       },
     },
-    {
-      label: 'B',
-      message: {
-        template: {
-          name: UTILITY_TEMPLATE,
-          language: { code: 'en_US' },
-          components: [{ type: 'body', parameters: params_list }],
-        },
-      },
-    },
-    {
-      label: 'C',
-      message: {
-        attachment: {
-          type: 'template',
-          payload: {
-            template_type: 'customer_information',
-            name: UTILITY_TEMPLATE,
-            language: 'en_US',
-            body_parameters: [customerName, orderRef, statusPhrase],
-          },
-        },
-      },
-    },
-  ];
+  };
 
-  let lastErr;
-  for (const c of candidates) {
-    // Meta rejects MESSAGE_TAG sends with (#100/2018199) "Tag is required for
-    // MESSAGE_TAG messaging type" unless a top-level `tag` accompanies messaging_type.
-    // 'UTILITY' matches the template's approved category.
-    const body = { messaging_type: 'MESSAGE_TAG', tag: 'UTILITY', recipient: { id: recipientId }, ...c };
-    try {
-      const resp = await axios.post(url, body, { params: { access_token: token } });
-      const mid = resp.data?.message_id;
-      noteBotSend(mid);
-      if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
-      console.log(`[utility-template] sent via candidate ${c.label} to ${recipientId} mid=${mid}`);
-      return;
-    } catch (err) {
-      const e = err.response?.data?.error;
-      console.warn(`[utility-template] candidate ${c.label} failed: (#${e?.code}/${e?.error_subcode}) ${e?.message || err.message}`);
-      lastErr = err;
-    }
-  }
-  throw lastErr;
+  const resp = await axios.post(url, body, { params: { access_token: token } });
+  const mid = resp.data?.message_id;
+  noteBotSend(mid);
+  if (mid) db.query('INSERT INTO bot_sends (mid) VALUES ($1) ON CONFLICT DO NOTHING', [mid]).catch(() => {});
+  console.log(`[utility-template] sent to ${recipientId} mid=${mid}`);
 }
 
 // Sends a status notification: tries RESPONSE first (within 24h window),

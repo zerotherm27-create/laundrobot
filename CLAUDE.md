@@ -33,8 +33,9 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - **Message tags `POST_PURCHASE_UPDATE` / `CONFIRMED_EVENT_UPDATE` / `ACCOUNT_UPDATE` are DEPRECATED (error 100) as of 2026-04-27.**
 - **Order-status notifications now use a two-step fallback** (`backend/utils/messenger.js` `sendStatusUpdate()`):
   1. Try `RESPONSE` type (free, within 24h window only).
-  2. On error 10 (outside window), fall back to Utility Message Template `order_status_update_v2` (id `27038636189155408`) via `sendUtilityTemplate()` — probes 3 candidate payload shapes; first accepted shape is logged to Railway.
-  - Template requires `pages_utility_messaging` permission. Approved template: **`order_status_update_v2`**.
+  2. On error 10 (outside window), fall back to Utility Message Template `order_status_update_v2` (id `27038636189155408`) via `sendUtilityTemplate()`.
+  - ⚠️ Utility Messages are a distinct Send API `messaging_type: 'UTILITY'` — **not** a `MESSAGE_TAG` variant. There is no top-level `tag` field. An earlier version sent `messaging_type: 'MESSAGE_TAG', tag: 'UTILITY'` (3 candidate payload shapes, none correct) — Meta rejected every one with `(#100) Invalid tag.`, confirmed live in Railway logs, silently breaking every PROCESSING/FOR DELIVERY/COMPLETED notification for customers outside the 24h RESPONSE window (the common case, since staff usually update status hours after the customer's last message). Fixed 2026-07-26 per Meta's Utility Messages docs: `messaging_type: 'UTILITY'`, `message.template` (name/language/components), no `tag`. Regression test: `backend/utils/messenger.test.js`.
+  - Template requires `pages_utility_messaging` permission (approved). Approved template: **`order_status_update_v2`**.
   - `sendStatusNotification` (FOR DELIVERY / PROCESSING) and `sendCompletionNotification` (COMPLETED) in `backend/routes/orders.js` both call `sendStatusUpdate`.
 - **App Review "X of 1 API call(s)" counter is delayed/aggregated, not real-time** (even auto-used `public_profile` reads 0). A successful call won't reflect for hours.
 - Order-status notifications only fire for customers with an `fb_id` (Messenger users). Web/walk-in customers have none → no notification (see `project_whatsapp_viber_notifications.md` in memory for the planned fallback).
