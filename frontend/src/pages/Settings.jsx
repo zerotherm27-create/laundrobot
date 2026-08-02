@@ -4,6 +4,7 @@ import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -76,6 +77,7 @@ function formatDateDisplay(dateStr) {
 }
 
 export default function Settings() {
+  const { user } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
   const [paymentMode,    setPaymentMode]    = useState('xendit');
@@ -1357,7 +1359,7 @@ export default function Settings() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1.5px solid #F3F4F6' }}>
-                      {['Name', 'Ref Code', 'm.me Link', 'Clicks', 'Orders', 'Revenue', 'Conv %', ''].map(h => (
+                      {['Name', 'Ref Code', 'Booking Link', 'Clicks', 'Orders', 'Revenue', 'Conv %', ''].map(h => (
                         <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontWeight: 600, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em' }}>{h}</th>
                       ))}
                     </tr>
@@ -1365,7 +1367,13 @@ export default function Settings() {
                   <tbody>
                     {referrals.map(r => {
                       const conv = r.click_count > 0 ? ((Number(r.order_count) / r.click_count) * 100).toFixed(1) : '—';
-                      const link = fbPageId ? `https://m.me/${fbPageId}?ref=${r.ref}` : `https://m.me/me?ref=${r.ref}`;
+                      // Own-domain link (not m.me) — m.me is blocked by DNS-level content
+                      // filtering on some PH mobile carriers, which broke every referral
+                      // link identically regardless of ref code. The booking domain isn't
+                      // filtered and works the same on WiFi or mobile data.
+                      const link = customDomain
+                        ? `https://${customDomain}?ref=${r.ref}`
+                        : `https://laundrobot.app/book/${user.tenant_id}?ref=${r.ref}`;
                       const isEditing = editingRefId === r.id;
                       return (
                         <tr key={r.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
