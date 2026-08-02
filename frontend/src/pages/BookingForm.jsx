@@ -305,12 +305,38 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     }).finally(() => setLoading(false));
   }, [tenantId]);
 
-  // Track referral click once when form loads with ?ref=CODE (web referral links)
+  // Referral links point here (not m.me) so they always work, even on networks that
+  // DNS-block m.me (some PH mobile carriers filter it as "anti-gambling", which used
+  // to strand customers on a dead NXDOMAIN page). We still want the original
+  // Messenger-first experience when possible, so: probe m.me reachability first: if it
+  // resolves, redirect there (Messenger records the click via handleOptin's referral
+  // match); if it's unreachable within 2s, count the click here and stay on this form.
+  // Already-in-Messenger visits (psid present) just record the click — redirecting
+  // would loop back into the same webview.
   useEffect(() => {
-    if (referralRef && tenantId) {
-      trackReferralClick(tenantId, referralRef).catch(() => {}); // fire-and-forget, never block the form
+    if (!referralRef || !tenantId) return;
+    if (messengerPsid) {
+      trackReferralClick(tenantId, referralRef).catch(() => {});
+      return;
     }
-  }, [referralRef, tenantId]);
+    if (!tenant) return; // wait for bootstrap (fb_page_id lives on tenant)
+    if (!tenant.fb_page_id) {
+      trackReferralClick(tenantId, referralRef).catch(() => {});
+      return;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    fetch('https://m.me/', { mode: 'no-cors', signal: controller.signal })
+      .then(() => {
+        if (!cancelled) window.location.href = `https://m.me/${tenant.fb_page_id}?ref=${referralRef}`;
+      })
+      .catch(() => {
+        if (!cancelled) trackReferralClick(tenantId, referralRef).catch(() => {});
+      })
+      .finally(() => clearTimeout(timer));
+    return () => { cancelled = true; controller.abort(); clearTimeout(timer); };
+  }, [referralRef, tenantId, tenant, messengerPsid]);
 
   // Reorder prefill — runs once after services load
   useEffect(() => {
