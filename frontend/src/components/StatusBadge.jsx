@@ -1,7 +1,7 @@
 export const STATUS_COLORS = {
   'NEW ORDER':    '#38a9c2',
   'FOR PICK UP':  '#BA7517',
-  'PROCESSING':   '#7F77DD',
+  'PROCESSING':   '#7C3AED',
   'FOR DELIVERY': '#1D9E75',
   'COMPLETED':    '#639922',
 };
@@ -9,7 +9,7 @@ export const STATUS_COLORS = {
 export const STATUS_BG = {
   'NEW ORDER':    '#e6f5f8',
   'FOR PICK UP':  '#FAEEDA',
-  'PROCESSING':   '#EEEDFE',
+  'PROCESSING':   '#EDE9FE',
   'FOR DELIVERY': '#E1F5EE',
   'COMPLETED':    '#EAF3DE',
 };

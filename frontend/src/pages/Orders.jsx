@@ -848,7 +848,7 @@ export default function Orders() {
                           </div>
                           {selected.fb_id ? (
                             notifyResult === 'ok' ? (
-                              <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600 }}>✓ Message sent to customer via Messenger</div>
+                              <div style={{ marginTop: 10, fontSize: 12, color: '#166534', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="check" size={12} color="#166534" /> Message sent to customer via Messenger</div>
                             ) : (
                               <div style={{ marginTop: 10 }}>
                                 <textarea value={notifyMsg} onChange={e => setNotifyMsg(e.target.value)}
@@ -1257,8 +1257,8 @@ export default function Orders() {
 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={handleEditSave} disabled={editSaving}
-                        style={{ flex: 2, padding: '9px', fontSize: 13, borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: editSaving ? '#7dd3e0' : '#38a9c2', color: '#fff' }}>
-                        {editSaving ? 'Saving…' : '✓ Save Changes'}
+                        style={{ flex: 2, padding: '9px', fontSize: 13, borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, background: editSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                        {editSaving ? 'Saving…' : <><Icon name="check" size={13} color="#fff" /> Save Changes</>}
                       </button>
                       <button onClick={() => { setEditMode(false); setEditErr(''); }}
                         style={{ flex: 1, padding: '9px', fontSize: 13, borderRadius: 7, border: '0.5px solid #E2E8F0', cursor: 'pointer', fontFamily: 'inherit', background: '#fff', color: '#374151' }}>

@@ -278,8 +278,9 @@ function CreditCardModal({ total, paymentUrl, onCancel }) {
             padding: '9px 14px', borderRadius: 8, border: '1.5px solid #E2E8F0',
             background: copied ? '#EBF8FA' : '#fff', color: copied ? '#38a9c2' : '#374151',
             fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>
-            {copied ? '✓ Copied' : 'Copy'}
+            {copied ? <><Icon name="check" size={12} color="#38a9c2" /> Copied</> : 'Copy'}
           </button>
         </div>
 

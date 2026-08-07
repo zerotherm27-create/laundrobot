@@ -203,7 +203,7 @@ export default function Overview() {
                 borderRadius: 10, padding: '10px 14px',
                 fontSize: 12, color: '#065F46'
               }}>
-                <strong>✓ Sent &amp; delivered</strong> — "{sent.text}"
+                <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={12} color="#065F46" /> Sent &amp; delivered</strong> — "{sent.text}"
               </div>
             ))}
             {humanConvs.map(c => (
@@ -235,8 +235,8 @@ export default function Overview() {
                   style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', fontSize: 12, borderRadius: 7, border: '1.5px solid #E2E8F0', fontFamily: 'inherit', marginBottom: 8, outline: 'none', background: '#fff' }}
                 />
                 <button onClick={() => handleRelease(c.fb_user_id)} disabled={releasing === c.fb_user_id}
-                  style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: releasing === c.fb_user_id ? 0.7 : 1 }}>
-                  {releasing === c.fb_user_id ? 'Releasing…' : '✓ Done — Release back to bot'}
+                  style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: releasing === c.fb_user_id ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  {releasing === c.fb_user_id ? 'Releasing…' : <><Icon name="check" size={12} color="#fff" /> Done — Release back to bot</>}
                 </button>
               </div>
             ))}
@@ -263,8 +263,8 @@ export default function Overview() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button onClick={copyLink}
-              style={{ padding: '7px 16px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,.5)', background: copied ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s' }}>
-              {copied ? '✓ Copied!' : 'Copy Link'}
+              style={{ padding: '7px 16px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,.5)', background: copied ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {copied ? <><Icon name="check" size={12} color="#fff" /> Copied!</> : 'Copy Link'}
             </button>
             <a href={bookingUrl} target="_blank" rel="noreferrer"
               style={{ padding: '7px 16px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>

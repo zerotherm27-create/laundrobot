@@ -892,8 +892,8 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                 <div style={{ fontSize: 11, color: '#374151', marginTop: 8 }}>Scan with GCash, Maya, or your bank app</div>
               </div>
               {screenshotDone ? (
-                <div style={{ padding: '12px', borderRadius: 10, background: '#EAF3DE', border: '1px solid #86EFAC', fontSize: 13, fontWeight: 600, color: '#166534' }}>
-                  ✅ Screenshot submitted — we'll confirm your payment shortly!
+                <div style={{ padding: '12px', borderRadius: 10, background: '#EAF3DE', border: '1px solid #86EFAC', fontSize: 13, fontWeight: 600, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Icon name="checkCircle" size={14} color="#166534" style={{ flexShrink: 0 }} /> Screenshot submitted — we'll confirm your payment shortly!
                 </div>
               ) : (
                 <>
@@ -938,7 +938,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                 color: step >= n ? '#fff' : '#374151',
                 transition: 'all .2s',
               }}>
-                {step > n ? '✓' : n}
+                {step > n ? <Icon name="check" size={14} color="#fff" /> : n}
               </div>
               <div style={{ fontSize: 10, fontWeight: 600, marginTop: 4, color: step >= n ? '#38a9c2' : '#374151', textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</div>
             </div>
@@ -1086,7 +1086,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                                   if (next) setAddonQty(p => ({ ...p, [f.id]: 0 }));
                                 } }}
                                 style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, border: `2px solid ${isOwn ? 'var(--primary)' : '#CBD5E0'}`, background: isOwn ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s' }}>
-                                {isOwn && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                                {isOwn && <Icon name="check" size={11} color="#fff" />}
                               </div>
                               I'll provide my own {f.label.toLowerCase()}
                             </label>
@@ -1385,8 +1385,9 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                       style={{ padding: '10px', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                         background: addressMode === 'saved' ? '#38a9c2' : '#F0F7FF',
                         color: addressMode === 'saved' ? '#fff' : '#1a7d94',
-                        borderRight: '1px solid #9ED3DC' }}>
-                      ✓ Use this address
+                        borderRight: '1px solid #9ED3DC',
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                      <Icon name="check" size={13} color={addressMode === 'saved' ? '#fff' : '#1a7d94'} /> Use this address
                     </button>
                     <button type="button"
                       onClick={() => setAddressMode('new')}
@@ -1541,9 +1542,9 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
                       border: `1.5px solid ${pinConfirmed ? '#34D399' : '#FCD34D'}` }}>
                       <input type="checkbox" checked={pinConfirmed} onChange={e => setPinConfirmed(e.target.checked)}
                         style={{ marginTop: 1, flexShrink: 0, accentColor: '#38a9c2', width: 15, height: 15 }} />
-                      <span style={{ fontSize: 12, color: pinConfirmed ? '#065F46' : '#92400E', lineHeight: 1.5 }}>
+                      <span style={{ fontSize: 12, color: pinConfirmed ? '#065F46' : '#92400E', lineHeight: 1.5, display: 'inline-flex', alignItems: 'flex-start', gap: 5 }}>
                         {pinConfirmed
-                          ? '✓ Pin confirmed — we know where to pick up your laundry.'
+                          ? <><Icon name="check" size={12} color="#065F46" style={{ marginTop: 2, flexShrink: 0 }} /> <span>Pin confirmed — we know where to pick up your laundry.</span></>
                           : 'Please confirm the pin is at or near your location. You can drag it to adjust.'}
                       </span>
                     </label>
@@ -1812,7 +1813,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
               aria-label="I voluntarily give my consent to keep and process my information"
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPrivacyConsent(p => !p); } }}>
               <div style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 5, border: `2px solid ${privacyConsent ? 'var(--primary)' : '#CBD5E0'}`, background: privacyConsent ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1, transition: 'all .15s' }}>
-                {privacyConsent && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                {privacyConsent && <Icon name="check" size={12} color="#fff" />}
               </div>
               <p style={{ margin: 0, fontSize: 12, color: '#374151', lineHeight: 1.6 }}>
                 I voluntarily give my consent to <strong>{tenant?.name}</strong> to keep and process the information, and to use it only to provide the service and to collect payment. I acknowledge and agree that in doing so, any such data may be processed through third-party data processors such as, but not limited to, service providers. I give my consent thereto pursuant to the requirements of Republic Act No. 10173, or the "Data Privacy Act of 2012."

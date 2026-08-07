@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { sendBlast, getBlastHistory, getPausedCustomers, releaseAi, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
@@ -94,7 +95,7 @@ export default function Messaging() {
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
                 {['Send to all customers', 'Filter by order status', 'Blast history log'].map(f => (
-                  <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>✓ {f}</div>
+                  <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={10} color="#374151" /> {f}</div>
                 ))}
               </div>
               <button onClick={openUpgradeModal}

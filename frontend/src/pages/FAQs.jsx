@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const btn = (bg, color, extra = {}) => ({
   background: bg, color, border: 'none', borderRadius: 6,
@@ -202,7 +203,7 @@ export default function FAQs() {
                   <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>{s.question}</div>
                   <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 10 }}>{s.answer}</div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => approve(s.id)} style={btn('#E6F5E9', '#2E7D32', { fontSize: 11 })}>✓ Add to FAQs</button>
+                    <button onClick={() => approve(s.id)} style={btn('#E6F5E9', '#2E7D32', { fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 })}><Icon name="check" size={11} color="#2E7D32" /> Add to FAQs</button>
                     <button onClick={() => dismiss(s.id)} style={btn('#f5f5f5', '#666', { fontSize: 11 })}>✕ Dismiss</button>
                   </div>
                 </div>

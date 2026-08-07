@@ -48,7 +48,7 @@ function UpgradeCta({ title, desc, features }) {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
         {features.map(f => (
-          <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '2px 9px' }}>✓ {f}</div>
+          <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '2px 9px', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={10} color="#374151" /> {f}</div>
         ))}
       </div>
       <button onClick={openUpgradeModal}
@@ -1035,8 +1035,9 @@ export default function Settings() {
             }}
               style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none',
                 background: igSaved ? '#D1FAE5' : igSaving ? '#7dd3e0' : '#38a9c2',
-                color: igSaved ? '#065F46' : '#fff', cursor: igSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {igSaved ? '✅ Saved' : igSaving ? 'Saving…' : 'Save Instagram ID'}
+                color: igSaved ? '#065F46' : '#fff', cursor: igSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {igSaved ? <><Icon name="check" size={13} color="#065F46" /> Saved</> : igSaving ? 'Saving…' : 'Save Instagram ID'}
             </button>
           </SectionCard>
 

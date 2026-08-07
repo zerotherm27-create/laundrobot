@@ -6,6 +6,7 @@ import {
 } from '../api.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const DEFAULT_BRACKETS = [
   { min_km: 0,  max_km: 3,  fee: 60  },
@@ -206,7 +207,7 @@ export default function DeliveryZones() {
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>
-                Coordinates {shopLat && shopLng ? <span style={{ color: '#38a9c2', fontWeight: 400 }}>✓ Set</span> : <span style={{ color: '#374151', fontWeight: 400 }}>Not set yet</span>}
+                Coordinates {shopLat && shopLng ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#38a9c2', fontWeight: 400 }}><Icon name="check" size={11} color="#38a9c2" /> Set</span> : <span style={{ color: '#374151', fontWeight: 400 }}>Not set yet</span>}
               </label>
               <input style={{ ...INP, background: '#F7F7F5', color: '#374151' }} readOnly
                 value={shopLat && shopLng ? `${Number(shopLat).toFixed(5)}, ${Number(shopLng).toFixed(5)}` : 'Use "Find on Map" to set'} />
@@ -223,7 +224,7 @@ export default function DeliveryZones() {
           </div>
 
           {locErr && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 6, background: '#FCEBEB', color: '#A32D2D', fontSize: 12 }}>{locErr}</div>}
-          {locMsg && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', fontSize: 12 }}>✓ {locMsg}</div>}
+          {locMsg && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', fontSize: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="check" size={12} color="#3B6D11" /> {locMsg}</div>}
 
           <button onClick={handleSaveLocation} disabled={locSaving}
             style={{ padding: '8px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: locSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit', fontWeight: 500 }}>
@@ -284,7 +285,7 @@ export default function DeliveryZones() {
 
           <div style={{ padding: '12px 14px', borderTop: '0.5px solid #f0f0ec', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 12 }}>
             {bracketErr && <span style={{ fontSize: 12, color: '#A32D2D' }}>{bracketErr}</span>}
-            {bracketMsg && <span style={{ fontSize: 12, color: '#3B6D11' }}>✓ {bracketMsg}</span>}
+            {bracketMsg && <span style={{ fontSize: 12, color: '#3B6D11', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={11} color="#3B6D11" /> {bracketMsg}</span>}
             <button onClick={handleSaveBrackets} disabled={bracketSaving}
               style={{ marginLeft: 'auto', padding: '8px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer', background: bracketSaving ? '#7dd3e0' : '#38a9c2', color: '#fff', fontFamily: 'inherit', fontWeight: 500 }}>
               {bracketSaving ? 'Saving…' : 'Save Brackets'}

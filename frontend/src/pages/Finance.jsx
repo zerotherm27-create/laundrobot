@@ -8,6 +8,7 @@ import {
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
 // Grouped for the tab bar: quick day-to-day checks vs. deeper planning/analysis views.
@@ -579,9 +580,10 @@ function SnapshotChart({ months, net, rev, mrg }) {
           marginTop: 14, padding: '8px 12px', borderRadius: 8,
           background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
           fontSize: 12, color: net >= 0 ? '#7C3AED' : '#DC2626',
+          display: 'flex', alignItems: 'center', gap: 5,
         }}>
           {net >= 0
-            ? `✓ Profitable — keeping ${PCT(mrg)} of every peso earned this month`
+            ? <><Icon name="check" size={12} color="#7C3AED" /> {`Profitable — keeping ${PCT(mrg)} of every peso earned this month`}</>
             : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
         </div>
       )}
@@ -1955,8 +1957,9 @@ function Refunds() {
                         disabled={saving[row.id]}
                         style={{ padding: '6px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
                           background: saving[row.id] ? '#E5E7EB' : '#047857', color: saving[row.id] ? '#6B7280' : '#fff',
-                          cursor: saving[row.id] ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                        {saving[row.id] ? 'Saving…' : '✓ Mark Refunded'}
+                          cursor: saving[row.id] ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                          display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        {saving[row.id] ? 'Saving…' : <><Icon name="check" size={12} color="#fff" /> Mark Refunded</>}
                       </button>
                     </td>
                   </tr>
@@ -1970,7 +1973,7 @@ function Refunds() {
       {/* Completed */}
       {done.length > 0 && (
         <div style={cardS}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14 }}>✅ Refund History ({done.length})</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="check-circle" size={14} color="#111827" /> Refund History ({done.length})</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>

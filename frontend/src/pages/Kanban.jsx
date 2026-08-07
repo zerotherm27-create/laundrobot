@@ -671,8 +671,8 @@ export default function Kanban() {
               {/* Paid status */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13 }}>
                 <span style={{ color: '#374151' }}>Payment</span>
-                <span style={{ fontWeight: 600, color: modalOrder.paid ? '#3B6D11' : '#A32D2D' }}>
-                  {modalOrder.paid ? '✓ Paid' : '✗ Unpaid'}
+                <span style={{ fontWeight: 600, color: modalOrder.paid ? '#3B6D11' : '#A32D2D', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  {modalOrder.paid ? <><Icon name="check" size={12} color="#3B6D11" /> Paid</> : <><Icon name="x" size={12} color="#A32D2D" /> Unpaid</>}
                 </span>
               </div>
             </div>

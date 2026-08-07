@@ -4,6 +4,7 @@ import { getServices, createService, updateService, deleteService,
 import { useModalA11y } from '../hooks/useModalA11y.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
@@ -715,8 +716,8 @@ export default function Services() {
                               placeholder="e.g. Wire hanger included"
                               style={{ ...S.input, fontSize: 12 }} />
                           </div>
-                          <div style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11' }}>
-                            ✓ Customer selects quantity (0, 1, 2…) — price added to order total
+                          <div style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: '#EAF3DE', color: '#3B6D11', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <Icon name="check" size={11} color="#3B6D11" /> Customer selects quantity (0, 1, 2…) — price added to order total
                           </div>
 
                           {/* Conditional visibility — link to a select field option */}
@@ -789,7 +790,7 @@ export default function Services() {
                                         <input type="number" min="1" max="30" step="1" value={f._editOptTurnaround || ''} onChange={e => updateField(idx, '_editOptTurnaround', e.target.value)}
                                           placeholder="⏱ days" title="Turnaround override (days)" style={{ ...S.input, fontSize: 12 }} />
                                         <button onClick={() => saveEditOption(idx)}
-                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500 }}>✓</button>
+                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#38a9c2', color: '#fff', border: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center' }}><Icon name="check" size={12} color="#fff" /></button>
                                         <button onClick={() => cancelEditOption(idx)}
                                           style={{ padding: '4px 8px', fontSize: 12, borderRadius: 5, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc' }}>✕</button>
                                       </div>

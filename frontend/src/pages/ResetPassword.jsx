@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../api';
+import { Icon } from '../components/Icons.jsx';
 
 export default function ResetPassword({ token, onBack }) {
   const [password, setPassword] = useState('');
@@ -56,7 +57,7 @@ export default function ResetPassword({ token, onBack }) {
 
         {status === 'success' ? (
           <div className="animate-fade-up" style={{ textAlign: 'center', padding: '8px 0' }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, margin: '0 auto 20px' }}>✅</div>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}><Icon name="check-circle" size={30} color="#3B6D11" /></div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Password updated!</h2>
             <p style={{ fontSize: 13, color: '#374151', marginBottom: 28, lineHeight: 1.6 }}>{message}</p>
             <button onClick={onBack} className="btn-primary"

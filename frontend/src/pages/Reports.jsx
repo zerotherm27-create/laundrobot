@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getOrders, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
@@ -138,7 +139,7 @@ export default function Reports() {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
             {['Daily / weekly / monthly view', 'Revenue breakdown by service', 'CSV export', 'Order count trends'].map(f => (
-              <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px' }}>✓ {f}</div>
+              <div key={f} style={{ fontSize: 11, color: '#374151', background: '#F3F4F6', borderRadius: 20, padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={10} color="#374151" /> {f}</div>
             ))}
           </div>
           <button onClick={openUpgradeModal}

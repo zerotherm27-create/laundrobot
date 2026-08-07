@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCustomers, updateCustomer, deleteCustomer } from '../api.js';
 import { Avatar } from '../components/Avatar.jsx';
+import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
@@ -171,8 +172,9 @@ export default function Customers() {
                 border: selected.has_reviewed ? '0.5px solid #3B6D11' : '0.5px solid #ccc',
                 background: selected.has_reviewed ? '#EAF3DE' : '#f5f5f3',
                 color: selected.has_reviewed ? '#3B6D11' : '#374151',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
               }}>
-                {selected.has_reviewed ? '✓ Reviewed' : 'Mark as reviewed'}
+                {selected.has_reviewed ? <><Icon name="check" size={11} color="#3B6D11" /> Reviewed</> : 'Mark as reviewed'}
               </button>
             </div>
           </div>

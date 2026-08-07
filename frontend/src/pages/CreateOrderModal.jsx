@@ -320,9 +320,9 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                       {result.payment_url}
                     </span>
                     <button onClick={copyLink}
-                      style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+                      style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
                         background: copied ? '#1D9E75' : '#38a9c2', color: '#fff', transition: 'background .2s' }}>
-                      {copied ? '✓ Copied!' : '📋 Copy'}
+                      {copied ? <><Icon name="check" size={12} color="#fff" /> Copied!</> : '📋 Copy'}
                     </button>
                   </div>
                 </div>
@@ -595,8 +595,8 @@ export default function CreateOrderModal({ onClose, onCreated }) {
                 <Field label="Payment">
                   <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: '1px solid #D1D5DB', borderRadius: 8, background: paid ? '#EAF3DE' : '#FAFAFA', cursor: 'pointer' }}>
                     <input type="checkbox" checked={paid} onChange={e => setPaid(e.target.checked)} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: paid ? '#3B6D11' : '#374151' }}>
-                      {paid ? '✓ Mark as Paid' : 'Mark as Paid'}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: paid ? '#3B6D11' : '#374151' }}>
+                      {paid ? <><Icon name="check" size={13} color="#3B6D11" /> Mark as Paid</> : 'Mark as Paid'}
                     </span>
                   </label>
                 </Field>

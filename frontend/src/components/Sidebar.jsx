@@ -202,7 +202,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
                   >
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: b.id === user?.tenant_id ? '#38a9c2' : '#D1D5DB', flexShrink: 0 }} />
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
-                    {b.id === user?.tenant_id && <span style={{ fontSize: 10, color: '#38a9c2' }}>✓</span>}
+                    {b.id === user?.tenant_id && <Icon name="check" size={10} color="#38a9c2" />}
                   </button>
                 ))}
                 {(role === 'admin' || role === 'superadmin') && (

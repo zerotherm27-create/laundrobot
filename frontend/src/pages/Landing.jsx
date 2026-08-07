@@ -7,7 +7,7 @@ const RESPONSIVE_CSS = `
   .l-hero       { display: flex; align-items: center; justify-content: space-between; gap: 3rem; flex-wrap: wrap; }
   .l-hero-text  { flex: 1 1 380px; max-width: 520px; }
   .l-phone-wrap { flex-shrink: 0; display: flex; justify-content: center; }
-  .l-features   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .l-features   { display: grid; grid-template-columns: 1fr 1fr; column-gap: 3rem; }
   .l-steps      { display: flex; gap: 0; position: relative; }
   .l-showcase      { display: flex; align-items: flex-start; gap: 3rem; flex-wrap: wrap; justify-content: center; }
   .l-pricing-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start; }
@@ -16,29 +16,15 @@ const RESPONSIVE_CSS = `
     .l-pricing-grid { grid-template-columns: 1fr; max-width: 440px; margin-left: auto; margin-right: auto; }
   }
 
-  @media (max-width: 900px) {
-    .l-features { grid-template-columns: repeat(2, 1fr); }
-  }
   @media (max-width: 640px) {
     .l-nav-links  { display: none; }
     .l-mobile-nav-actions { display: flex; }
     .l-hero       { flex-direction: column; align-items: stretch; gap: 2rem; }
     .l-phone-wrap { margin-top: 0; }
     .l-features   { grid-template-columns: 1fr; }
+    .l-feat-col:nth-child(2) > *:first-child { border-top: 1px solid var(--border-subtle); }
     .l-steps      { flex-direction: column; align-items: stretch; gap: 1rem; }
     .l-showcase   { flex-direction: column; align-items: center; }
-  }
-
-  .l-mascot-wrap { flex-shrink: 0; display: flex; align-items: flex-end; justify-content: center; width: 220px; }
-  .l-mascot-img  { width: 220px; height: 220px; object-fit: cover; border-radius: 28px; animation: mascotFloat 3.5s ease-in-out infinite; filter: drop-shadow(0 16px 32px rgba(56,169,194,.25)); }
-
-  @media (max-width: 900px) {
-    .l-mascot-wrap { width: 180px; }
-    .l-mascot-img  { width: 180px; height: 180px; }
-  }
-  @media (max-width: 640px) {
-    .l-mascot-wrap { width: 140px; margin: 0 auto; }
-    .l-mascot-img  { width: 140px; height: 140px; border-radius: 20px; }
   }
 
   @keyframes mascotFloat {
@@ -54,10 +40,24 @@ const RESPONSIVE_CSS = `
     to   { opacity:1; transform:translateY(0); }
   }
 
+  /* Visible by default — .reveal-in only ADDS a one-time entrance animation
+     on top of that base state, it never gates visibility. */
+  .reveal { opacity: 1; transform: none; }
+  .reveal-in { animation: revealUp .5s cubic-bezier(.16,1,.3,1); }
+  @keyframes revealUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   a:focus-visible, button:focus-visible {
-    outline: 2px solid #38a9c2;
+    outline: 2px solid var(--primary-tint);
     outline-offset: 3px;
     border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-in { animation: none !important; }
+    * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
   }
 `;
 
@@ -74,12 +74,28 @@ const RESPONSIVE_CSS = `
 const PHASE_DURATIONS = [2500, 2800, 600, 3500, 2800, 2500];
 
 function MessengerMockup() {
-  const [phase, setPhase] = useState(0);
+  // Reduced-motion users land on phase 1 (the bot greeting card) — the single
+  // frame that best represents what the mockup demonstrates — instead of an
+  // auto-cycling loop that never stops (WCAG 2.2.2).
+  const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const [phase, setPhase] = useState(reducedMotion ? 1 : 0);
+  const wrapRef = useRef(null);
+  const [inView, setInView] = useState(true);
 
   useEffect(() => {
+    if (reducedMotion) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (reducedMotion || !inView) return;
     const t = setTimeout(() => setPhase(p => (p + 1) % PHASE_DURATIONS.length), PHASE_DURATIONS[phase]);
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [phase, inView, reducedMotion]);
 
   const showPageInfo = phase === 0;
   const showChat     = phase >= 1;
@@ -105,8 +121,8 @@ function MessengerMockup() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflowY: 'hidden' }}>
       {/* Teal gradient background at top */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 14px 10px', gap: 4, background: 'linear-gradient(180deg,rgba(56,169,194,.15) 0%,#fff 50%)' }}>
-        <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-          <img src="/logo.png" alt="" style={{ width: 42, height: 42, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+        <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+          <img src="/logo-96.png" alt="" style={{ width: 42, height: 42, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
         </div>
         <div style={{ fontSize: 16, fontWeight: 900, color: '#050505', textAlign: 'center' }}>The Laundry Project</div>
         <div style={{ fontSize: 10, color: '#65676b' }}>1.1K people follow this</div>
@@ -130,8 +146,8 @@ function MessengerMockup() {
 
   // ── Chat screen ──
   const BotAvatar = (
-    <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <img src="/logo.png" alt="" style={{ width: 18, height: 18, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+    <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img src="/logo-96.png" alt="" style={{ width: 18, height: 18, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
     </div>
   );
   const ChatScreen = (
@@ -187,7 +203,7 @@ function MessengerMockup() {
       <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ background: '#f0f8fa', padding: '10px 10px 6px', textAlign: 'center', flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: '#0D1117', letterSpacing: '.02em' }}>THE LAUNDRY PROJECT</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--text)', letterSpacing: '.02em' }}>THE LAUNDRY PROJECT</div>
           <div style={{ fontSize: 9, color: '#6B7280', marginTop: 1 }}>Online Booking</div>
         </div>
         {/* Step progress */}
@@ -195,8 +211,8 @@ function MessengerMockup() {
           {[{ n: 1, label: 'SERVICE', active: true }, { n: 2, label: 'DETAILS', active: false }, { n: 3, label: 'REVIEW', active: false }].map((s, i) => (
             <div key={s.n} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', background: s.active ? '#38a9c2' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: s.active ? '#fff' : '#6B7280' }}>{s.n}</div>
-                <div style={{ fontSize: 7, fontWeight: 700, color: s.active ? '#38a9c2' : '#6B7280', letterSpacing: '.03em' }}>{s.label}</div>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: s.active ? 'var(--primary-tint)' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, color: s.active ? '#fff' : '#6B7280' }}>{s.n}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: s.active ? 'var(--primary-tint)' : '#6B7280', letterSpacing: '.03em' }}>{s.label}</div>
               </div>
               {i < 2 && <div style={{ flex: 1, height: 1, background: '#e0e0e0', margin: '0 3px', marginBottom: 10 }} />}
             </div>
@@ -204,12 +220,12 @@ function MessengerMockup() {
         </div>
         {/* Service card */}
         <div style={{ flex: 1, background: '#fff', borderRadius: '12px 12px 0 0', margin: '0 6px', padding: '10px 10px 6px', overflowY: 'hidden' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: '#0D1117', marginBottom: 2 }}>Choose a Service</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>Choose a Service</div>
           <div style={{ fontSize: 9, color: '#6B7280', marginBottom: 8 }}>Select the laundry service you need.</div>
           {/* Filter chips */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
             {['All', 'MACHINE WASH', 'HAND WASH', 'IRONING / PRESS', 'DRY CLEANING'].map(c => (
-              <div key={c} style={{ background: c === 'MACHINE WASH' ? '#38a9c2' : '#f0f0f0', borderRadius: 20, padding: '3px 8px', fontSize: 7.5, fontWeight: 700, color: c === 'MACHINE WASH' ? '#fff' : '#374151', whiteSpace: 'nowrap' }}>{c}</div>
+              <div key={c} style={{ background: c === 'MACHINE WASH' ? 'var(--primary-tint)' : '#f0f0f0', borderRadius: 20, padding: '3px 8px', fontSize: 7.5, fontWeight: 700, color: c === 'MACHINE WASH' ? '#fff' : 'var(--text-2)', whiteSpace: 'nowrap' }}>{c}</div>
             ))}
           </div>
           {/* Service items */}
@@ -219,25 +235,25 @@ function MessengerMockup() {
               {[{ name: 'Clothes – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱330', unit: 'per bag', img: '👔' },
                 { name: 'Comforters – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱350', unit: 'per piece', img: '🛏️' }].map(s => (
                 <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #e8e8e8', borderRadius: 10, padding: '7px 8px', marginBottom: 5 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#38a9c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--primary-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text)' }}>{s.name}</div>
                     <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 8, color: '#6B7280' }}>Starts at</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary-tint)' }}>{s.price}</div>
                     <div style={{ fontSize: 8, color: '#6B7280' }}>{s.unit}</div>
                   </div>
                 </div>
               ))}
               {/* Cart summary */}
-              <div style={{ border: '1.5px solid #38a9c2', borderRadius: 10, padding: '8px 10px', background: '#f0f8fa' }}>
+              <div style={{ border: '1.5px solid var(--primary-tint)', borderRadius: 10, padding: '8px 10px', background: '#f0f8fa' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: '#38a9c2' }}>🛒 CART (1 ITEM)</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>₱660</div>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--primary-tint)' }}>🛒 CART (1 ITEM)</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary-tint)' }}>₱660</div>
                 </div>
-                <div style={{ fontSize: 8.5, color: '#0D1117', fontWeight: 600, marginBottom: 2 }}>Clothes – Machine Wash</div>
+                <div style={{ fontSize: 8.5, color: 'var(--text)', fontWeight: 600, marginBottom: 2 }}>Clothes – Machine Wash</div>
                 <div style={{ fontSize: 8, color: '#6B7280', lineHeight: 1.5 }}>Type: Colored · Small Bag · ₱330{'\n'}Express (₱330 · 1 Day)</div>
               </div>
             </div>
@@ -246,15 +262,15 @@ function MessengerMockup() {
             [{ name: 'Clothes – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱330', unit: 'per bag', img: '👔', selected: true },
              { name: 'Comforters – Machine Wash', desc: 'Wash, Dry & Fold', price: '₱350', unit: 'per piece', img: '🛏️', selected: false },
              { name: 'Bedsheets & Towels', desc: 'Wash, Dry & Fold', price: '₱440', unit: 'per bag', img: '🛁', selected: false }].map(s => (
-              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1.5px solid ${s.selected ? '#38a9c2' : '#e8e8e8'}`, borderRadius: 10, padding: '7px 8px', marginBottom: 5, background: s.selected ? '#f0f8fa' : '#fff' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#38a9c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
+              <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1.5px solid ${s.selected ? 'var(--primary-tint)' : '#e8e8e8'}`, borderRadius: 10, padding: '7px 8px', marginBottom: 5, background: s.selected ? '#f0f8fa' : '#fff' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--primary-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{s.img}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text)' }}>{s.name}</div>
                   <div style={{ fontSize: 8.5, color: '#6B7280' }}>{s.desc}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 8, color: '#6B7280' }}>Starts at</div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#38a9c2' }}>{s.price}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary-tint)' }}>{s.price}</div>
                   <div style={{ fontSize: 8, color: '#6B7280' }}>{s.unit}</div>
                 </div>
               </div>
@@ -265,11 +281,11 @@ function MessengerMockup() {
         <div style={{ background: '#fff', margin: '0 6px', borderRadius: '0 0 12px 12px', padding: '8px 10px', flexShrink: 0, borderTop: '1px solid #f0f0ec' }}>
           {showCart ? (
             <div style={{ display: 'flex', gap: 6 }}>
-              <div style={{ flex: 1, background: '#e8edf2', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: '#374151' }}>+ Add to Cart</div>
-              <div style={{ flex: 2, background: '#fdca00', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 800, color: '#5a3e00' }}>Checkout (1) · ₱660 →</div>
+              <div style={{ flex: 1, background: '#e8edf2', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 700, color: 'var(--text-2)' }}>+ Add to Cart</div>
+              <div style={{ flex: 2, background: 'var(--accent)', borderRadius: 10, padding: '8px 6px', textAlign: 'center', fontSize: 9.5, fontWeight: 800, color: '#5a3e00' }}>Checkout (1) · ₱660 →</div>
             </div>
           ) : (
-            <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', borderRadius: 10, padding: '9px', textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: '#fff' }}>Continue →</div>
+            <div style={{ background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', borderRadius: 10, padding: '9px', textAlign: 'center', fontSize: 10.5, fontWeight: 800, color: '#fff' }}>Continue →</div>
           )}
           <div style={{ textAlign: 'center', marginTop: 6, fontSize: 8.5, color: '#6B7280' }}>Powered by <strong>LaundroBot</strong></div>
         </div>
@@ -278,7 +294,7 @@ function MessengerMockup() {
   );
 
   return (
-    <div className="l-phone-wrap">
+    <div className="l-phone-wrap" ref={wrapRef}>
       {/* Phone width 276px → screen 268px wide → height 268*(920/430)=574px */}
       <div style={{ width: 276, flexShrink: 0, position: 'relative' }}>
         {/* Side buttons — left (volume) */}
@@ -304,6 +320,8 @@ function MessengerMockup() {
               {/* Video */}
               <video
                 src="/herovideo.mp4"
+                poster="/herovideo-poster.jpg"
+                preload="metadata"
                 autoPlay
                 loop
                 muted
@@ -342,21 +360,21 @@ function POSMockup() {
         </div>
       </div>
       {/* POS body */}
-      <div style={{ background: '#F8F8F6', borderRadius: '0 0 14px 14px', border: '1px solid #E8E8E0', borderTop: 'none', boxShadow: '0 24px 70px rgba(0,0,0,.13)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg)', borderRadius: '0 0 14px 14px', border: '1px solid var(--border)', borderTop: 'none', boxShadow: '0 24px 70px rgba(0,0,0,.13)', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ background: '#fff', padding: '14px 18px', borderBottom: '1px solid #F0F0EC', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ background: '#fff', padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#0D1117' }}>New Walk-in Order</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>New Walk-in Order</div>
             <div style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>Select services for the customer</div>
           </div>
-          <div style={{ background: '#e6f5f8', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: '#1a7d94' }}>POS Mode</div>
+          <div style={{ background: 'var(--primary-light)', borderRadius: 8, padding: '5px 10px', fontSize: 11, fontWeight: 700, color: 'var(--primary-tint-text)' }}>POS Mode</div>
         </div>
         {/* Service list */}
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {POS_SERVICES.map(s => (
             <div key={s.name} style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              background: s.selected ? '#fff' : '#F0F0EC',
+              background: s.selected ? '#fff' : 'var(--border-subtle)',
               border: s.selected ? '1.5px solid var(--primary)' : '1.5px solid transparent',
               borderRadius: 10, padding: '10px 12px',
             }}>
@@ -368,7 +386,7 @@ function POSMockup() {
                 )}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0D1117' }}>{s.name}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{s.name}</div>
                 <div style={{ fontSize: 11, color: '#4B5563' }}>{s.unit}</div>
               </div>
               <div style={{ fontSize: 13, fontWeight: 800, color: s.selected ? 'var(--primary)' : '#4B5563' }}>{s.price}</div>
@@ -376,15 +394,15 @@ function POSMockup() {
           ))}
         </div>
         {/* Order summary */}
-        <div style={{ background: '#fff', margin: '0 14px', borderRadius: 10, padding: '12px 14px', border: '1px solid #F0F0EC' }}>
+        <div style={{ background: '#fff', margin: '0 14px', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border-subtle)' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>Order Summary</div>
           {POS_SERVICES.filter(s => s.selected).map(s => (
-            <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#374151', marginBottom: 4 }}>
+            <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-2)', marginBottom: 4 }}>
               <span>{s.name}</span><span style={{ fontWeight: 600 }}>{s.price}</span>
             </div>
           ))}
-          <div style={{ borderTop: '1px solid #F0F0EC', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>Total</span>
+          <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Total</span>
             <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary)', letterSpacing: '-.02em' }}>₱680</span>
           </div>
         </div>
@@ -409,13 +427,18 @@ function POSMockup() {
 }
 
 // ── useFadeUp ─────────────────────────────────────────────────────────────────
+// Content is visible by default (the "reveal" class carries opacity:1) — the
+// observer only ever ADDS a one-time entrance animation on top of that base
+// state. If JS is blocked/errors, or the observer never fires (hidden tabs,
+// headless renderers), the section still renders fully visible.
 function useFadeUp() {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const io = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { el.style.opacity = 1; el.style.transform = 'translateY(0)'; io.disconnect(); } },
+      ([e]) => { if (e.isIntersecting) { el.classList.add('reveal-in'); io.disconnect(); } },
       { threshold: 0.1 }
     );
     io.observe(el);
@@ -439,33 +462,33 @@ function Nav() {
 
   return (
     <>
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #F0F0EC' }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border-subtle)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-            <img src="/logo.png" alt="LaundroBot" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
-            <span style={{ fontWeight: 800, fontSize: 15, color: '#0D1117', letterSpacing: '-.3px' }}>LaundroBot</span>
+            <img src="/logo-96.png" alt="LaundroBot" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
+            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', letterSpacing: '-.3px' }}>LaundroBot</span>
           </a>
           <div className="l-nav-links">
             {NAV_LINKS.map(l => (
-              <a key={l.href} href={l.href} style={{ fontSize: 13, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '8px 12px' }}
-                onMouseEnter={e => e.currentTarget.style.color = '#38a9c2'}
-                onMouseLeave={e => e.currentTarget.style.color = '#374151'}>{l.label}</a>
+              <a key={l.href} href={l.href} style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)', textDecoration: 'none', padding: '8px 12px' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--primary-tint)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}>{l.label}</a>
             ))}
             <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid #38a9c2', minHeight: 40, marginLeft: 4 }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid var(--primary-tint)', minHeight: 44, marginLeft: 4 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Book a demo</a>
-            <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 22px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 40 }}
-              onMouseEnter={e => e.currentTarget.style.background = '#1d8ba0'}
-              onMouseLeave={e => e.currentTarget.style.background = '#38a9c2'}>Get started free</a>
+            <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 22px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 44 }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-tint-dark)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--primary-tint)'}>Get started free</a>
           </div>
           {/* Mobile right side */}
           <div className="l-mobile-nav-actions">
-            <a href="/signup" style={{ padding: '8px 16px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+            <a href="/signup" style={{ padding: '8px 16px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
               Get started
             </a>
             <button onClick={() => setDrawerOpen(o => !o)} aria-label="Open menu" aria-expanded={drawerOpen}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', width: 44, height: 44, borderRadius: 8, color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 {drawerOpen
                   ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
@@ -485,7 +508,7 @@ function Nav() {
       {/* Mobile drawer */}
       <div style={{
         position: 'fixed', top: 60, left: 0, right: 0, zIndex: 99,
-        background: '#fff', borderBottom: '1px solid #F0F0EC',
+        background: '#fff', borderBottom: '1px solid var(--border-subtle)',
         padding: '1rem 1.25rem 1.5rem',
         boxShadow: '0 8px 32px rgba(0,0,0,.12)',
         transform: drawerOpen ? 'translateY(0)' : 'translateY(-110%)',
@@ -494,17 +517,17 @@ function Nav() {
       }}>
         {NAV_LINKS.map(l => (
           <a key={l.href} href={l.href} onClick={closeDrawer}
-            style={{ fontSize: 15, fontWeight: 600, color: '#374151', textDecoration: 'none', padding: '12px 4px', borderBottom: '1px solid #F5F5F3', display: 'block' }}>
+            style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-2)', textDecoration: 'none', padding: '12px 4px', borderBottom: '1px solid #F5F5F3', display: 'block' }}>
             {l.label}
           </a>
         ))}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: '1rem' }}>
           <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" onClick={closeDrawer}
-            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, border: '1.5px solid #38a9c2', color: '#38a9c2', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, border: '1.5px solid var(--primary-tint)', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
             Book a demo
           </a>
           <a href="/signup" onClick={closeDrawer}
-            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+            style={{ textAlign: 'center', padding: '12px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
             Get started free
           </a>
         </div>
@@ -522,31 +545,31 @@ function Hero() {
         <div className="l-hero">
           {/* Left — text */}
           <div className="l-hero-text">
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#e6f5f8', color: '#1a7d94', fontSize: 12, fontWeight: 700, padding: '6px 16px', borderRadius: 50, marginBottom: '1.25rem', letterSpacing: '.02em' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#38a9c2', display: 'inline-block' }} />
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--primary-light)', color: 'var(--primary-tint-text)', fontSize: 12, fontWeight: 700, padding: '6px 16px', borderRadius: 50, marginBottom: '1.25rem', letterSpacing: '.02em' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary-tint)', display: 'inline-block' }} />
               Built for laundry shops · Philippines
             </div>
-            <h1 style={{ fontSize: 'clamp(2.2rem,5vw,3.5rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-0.04em', lineHeight: 1.08, marginBottom: '1.25rem' }}>
+            <h1 style={{ fontSize: 'clamp(2.2rem,5vw,3.5rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.04em', lineHeight: 1.08, marginBottom: '1.25rem' }}>
               Your laundry shop,{' '}
-              <span style={{ color: '#38a9c2', background: 'linear-gradient(transparent 60%, rgba(253,202,0,.35) 60%)', paddingBottom: 2 }}>
+              <span style={{ color: 'var(--primary-tint)', background: 'linear-gradient(transparent 60%, rgba(253,202,0,.35) 60%)', paddingBottom: 2 }}>
                 fully automated
               </span>
             </h1>
-            <p style={{ fontSize: 'clamp(15px,2vw,17px)', color: '#374151', lineHeight: 1.7, marginBottom: '2rem', fontWeight: 400, maxWidth: 440 }}>
+            <p style={{ fontSize: 'clamp(15px,2vw,17px)', color: 'var(--text-2)', lineHeight: 1.7, marginBottom: '2rem', fontWeight: 400, maxWidth: 440 }}>
               Orders from Messenger, web booking, and walk-ins — all in one board. Your AI replies in Tagalog 24/7, so you never miss a customer.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#1d8ba0'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#38a9c2'; e.currentTarget.style.transform = 'none'; }}>
+              <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-tint-dark)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-tint)'; e.currentTarget.style.transform = 'none'; }}>
                 Start for free
                 <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
               </a>
               <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 14, fontWeight: 600, color: '#374151', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'color .15s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#38a9c2'; e.currentTarget.querySelector('svg').style.stroke = '#38a9c2'; }}
-                onMouseLeave={e => { e.currentTarget.style.color = '#374151'; e.currentTarget.querySelector('svg').style.stroke = '#374151'; }}>
-                <Icon name="calendar" size={15} color="#374151" />
+                style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-2)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7, transition: 'color .15s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--primary-tint)'; e.currentTarget.querySelector('svg').style.stroke = 'var(--primary-tint)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.querySelector('svg').style.stroke = 'var(--text-2)'; }}>
+                <Icon name="calendar" size={15} color="var(--text-2)" />
                 Book a free demo
               </a>
             </div>
@@ -572,12 +595,12 @@ const TRUST_PILLS = [
 
 function TrustBar() {
   return (
-    <div style={{ background: 'linear-gradient(135deg,#2a9db5 0%,#38a9c2 60%,#1d8ba0 100%)', padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%)', padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px)', backgroundSize: '20px 20px', pointerEvents: 'none' }} />
       <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', position: 'relative' }}>
         {TRUST_PILLS.map((p, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.25)', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', backdropFilter: 'blur(4px)' }}>
-            <Icon name={p.icon} size={13} color="rgba(255,255,255,.9)" />
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,.16)', border: '1px solid rgba(255,255,255,.25)', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <Icon name={p.icon} size={13} color="#fff" />
             {p.text}
           </span>
         ))}
@@ -593,33 +616,33 @@ const TESTIMONIALS = [
     name: 'Maria Santos',
     shop: 'Quezon City',
     initial: 'M',
-    color: '#38a9c2',
+    color: 'var(--primary-tint)',
   },
   {
     quote: 'Yung blast messaging feature, sobrang helpful. Na-recover namin yung mga lapsed customers sa isang click.',
     name: 'Carlo Reyes',
     shop: 'Cebu City',
     initial: 'C',
-    color: '#7F77DD',
+    color: 'var(--purple)',
   },
   {
     quote: 'Customers think they\'re talking to a real person. Ang chatbot namin in Tagalog is very accurate!',
     name: 'Ana Gonzales',
     shop: 'Davao City',
     initial: 'A',
-    color: '#1D9E75',
+    color: 'var(--success)',
   },
 ];
 
 function Testimonials() {
   return (
-    <section style={{ background: '#F8F8F6', padding: 'clamp(3rem,6vw,5rem) 1.25rem' }}>
+    <section style={{ background: 'var(--bg)', padding: 'clamp(3rem,6vw,5rem) 1.25rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#e6f5f8', color: '#1a7d94', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--primary-light)', color: 'var(--primary-tint-text)', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>
             What shop owners say
           </div>
-          <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em' }}>
+          <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em' }}>
             Real shops. Real results.
           </h2>
         </div>
@@ -627,11 +650,11 @@ function Testimonials() {
           {TESTIMONIALS.map((t, i) => (
             <div key={i} style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 16, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 2px 12px rgba(0,0,0,.04)' }}>
               <div style={{ fontSize: 28, color: t.color, lineHeight: 1, fontFamily: 'Georgia, serif', marginBottom: -8 }}>"</div>
-              <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.7, fontWeight: 400, fontStyle: 'italic', margin: 0 }}>{t.quote}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid #F0F0EC' }}>
+              <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, fontWeight: 400, fontStyle: 'italic', margin: 0 }}>{t.quote}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: t.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.initial}</div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0D1117' }}>{t.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{t.name}</div>
                   <div style={{ fontSize: 12, color: '#6B7280' }}>{t.shop}</div>
                 </div>
               </div>
@@ -655,11 +678,11 @@ function POSSection() {
             <POSMockup />
           </div>
           {/* Text */}
-          <div ref={ref} style={{ flex: '1 1 320px', maxWidth: 440, opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#F0EFFC', color: '#4740a8', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1.25rem' }}>
+          <div ref={ref} className="reveal" style={{ flex: '1 1 320px', maxWidth: 440 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#4740a8', letterSpacing: '.02em', marginBottom: '.6rem' }}>
               Walk-in POS
-            </div>
-            <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.85rem', lineHeight: 1.15 }}>
+            </p>
+            <h2 style={{ fontSize: 'clamp(1.6rem,3.5vw,2.2rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em', marginBottom: '.85rem', lineHeight: 1.15 }}>
               Serve walk-in customers right at the counter
             </h2>
             <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.75, marginBottom: '1.5rem', fontWeight: 400 }}>
@@ -673,10 +696,10 @@ function POSSection() {
                 { icon: 'kanban',    text: 'Every walk-in order syncs to your dashboard instantly' },
               ].map((item, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: '#F0EFFC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                    <Icon name={item.icon} size={13} color="#7F77DD" />
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--purple-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                    <Icon name={item.icon} size={13} color="var(--purple)" />
                   </div>
-                  <span style={{ fontSize: 14, color: '#374151', lineHeight: 1.5, fontWeight: 500 }}>{item.text}</span>
+                  <span style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.5, fontWeight: 500 }}>{item.text}</span>
                 </div>
               ))}
             </div>
@@ -689,12 +712,12 @@ function POSSection() {
 
 // ── Features ──────────────────────────────────────────────────────────────────
 const FEATURES = [
-  { icon: 'messaging', bg: '#38a9c2', iconColor: '#fff',    label: 'Messenger', title: 'Book via Messenger',    desc: 'Customers place orders directly in Facebook Messenger — zero app downloads, zero friction.' },
-  { icon: 'globe',     bg: '#7F77DD', iconColor: '#fff',    label: 'Web',       title: 'Direct Web Booking',    desc: 'Share a public booking link — customers fill out a form, pick a service, and pay online even without Facebook.' },
-  { icon: 'services',  bg: '#fdca00', iconColor: '#7a5800', label: 'AI',        title: 'AI Chatbot in Tagalog', desc: 'Gemini-powered assistant answers in English, Tagalog, and Taglish round the clock.' },
-  { icon: 'kanban',    bg: '#1D9E75', iconColor: '#fff',    label: 'Board',     title: 'Kanban Order Board',    desc: 'Visual order pipeline from pick-up to processing to delivery — always in control.' },
-  { icon: 'walkin',    bg: '#38a9c2', iconColor: '#fff',    label: 'POS',       title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
-  { icon: 'delivery',  bg: '#7F77DD', iconColor: '#fff',    label: 'Zones',     title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
+  { icon: 'messaging', bg: 'var(--primary-tint)', title: 'Book via Messenger',    desc: 'Customers place orders directly in Facebook Messenger — zero app downloads, zero friction.' },
+  { icon: 'globe',     bg: 'var(--purple)',       title: 'Direct Web Booking',    desc: 'Share a public booking link — customers fill out a form, pick a service, and pay online even without Facebook.' },
+  { icon: 'services',  bg: 'var(--warning)',       title: 'AI Chatbot in Tagalog', desc: 'Gemini-powered assistant answers in English, Tagalog, and Taglish round the clock.' },
+  { icon: 'kanban',    bg: 'var(--success)',      title: 'Kanban Order Board',    desc: 'Visual order pipeline from pick-up to processing to delivery — always in control.' },
+  { icon: 'walkin',    bg: 'var(--primary-tint)', title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
+  { icon: 'delivery',  bg: 'var(--purple)',       title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
 ];
 
 const ALSO_INCLUDED = [
@@ -706,21 +729,14 @@ const ALSO_INCLUDED = [
   'Revenue analytics',
 ];
 
-function FeatureCard({ icon, bg, iconColor, label, title, desc }) {
+function FeatureRow({ icon, bg, title, desc, first }) {
   return (
-    <div
-      style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 16, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', transition: 'box-shadow .2s, transform .2s', cursor: 'default', borderTop: `3px solid ${bg}` }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,.09)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 14px ${bg}55`, flexShrink: 0 }}>
-          <Icon name={icon} size={19} color={iconColor} />
-        </div>
-        <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: bg === '#fdca00' ? '#BA7517' : bg, background: bg === '#fdca00' ? '#FDF3E3' : `${bg}18`, padding: '3px 10px', borderRadius: 50 }}>{label}</span>
+    <div style={{ display: 'flex', gap: 16, padding: '1.5rem 0', borderTop: first ? 'none' : '1px solid var(--border-subtle)' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: `color-mix(in srgb, ${bg} 12%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <Icon name={icon} size={18} color={bg} />
       </div>
       <div>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0D1117', marginBottom: 6, letterSpacing: '-.02em' }}>{title}</h3>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 4, letterSpacing: '-.02em' }}>{title}</h3>
         <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.7, margin: 0, fontWeight: 400 }}>{desc}</p>
       </div>
     </div>
@@ -729,26 +745,32 @@ function FeatureCard({ icon, bg, iconColor, label, title, desc }) {
 
 function Features() {
   const ref = useFadeUp();
+  const colA = FEATURES.slice(0, 3);
+  const colB = FEATURES.slice(3, 6);
   return (
-    <section id="features" style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
+    <section id="features" style={{ background: 'var(--bg)', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div ref={ref} style={{ textAlign: 'center', marginBottom: '2.5rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#e6f5f8', color: '#1a7d94', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>Features</div>
-          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Everything in one place</h2>
+        <div ref={ref} className="reveal" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Everything in one place</h2>
           <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 480, margin: '0 auto', lineHeight: 1.7, fontWeight: 400 }}>
             Replace spreadsheets, manual Messenger replies, and separate POS systems.
           </p>
         </div>
         <div className="l-features">
-          {FEATURES.map(f => <FeatureCard key={f.title} {...f} />)}
+          <div className="l-feat-col">
+            {colA.map((f, i) => <FeatureRow key={f.title} {...f} first={i === 0} />)}
+          </div>
+          <div className="l-feat-col">
+            {colB.map((f, i) => <FeatureRow key={f.title} {...f} first={i === 0} />)}
+          </div>
         </div>
         {/* Also included */}
         <div style={{ marginTop: '2.25rem', textAlign: 'center' }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '1rem' }}>Also included</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
             {ALSO_INCLUDED.map(f => (
-              <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: '#374151', fontWeight: 500 }}>
-                <Icon name="check" size={11} color="#38a9c2" />
+              <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>
+                <Icon name="check" size={11} color="var(--primary-tint)" />
                 {f}
               </span>
             ))}
@@ -761,9 +783,9 @@ function Features() {
 
 // ── How it works ──────────────────────────────────────────────────────────────
 const STEPS = [
-  { n: 1, color: '#38a9c2', icon: 'settings', title: 'Set up your shop',  desc: 'Add your services, pricing, and delivery zones. Connect your Facebook Page. Done in under 30 minutes.' },
-  { n: 2, color: '#1D9E75', icon: 'messaging', title: 'Customers order',   desc: 'Via Messenger, your public booking link, or your walk-in POS — every order flows into one board automatically.' },
-  { n: 3, color: '#7F77DD', icon: 'kanban',    title: 'Fulfill every order', desc: 'Move orders through pick-up, washing, and delivery on the Kanban board. Every customer gets notified at each step.' },
+  { n: 1, color: 'var(--primary-tint)', icon: 'settings', title: 'Set up your shop',  desc: 'Add your services, pricing, and delivery zones. Connect your Facebook Page. Done in under 30 minutes.' },
+  { n: 2, color: 'var(--success)', icon: 'messaging', title: 'Customers order',   desc: 'Via Messenger, your public booking link, or your walk-in POS — every order flows into one board automatically.' },
+  { n: 3, color: 'var(--purple)', icon: 'kanban',    title: 'Fulfill every order', desc: 'Move orders through pick-up, washing, and delivery on the Kanban board. Every customer gets notified at each step.' },
 ];
 
 function HowItWorks() {
@@ -771,23 +793,22 @@ function HowItWorks() {
   return (
     <section id="how" style={{ background: '#fff', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <div style={{ maxWidth: 860, margin: '0 auto' }}>
-        <div ref={ref} style={{ marginBottom: '3rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#EAF3DE', color: '#3B6D11', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>How it works</div>
-          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.5rem' }}>Up and running today</h2>
+        <div ref={ref} className="reveal" style={{ marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em', marginBottom: '.5rem' }}>Up and running today</h2>
           <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.7, fontWeight: 400, maxWidth: 400 }}>From zero to first order in under a day.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {STEPS.map((s, i) => (
-            <div key={s.n} style={{ display: 'flex', gap: 'clamp(1.5rem,4vw,3rem)', alignItems: 'flex-start', paddingBottom: i < STEPS.length - 1 ? '2.25rem' : 0, borderBottom: i < STEPS.length - 1 ? '1px solid #F0F0EC' : 'none', marginBottom: i < STEPS.length - 1 ? '2.25rem' : 0 }}>
+            <div key={s.n} style={{ display: 'flex', gap: 'clamp(1.5rem,4vw,3rem)', alignItems: 'flex-start', paddingBottom: i < STEPS.length - 1 ? '2.25rem' : 0, borderBottom: i < STEPS.length - 1 ? '1px solid var(--border-subtle)' : 'none', marginBottom: i < STEPS.length - 1 ? '2.25rem' : 0 }}>
               <div style={{ fontSize: 'clamp(3rem,7vw,5.5rem)', fontWeight: 900, color: s.color, lineHeight: 1, letterSpacing: '-.04em', flexShrink: 0, minWidth: '2ch', opacity: 0.85, fontVariantNumeric: 'tabular-nums' }}>
                 {String(s.n).padStart(2, '0')}
               </div>
               <div style={{ flex: 1, paddingTop: '0.4rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.6rem' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: `${s.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: `color-mix(in srgb, ${s.color} 9%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon name={s.icon} size={16} color={s.color} />
                   </div>
-                  <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.15rem)', fontWeight: 800, color: '#0D1117', margin: 0, letterSpacing: '-.02em' }}>{s.title}</h3>
+                  <h3 style={{ fontSize: 'clamp(1rem,2.5vw,1.15rem)', fontWeight: 800, color: 'var(--text)', margin: 0, letterSpacing: '-.02em' }}>{s.title}</h3>
                 </div>
                 <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.75, margin: 0, fontWeight: 400 }}>{s.desc}</p>
               </div>
@@ -817,14 +838,14 @@ const FAQ_LD = JSON.stringify({
 function FAQAccordion({ q, a }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ borderBottom: '1px solid #F0F0EC' }}>
+    <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
       <button onClick={() => setOpen(o => !o)} aria-expanded={open}
-        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '1.25rem 1.5rem', background: open ? '#F8F8F6' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'background .15s' }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: '#0D1117', lineHeight: 1.4 }}>{q}</span>
-        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? '#38a9c2' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s, transform .2s', transform: open ? 'rotate(45deg)' : 'none' }}>
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '1.25rem 1.5rem', background: open ? 'var(--bg)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'background .15s' }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4 }}>{q}</span>
+        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? 'var(--primary-tint)' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s, transform .2s', transform: open ? 'rotate(45deg)' : 'none' }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <line x1="6" y1="1" x2="6" y2="11" stroke={open ? '#fff' : '#374151'} strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="1" y1="6" x2="11" y2="6" stroke={open ? '#fff' : '#374151'} strokeWidth="1.8" strokeLinecap="round"/>
+            <line x1="6" y1="1" x2="6" y2="11" stroke={open ? '#fff' : 'var(--text-2)'} strokeWidth="1.8" strokeLinecap="round"/>
+            <line x1="1" y1="6" x2="11" y2="6" stroke={open ? '#fff' : 'var(--text-2)'} strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         </span>
       </button>
@@ -838,12 +859,11 @@ function FAQAccordion({ q, a }) {
 function FAQ() {
   const ref = useFadeUp();
   return (
-    <section style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
+    <section style={{ background: 'var(--bg)', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: FAQ_LD }} />
       <div style={{ maxWidth: 760, margin: '0 auto', position: 'relative' }}>
-        <div ref={ref} style={{ textAlign: 'center', marginBottom: '2.5rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FDF3E3', color: '#BA7517', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>FAQ</div>
-          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Common questions</h2>
+        <div ref={ref} className="reveal" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em', marginBottom: '.75rem' }}>Common questions</h2>
           <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 400, margin: '0 auto', lineHeight: 1.7, fontWeight: 400 }}>Everything you need to know before getting started.</p>
         </div>
         <div style={{ background: '#fff', border: '1px solid #EBEBEB', borderRadius: 20, overflow: 'hidden' }}>
@@ -863,9 +883,9 @@ const PLANS = [
     annual: 833,
     annualTotal: '₱9,990',
     monthsFree: 2,
-    color: '#38a9c2',
-    textColor: '#1a7d94',
-    bg: '#e6f5f8',
+    color: 'var(--primary-tint)',
+    textColor: 'var(--primary-tint-text)',
+    bg: 'var(--primary-light)',
     popular: false,
     cta: 'Start free trial',
     features: [
@@ -884,9 +904,9 @@ const PLANS = [
     annual: 1666,
     annualTotal: '₱19,990',
     monthsFree: 2,
-    color: '#38a9c2',
+    color: 'var(--primary-tint)',
     textColor: '#fff',
-    bg: '#38a9c2',
+    bg: 'var(--primary-tint)',
     popular: true,
     cta: 'Start free trial',
     features: [
@@ -908,9 +928,9 @@ const PLANS = [
     annual: 4583,
     annualTotal: '₱54,990',
     monthsFree: 2,
-    color: '#7F77DD',
+    color: 'var(--purple)',
     textColor: '#4740a8',
-    bg: '#F0EFFC',
+    bg: 'var(--purple-bg)',
     popular: false,
     cta: 'Contact us',
     features: [
@@ -955,16 +975,16 @@ function PricingCard({ plan, annual }) {
         <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5, marginBottom: '1.25rem', fontWeight: 500, minHeight: 40 }}>{plan.tagline}</p>
 
         {/* Price */}
-        <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #F0F0EC' }}>
+        <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', alignSelf: 'flex-start', marginTop: 8 }}>₱</span>
-            <span style={{ fontSize: 'clamp(2.2rem,4vw,2.8rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', lineHeight: 1 }}>
+            <span style={{ fontSize: 'clamp(2.2rem,4vw,2.8rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.04em', lineHeight: 1 }}>
               {price.toLocaleString()}
             </span>
             <span style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>/month</span>
           </div>
           {annual && (
-            <div style={{ fontSize: 12, color: '#38a9c2', fontWeight: 600, marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: 'var(--primary-tint)', fontWeight: 600, marginTop: 4 }}>
               Billed {plan.annualTotal}/year · {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} free
             </div>
           )}
@@ -981,11 +1001,11 @@ function PricingCard({ plan, annual }) {
             display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
             background: isPopular ? plan.color : 'transparent',
             border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
-            color: isPopular ? '#fff' : '#374151',
+            color: isPopular ? '#fff' : 'var(--text-2)',
             fontWeight: 800, fontSize: 14, textDecoration: 'none',
             marginBottom: '1.5rem', transition: 'all .15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = isPopular ? '#1d8ba0' : '#F8F8F6'; e.currentTarget.style.borderColor = isPopular ? '#1d8ba0' : '#bbb'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = isPopular ? 'var(--primary-tint-dark)' : 'var(--bg)'; e.currentTarget.style.borderColor = isPopular ? 'var(--primary-tint-dark)' : '#bbb'; }}
           onMouseLeave={e => { e.currentTarget.style.background = isPopular ? plan.color : 'transparent'; e.currentTarget.style.borderColor = isPopular ? plan.color : '#DADADA'; }}
         >
           {plan.cta}
@@ -995,10 +1015,10 @@ function PricingCard({ plan, annual }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {plan.features.map((f, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: isPopular ? '#e6f5f8' : '#F0F0EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: isPopular ? 'var(--primary-light)' : 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
                 <Icon name="check" size={10} color={plan.color} />
               </div>
-              <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{f}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.5 }}>{f}</span>
             </div>
           ))}
         </div>
@@ -1012,13 +1032,12 @@ function Pricing() {
   const ref = useFadeUp();
 
   return (
-    <section id="pricing" style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
+    <section id="pricing" style={{ background: 'var(--bg)', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* Header */}
-        <div ref={ref} style={{ textAlign: 'center', marginBottom: '3rem', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#FDF3E3', color: '#BA7517', fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 50, marginBottom: '1rem' }}>Pricing</div>
-          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.035em', marginBottom: '.75rem' }}>
+        <div ref={ref} className="reveal" style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.7rem,4vw,2.4rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.035em', marginBottom: '.75rem' }}>
             Costs less than a part-time staff.<br />Works 24 hours a day.
           </h2>
           <p style={{ fontSize: 15, color: '#6B7280', maxWidth: 480, margin: '0 auto', lineHeight: 1.7, fontWeight: 400 }}>
@@ -1036,8 +1055,8 @@ function Pricing() {
               <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: 500 }}>per month · 8am–5pm only</div>
             </div>
             <div style={{ background: '#E6F7FB', padding: '1.25rem 1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: '#38a9c2', marginBottom: 8 }}><Icon name="check-circle" size={13} color="#38a9c2" /> LaundroBot</div>
-              <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: '#38a9c2', letterSpacing: '-.03em', lineHeight: 1 }}>₱1,999</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--primary-tint)', marginBottom: 8 }}><Icon name="check-circle" size={13} color="var(--primary-tint)" /> LaundroBot</div>
+              <div style={{ fontSize: 'clamp(1.6rem,3vw,2.2rem)', fontWeight: 900, color: 'var(--primary-tint)', letterSpacing: '-.03em', lineHeight: 1 }}>₱1,999</div>
               <div style={{ fontSize: 11, color: '#6B7280', marginTop: 4, fontWeight: 500 }}>per month · 24/7 in Tagalog</div>
             </div>
           </div>
@@ -1049,15 +1068,15 @@ function Pricing() {
                 <span style={{ fontSize: 12.5, color: '#6B7280', lineHeight: 1.4, textDecoration: 'line-through', textDecorationColor: '#FECACA' }}>{c.before}</span>
               </div>
               <div style={{ background: i % 2 === 0 ? '#F5FCFE' : '#EEF9FD', padding: '.85rem 1.5rem', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#CCEEF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: '#38a9c2', fontWeight: 900 }}>✓</span>
-                <span style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.4, fontWeight: 600 }}>{c.after}</span>
+                <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#CCEEF6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 9, color: 'var(--primary-tint)', fontWeight: 900 }}>✓</span>
+                <span style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.4, fontWeight: 600 }}>{c.after}</span>
               </div>
             </div>
           ))}
           {/* Savings callout */}
-          <div style={{ background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <Icon name="card" size={20} color="#fdca00" />
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>You save <span style={{ color: '#fdca00', fontSize: 17 }}>₱5,001/month</span> vs hiring a part-time encoder</span>
+          <div style={{ background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <Icon name="card" size={20} color="var(--accent)" />
+            <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>You save <span style={{ color: 'var(--accent)', fontSize: 17 }}>₱5,001/month</span> vs hiring a part-time encoder</span>
           </div>
         </div>
 
@@ -1066,9 +1085,9 @@ function Pricing() {
           <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
             {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
-                style={{ padding: '8px 18px', borderRadius: 46, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? '#38a9c2' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                style={{ padding: '8px 18px', minHeight: 44, borderRadius: 46, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? 'var(--primary-tint)' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 {opt.label}
-                {opt.val && <span style={{ background: '#fdca00', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 17%</span>}
+                {opt.val && <span style={{ background: 'var(--accent)', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 17%</span>}
               </button>
             ))}
           </div>
@@ -1085,7 +1104,7 @@ function Pricing() {
             14-day free trial on all plans · No credit card required · Cancel anytime
           </p>
           <p style={{ fontSize: 13, color: '#6B7280', margin: 0 }}>
-            Not sure which plan? <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#38a9c2', fontWeight: 700, textDecoration: 'none' }}>Book a free demo →</a>
+            Not sure which plan? <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-tint)', fontWeight: 700, textDecoration: 'none' }}>Book a free demo →</a>
           </p>
         </div>
 
@@ -1098,27 +1117,27 @@ function Pricing() {
 function CtaBand() {
   const ref = useFadeUp();
   return (
-    <section style={{ background: '#F8F8F6', padding: 'clamp(3.5rem,7vw,6rem) 1.25rem' }}>
-      <div ref={ref} style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center', opacity: 0, transform: 'translateY(18px)', transition: 'opacity .45s ease, transform .45s ease' }}>
-        <img src="/mascot.png" alt="" aria-hidden="true" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 24, margin: '0 auto 1.75rem', display: 'block', animation: 'mascotFloat 3.5s ease-in-out infinite', filter: 'drop-shadow(0 12px 28px rgba(56,169,194,.3))' }} />
-        <h2 style={{ fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 900, color: '#0D1117', letterSpacing: '-.04em', marginBottom: '1rem', lineHeight: 1.1 }}>
+    <section style={{ background: 'var(--bg)', padding: 'clamp(3.5rem,7vw,6rem) 1.25rem' }}>
+      <div ref={ref} className="reveal" style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center' }}>
+        <img src="/mascot-256.png" alt="" aria-hidden="true" loading="lazy" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 24, margin: '0 auto 1.75rem', display: 'block', animation: 'mascotFloat 3.5s ease-in-out infinite', filter: 'drop-shadow(0 12px 28px rgba(56,169,194,.3))' }} />
+        <h2 style={{ fontSize: 'clamp(1.8rem,4vw,3rem)', fontWeight: 900, color: 'var(--text)', letterSpacing: '-.04em', marginBottom: '1rem', lineHeight: 1.1 }}>
           Ready to grow your laundry business?
         </h2>
         <p style={{ fontSize: 16, color: '#6B7280', lineHeight: 1.7, marginBottom: '2.25rem', maxWidth: 520, margin: '0 auto 2.25rem', fontWeight: 400 }}>
           Start accepting orders tonight. Setup takes under 30 minutes — your AI chatbot will be answering customers in Tagalog before you close shop.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: '#38a9c2', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#1d8ba0'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(56,169,194,.5)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#38a9c2'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(56,169,194,.4)'; }}>
+          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-tint-dark)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(56,169,194,.5)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-tint)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(56,169,194,.4)'; }}>
             Get started — it&apos;s free
             <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
           </a>
           <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: '#38a9c2', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid #38a9c2', minHeight: 52, transition: 'all .15s' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid var(--primary-tint)', minHeight: 52, transition: 'all .15s' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.transform = 'none'; }}>
-            <Icon name="calendar" size={16} color="#38a9c2" />
+            <Icon name="calendar" size={16} color="var(--primary-tint)" />
             Book a free demo
           </a>
         </div>
@@ -1132,7 +1151,7 @@ const footerLink = { fontSize: 13, color: '#6B7280', textDecoration: 'none' };
 function FooterLink({ href, children, target, rel }) {
   return (
     <a href={href} target={target} rel={rel} style={footerLink}
-      onMouseEnter={e => e.currentTarget.style.color = '#0D1117'}
+      onMouseEnter={e => e.currentTarget.style.color = 'var(--text)'}
       onMouseLeave={e => e.currentTarget.style.color = '#6B7280'}>{children}</a>
   );
 }
@@ -1146,8 +1165,8 @@ function Footer() {
           {/* Brand */}
           <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.75rem' }}>
-              <img src="/logo.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#0D1117' }}>LaundroBot</span>
+              <img src="/logo-96.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>LaundroBot</span>
             </div>
             <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>
               Laundry shop management software built by a laundry shop owner, for laundry shop owners.
@@ -1176,7 +1195,7 @@ function Footer() {
           </div>
         </div>
         {/* Bottom row */}
-        <div style={{ borderTop: '1px solid #F0F0EC', paddingTop: '1.25rem' }}>
+        <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem' }}>
           <p style={{ fontSize: 12, color: '#6B7280', margin: 0, textAlign: 'center' }}>
             © {new Date().getFullYear()} Rinselab Inc. · LaundroBot · Built for laundry businesses in the Philippines
           </p>

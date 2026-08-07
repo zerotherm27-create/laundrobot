@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createSubscriptionInvoice } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 
 const PLAN_TIERS = [
   { key: 'starter_monthly', label: 'Starter', price: '₱999',   per: '/month', badge: null,              color: '#38a9c2', lightBg: '#F0FBFD' },
@@ -95,7 +96,7 @@ export default function PaywallScreen() {
           <div style={{ background: '#F9FAFB', borderRadius: 12, padding: '14px 16px', marginBottom: 24, textAlign: 'left' }}>
             {FEATURES.map(f => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, color: '#374151' }}>
-                <span style={{ color: '#38a9c2', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                <span style={{ flexShrink: 0, display: 'inline-flex' }}><Icon name="check" size={13} color="#38a9c2" /></span>
                 {f}
               </div>
             ))}

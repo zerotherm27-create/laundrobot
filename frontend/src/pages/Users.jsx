@@ -3,6 +3,7 @@ import { getUsers, createUser, updateUser, deleteUser, changePassword, getTenant
 import { useAuth } from '../context/AuthContext.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
+import { Icon } from '../components/Icons.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
 const FEATURES = [
@@ -258,7 +259,7 @@ export default function Users() {
                         background: on ? '#e6f5f8' : '#fafafa',
                       }}>
                         <div style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, background: on ? 'var(--primary)' : '#fff', border: `1.5px solid ${on ? 'var(--primary)' : '#ccc'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {on && <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                          {on && <Icon name="check" size={11} color="#fff" />}
                         </div>
                         <span style={{ fontSize: 13 }}>{feat.icon}</span>
                         <span style={{ fontSize: 12, fontWeight: on ? 500 : 400, color: on ? 'var(--primary)' : '#666' }}>{feat.label}</span>
@@ -273,8 +274,9 @@ export default function Users() {
             )}
 
             {form.role === 'admin' && (
-              <div style={{ marginBottom: 20, padding: '10px 14px', background: '#E6F5E9', borderRadius: 8, fontSize: 12, color: '#2E7D32' }}>
-                ✅ Admin role has <strong>full access</strong> to all features — no restrictions
+              <div style={{ marginBottom: 20, padding: '10px 14px', background: '#E6F5E9', borderRadius: 8, fontSize: 12, color: '#2E7D32', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                <Icon name="check-circle" size={13} color="#2E7D32" style={{ marginTop: 1, flexShrink: 0 }} />
+                <span>Admin role has <strong>full access</strong> to all features — no restrictions</span>
               </div>
             )}
 
