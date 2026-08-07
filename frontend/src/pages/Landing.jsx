@@ -55,6 +55,26 @@ const RESPONSIVE_CSS = `
     border-radius: 4px;
   }
 
+  :root {
+    --l-ease-out:    cubic-bezier(.23, 1, .32, 1);
+    --l-ease-in-out: cubic-bezier(.77, 0, .175, 1);
+    --l-ease-drawer: cubic-bezier(.32, .72, 0, 1);
+  }
+
+  /* Press feedback for CTA buttons/links. !important is intentional here:
+     several CTAs also set transform inline via JS on hover (a lift effect),
+     and :active needs to win over that during the press itself. */
+  .btn-press:active { transform: scale(.97) !important; }
+
+  /* FAQ answer collapse — grid-rows trick avoids animating to/from auto height. */
+  .faq-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .25s var(--l-ease-out);
+  }
+  .faq-collapse.is-open { grid-template-rows: 1fr; }
+  .faq-collapse > div { overflow: hidden; }
+
   @media (prefers-reduced-motion: reduce) {
     .reveal-in { animation: none !important; }
     * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
@@ -155,7 +175,7 @@ function MessengerMockup() {
       <div style={{ flex: 1, overflowY: 'hidden', padding: '10px 10px 6px', display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'flex-end' }}>
         <div style={{ alignSelf: 'flex-end', background: '#0084ff', borderRadius: '18px 18px 3px 18px', padding: '8px 14px', fontSize: 11, color: '#fff', fontWeight: 500 }}>Hi</div>
         {confirmed ? (
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, animation: 'msgIn .3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, animation: 'msgIn .3s var(--l-ease-out)' }}>
             {BotAvatar}
             <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', padding: '10px 12px', fontSize: 10, lineHeight: 1.65, color: '#050505', maxWidth: '82%' }}>
               🎉 <strong>Booking confirmed!</strong>{'\n\n'}🆔 ORD-482910{'\n'}🧺 Clothes – Machine Wash{'\n'}🗓 Bukas, 9:00 AM{'\n'}💰 Total: ₱660
@@ -165,7 +185,7 @@ function MessengerMockup() {
           /* Bot greeting card with buttons INSIDE — matches real screenshot */
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5 }}>
             {BotAvatar}
-            <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', overflow: 'hidden', maxWidth: '84%', animation: 'msgIn .3s ease' }}>
+            <div style={{ background: '#f0f2f5', borderRadius: '16px 16px 16px 3px', overflow: 'hidden', maxWidth: '84%', animation: 'msgIn .3s var(--l-ease-out)' }}>
               <div style={{ padding: '10px 12px 8px', fontSize: 10.5, lineHeight: 1.65, color: '#050505' }}>
                 👋 <strong>Hi, Bren! Welcome to THE LAUNDRY PROJECT!</strong>{'\n\n'}What would you like to do?
               </div>
@@ -175,7 +195,7 @@ function MessengerMockup() {
                   { label: '📦 My Orders', hi: false },
                   { label: '❓ FAQs', hi: false },
                 ].map(({ label, hi }, i) => (
-                  <div key={label} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 700, color: tapping && hi ? '#fff' : '#0084ff', textAlign: 'center', background: tapping && hi ? '#0084ff' : '#fff', borderTop: i > 0 ? '1px solid #e4e6ea' : 'none', transition: 'all .2s' }}>
+                  <div key={label} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 700, color: tapping && hi ? '#fff' : '#0084ff', textAlign: 'center', background: tapping && hi ? '#0084ff' : '#fff', borderTop: i > 0 ? '1px solid #e4e6ea' : 'none', transition: 'background .2s var(--l-ease-out), color .2s var(--l-ease-out)' }}>
                     {label}
                   </div>
                 ))}
@@ -474,11 +494,11 @@ function Nav() {
                 onMouseEnter={e => e.currentTarget.style.color = 'var(--primary-tint)'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-2)'}>{l.label}</a>
             ))}
-            <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid var(--primary-tint)', minHeight: 44, marginLeft: 4 }}
+            <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" className="btn-press"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 18px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 13, textDecoration: 'none', border: '1.5px solid var(--primary-tint)', minHeight: 44, marginLeft: 4, transition: 'background 150ms var(--l-ease-out)' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>Book a demo</a>
-            <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 22px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 44 }}
+            <a href="/signup" className="btn-press" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '9px 22px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none', minHeight: 44, transition: 'background 150ms var(--l-ease-out)' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-tint-dark)'}
               onMouseLeave={e => e.currentTarget.style.background = 'var(--primary-tint)'}>Get started free</a>
           </div>
@@ -512,7 +532,7 @@ function Nav() {
         padding: '1rem 1.25rem 1.5rem',
         boxShadow: '0 8px 32px rgba(0,0,0,.12)',
         transform: drawerOpen ? 'translateY(0)' : 'translateY(-110%)',
-        transition: 'transform 0.25s ease',
+        transition: 'transform 0.25s var(--l-ease-drawer)',
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         {NAV_LINKS.map(l => (
@@ -559,7 +579,7 @@ function Hero() {
               Orders from Messenger, web booking, and walk-ins — all in one board. Your AI replies in Tagalog 24/7, so you never miss a customer.
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'all .15s', minHeight: 50 }}
+              <a href="/signup" className="btn-press" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 28px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 22px rgba(56,169,194,.38)', transition: 'background 150ms var(--l-ease-out), transform 150ms var(--l-ease-out), box-shadow 150ms var(--l-ease-out)', minHeight: 50 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-tint-dark)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-tint)'; e.currentTarget.style.transform = 'none'; }}>
                 Start for free
@@ -842,16 +862,18 @@ function FAQAccordion({ q, a }) {
       <button onClick={() => setOpen(o => !o)} aria-expanded={open}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '1.25rem 1.5rem', background: open ? 'var(--bg)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'background .15s' }}>
         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.4 }}>{q}</span>
-        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? 'var(--primary-tint)' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s, transform .2s', transform: open ? 'rotate(45deg)' : 'none' }}>
+        <span style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, background: open ? 'var(--primary-tint)' : '#EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s var(--l-ease-out), transform .2s var(--l-ease-in-out)', transform: open ? 'rotate(45deg)' : 'none' }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <line x1="6" y1="1" x2="6" y2="11" stroke={open ? '#fff' : 'var(--text-2)'} strokeWidth="1.8" strokeLinecap="round"/>
             <line x1="1" y1="6" x2="11" y2="6" stroke={open ? '#fff' : 'var(--text-2)'} strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         </span>
       </button>
-      {open && (
-        <div style={{ padding: '0 1.5rem 1.25rem', fontSize: 14, color: '#6B7280', lineHeight: 1.8, fontWeight: 400 }}>{a}</div>
-      )}
+      <div className={`faq-collapse${open ? ' is-open' : ''}`} aria-hidden={!open}>
+        <div>
+          <div style={{ padding: '0 1.5rem 1.25rem', fontSize: 14, color: '#6B7280', lineHeight: 1.8, fontWeight: 400 }}>{a}</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -997,13 +1019,14 @@ function PricingCard({ plan, annual }) {
         <a href={plan.cta === 'Contact us' ? 'https://calendly.com/laundrobotph/30min' : '/signup'}
           target={plan.cta === 'Contact us' ? '_blank' : undefined}
           rel={plan.cta === 'Contact us' ? 'noopener noreferrer' : undefined}
+          className="btn-press"
           style={{
             display: 'block', textAlign: 'center', padding: '12px', borderRadius: 50,
             background: isPopular ? plan.color : 'transparent',
             border: `2px solid ${isPopular ? plan.color : '#DADADA'}`,
             color: isPopular ? '#fff' : 'var(--text-2)',
             fontWeight: 800, fontSize: 14, textDecoration: 'none',
-            marginBottom: '1.5rem', transition: 'all .15s',
+            marginBottom: '1.5rem', transition: 'background 150ms var(--l-ease-out), border-color 150ms var(--l-ease-out)',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = isPopular ? 'var(--primary-tint-dark)' : 'var(--bg)'; e.currentTarget.style.borderColor = isPopular ? 'var(--primary-tint-dark)' : '#bbb'; }}
           onMouseLeave={e => { e.currentTarget.style.background = isPopular ? plan.color : 'transparent'; e.currentTarget.style.borderColor = isPopular ? plan.color : '#DADADA'; }}
@@ -1085,7 +1108,7 @@ function Pricing() {
           <div style={{ display: 'inline-flex', background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: 4, gap: 4 }}>
             {[{ label: 'Monthly', val: false }, { label: 'Annual', val: true }].map(opt => (
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
-                style={{ padding: '8px 18px', minHeight: 44, borderRadius: 46, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all .15s', background: annual === opt.val ? 'var(--primary-tint)' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                style={{ padding: '8px 18px', minHeight: 44, borderRadius: 46, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'background 150ms var(--l-ease-out), color 150ms var(--l-ease-out)', background: annual === opt.val ? 'var(--primary-tint)' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 {opt.label}
                 {opt.val && <span style={{ background: 'var(--accent)', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 17%</span>}
               </button>
@@ -1127,14 +1150,14 @@ function CtaBand() {
           Start accepting orders tonight. Setup takes under 30 minutes — your AI chatbot will be answering customers in Tagalog before you close shop.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          <a href="/signup" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'all .15s', minHeight: 52 }}
+          <a href="/signup" className="btn-press" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 34px', borderRadius: 50, background: 'var(--primary-tint)', color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none', boxShadow: '0 6px 24px rgba(56,169,194,.4)', transition: 'background 150ms var(--l-ease-out), transform 150ms var(--l-ease-out), box-shadow 150ms var(--l-ease-out)', minHeight: 52 }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-tint-dark)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(56,169,194,.5)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary-tint)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(56,169,194,.4)'; }}>
             Get started — it&apos;s free
             <Icon name="arrow-up" size={15} color="#fff" style={{ transform: 'rotate(90deg)' }} />
           </a>
-          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid var(--primary-tint)', minHeight: 52, transition: 'all .15s' }}
+          <a href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer" className="btn-press"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '14px 28px', borderRadius: 50, background: 'transparent', color: 'var(--primary-tint)', fontWeight: 700, fontSize: 15, textDecoration: 'none', border: '2px solid var(--primary-tint)', minHeight: 52, transition: 'background 150ms var(--l-ease-out), transform 150ms var(--l-ease-out)' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#f0fbfd'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.transform = 'none'; }}>
             <Icon name="calendar" size={16} color="var(--primary-tint)" />
