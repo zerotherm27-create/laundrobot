@@ -5,9 +5,11 @@ import {
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
   getFinanceCustomerRetention,  // used in MonthlySummary
   getRefunds, markRefundIssued,
+  getCustomExpenseLabels, addCustomExpenseLabel, deleteCustomExpenseLabel,
 } from '../api.js';
 import { usePlan } from '../context/UpgradeContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../context/ConfirmContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 
 const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
@@ -1071,11 +1073,17 @@ function DailySales() {
 // ─── Monthly Expenses ─────────────────────────────────────────────────────────
 
 function Expenses() {
-  const [year,    setYear]    = useState(new Date().getFullYear());
-  const [expData, setExpData] = useState([]);
-  const [editing, setEditing] = useState({});
-  const [saving,  setSaving]  = useState({});
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [year,        setYear]        = useState(new Date().getFullYear());
+  const [expData,     setExpData]     = useState([]);
+  const [editing,     setEditing]     = useState({});
+  const [saving,      setSaving]      = useState({});
+  const [loading,     setLoading]     = useState(true);
+  const [customLabels, setCustomLabels] = useState([]);
+  const [addingFor,   setAddingFor]   = useState(null); // category currently showing the add-input
+  const [newLabel,    setNewLabel]    = useState('');
+  const [addingBusy,  setAddingBusy]  = useState(false);
 
   function load(y) {
     setLoading(true);
@@ -1086,6 +1094,24 @@ function Expenses() {
   }
 
   useEffect(() => { load(year); }, [year]);
+
+  // Custom labels are permanent (not year-scoped), so fetch once.
+  useEffect(() => {
+    getCustomExpenseLabels()
+      .then(r => setCustomLabels(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {});
+  }, []);
+
+  function rowsForCategory(category) {
+    const custom = customLabels
+      .filter(c => c.category === category)
+      .map(c => ({ label: c.label, isCustom: true, id: c.id }));
+    return [...EXPENSE_CATEGORIES.find(c => c.category === category).labels.map(label => ({ label, isCustom: false })), ...custom];
+  }
+
+  function allLabels() {
+    return [...EXPENSE_CATEGORIES.flatMap(c => c.labels), ...customLabels.map(c => c.label)];
+  }
 
   function getAmount(label, month) {
     const key = `${label}-${month}`;
@@ -1104,7 +1130,7 @@ function Expenses() {
   }
 
   function colTotal(month) {
-    return EXPENSE_CATEGORIES.flatMap(c => c.labels).reduce((s, label) => {
+    return allLabels().reduce((s, label) => {
       const key = `${label}-${month}`;
       if (key in editing) return s + (parseFloat(editing[key]) || 0);
       const row = expData.find(e => e.label === label && e.month === month);
@@ -1128,11 +1154,42 @@ function Expenses() {
     setEditing(p => { const n = { ...p }; delete n[key]; return n; });
   }
 
+  async function submitCustomLabel(category) {
+    const label = newLabel.trim();
+    if (!label) { setAddingFor(null); return; }
+    if (allLabels().some(l => l.toLowerCase() === label.toLowerCase())) {
+      toast('An expense with this name already exists.');
+      return;
+    }
+    setAddingBusy(true);
+    try {
+      const saved = await addCustomExpenseLabel({ category, label });
+      setCustomLabels(p => [...p, saved.data]);
+      setAddingFor(null);
+      setNewLabel('');
+    } catch (e) {
+      toast(e.response?.data?.error || 'Failed to add expense.');
+    }
+    setAddingBusy(false);
+  }
+
+  async function removeCustomLabel(row) {
+    if (!await confirm({ title: 'Delete this expense?', message: `"${row.label}" and all its recorded amounts will be removed.`, confirmLabel: 'Delete', danger: true })) return;
+    try {
+      await deleteCustomExpenseLabel(row.id);
+      setCustomLabels(p => p.filter(c => c.id !== row.id));
+      setExpData(p => p.filter(e => e.label !== row.label));
+    } catch {
+      toast('Failed to delete expense.');
+    }
+  }
+
   const grandTotal = Array.from({ length: 12 }, (_, i) => colTotal(i + 1)).reduce((s, v) => s + v, 0);
   const now = new Date();
 
   // Category totals for breakdown chart
-  const catBars = EXPENSE_CATEGORIES.map(({ category, labels }, ci) => {
+  const catBars = EXPENSE_CATEGORIES.map(({ category }, ci) => {
+    const labels = rowsForCategory(category).map(r => r.label);
     const total = labels.reduce((s, label) => {
       return s + Array.from({ length: 12 }, (_, mi) => {
         const row = expData.find(e => e.label === label && e.month === mi + 1);
@@ -1178,16 +1235,26 @@ function Expenses() {
               </tr>
             </thead>
             <tbody>
-              {EXPENSE_CATEGORIES.map(({ category, labels }) => (
-                <>
-                  <tr key={`cat-${category}`} style={{ background: '#f5f5f3' }}>
+              {EXPENSE_CATEGORIES.map(({ category }) => (
+                <React.Fragment key={category}>
+                  <tr style={{ background: '#f5f5f3' }}>
                     <td colSpan={14} style={{ ...tdStyle, fontWeight: 700, color: '#374151', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', paddingTop: 10, paddingBottom: 4 }}>
                       {category}
                     </td>
                   </tr>
-                  {labels.map(label => (
+                  {rowsForCategory(category).map(row => {
+                    const { label, isCustom } = row;
+                    return (
                     <tr key={label}>
-                      <td style={{ ...tdStyle, paddingLeft: 20 }}>{label}</td>
+                      <td style={{ ...tdStyle, paddingLeft: 20 }}>
+                        {label}
+                        {isCustom && (
+                          <button onClick={() => removeCustomLabel(row)} title="Delete this expense"
+                            style={{ marginLeft: 6, padding: 2, background: 'none', border: 'none', cursor: 'pointer', verticalAlign: 'middle', lineHeight: 0 }}>
+                            <Icon name="x" size={11} color="#9CA3AF" />
+                          </button>
+                        )}
+                      </td>
                       {Array.from({ length: 12 }, (_, i) => {
                         const m        = i + 1;
                         const key      = `${label}-${m}`;
@@ -1228,8 +1295,41 @@ function Expenses() {
                         {rowTotal(label) > 0 ? Number(rowTotal(label)).toLocaleString('en-PH', { minimumFractionDigits: 0 }) : '—'}
                       </td>
                     </tr>
-                  ))}
-                </>
+                    );
+                  })}
+                  <tr key={`add-${category}`}>
+                    <td colSpan={14} style={{ ...tdStyle, paddingLeft: 20, paddingTop: 4, paddingBottom: 8 }}>
+                      {addingFor === category ? (
+                        <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                          <input
+                            autoFocus type="text" placeholder="Expense name"
+                            value={newLabel}
+                            onChange={e => setNewLabel(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter')  submitCustomLabel(category);
+                              if (e.key === 'Escape') { setAddingFor(null); setNewLabel(''); }
+                            }}
+                            disabled={addingBusy}
+                            style={{ padding: '3px 6px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 12, fontFamily: 'inherit', width: 160 }}
+                          />
+                          <button onClick={() => submitCustomLabel(category)} disabled={addingBusy}
+                            style={{ padding: '3px 10px', borderRadius: 4, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Add
+                          </button>
+                          <button onClick={() => { setAddingFor(null); setNewLabel(''); }} disabled={addingBusy}
+                            style={{ padding: '3px 10px', borderRadius: 4, border: '0.5px solid #ccc', background: '#fff', color: '#6B7280', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button onClick={() => { setAddingFor(category); setNewLabel(''); }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 0', background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          <Icon name="plus" size={11} color="var(--primary)" /> Add custom expense
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                </React.Fragment>
               ))}
               {/* Totals row */}
               <tr style={{ background: '#f5f5f3', borderTop: '2px solid #e8e8e0' }}>

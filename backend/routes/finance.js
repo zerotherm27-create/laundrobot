@@ -177,6 +177,70 @@ router.put('/expenses', auth, async (req, res) => {
   }
 });
 
+// GET /finance/expenses/custom-labels
+router.get('/expenses/custom-labels', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, category, label FROM expense_custom_labels WHERE tenant_id = $1 ORDER BY category, label`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /finance/expenses/custom-labels — add a custom expense label under a category
+router.post('/expenses/custom-labels', auth, async (req, res) => {
+  try {
+    const category = (req.body.category || '').trim();
+    const label = (req.body.label || '').trim();
+    if (!category || !label) {
+      return res.status(400).json({ error: 'category and label required' });
+    }
+    const { rows } = await db.query(
+      `INSERT INTO expense_custom_labels (tenant_id, category, label) VALUES ($1, $2, $3) RETURNING id, category, label`,
+      [req.user.tenant_id, category, label]
+    );
+    res.json(rows[0]);
+  } catch (e) {
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'A label with this name already exists' });
+    }
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /finance/expenses/custom-labels/:id — remove a custom label and all its recorded amounts
+router.delete('/expenses/custom-labels/:id', auth, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `DELETE FROM expense_custom_labels WHERE id = $1 AND tenant_id = $2 RETURNING label`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Not found' });
+    }
+    await client.query(
+      `DELETE FROM expenses WHERE tenant_id = $1 AND label = $2`,
+      [req.user.tenant_id, rows[0].label]
+    );
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /finance/monthly-summary?year=YYYY
 router.get('/monthly-summary', auth, async (req, res) => {
   try {

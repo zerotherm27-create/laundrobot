@@ -179,6 +179,9 @@ export const updateServiceCost      = (id, cost)    => api.put(`/finance/pricing
 export const getFinanceDailySales   = date           => api.get('/finance/daily-sales', { params: { date } });
 export const getFinanceExpenses     = year           => api.get('/finance/expenses', { params: { year } });
 export const upsertExpense          = data           => api.put('/finance/expenses', data);
+export const getCustomExpenseLabels   = ()           => api.get('/finance/expenses/custom-labels');
+export const addCustomExpenseLabel    = data         => api.post('/finance/expenses/custom-labels', data);
+export const deleteCustomExpenseLabel = id           => api.delete(`/finance/expenses/custom-labels/${id}`);
 export const getFinanceMonthlySummary = year         => api.get('/finance/monthly-summary', { params: { year } });
 export const getFinanceTargets        = year             => api.get('/finance/targets', { params: { year } });
 export const upsertTarget             = data             => api.put('/finance/targets', data);
