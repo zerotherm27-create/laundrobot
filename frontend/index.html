@@ -469,6 +469,14 @@
         /* Charts / reports stack */
         .chart-grid-2 { grid-template-columns: 1fr !important; }
 
+        /* Revenue banners (Today's / MTD): stack amount above stat pills —
+           at narrow widths flexbox was shrinking the amount's flex item
+           past its text width instead of wrapping, so the unbreakable
+           peso figure overflowed and visually overlapped the pills. */
+        .revenue-banner { flex-direction: column !important; align-items: flex-start !important; }
+        .revenue-banner .revenue-amount { width: 100%; }
+        .revenue-banner .revenue-stats  { width: 100%; justify-content: space-between !important; }
+
         /* Kanban: columns scroll horizontally */
         .kanban-wrapper {
           overflow-x: auto; -webkit-overflow-scrolling: touch;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings, getFinanceDailySales, getFinanceCustomerRetention } from '../api.js';
+import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings, getFinanceDailySales, getFinanceCustomerRetention, getFinanceDashboard } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
@@ -114,6 +114,7 @@ export default function Overview() {
   const [fbPageId,     setFbPageId]     = useState('');
   const [todaySales,   setTodaySales]   = useState([]);
   const [retention,    setRetention]    = useState(null);
+  const [mtd,          setMtd]          = useState(null);
 
   const bookingUrl = fbPageId
     ? `https://m.me/${fbPageId}`
@@ -140,6 +141,9 @@ export default function Overview() {
     getFinanceCustomerRetention(curYear, curMonth)
       .then(r => setRetention(r.data && typeof r.data === 'object' ? r.data : null))
       .catch(() => {});
+    getFinanceDashboard(curYear, curMonth)
+      .then(r => setMtd(r.data && typeof r.data === 'object' ? r.data : null))
+      .catch(() => {});
   }, []);
 
   async function handleRelease(fbUserId) {
@@ -160,6 +164,9 @@ export default function Overview() {
   const active       = orders.filter(o => !['COMPLETED','CANCELLED'].includes(o.status)).length;
   const todayOrders  = todaySales.length;
   const todayRevenue = todaySales.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
+  const mtdRevenue    = parseFloat(mtd?.revenue)    || 0;
+  const mtdNetProfit  = parseFloat(mtd?.netProfit)  || 0;
+  const mtdLoadCount  = Number(mtd?.loadCount ?? 0);
 
   const stats = [
     { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), sub: `${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
@@ -308,35 +315,70 @@ export default function Overview() {
         })}
       </div>
 
-      {/* ── Today's Revenue banner ── */}
-      <div style={{
-        background: 'linear-gradient(135deg,#1D9E75,#15795B)',
-        borderRadius: 14, padding: '1rem 1.4rem', marginBottom: '1.75rem',
-        display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-      }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
-          </svg>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Today's Revenue</div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1 }}>
-            ₱{todayRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+      {/* ── Revenue banners: Today's + MTD ── */}
+      <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '1.75rem' }}>
+
+        <div className="revenue-banner" style={{
+          background: 'linear-gradient(135deg,#1D9E75,#15795B)',
+          borderRadius: 14, padding: '1rem 1.4rem',
+          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+            </svg>
+          </div>
+          <div className="revenue-amount" style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Today's Revenue</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1, overflowWrap: 'anywhere' }}>
+              ₱{todayRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            </div>
+          </div>
+          <div className="revenue-stats" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Transactions', val: todaySales.length },
+              { label: 'Paid',         val: todaySales.filter(r => r.paid).length },
+              { label: 'Unpaid',       val: todaySales.filter(r => !r.paid).length },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Transactions', val: todaySales.length },
-            { label: 'Paid',         val: todaySales.filter(r => r.paid).length },
-            { label: 'Unpaid',       val: todaySales.filter(r => !r.paid).length },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>{s.label}</div>
+
+        <div className="revenue-banner" style={{
+          background: 'linear-gradient(135deg,#D4A800,#A6810A)',
+          borderRadius: 14, padding: '1rem 1.4rem',
+          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div className="revenue-amount" style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>
+              MTD Revenue · {new Date().toLocaleDateString('en-PH', { month: 'long' })}
             </div>
-          ))}
+            <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1, overflowWrap: 'anywhere' }}>
+              ₱{mtdRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            </div>
+          </div>
+          <div className="revenue-stats" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Orders',     val: mtdLoadCount },
+              { label: 'Net Profit', val: '₱' + Math.round(mtdNetProfit).toLocaleString() },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
+
       </div>
 
       {/* ── Customer Retention ── */}
