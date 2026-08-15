@@ -178,6 +178,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
   // Step 1 state
   const [activeCat, setActiveCat]       = useState(null);
   const [selectedSvc, setSelectedSvc]   = useState(null);
+  const optionsPanelRef                 = useRef(null);
   const [fieldValues, setFieldValues]   = useState({});
   const [weight, setWeight]             = useState('');
   const [addonQty, setAddonQty]         = useState({});
@@ -777,6 +778,13 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
     }
   }, [step]);
 
+  // Auto-scroll to the options panel when a service is selected in step 1
+  useEffect(() => {
+    if (selectedSvc && optionsPanelRef.current) {
+      optionsPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedSvc]);
+
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) return (
@@ -1033,7 +1041,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
 
             {/* Custom fields / weight for selected service */}
             {selectedSvc && (
-              <div style={{ marginTop: 20, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8' }}>
+              <div ref={optionsPanelRef} style={{ marginTop: 20, padding: '16px', background: '#F7F9FD', borderRadius: 12, border: '1.5px solid #E2F5F8' }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14, color: '#1a7d94', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="clipboard" size={13} color="#1a7d94" /> Service Details — {selectedSvc.name}
                 </div>
