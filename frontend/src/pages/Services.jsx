@@ -8,6 +8,28 @@ import { Icon } from '../components/Icons.jsx';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
+// Downscale + re-encode an uploaded photo before storing it as a base64 data URI —
+// uncompressed phone-camera photos (2-3MB each) were bloating the public booking
+// page's bootstrap payload to 10MB+ for shops with many services.
+const IMG_MAX_DIM = 800;
+const IMG_QUALITY  = 0.72;
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, IMG_MAX_DIM / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', IMG_QUALITY));
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 const LAUNDRY_ICONS = [
   { id: 'washing-machine', label: 'Washing machine', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="4"/><circle cx="24" cy="28" r="10"/><circle cx="24" cy="28" r="5"/><circle cx="13" cy="11" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="11" r="2" fill="currentColor" stroke="none"/><line x1="28" y1="11" x2="36" y2="11"/></svg>` },
   { id: 'dryer', label: 'Dryer', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="36" height="40" rx="4"/><circle cx="24" cy="28" r="10"/><path d="M18 28 Q21 22 24 28 Q27 34 30 28"/><circle cx="13" cy="11" r="2" fill="currentColor" stroke="none"/><line x1="20" y1="11" x2="36" y2="11"/></svg>` },
@@ -168,15 +190,12 @@ export default function Services() {
   }, []);
 
   // ── Image upload ──────────────────────────────────────────────────────
-  function handleImageChange(e) {
+  async function handleImageChange(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      setPreview(ev.target.result);
-      setSvcForm(p => ({ ...p, image_url: ev.target.result }));
-    };
-    reader.readAsDataURL(file);
+    const dataUrl = await compressImage(file);
+    setPreview(dataUrl);
+    setSvcForm(p => ({ ...p, image_url: dataUrl }));
   }
 
   // ── Open service modal ────────────────────────────────────────────────
