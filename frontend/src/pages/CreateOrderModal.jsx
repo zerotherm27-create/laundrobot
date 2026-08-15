@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { getServices, getCategories, getDeliveryZones, createPublicOrder } from '../api.js';
+import { getServices, getCategories, getDeliveryZones, createPublicOrder, searchCustomers } from '../api.js';
 import { Icon } from '../components/Icons.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
 
@@ -113,6 +113,30 @@ export default function CreateOrderModal({ onClose, onCreated }) {
   const [custName,  setCustName]  = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custEmail, setCustEmail] = useState('');
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [showSuggestions,     setShowSuggestions]     = useState(false);
+  const searchTimeout = useRef(null);
+
+  function runCustomerSearch(val) {
+    clearTimeout(searchTimeout.current);
+    if (val.trim().length < 2) { setCustomerSuggestions([]); setShowSuggestions(false); return; }
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const { data } = await searchCustomers(val.trim());
+        setCustomerSuggestions(data);
+        setShowSuggestions(data.length > 0);
+      } catch { /* ignore */ }
+    }, 250);
+  }
+
+  function pickCustomer(c) {
+    setCustName(c.name);
+    if (c.phone)   setCustPhone(c.phone);
+    if (c.email)   setCustEmail(c.email);
+    if (c.address) setAddress(c.address);
+    setShowSuggestions(false);
+    setCustomerSuggestions([]);
+  }
 
   // ── Delivery ──
   const [selfPickup,        setSelfPickup]        = useState(false);
@@ -506,10 +530,33 @@ export default function CreateOrderModal({ onClose, onCreated }) {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 14px' }}>
                 <Field label="Full Name" required>
-                  <input style={INP} value={custName} onChange={e => setCustName(e.target.value)} placeholder="Maria Santos" />
+                  <div style={{ position: 'relative' }}>
+                    <input style={INP} value={custName} autoComplete="off"
+                      onChange={e => { setCustName(e.target.value); runCustomerSearch(e.target.value); }}
+                      onFocus={() => { if (customerSuggestions.length > 0) setShowSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                      placeholder="Maria Santos" />
+                    {showSuggestions && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#fff', border: '1px solid #E2E8F0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.10)', marginTop: 2, overflow: 'hidden' }}>
+                        {customerSuggestions.map(c => (
+                          <div key={c.id} onMouseDown={() => pickCustomer(c)}
+                            style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F3F4F6' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#F0F9FF'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{c.name}</div>
+                            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 1 }}>{c.phone}{c.email ? ` · ${c.email}` : ''}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Field>
                 <Field label="Phone Number" required>
-                  <input style={INP} type="tel" value={custPhone} onChange={e => setCustPhone(e.target.value)} placeholder="09XX XXX XXXX" />
+                  <input style={INP} type="tel" value={custPhone} autoComplete="off"
+                    onChange={e => { setCustPhone(e.target.value); runCustomerSearch(e.target.value); }}
+                    onFocus={() => { if (customerSuggestions.length > 0) setShowSuggestions(true); }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    placeholder="09XX XXX XXXX" />
                 </Field>
               </div>
               <Field label="Email Address">

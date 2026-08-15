@@ -442,21 +442,25 @@ router.post('/:tenantId/orders', async (req, res) => {
     }
   }
 
-  // Rate limit: max 3 pending/active bookings per phone per tenant per day
-  try {
-    const { rows: [{ count: pendingCount }] } = await db.query(
-      `SELECT COUNT(*) FROM orders o
-       JOIN customers c ON c.id = o.customer_id
-       WHERE o.tenant_id=$1 AND c.phone=$2
-         AND o.status NOT IN ('completed','cancelled','archived')
-         AND o.created_at > NOW() - INTERVAL '24 hours'`,
-      [req.params.tenantId, cleanPhone]
-    );
-    if (Number(pendingCount) >= 3) {
-      return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
+  // Rate limit: max 3 pending/active bookings per phone per tenant per day.
+  // Admin-created orders (staff logging a walk-in/phone order) are exempt — a
+  // repeat customer legitimately having several active bookings shouldn't block staff.
+  if (source !== 'admin') {
+    try {
+      const { rows: [{ count: pendingCount }] } = await db.query(
+        `SELECT COUNT(*) FROM orders o
+         JOIN customers c ON c.id = o.customer_id
+         WHERE o.tenant_id=$1 AND c.phone=$2
+           AND o.status NOT IN ('completed','cancelled','archived')
+           AND o.created_at > NOW() - INTERVAL '24 hours'`,
+        [req.params.tenantId, cleanPhone]
+      );
+      if (Number(pendingCount) >= 3) {
+        return res.status(429).json({ error: 'You already have several active bookings. Please wait for them to be processed before placing more.' });
+      }
+    } catch (rateErr) {
+      console.warn('[rate-limit] check failed (skipping):', rateErr.message);
     }
-  } catch (rateErr) {
-    console.warn('[rate-limit] check failed (skipping):', rateErr.message);
   }
 
   // Normalize pickup to an explicit Asia/Manila offset. Older cached frontends send a naive
