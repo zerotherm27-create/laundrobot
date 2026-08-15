@@ -5,6 +5,7 @@ import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { compressImage } from '../utils/imageCompress.js';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '9px 12px', fontSize: 14,
@@ -392,12 +393,10 @@ export default function Settings() {
                     : <div style={{ textAlign: 'center', color: '#6B7280', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}><Icon name="camera" size={22} color="#6B7280" /><div style={{ fontSize: 10 }}>Upload</div></div>}
                 </div>
                 <input ref={logoFileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={e => {
+                  onChange={async e => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = ev => setLogoUrl(ev.target.result);
-                    reader.readAsDataURL(file);
+                    setLogoUrl(await compressImage(file));
                   }} />
                 <div>
                   <button type="button" onClick={() => logoFileRef.current.click()}
@@ -678,12 +677,10 @@ export default function Settings() {
                     : 'GCash QR shown to walk-in customers at the POS payment step'}
                 </div>
                 <input ref={qrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={e => {
+                  onChange={async e => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = ev => setQrImageUrl(ev.target.result);
-                    reader.readAsDataURL(file);
+                    setQrImageUrl(await compressImage(file, { type: 'image/png' }));
                   }} />
                 {qrImageUrl ? (
                   <div style={{ textAlign: 'center' }}>
@@ -713,12 +710,10 @@ export default function Settings() {
                   Maya QR shown to walk-in customers when they choose Maya as payment method
                 </div>
                 <input ref={mayaQrFileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={e => {
+                  onChange={async e => {
                     const file = e.target.files?.[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = ev => setMayaQrUrl(ev.target.result);
-                    reader.readAsDataURL(file);
+                    setMayaQrUrl(await compressImage(file, { type: 'image/png' }));
                   }} />
                 {mayaQrUrl ? (
                   <div style={{ textAlign: 'center' }}>

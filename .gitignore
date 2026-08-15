@@ -5,3 +5,4 @@ node_modules/
 dist/
 .superpowers/
 backend/scripts/image-backup-*.json
+backend/scripts/tenant-image-backup-*.json

@@ -9,11 +9,6 @@ import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import ToastStack from './components/ToastStack.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 
-// Eager imports for pages used immediately or that caused issues lazy
-import Settings from './pages/Settings.jsx';
-import Kanban from './pages/Kanban.jsx';
-import Overview from './pages/Overview.jsx';
-
 const Login        = lazy(() => import('./pages/Login.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
@@ -23,6 +18,8 @@ const PaywallScreen = lazy(() => import('./pages/PaywallScreen.jsx'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService.jsx'));
 const DataDeletion = lazy(() => import('./pages/DataDeletion.jsx'));
+const Overview     = lazy(() => import('./pages/Overview.jsx'));
+const Kanban       = lazy(() => import('./pages/Kanban.jsx'));
 const Orders       = lazy(() => import('./pages/Orders.jsx'));
 const Customers    = lazy(() => import('./pages/Customers.jsx'));
 const Services     = lazy(() => import('./pages/Services.jsx'));
@@ -34,6 +31,7 @@ const Inventory    = lazy(() => import('./pages/Inventory.jsx'));
 const FAQs         = lazy(() => import('./pages/FAQs.jsx'));
 const Users        = lazy(() => import('./pages/Users.jsx'));
 const DeliveryZones = lazy(() => import('./pages/DeliveryZones.jsx'));
+const Settings     = lazy(() => import('./pages/Settings.jsx'));
 const WalkIn       = lazy(() => import('./pages/WalkIn.jsx'));
 const Branches     = lazy(() => import('./pages/Branches.jsx'));
 
