@@ -48,6 +48,22 @@ function emailWrapper(shopName, bodyHtml) {
 </html>`;
 }
 
+// Drop-off bookings send the customer TO the shop, so they need the shop's own
+// address and contact details — the `address` on the order is the customer's,
+// which is useless to them here. Rendered only when the tenant has an address on
+// file (Settings → Shop Info); falls back to contact details alone.
+function shopLocationBlock(tenant) {
+  const rows = [];
+  if (tenant?.shop_address)   rows.push(['Address', tenant.shop_address]);
+  if (tenant?.contact_number) rows.push(['Contact', tenant.contact_number]);
+  if (!rows.length) return '';
+  return `
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:700;color:#92400E;margin-bottom:8px;">📍 Where to drop off</div>
+      ${orderTable(rows)}
+    </div>`;
+}
+
 function orderTable(rows) {
   const cells = rows.map(([label, value]) => `
     <tr>
@@ -146,10 +162,12 @@ async function sendPaidOrderEmail(tenantId, { orderId, serviceName, customerName
   }
 }
 
-async function sendCustomerOrderEmail(tenantId, { orderId, customerName, customerEmail, serviceName, pickupDate, address, total, paymentUrl }) {
+async function sendCustomerOrderEmail(tenantId, { orderId, customerName, customerEmail, serviceName, pickupDate, address, total, paymentUrl, isDropoff }) {
   if (!customerEmail) return;
   try {
-    const { rows: [tenant] } = await db.query('SELECT name, contact_number FROM tenants WHERE id=$1', [tenantId]);
+    const { rows: [tenant] } = await db.query(
+      'SELECT name, contact_number, shop_address FROM tenants WHERE id=$1', [tenantId]
+    );
     const shopName = tenant?.name || 'Your Shop';
 
     const formattedDate = pickupDate
@@ -159,8 +177,9 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
     const tableRows = [
       ['Booking Ref',    orderId],
       ['Service',        serviceName],
-      ['Pickup Address', address],
-      ['Pickup Date',    formattedDate],
+      // On a drop-off there is no pickup — `address` is the customer's own.
+      [isDropoff ? 'Your Address'   : 'Pickup Address', address],
+      [isDropoff ? 'Drop-off Date'  : 'Pickup Date',    formattedDate],
       ['Total Amount',   `₱${Number(total).toLocaleString()}`],
     ];
 
@@ -174,18 +193,19 @@ async function sendCustomerOrderEmail(tenantId, { orderId, customerName, custome
 
     const body = `
       <div style="margin-bottom:20px;">
-        <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">✅ Booking Confirmed!</div>
+        <div style="font-size:22px;font-weight:700;color:#111827;margin-bottom:4px;">${isDropoff ? '📋 Drop-off Booking Received!' : '✅ Booking Confirmed!'}</div>
         <div style="font-size:14px;color:#6B7280;">Hi ${customerName}, your laundry booking has been received. Here's your summary:</div>
       </div>
       <div style="background:#F9FAFB;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
         ${orderTable(tableRows)}
       </div>
+      ${isDropoff ? shopLocationBlock(tenant) : ''}
       ${payBtn}
       ${contactLine}`;
 
     await sendEmail({
       to: [customerEmail],
-      subject: `✅ Booking Confirmed — ${orderId} | ${shopName}`,
+      subject: `${isDropoff ? '📋 Drop-off Booking Received' : '✅ Booking Confirmed'} — ${orderId} | ${shopName}`,
       html: emailWrapper(shopName, body),
     });
     console.log(`[email] customer confirmation ${orderId} sent to ${customerEmail}`);
@@ -270,16 +290,18 @@ async function sendInvoiceEmail({ to, shopName, invoiceId, customerName, pdfBase
   console.log(`[email] invoice ${invoiceId} sent to ${to}`);
 }
 
-async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, customerEmail, serviceName, address, total }) {
+async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, customerEmail, serviceName, address, total, isDropoff }) {
   if (!customerEmail) return;
   try {
-    const { rows: [tenant] } = await db.query('SELECT name, contact_number FROM tenants WHERE id=$1', [tenantId]);
+    const { rows: [tenant] } = await db.query(
+      'SELECT name, contact_number, shop_address FROM tenants WHERE id=$1', [tenantId]
+    );
     const shopName = tenant?.name || 'Your Shop';
 
     const tableRows = [
       ['Booking Ref',  orderId],
       ['Service',      serviceName],
-      ['Pickup Address', address],
+      [isDropoff ? 'Your Address' : 'Pickup Address', address],
       ['Amount Paid',  `₱${Number(total).toLocaleString()}`],
     ];
 
@@ -295,8 +317,11 @@ async function sendCustomerPaymentEmail(tenantId, { orderId, customerName, custo
       <div style="background:#F0FDF4;border-radius:8px;padding:16px 20px;margin-bottom:20px;border:1px solid #BBF7D0;">
         ${orderTable(tableRows)}
       </div>
+      ${isDropoff ? shopLocationBlock(tenant) : ''}
       <div style="font-size:13px;color:#374151;background:#F9FAFB;padding:12px 16px;border-radius:8px;border-left:4px solid #38a9c2;">
-        🧺 Sit back and relax — we'll take care of the rest. Thank you for trusting <strong>${shopName}</strong>!
+        ${isDropoff
+          ? `🧺 You're all set — just bring your laundry to the shop on your scheduled date. See you soon at <strong>${shopName}</strong>!`
+          : `🧺 Sit back and relax — we'll take care of the rest. Thank you for trusting <strong>${shopName}</strong>!`}
       </div>
       ${contactLine}`;
 

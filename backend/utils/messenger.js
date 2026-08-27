@@ -228,4 +228,25 @@ async function sendCatalog(token, recipientId, elements) {
   });
 }
 
-module.exports = { sendMessage, sendTaggedMessage, sendHumanAgentMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping };
+/**
+ * Chat-formatted "where to drop off" block for drop-off bookings.
+ *
+ * A drop-off customer brings the laundry to the shop, so they need the SHOP's
+ * address and contact details — the address on the order is their own. Shared by
+ * the booking confirmation (routes/public.js) and the payment confirmation
+ * (webhooks/xendit.js) so both read the same.
+ *
+ * Expects a tenant row selected with `shop_address, contact_number`. Address and
+ * mobile number only — no support email here. Returns '' when the tenant has
+ * filled in neither (Settings → Shop Info), so callers can concatenate it
+ * unconditionally.
+ */
+function shopLocationText(tenant) {
+  const lines = [];
+  if (tenant?.shop_address)   lines.push(`📍 ${tenant.shop_address}`);
+  if (tenant?.contact_number) lines.push(`📱 ${tenant.contact_number}`);
+  if (!lines.length) return '';
+  return `🏪 Where to drop off:\n${lines.join('\n')}\n\n`;
+}
+
+module.exports = { sendMessage, sendTaggedMessage, sendHumanAgentMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping, shopLocationText };

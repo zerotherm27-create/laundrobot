@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { createInvoice } = require('../utils/xendit');
 const { sendNewOrderEmail, sendCustomerOrderEmail } = require('../utils/email');
-const { sendMessage, sendButtons } = require('../utils/messenger');
+const { sendMessage, sendButtons, shopLocationText } = require('../utils/messenger');
 const { sendPushToTenant } = require('../utils/push');
 const { haversine } = require('./deliveryBrackets');
 
@@ -114,7 +114,7 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
       { rows: blockedDates },
     ] = await Promise.all([
       db.query(
-        `SELECT name, logo_url, contact_number, minimum_order, fb_page_id, plan, open_days,
+        `SELECT name, logo_url, contact_number, shop_address, minimum_order, fb_page_id, plan, open_days,
                 to_char(store_open, 'HH24:MI') AS store_open,
                 to_char(store_close, 'HH24:MI') AS store_close,
                 to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -163,7 +163,7 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
 router.get('/:tenantId/info', async (req, res) => {
   try {
     const { rows: [t] } = await db.query(
-      `SELECT name, logo_url, contact_number, minimum_order, fb_page_id, open_days,
+      `SELECT name, logo_url, contact_number, shop_address, minimum_order, fb_page_id, open_days,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -717,7 +717,8 @@ router.post('/:tenantId/orders', async (req, res) => {
     if (effectiveFbId) {
       try {
         const { rows: [tenant] } = await db.query(
-          'SELECT name, fb_page_access_token FROM tenants WHERE id=$1', [req.params.tenantId]
+          'SELECT name, fb_page_access_token, shop_address, contact_number FROM tenants WHERE id=$1',
+          [req.params.tenantId]
         );
         if (tenant?.fb_page_access_token) {
           const pickupFormatted = (() => {
@@ -733,6 +734,7 @@ router.post('/:tenantId/orders', async (req, res) => {
               `${servicesList}\n\n` +
               `📅 Drop-off: ${pickupFormatted}\n` +
               `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
+              shopLocationText(tenant) +
               (qrUrl
                 ? `⚠️ Please scan the QR code sent to you and upload your payment screenshot to confirm your slot.`
                 : `⚠️ Please complete your payment BEFORE dropping off your laundry. Your slot is not confirmed until payment is received.`)
@@ -791,6 +793,7 @@ router.post('/:tenantId/orders', async (req, res) => {
       address: address.trim(),
       total: grandTotal,
       paymentUrl,
+      isDropoff,
     }).catch(e => console.warn('[email] customer confirm failed:', e.response?.data || e.message));
 
     res.json({

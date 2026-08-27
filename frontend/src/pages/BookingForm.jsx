@@ -917,6 +917,37 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
               )}
             </div>
           )}
+
+          {/* ── Where to drop off ──
+              A drop-off customer brings the laundry in themselves, so this screen has to
+              answer "where do I go?". Web customers with no Messenger thread and no email
+              address see nothing else — this is their only copy of the shop's location.
+              Rendered only when the tenant has filled in Settings → Shop Info. */}
+          {result.is_dropoff && (tenant?.shop_address || tenant?.contact_number) && (
+            <div style={{ background: '#fff', borderRadius: 14, padding: '16px 20px', marginBottom: 20, border: '1.5px solid #9ED3DC', boxShadow: '0 2px 12px rgba(56,169,194,.1)', textAlign: 'left' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="store" size={14} color="#38a9c2" /> Where to drop off
+              </div>
+              {tenant.shop_address && (
+                <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5, marginBottom: tenant.contact_number ? 10 : 0 }}>
+                  {tenant.shop_address}
+                </div>
+              )}
+              {tenant.contact_number && (
+                <a href={`tel:${tenant.contact_number}`}
+                  style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, textDecoration: 'none' }}>
+                  {tenant.contact_number}
+                </a>
+              )}
+              {tenant.shop_address && (
+                <a href={`https://maps.google.com/?q=${encodeURIComponent(tenant.shop_address)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ display: 'block', marginTop: 12, padding: '10px', borderRadius: 10, background: '#EAF6F9', color: '#1a7d94', fontWeight: 700, fontSize: 13, textDecoration: 'none', textAlign: 'center' }}>
+                  Open in Maps
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

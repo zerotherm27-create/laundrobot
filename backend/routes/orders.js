@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const auth = require('../middleware/auth');
 const db = require('../db');
-const { sendTaggedMessage, sendStatusUpdate, sendButtons } = require('../utils/messenger');
+const { sendTaggedMessage, sendStatusUpdate, sendButtons, shopLocationText } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
@@ -1021,7 +1021,7 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
   try {
     const { rows: [order] } = await db.query(
       `SELECT o.id, o.booking_ref, o.paid, c.name AS customer_name, c.email AS customer_email, c.fb_id,
-              o.address, o.price, o.tenant_id
+              o.address, o.price, o.tenant_id, o.is_dropoff
        FROM orders o
        LEFT JOIN customers c ON c.id = o.customer_id
        WHERE o.id=$1 AND o.tenant_id=$2`,
@@ -1061,6 +1061,7 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
       serviceName,
       address: order.address,
       total,
+      isDropoff: order.is_dropoff,
     }).catch(e => console.warn('[confirm-qr-payment] customer email failed:', e.message));
 
     // Email: shop owner paid notification
@@ -1076,11 +1077,18 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
     if (order.fb_id) {
       try {
         const { rows: [tenant] } = await db.query(
-          `SELECT name, fb_page_access_token, contact_number, notification_email FROM tenants WHERE id=$1`,
+          `SELECT name, fb_page_access_token, contact_number, notification_email, shop_address FROM tenants WHERE id=$1`,
           [req.user.tenant_id]
         );
         if (tenant?.fb_page_access_token) {
-          const msg = `✅ Payment Confirmed!\n\n` +
+          // Drop-off customers bring the laundry in themselves — tell them where.
+          const msg = order.is_dropoff
+            ? `✅ Payment Confirmed! You're all set.\n\n` +
+              `Hi ${order.customer_name || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
+              `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
+              `You can now drop off your laundry at our shop on your scheduled date. See you soon! 🧺\n\n` +
+              shopLocationText(tenant)
+            : `✅ Payment Confirmed!\n\n` +
             `Hi ${order.customer_name || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
             `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
             `We'll check your order for confirmation.\n\n` +

@@ -2,7 +2,7 @@ const router = require('express').Router();
 const crypto = require('crypto');
 const db = require('../db');
 const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../utils/email');
-const { sendMessage, sendButtons } = require('../utils/messenger');
+const { sendMessage, sendButtons, shopLocationText } = require('../utils/messenger');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
@@ -183,6 +183,7 @@ router.post('/', async (req, res) => {
           serviceName: orders.map(o => o.service_name).join(', '),
           address: first.address,
           total: totalPaid,
+          isDropoff: orders.some(o => o.is_dropoff),
         }).catch(e => console.warn('[xendit] customer payment email failed:', e.message));
 
         sendPaidOrderEmail(first.tenant_id, {
@@ -197,7 +198,10 @@ router.post('/', async (req, res) => {
         // Messenger confirmation to customer (if they have fb_id)
         if (first.fb_id) {
           const { rows: [tenant] } = await db.query(
-            `SELECT name, fb_page_access_token, contact_number FROM tenants WHERE id=$1`,
+            // notification_email is used in the message below — it was missing from
+            // this SELECT, so every customer got the 'hello@laundrobot.app' fallback
+            // instead of their own shop's support address.
+            `SELECT name, fb_page_access_token, contact_number, shop_address, notification_email FROM tenants WHERE id=$1`,
             [first.tenant_id]
           );
           if (tenant?.fb_page_access_token) {
@@ -207,7 +211,7 @@ router.post('/', async (req, res) => {
                 `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
                 `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
                 `You can now drop off your laundry at our shop on your scheduled date. See you soon! 🧺\n\n` +
-                (tenant.contact_number ? `📱 Questions? Contact us: ${tenant.contact_number}` : '')
+                shopLocationText(tenant)
               : `✅ Payment Received!\n\n` +
                 `Hi ${first.customer_name || 'there'}! We've received your payment for booking ${first.booking_ref || first.id}.\n\n` +
                 `💰 Amount Paid: ₱${totalPaid.toLocaleString('en-PH')}\n\n` +
