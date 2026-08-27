@@ -114,7 +114,12 @@ router.post('/', async (req, res) => {
         );
         if (Number(total_paid) >= Number(total_due)) {
           await db.query(
-            `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+            // Drop-off bookings are created with status 'AWAITING PAYMENT' (routes/public.js).
+            // That status is not a Kanban column, so paying must move the order onto the board.
+            // Only advance rows still sitting in 'AWAITING PAYMENT' — never touch a status staff
+            // already moved, and never reintroduce the removed PAID status (b6cf429).
+            `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99,
+                    status = CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END
              WHERE booking_ref=$2 AND tenant_id=$3`,
             [xenditInvoiceId, refId, ctx.tenant_id]
           );
@@ -139,7 +144,8 @@ router.post('/', async (req, res) => {
           [ctx.tenant_id, refId, xenditInvoiceId, external_id, Number(amount) || 0]
         );
         await db.query(
-          `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99
+          `UPDATE orders SET paid=TRUE, xendit_invoice_id=$1, reminder_count=99,
+                  status = CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END
            WHERE id=$2 AND tenant_id=$3`,
           [xenditInvoiceId, refId, ctx.tenant_id]
         );

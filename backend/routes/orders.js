@@ -468,6 +468,10 @@ router.patch('/:id', auth, async (req, res) => {
     if (status        !== undefined) { fields.push(`status = $${params.length + 1}`);        params.push(status); fields.push(`overdue_notified = FALSE`); }
     if (notes         !== undefined) { fields.push(`notes = $${params.length + 1}`);         params.push(notes); }
     if (paid          !== undefined) { fields.push(`paid = $${params.length + 1}`);          params.push(paid); }
+    // Marking a drop-off booking paid must also lift it out of 'AWAITING PAYMENT' (not a Kanban
+    // column). Guarded on `status === undefined` — two assignments to the same column in one SET
+    // is a Postgres error.
+    if (paid === true && status === undefined) { fields.push(`status = CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END`); }
     if (service_id    !== undefined) { fields.push(`service_id = $${params.length + 1}`);    params.push(service_id); }
     if (weight        !== undefined) { fields.push(`weight = $${params.length + 1}`);        params.push(weight || null); }
     if (price         !== undefined) { fields.push(`price = $${params.length + 1}`);         params.push(price); }
@@ -948,7 +952,10 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
        order.xendit_invoice_id, Number(invoiceAmount) || 0]
     );
     await db.query(
-      `UPDATE orders SET paid=TRUE, reminder_count=99
+      // Drop-off bookings start at 'AWAITING PAYMENT', which is not a Kanban column —
+      // confirming payment must move them onto the board (see webhooks/xendit.js).
+      `UPDATE orders SET paid=TRUE, reminder_count=99,
+              status = CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END
        WHERE tenant_id=$1 AND ${order.booking_ref ? 'booking_ref=$2' : 'id=$2'}`,
       [req.user.tenant_id, ref]
     );
@@ -1025,7 +1032,8 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
 
     // Mark all orders in booking as paid
     const { rows: allOrders } = await db.query(
-      `UPDATE orders SET paid=TRUE, reminder_count=99
+      `UPDATE orders SET paid=TRUE, reminder_count=99,
+              status = CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END
        WHERE booking_ref=(SELECT booking_ref FROM orders WHERE id=$1) AND tenant_id=$2
        RETURNING id, price, delivery_fee, promo_discount, booking_ref`,
       [req.params.id, req.user.tenant_id]

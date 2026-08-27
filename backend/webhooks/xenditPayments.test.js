@@ -45,3 +45,23 @@ test('follow-up job skips bookings with ledger payments', () => {
   assert.ok(guards.length >= 2,
     'both the auto-cancel and reminder queries must exclude bookings with recorded payments');
 });
+
+// ── Paying a drop-off booking must move it off 'AWAITING PAYMENT' ───────────
+// BKG-000212 incident (2026-08-27): routes/public.js creates drop-off bookings
+// with status 'AWAITING PAYMENT', which is NOT one of the Kanban columns.
+// Commit 505fd0a advanced those rows to 'NEW ORDER' on payment; b6cf429 meant
+// to drop only the status='PAID' half but deleted the whole CASE, so every paid
+// drop-off booking since sat at paid=TRUE / status='AWAITING PAYMENT' and never
+// appeared on the board.
+
+const ordersSrc = fs.readFileSync(path.join(__dirname, '..', 'routes', 'orders.js'), 'utf8');
+const advance = /status\s*=\s*CASE WHEN status='AWAITING PAYMENT' THEN 'NEW ORDER' ELSE status END/g;
+
+test('every paid=TRUE update advances drop-off bookings out of AWAITING PAYMENT', () => {
+  // Both webhook branches (booking_ref and order id).
+  assert.equal((src.match(advance) || []).length, 2,
+    'both xendit webhook paid=TRUE updates must advance AWAITING PAYMENT rows');
+  // verify-payment, confirm-qr-payment, and the PATCH paid toggle.
+  assert.equal((ordersSrc.match(advance) || []).length, 3,
+    'verify-payment, confirm-qr-payment and PATCH paid must advance AWAITING PAYMENT rows');
+});
