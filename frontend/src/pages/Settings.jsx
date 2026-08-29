@@ -687,12 +687,22 @@ export default function Settings() {
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
                   <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5 }}>
-                    Shows on your booking page and booking confirmation, and the AI mentions it in Messenger and Instagram replies. Remember to Save.
+                    Shows on your booking page and booking confirmation, and the AI mentions it in Messenger and Instagram replies.
                   </div>
                   <div style={{ fontSize: 11, color: announcement.length >= 500 ? '#A32D2D' : '#6B7280', flexShrink: 0 }}>{announcement.length}/500</div>
                 </div>
               </div>
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #e8e8e0' }}>
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #e8e8e0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {/* The form's main Save sits far below this card, past several
+                    unrelated sections — save has to be reachable from here. */}
+                <button type="submit" disabled={saving}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                    border: 'none', background: saving ? '#7dd3e0' : '#38a9c2', color: '#fff',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                  }}>
+                  {saving ? 'Saving…' : 'Save announcement'}
+                </button>
                 <button type="button" onClick={handleNotifyCustomers}
                   disabled={notifying || !announcementOn || !announcement.trim()}
                   style={{
@@ -703,9 +713,14 @@ export default function Settings() {
                   }}>
                   {notifying ? 'Sending…' : 'Notify customers'}
                 </button>
-                <div style={{ fontSize: 11, color: '#374151', marginTop: 6, lineHeight: 1.5 }}>
-                  Sends the announcement as a Messenger message to customers with an active booking. Save your changes first. Facebook only delivers to customers who messaged you in the last 24 hours; Instagram customers see the announcement on the booking page instead.
-                </div>
+                {saved && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1D6A3B', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Icon name="check-circle" size={13} color="#15803D" /> Saved
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 8, lineHeight: 1.5 }}>
+                <strong>Save announcement</strong> saves this page. <strong>Notify customers</strong> sends the announcement as a Messenger message to customers with an active booking — save first. Facebook only delivers to customers who messaged you in the last 24 hours; Instagram customers see the announcement on the booking page instead.
               </div>
             </SectionCard>
 
