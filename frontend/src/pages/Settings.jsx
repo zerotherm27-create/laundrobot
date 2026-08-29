@@ -19,6 +19,17 @@ const FOCUS = e => { e.target.style.borderColor = '#38a9c2'; e.target.style.boxS
 const BLUR  = e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; };
 const LABEL = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 5 };
 
+// Ready-made announcements for the situations shops actually post about.
+// Tapping one fills the message box; staff can edit before saving.
+const ANNOUNCEMENT_TEMPLATES = [
+  { label: 'Weather delay', text: 'Pickup and delivery may be delayed today due to bad weather. Your laundry is safe with us — thank you for your patience!' },
+  { label: 'No water', text: 'We are experiencing a water interruption today, so processing may take longer than usual. We will update you as soon as service resumes.' },
+  { label: 'Power outage', text: 'There is a power interruption in our area today. Orders may take longer than usual to process. Thank you for understanding!' },
+  { label: 'Busy day', text: 'We are receiving a high volume of orders right now, so turnaround may take a little longer than usual. Thank you for your patience!' },
+  { label: 'Closed today', text: 'Our shop is closed today. Pickups, deliveries, and drop-offs resume tomorrow. You may still book online for the next available slot.' },
+  { label: 'Holiday hours', text: 'We are on holiday hours this week, so pickup and delivery schedules may shift slightly. We will message you to confirm your slot.' },
+];
+
 function SectionCard({ icon, iconBg, title, subtitle, children }) {
   return (
     <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e8e8e0', padding: '1.5rem', marginBottom: 16 }}>
@@ -211,6 +222,22 @@ export default function Settings() {
     getReferralLinks().then(r => setReferrals(r.data)).catch(() => {});
     getChannelSummary().then(ch => setChannelSummary(ch.data)).catch(() => {});
   }, []);
+
+  // Fill the message box from a template. Silently replaces an empty box or
+  // another untouched template; asks first if staff have typed their own text.
+  async function applyAnnouncementTemplate(text) {
+    const current = announcement.trim();
+    const isUntouched = !current || ANNOUNCEMENT_TEMPLATES.some(t => t.text === current);
+    if (!isUntouched) {
+      const ok = await confirm({
+        title: 'Replace your message?',
+        message: 'This will overwrite the announcement you wrote.',
+        confirmLabel: 'Replace',
+      });
+      if (!ok) return;
+    }
+    setAnnouncement(text);
+  }
 
   // Push the announcement to Messenger customers with a live booking. Separate
   // from the toggle on purpose: flipping the banner on is safe, messaging real
@@ -623,6 +650,28 @@ export default function Settings() {
                     width: 20, height: 20, borderRadius: '50%', background: '#fff',
                     boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s',
                   }} />
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label style={LABEL}>Quick fill</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {ANNOUNCEMENT_TEMPLATES.map(t => {
+                    const isOn = announcement.trim() === t.text;
+                    return (
+                      <button key={t.label} type="button"
+                        title={t.text}
+                        onClick={() => applyAnnouncementTemplate(t.text)}
+                        style={{
+                          padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                          border: isOn ? 'none' : '1.5px solid #D1D5DB',
+                          background: isOn ? '#D97706' : '#F9FAFB',
+                          color: isOn ? '#fff' : '#6B7280',
+                          cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s',
+                        }}>
+                        {t.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div style={{ marginTop: 14 }}>
