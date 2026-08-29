@@ -97,6 +97,8 @@ export const releaseAi = (fbUserId) => api.post(`/conversations/${fbUserId}/rele
 export const sendBlast = (message, filter_status) =>
   api.post('/messaging/blast', { message, filter_status });
 export const getBlastHistory = () => api.get('/messaging/blast/history');
+export const getAnnouncementRecipients = () => api.get('/messaging/announcement/recipients');
+export const sendAnnouncement = () => api.post('/messaging/announcement/send');
 
 export const getFaqs = (tenantId) => api.get('/faqs', { params: tenantId ? { tenant_id: tenantId } : {} });
 export const createFaq = data => api.post('/faqs', data);

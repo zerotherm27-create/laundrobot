@@ -115,6 +115,7 @@ router.get('/:tenantId/bootstrap', async (req, res) => {
     ] = await Promise.all([
       db.query(
         `SELECT name, logo_url, contact_number, shop_address, minimum_order, fb_page_id, plan, open_days,
+                CASE WHEN announcement_enabled THEN announcement END AS announcement,
                 to_char(store_open, 'HH24:MI') AS store_open,
                 to_char(store_close, 'HH24:MI') AS store_close,
                 to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff
@@ -164,6 +165,7 @@ router.get('/:tenantId/info', async (req, res) => {
   try {
     const { rows: [t] } = await db.query(
       `SELECT name, logo_url, contact_number, shop_address, minimum_order, fb_page_id, open_days,
+              CASE WHEN announcement_enabled THEN announcement END AS announcement,
               to_char(store_open, 'HH24:MI') AS store_open,
               to_char(store_close, 'HH24:MI') AS store_close,
               to_char(booking_cutoff, 'HH24:MI') AS booking_cutoff

@@ -92,3 +92,24 @@ test('prompt surfaces a recently auto-cancelled unpaid booking so the AI can exp
   assert.match(src, /RECENTLY CANCELLED BOOKING/, 'prompt must carry the cancelled-booking section');
   assert.match(src, /status = 'CANCELLED' AND o\.paid = FALSE/, 'must look up unpaid cancelled bookings');
 });
+
+// ── Shop announcement in the AI prompt ──
+// The manual announcement ("pickup delayed due to weather") must reach the AI,
+// but only while it's switched on, and it must NOT read as a payment/policy
+// rule the AI can extrapolate from (rule 21 above).
+const geminiSrc = fs.readFileSync(path.join(__dirname, 'gemini.js'), 'utf8');
+
+test('buildShopContext selects the announcement columns', () => {
+  const q = geminiSrc.slice(geminiSrc.indexOf('SELECT name, contact_number'));
+  assert.match(q.slice(0, 400), /announcement, announcement_enabled/);
+});
+
+test('announcement is only injected while enabled and non-empty', () => {
+  assert.match(geminiSrc, /tenant\.announcement_enabled && tenant\.announcement \?/);
+  assert.match(geminiSrc, /CURRENT SHOP ANNOUNCEMENT/);
+});
+
+test('announcement is framed as status, not policy', () => {
+  const block = geminiSrc.slice(geminiSrc.indexOf('CURRENT SHOP ANNOUNCEMENT'));
+  assert.match(block.slice(0, 400), /do NOT treat it as a new policy/);
+});

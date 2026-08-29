@@ -132,6 +132,23 @@ function Field({ label, required, error, children }) {
   );
 }
 
+// Temporary shop notice ("pickup may be delayed due to weather"). Staff toggle
+// it in Settings; the API only returns the text while it's switched on. Not
+// dismissible — unlike the reorder banner, this is the shop warning about service.
+function AnnouncementBanner({ text }) {
+  if (!text) return null;
+  return (
+    <div style={{
+      maxWidth: 620, margin: '0 auto 16px', background: '#FEF3C7',
+      border: '1.5px solid #F59E0B', borderRadius: 12, padding: '10px 14px',
+      display: 'flex', alignItems: 'flex-start', gap: 8, textAlign: 'left',
+    }}>
+      <div style={{ flexShrink: 0, marginTop: 2 }}><Icon name="warning" size={13} color="#92400E" /></div>
+      <div style={{ fontSize: 13, color: '#92400E', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{text}</div>
+    </div>
+  );
+}
+
 function closeMiniApp() {
   // Try Messenger Extensions first, then fall back to window.close()
   try {
@@ -846,6 +863,7 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
           <div style={{ fontSize: 13, color: '#1a7d94', fontWeight: 600, marginBottom: 8 }}>
             Ref: {result.booking_ref}
           </div>
+          <AnnouncementBanner text={tenant?.announcement} />
           {result.is_dropoff && (result.payment_url || isQrStatic) && (
             <div style={{ background: '#FEF3C7', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1.5px solid #F59E0B', textAlign: 'left' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}><Icon name="warning" size={13} color="#92400E" /> Payment required before drop-off</div>
@@ -963,6 +981,9 @@ export default function BookingForm({ tenantId, whiteLabel = false }) {
         <div style={{ fontWeight: 700, fontSize: 20, color: '#111827' }}>{tenant?.name}</div>
         <div style={{ fontSize: 13, color: '#374151', marginTop: 3 }}>Online Booking</div>
       </div>
+
+      {/* ── Shop announcement ── */}
+      <AnnouncementBanner text={tenant?.announcement} />
 
       {/* ── Progress bar ── */}
       <div style={{ maxWidth: 620, margin: '0 auto 20px', display: 'flex', alignItems: 'center', gap: 0 }}>

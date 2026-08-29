@@ -4,6 +4,7 @@ import { Icon } from './Icons.jsx';
 const TONE = {
   error:   { bg: '#FEF2F2', border: '#FECACA', color: '#DC2626', icon: 'alert-triangle' },
   success: { bg: '#F0FDF4', border: '#86EFAC', color: '#166534', icon: 'check-circle' },
+  info:    { bg: '#F0F9FF', border: '#BAE6FD', color: '#0369A1', icon: 'info' },
 };
 
 export default function ToastStack() {

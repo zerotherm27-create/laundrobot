@@ -19,7 +19,7 @@ router.get('/settings', auth, async (req, res) => {
       `SELECT id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
               ig_user_id, ai_pause_hours, shop_address, fb_page_id, qr_image_url, maya_qr_url,
               custom_domain, white_label, plan, payment_mode, open_days,
-              google_review_link, review_cooldown_days,
+              google_review_link, review_cooldown_days, announcement, announcement_enabled,
               (xendit_api_key IS NOT NULL AND xendit_api_key != '') AS has_xendit_key,
               CASE WHEN xendit_api_key IS NOT NULL AND length(xendit_api_key) >= 4
                    THEN right(xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
@@ -36,10 +36,14 @@ router.get('/settings', auth, async (req, res) => {
 
 // PUT own tenant settings (admin — only safe fields)
 router.put('/settings', auth, async (req, res) => {
-  const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, maya_qr_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key, google_review_link, review_cooldown_days } = req.body;
+  const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, maya_qr_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key, google_review_link, review_cooldown_days, announcement, announcement_enabled } = req.body;
 
   if (ai_instructions && ai_instructions.length > 3000) {
     return res.status(400).json({ error: 'AI instructions must be 3000 characters or less.' });
+  }
+
+  if (announcement && announcement.length > 500) {
+    return res.status(400).json({ error: 'Announcement must be 500 characters or less.' });
   }
 
   try {
@@ -75,7 +79,8 @@ router.put('/settings', auth, async (req, res) => {
         `SELECT notification_email, contact_number, store_open, store_close, booking_cutoff,
                 minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours,
                 shop_address, qr_image_url, maya_qr_url, custom_domain, white_label, logo_url,
-                payment_mode, open_days, google_review_link, review_cooldown_days
+                payment_mode, open_days, google_review_link, review_cooldown_days,
+                announcement, announcement_enabled
          FROM tenants WHERE id=$1`,
         [req.user.tenant_id]
       );
@@ -112,11 +117,13 @@ router.put('/settings', auth, async (req, res) => {
            xendit_api_key = COALESCE($19, xendit_api_key),
            open_days     = COALESCE($20, open_days),
            google_review_link = COALESCE($21, google_review_link),
-           review_cooldown_days = COALESCE($22, review_cooldown_days)
+           review_cooldown_days = COALESCE($22, review_cooldown_days),
+           announcement  = COALESCE($24, announcement),
+           announcement_enabled = $25
        WHERE id=$16
        RETURNING id, name, logo_url, notification_email, contact_number, minimum_order, ai_enabled, ai_instructions,
                  ig_user_id, ai_pause_hours, shop_address, qr_image_url, maya_qr_url, custom_domain, white_label, plan, payment_mode,
-                 open_days, google_review_link, review_cooldown_days,
+                 open_days, google_review_link, review_cooldown_days, announcement, announcement_enabled,
                  (xendit_api_key IS NOT NULL AND xendit_api_key != '') AS has_xendit_key,
                  CASE WHEN xendit_api_key IS NOT NULL AND length(xendit_api_key) >= 4
                       THEN right(xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
@@ -147,6 +154,8 @@ router.put('/settings', auth, async (req, res) => {
         google_review_link?.trim() || null,            // $21
         review_cooldown_days != null && review_cooldown_days !== '' ? Number(review_cooldown_days) : null, // $22
         maya_qr_url?.trim() || null,                   // $23
+        announcement?.trim() || null,                  // $24
+        announcement_enabled === true || announcement_enabled === 'true', // $25
       ]
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
@@ -193,7 +202,8 @@ router.post('/settings/history/:snapshotId/restore', auth, async (req, res) => {
          booking_cutoff=$5, minimum_order=$6, ai_enabled=$7, ai_instructions=$8,
          ig_user_id=$9, ai_pause_hours=$10, shop_address=$11, qr_image_url=$12,
          custom_domain=$13, white_label=$14, logo_url=$15, payment_mode=$16,
-         open_days=$17, google_review_link=$18, review_cooldown_days=$19
+         open_days=$17, google_review_link=$18, review_cooldown_days=$19,
+         announcement=$21, announcement_enabled=$22
        WHERE id=$20`,
       [
         s.notification_email, s.contact_number, s.store_open, s.store_close,
@@ -202,6 +212,7 @@ router.post('/settings/history/:snapshotId/restore', auth, async (req, res) => {
         s.custom_domain, s.white_label, s.logo_url, s.payment_mode,
         s.open_days, s.google_review_link, s.review_cooldown_days,
         req.user.tenant_id,
+        s.announcement ?? null, s.announcement_enabled === true,
       ]
     );
     res.json({ message: 'Settings restored successfully' });

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection } from '../api.js';
+import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection, getAnnouncementRecipients, sendAnnouncement } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
@@ -98,6 +98,9 @@ export default function Settings() {
   const [aiInstructions, setAiInstructions] = useState('');
   const [aiPauseHours,   setAiPauseHours]   = useState('2');
   const [igUserId,       setIgUserId]       = useState('');
+  const [announcement,        setAnnouncement]        = useState('');
+  const [announcementOn,      setAnnouncementOn]      = useState(false);
+  const [notifying,           setNotifying]           = useState(false);
   const [storeOpen,      setStoreOpen]      = useState('');
   const [storeClose,     setStoreClose]     = useState('');
   const [bookingCutoff,  setBookingCutoff]  = useState('');
@@ -187,6 +190,8 @@ export default function Settings() {
         setAiInstructions(s.data.ai_instructions || '');
         setAiPauseHours(s.data.ai_pause_hours != null ? String(s.data.ai_pause_hours) : '2');
         setIgUserId(s.data.ig_user_id || '');
+        setAnnouncement(s.data.announcement || '');
+        setAnnouncementOn(!!s.data.announcement_enabled);
         setStoreOpen(s.data.store_open || '');
         setStoreClose(s.data.store_close || '');
         setBookingCutoff(s.data.booking_cutoff || '');
@@ -207,6 +212,32 @@ export default function Settings() {
     getChannelSummary().then(ch => setChannelSummary(ch.data)).catch(() => {});
   }, []);
 
+  // Push the announcement to Messenger customers with a live booking. Separate
+  // from the toggle on purpose: flipping the banner on is safe, messaging real
+  // customers is a deliberate second action.
+  async function handleNotifyCustomers() {
+    setNotifying(true);
+    try {
+      const { data } = await getAnnouncementRecipients();
+      if (!data.count) {
+        toast('No customers with an active booking to notify.', 'info');
+        return;
+      }
+      const ok = await confirm({
+        title: 'Notify customers?',
+        message: `Send this announcement to ${data.count} customer${data.count === 1 ? '' : 's'} with an active booking. Facebook only delivers to customers who messaged you in the last 24 hours — the rest will be reported as skipped.`,
+        confirmLabel: 'Send now',
+      });
+      if (!ok) return;
+      const { data: res } = await sendAnnouncement();
+      toast(`Sent to ${res.sent} of ${res.total}${res.skipped ? ` — ${res.skipped} skipped (outside Facebook's 24-hour window)` : ''}.`, res.sent ? 'success' : 'info');
+    } catch (err) {
+      toast(err.response?.data?.error || 'Failed to notify customers.', 'error');
+    } finally {
+      setNotifying(false);
+    }
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true); setSaved(false); setError('');
@@ -223,6 +254,8 @@ export default function Settings() {
         ai_enabled: aiEnabled,
         ai_instructions: aiInstructions,
         ai_pause_hours: aiPauseHours !== '' ? Number(aiPauseHours) : 2,
+        announcement: announcement.trim() || null,
+        announcement_enabled: announcementOn,
         qr_image_url: qrImageUrl || null,
         maya_qr_url: mayaQrUrl || null,
         payment_mode: paymentMode,
@@ -564,6 +597,68 @@ export default function Settings() {
                 </div>
               )}
             </div>
+
+            <SectionCard icon={<Icon name="alert-triangle" size={18} color="#D97706" />} iconBg="#FEF3C7" title="Shop Announcement"
+              subtitle="A temporary notice shown to customers — e.g. weather delays, no water supply, early closing">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+                    {announcementOn ? 'Announcement is showing' : 'Announcement is off'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>
+                    {announcementOn
+                      ? 'Customers see it on your booking page, and the AI mentions it when relevant.'
+                      : 'Turn this on when something temporary affects service. Turn it off when it clears.'}
+                  </div>
+                </div>
+                <div onClick={() => setAnnouncementOn(p => !p)}
+                  role="switch" aria-checked={announcementOn} aria-label="Shop announcement" tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAnnouncementOn(p => !p); } }}
+                  style={{
+                  width: 46, height: 26, borderRadius: 13, cursor: 'pointer', transition: 'background .2s',
+                  background: announcementOn ? 'var(--primary)' : '#D1D5DB', position: 'relative', flexShrink: 0,
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 3, left: announcementOn ? 23 : 3,
+                    width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                    boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .2s',
+                  }} />
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label style={LABEL}>Message</label>
+                <textarea
+                  value={announcement}
+                  onChange={e => setAnnouncement(e.target.value.slice(0, 500))}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="e.g. Pickup and delivery may be delayed today due to heavy rain. Thank you for your patience!"
+                  style={{ ...INPUT, resize: 'vertical', lineHeight: 1.5 }}
+                  onFocus={FOCUS} onBlur={BLUR}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5 }}>
+                    Shows on your booking page and booking confirmation, and the AI mentions it in Messenger and Instagram replies. Remember to Save.
+                  </div>
+                  <div style={{ fontSize: 11, color: announcement.length >= 500 ? '#A32D2D' : '#6B7280', flexShrink: 0 }}>{announcement.length}/500</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid #e8e8e0' }}>
+                <button type="button" onClick={handleNotifyCustomers}
+                  disabled={notifying || !announcementOn || !announcement.trim()}
+                  style={{
+                    padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                    border: '1.5px solid #F59E0B', background: '#FEF3C7', color: '#92400E',
+                    cursor: (notifying || !announcementOn || !announcement.trim()) ? 'not-allowed' : 'pointer',
+                    opacity: (notifying || !announcementOn || !announcement.trim()) ? .55 : 1,
+                  }}>
+                  {notifying ? 'Sending…' : 'Notify customers'}
+                </button>
+                <div style={{ fontSize: 11, color: '#374151', marginTop: 6, lineHeight: 1.5 }}>
+                  Sends the announcement as a Messenger message to customers with an active booking. Save your changes first. Facebook only delivers to customers who messaged you in the last 24 hours; Instagram customers see the announcement on the booking page instead.
+                </div>
+              </div>
+            </SectionCard>
 
             {/* ── NOTIFICATIONS ── */}
             <GroupHeader label="Notifications" />
