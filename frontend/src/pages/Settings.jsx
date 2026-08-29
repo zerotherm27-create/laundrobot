@@ -21,6 +21,10 @@ const LABEL = { fontSize: 12, fontWeight: 600, color: '#374151', display: 'block
 
 // Ready-made announcements for the situations shops actually post about.
 // Tapping one fills the message box; staff can edit before saving.
+// Mirrors AI_INSTRUCTIONS_MAX in backend/utils/gemini.js — the length the
+// system prompt carries and the save validator enforces.
+const AI_INSTRUCTIONS_MAX = 6000;
+
 const ANNOUNCEMENT_TEMPLATES = [
   { label: 'Weather delay', text: 'Pickup and delivery may be delayed today due to bad weather. Your laundry is safe with us — thank you for your patience!' },
   { label: 'No water', text: 'We are experiencing a water interruption today, so processing may take longer than usual. We will update you as soon as service resumes.' },
@@ -938,9 +942,19 @@ export default function Settings() {
                       style={{ ...INPUT, resize: 'vertical', lineHeight: 1.5 }}
                       onFocus={FOCUS} onBlur={BLUR}
                     />
-                    <div style={{ fontSize: 11, color: '#374151', marginTop: 4 }}>
-                      These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+                      <div style={{ fontSize: 11, color: '#374151', lineHeight: 1.5 }}>
+                        These rules are followed on every AI reply — language, tone, what to avoid, how to sign off, etc.
+                      </div>
+                      <div style={{ fontSize: 11, color: aiInstructions.length > AI_INSTRUCTIONS_MAX ? '#A32D2D' : '#6B7280', fontWeight: aiInstructions.length > AI_INSTRUCTIONS_MAX ? 600 : 400, flexShrink: 0 }}>
+                        {aiInstructions.length.toLocaleString()}/{AI_INSTRUCTIONS_MAX.toLocaleString()}
+                      </div>
                     </div>
+                    {aiInstructions.length > AI_INSTRUCTIONS_MAX && (
+                      <div style={{ fontSize: 11, color: '#A32D2D', marginTop: 4, lineHeight: 1.5 }}>
+                        Too long by {(aiInstructions.length - AI_INSTRUCTIONS_MAX).toLocaleString()} characters — trim it before saving, or the save will be rejected.
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div style={{ background: '#F5F3FF', border: '0.5px solid #DDD6FE', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#5B21B6' }}>

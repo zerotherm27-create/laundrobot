@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { setupMessengerProfile } = require('../utils/messengerProfile');
+const { AI_INSTRUCTIONS_MAX } = require('../utils/gemini');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 
@@ -38,8 +39,10 @@ router.get('/settings', auth, async (req, res) => {
 router.put('/settings', auth, async (req, res) => {
   const { notification_email, contact_number, store_open, store_close, booking_cutoff, open_days, minimum_order, ai_enabled, ai_instructions, ig_user_id, ai_pause_hours, shop_address, qr_image_url, maya_qr_url, custom_domain, white_label, logo_url, payment_mode, xendit_api_key, google_review_link, review_cooldown_days, announcement, announcement_enabled } = req.body;
 
-  if (ai_instructions && ai_instructions.length > 3000) {
-    return res.status(400).json({ error: 'AI instructions must be 3000 characters or less.' });
+  // Must stay in sync with the slice() in utils/gemini.js buildShopContext —
+  // a stricter validator here rejects instructions the prompt could carry fine.
+  if (ai_instructions && ai_instructions.length > AI_INSTRUCTIONS_MAX) {
+    return res.status(400).json({ error: `AI instructions must be ${AI_INSTRUCTIONS_MAX} characters or less.` });
   }
 
   if (announcement && announcement.length > 500) {

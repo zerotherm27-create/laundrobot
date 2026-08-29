@@ -60,10 +60,12 @@ test('base prompt defers payment policy to shop-specific instructions, never inv
   assert.doesNotMatch(src, /Full payment is required BEFORE/i, 'no hardcoded platform-wide prepayment policy');
 });
 
-test('shop ai_instructions cap fits long tenant policies (TLP is >2200 chars)', () => {
-  const m = src.match(/\.slice\(0,\s*(\d+)\)/);
-  assert.ok(m, 'ai_instructions must be length-capped');
-  assert.ok(Number(m[1]) >= 4000, `cap must be >= 4000 chars, got ${m[1]} — TLP's instructions were silently truncated at 2000`);
+test('shop ai_instructions cap fits long tenant policies (TLP is >3100 chars)', () => {
+  // The cap is a named constant now, not a literal — scraping slice(0, N) would
+  // match the announcement's own slice instead.
+  const { AI_INSTRUCTIONS_MAX } = require('./gemini');
+  assert.match(src, /ai_instructions[\s\S]{0,200}?\.slice\(0, AI_INSTRUCTIONS_MAX\)/, 'ai_instructions must be length-capped');
+  assert.ok(AI_INSTRUCTIONS_MAX >= 4000, `cap must be >= 4000 chars, got ${AI_INSTRUCTIONS_MAX} — TLP's instructions were silently truncated at 2000`);
 });
 
 test('system prompt tells the AI how to treat customers with active bookings', () => {
@@ -112,4 +114,18 @@ test('announcement is only injected while enabled and non-empty', () => {
 test('announcement is framed as status, not policy', () => {
   const block = geminiSrc.slice(geminiSrc.indexOf('CURRENT SHOP ANNOUNCEMENT'));
   assert.match(block.slice(0, 400), /do NOT treat it as a new policy/);
+});
+
+// ── ai_instructions length limit ──
+// The save validator in routes/tenants.js used to reject at 3000 while the
+// prompt sliced at 6000, so tenants were blocked from saving instructions the
+// system could carry fine (TLP's policy is ~3140 chars). One shared constant.
+test('the prompt slice and the save validator use the same limit', () => {
+  const { AI_INSTRUCTIONS_MAX } = require('./gemini');
+  assert.equal(AI_INSTRUCTIONS_MAX, 6000);
+  assert.match(geminiSrc, /slice\(0, AI_INSTRUCTIONS_MAX\)/);
+  const tenantsSrc = fs.readFileSync(path.join(__dirname, '..', 'routes', 'tenants.js'), 'utf8');
+  assert.match(tenantsSrc, /AI_INSTRUCTIONS_MAX \} = require\('\.\.\/utils\/gemini'\)/);
+  assert.match(tenantsSrc, /ai_instructions\.length > AI_INSTRUCTIONS_MAX/);
+  assert.doesNotMatch(tenantsSrc, /ai_instructions\.length > 3000/);
 });

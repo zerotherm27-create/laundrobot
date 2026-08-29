@@ -4,6 +4,10 @@ const db = require('../db');
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const HISTORY_LIMIT = 20; // turns to keep per conversation (10 full exchanges)
 
+// How much of a tenant's ai_instructions the system prompt carries. The save
+// validator in routes/tenants.js imports this so the two can't drift apart.
+const AI_INSTRUCTIONS_MAX = 6000;
+
 async function buildShopContext(tenantId, customerContext) {
   const [
     { rows: [tenant] },
@@ -150,7 +154,7 @@ BOUNDARIES:
 24. If the requested information is not available, respond exactly with: "Our staff will get back to you to confirm."
 25. Never mention, compare, or discuss competitor shops or brands.
 26. If a customer asks something off-topic (weather, jokes, etc.) — briefly redirect to how you can help them with laundry.
-${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${(tenant.ai_instructions || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, 6000)}\n` : ''}${tenant.announcement_enabled && tenant.announcement ? `\nCURRENT SHOP ANNOUNCEMENT (a temporary operational notice the shop posted today — mention it when the customer asks about timing, pickup, delivery, or store availability. It describes current status only; do NOT treat it as a new policy or extrapolate beyond what it says):\n${(tenant.announcement || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, 500)}\n` : ''}${customerSection}
+${tenant.ai_instructions ? `\nSHOP-SPECIFIC INSTRUCTIONS (these override everything above if they conflict):\n${(tenant.ai_instructions || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, AI_INSTRUCTIONS_MAX)}\n` : ''}${tenant.announcement_enabled && tenant.announcement ? `\nCURRENT SHOP ANNOUNCEMENT (a temporary operational notice the shop posted today — mention it when the customer asks about timing, pickup, delivery, or store availability. It describes current status only; do NOT treat it as a new policy or extrapolate beyond what it says):\n${(tenant.announcement || '').replace(/<[^>]*>/g, '').replace(/\{\{[^}]*\}\}/g, '').slice(0, 500)}\n` : ''}${customerSection}
 SHOP: ${tenant.name}
 ${tenant.shop_address ? `ADDRESS: ${tenant.shop_address}` : ''}
 HOURS: ${hours}
@@ -400,4 +404,4 @@ async function askGemini(tenantId, userMessage, senderId) {
   }
 }
 
-module.exports = { askGemini, formatActiveBookings };
+module.exports = { askGemini, formatActiveBookings, AI_INSTRUCTIONS_MAX };
