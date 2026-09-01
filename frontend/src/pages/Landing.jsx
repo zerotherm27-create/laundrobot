@@ -738,15 +738,19 @@ const FEATURES = [
   { icon: 'kanban',    bg: 'var(--success)',      title: 'Kanban Order Board',    desc: 'Visual order pipeline from pick-up to processing to delivery — always in control.' },
   { icon: 'walkin',    bg: 'var(--primary-tint)', title: 'Walk-in POS',           desc: 'Accept cash and QR payments for in-store customers in just a few taps.' },
   { icon: 'delivery',  bg: 'var(--purple)',       title: 'Delivery Zones',        desc: 'Set flat or distance-based fees per zone. Delivery cost calculated automatically.' },
+  { icon: 'package',   bg: 'var(--warning)',       title: 'Flexible Service Pricing', desc: 'Bag sizes, express add-ons, and custom fields — priced automatically on every order.' },
+  { icon: 'printer',   bg: 'var(--success)',      title: 'Thermal Printer Receipts', desc: 'Print job orders and claim receipts straight to a Bluetooth thermal printer from any tablet.' },
+  { icon: 'download',  bg: 'var(--primary-tint)', title: 'Works Without Internet', desc: 'Walk-in orders keep going when the connection drops — they sync automatically once you\'re back online.' },
+  { icon: 'info',      bg: 'var(--purple)',       title: 'Shop Announcements',    desc: 'Post a closure notice or promo to your booking page, or blast it to active Messenger customers.' },
 ];
 
 const ALSO_INCLUDED = [
-  'Blast messaging to customers',
-  'Promo codes & referral links',
-  'Inventory tracking + auto-deduct',
-  'Finance & P&L reports',
-  'Auto payment reminders',
-  'Revenue analytics',
+  { label: 'Blast messaging to customers',      tier: 'Growth' },
+  { label: 'Promo codes & referral links',       tier: 'Growth' },
+  { label: 'Inventory tracking + auto-deduct',   tier: 'Growth' },
+  { label: 'Finance & P&L reports',              tier: 'Pro' },
+  { label: 'Auto payment reminders',             tier: 'Growth' },
+  { label: 'Revenue analytics',                  tier: 'Growth' },
 ];
 
 function FeatureRow({ icon, bg, title, desc, first }) {
@@ -765,8 +769,8 @@ function FeatureRow({ icon, bg, title, desc, first }) {
 
 function Features() {
   const ref = useFadeUp();
-  const colA = FEATURES.slice(0, 3);
-  const colB = FEATURES.slice(3, 6);
+  const colA = FEATURES.slice(0, 5);
+  const colB = FEATURES.slice(5, 10);
   return (
     <section id="features" style={{ background: 'var(--bg)', padding: 'clamp(3.5rem,7vw,6.5rem) 1.25rem' }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -789,12 +793,19 @@ function Features() {
           <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: '1rem' }}>Also included</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
             {ALSO_INCLUDED.map(f => (
-              <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 14px', fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>
+              <span key={f.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #E5E5DC', borderRadius: 50, padding: '6px 8px 6px 14px', fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>
                 <Icon name="check" size={11} color="var(--primary-tint)" />
-                {f}
+                {f.label}
+                <span style={{
+                  fontSize: 9, fontWeight: 800, letterSpacing: '.03em', textTransform: 'uppercase',
+                  color: f.tier === 'Pro' ? '#4740a8' : '#065F46',
+                  background: f.tier === 'Pro' ? 'var(--purple-bg)' : '#D1FAE5',
+                  padding: '2px 7px', borderRadius: 50,
+                }}>{f.tier}{f.tier === 'Growth' ? '+' : ''}</span>
               </span>
             ))}
           </div>
+          <p style={{ fontSize: 11.5, color: '#9CA3AF', marginTop: '.85rem' }}>Growth+ features are included on Growth and Pro plans. Pro features are included on Pro only.</p>
         </div>
       </div>
     </section>
@@ -844,7 +855,7 @@ function HowItWorks() {
 const FAQS = [
   { q: 'Do my customers need to download an app?',        a: 'No. Customers place orders directly through Facebook Messenger — no app download, no signup required. You can also share a public booking link they can open in any browser.' },
   { q: 'What payment methods does LaundroBot support?',   a: 'LaundroBot integrates with Xendit, which supports credit and debit cards, GCash, Maya, bank transfer, and other popular Philippine e-wallets. Walk-in cash and QR payments are also supported.' },
-  { q: 'Does the AI chatbot speak Tagalog?',              a: "Yes. The AI chatbot responds naturally in English, Tagalog, and Taglish — whichever your customers use. You can add custom instructions to match your shop's tone and FAQs." },
+  { q: 'Does the AI chatbot speak Tagalog?',              a: "Yes, on every plan. The AI chatbot responds naturally in English, Tagalog, and Taglish — whichever your customers use. On the Pro plan, you can also add custom instructions to fine-tune its tone and teach it shop-specific policies." },
   { q: 'Can I manage multiple laundry branches?',         a: 'Yes. LaundroBot supports multi-branch management. Each branch has its own order board, customer list, services, and delivery zones under one account.' },
   { q: 'How does delivery zone pricing work?',            a: 'You define zones on a map and set flat or distance-based pricing brackets. The delivery fee is calculated automatically when a customer enters their address on the booking form.' },
   { q: 'Is LaundroBot free to use?',                      a: 'You can get started for free. Sign in to set up your shop, connect your Facebook Page, and start accepting orders.' },
@@ -915,7 +926,7 @@ const PLANS = [
       'Messenger bot + AI chatbot (Tagalog & English)',
       'Booking webform with Xendit payments',
       'Kanban order board + Walk-in POS',
-      'Email notifications to owner & customer',
+      'Order-status updates via email & Messenger',
       'Up to 200 orders/month',
     ],
   },
@@ -933,7 +944,8 @@ const PLANS = [
     cta: 'Start free trial',
     features: [
       'Everything in Starter',
-      'Up to 3 branches · 5 staff accounts',
+      'Up to 3 branches · 5 staff accounts — no per-branch fees',
+      'Clone services & settings when adding a branch',
       'Blast messaging to all your customers',
       'Promo codes & referral links',
       'Auto payment reminders (4-stage follow-up)',
@@ -957,7 +969,7 @@ const PLANS = [
     cta: 'Contact us',
     features: [
       'Everything in Growth',
-      'Up to 10 branches · 10 staff accounts',
+      'Unlimited branches · 10 staff accounts',
       'Finance module — P&L, expenses & margin analysis',
       'Custom AI instructions per branch',
       'White-label booking form (your domain)',
@@ -1119,6 +1131,14 @@ function Pricing() {
         {/* Cards */}
         <div className="l-pricing-grid" style={{ marginBottom: '2rem' }}>
           {PLANS.map(p => <PricingCard key={p.name} plan={p} annual={annual} />)}
+        </div>
+
+        {/* Flat multi-branch pricing callout */}
+        <div style={{ maxWidth: 700, margin: '0 auto 2rem', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 16, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
+          <Icon name="check-circle" size={20} color="#16A34A" style={{ flexShrink: 0 }} />
+          <p style={{ fontSize: 13.5, color: '#166534', lineHeight: 1.6, margin: 0, fontWeight: 600 }}>
+            No per-branch add-on fees. Growth includes 3 branches and Pro includes unlimited branches — flat, unlike other laundry SaaS options that charge extra for every additional store.
+          </p>
         </div>
 
         {/* Footer note */}
