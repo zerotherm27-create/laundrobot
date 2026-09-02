@@ -66,7 +66,19 @@ function CustomDomainApp() {
 
   useEffect(() => {
     getPublicTenantByDomain(window.location.hostname)
-      .then(r => { setTenantId(r.data.tenant_id); setWhiteLabel(r.data.white_label); })
+      .then(r => {
+        setTenantId(r.data.tenant_id);
+        setWhiteLabel(r.data.white_label);
+        // The static index.html meta (title/canonical/OG) describes the LaundroBot
+        // SaaS product, not this tenant's booking page — override what JS-executing
+        // crawlers and the browser tab see. Non-JS bots (e.g. Facebook's link
+        // unfurler) still read the static tags — that needs a server-side fix.
+        if (r.data.tenant_name) {
+          document.title = `${r.data.tenant_name} — Book Online`;
+          document.querySelector('link[rel="canonical"]')
+            ?.setAttribute('href', `${window.location.origin}/`);
+        }
+      })
       .catch(() => setError('This domain is not configured. Please contact support.'));
   }, []);
 

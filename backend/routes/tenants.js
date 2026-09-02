@@ -464,7 +464,7 @@ router.get('/', auth, superadminOnly, async (req, res) => {
 // ── Multi-branch ─────────────────────────────────────────────────────────────
 
 function branchLimitForPlan(plan) {
-  if (plan === 'pro')    return 999;
+  if (plan === 'pro')    return 10;
   if (plan === 'growth') return 3;
   return 1;
 }

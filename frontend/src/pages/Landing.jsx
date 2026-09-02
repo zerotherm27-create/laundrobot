@@ -969,7 +969,7 @@ const PLANS = [
     cta: 'Contact us',
     features: [
       'Everything in Growth',
-      'Unlimited branches · 10 staff accounts',
+      'Up to 10 branches · 10 staff accounts',
       'Finance module — P&L, expenses & margin analysis',
       'Custom AI instructions per branch',
       'White-label booking form (your domain)',
@@ -1137,7 +1137,7 @@ function Pricing() {
         <div style={{ maxWidth: 700, margin: '0 auto 2rem', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 16, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
           <Icon name="check-circle" size={20} color="#16A34A" style={{ flexShrink: 0 }} />
           <p style={{ fontSize: 13.5, color: '#166534', lineHeight: 1.6, margin: 0, fontWeight: 600 }}>
-            No per-branch add-on fees. Growth includes 3 branches and Pro includes unlimited branches — flat, unlike other laundry SaaS options that charge extra for every additional store.
+            No per-branch add-on fees. Growth includes 3 branches and Pro includes up to 10 branches — flat, unlike other laundry SaaS options that charge extra for every additional store.
           </p>
         </div>
 

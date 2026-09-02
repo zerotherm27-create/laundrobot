@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { signup as apiSignup } from '../api.js';
 
 export default function Signup() {
+  useEffect(() => { document.title = 'Start Your Free Trial — LaundroBot'; }, []);
   const { login: authLogin } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail]               = useState('');
