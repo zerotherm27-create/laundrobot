@@ -83,6 +83,7 @@ for (const [routePath, file, middleware] of routes) {
 
 try { app.use('/webhook/messenger', require('./webhooks/messenger')); console.log('✓ webhook messenger'); } catch(e) { console.error('✗ webhook messenger: ' + e.message); }
 try { app.use('/webhook/xendit', require('./webhooks/xendit')); console.log('✓ webhook xendit'); } catch(e) { console.error('✗ webhook xendit: ' + e.message); }
+try { app.use('/webhook/data-deletion', require('./webhooks/dataDeletion')); console.log('✓ webhook data-deletion'); } catch(e) { console.error('✗ webhook data-deletion: ' + e.message); }
 
 app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 

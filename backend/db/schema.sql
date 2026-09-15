@@ -132,6 +132,17 @@ CREATE TABLE IF NOT EXISTS faqs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Audit trail for Meta's Data Deletion Request Callback
+-- (backend/webhooks/dataDeletion.js). Also backs the confirmation status
+-- page Meta shows the user after they submit a deletion request.
+CREATE TABLE IF NOT EXISTS data_deletion_requests (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  confirmation_code TEXT UNIQUE NOT NULL,
+  rows_affected INT DEFAULT 0,
+  requested_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Indexes for performance
 CREATE INDEX idx_orders_tenant ON orders(tenant_id);
 CREATE INDEX idx_orders_status ON orders(status);
