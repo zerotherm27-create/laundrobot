@@ -16,11 +16,11 @@ router.get('/by-domain/:hostname', async (req, res) => {
   try {
     const hostname = req.params.hostname.toLowerCase().trim();
     const { rows: [tenant] } = await db.query(
-      `SELECT id, name, white_label FROM tenants WHERE LOWER(custom_domain) = $1 AND active = true`,
+      `SELECT id, name, white_label, logo_url FROM tenants WHERE LOWER(custom_domain) = $1 AND active = true`,
       [hostname]
     );
     if (!tenant) return res.status(404).json({ error: 'Domain not configured' });
-    res.json({ tenant_id: tenant.id, tenant_name: tenant.name, white_label: tenant.white_label });
+    res.json({ tenant_id: tenant.id, tenant_name: tenant.name, white_label: tenant.white_label, logo_url: tenant.logo_url });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
