@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, Component } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, Component } from 'react';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
@@ -8,6 +8,9 @@ import ConfirmDialog from './components/ConfirmDialog.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import ToastStack from './components/ToastStack.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
+import BottomTabBar from './components/BottomTabBar.jsx';
+import PullToRefresh from './components/PullToRefresh.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 
 const Login        = lazy(() => import('./pages/Login.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
@@ -122,7 +125,17 @@ function Dashboard({ initialPage }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
   const [subPlan,   setSubPlan]   = useState('starter');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const mainRef = useRef(null);
   const Page = PAGES[page] || Overview;
+
+  // Pull-to-refresh remounts the current page (via `key`) instead of a full
+  // browser reload — its own mount-time useEffect refetches its data. The
+  // short delay just keeps the spinner visible instead of an instant flash.
+  async function handleRefresh() {
+    setRefreshKey(k => k + 1);
+    await new Promise(r => setTimeout(r, 400));
+  }
 
   useEffect(() => {
     const title = PAGE_TITLES[page] || page;
@@ -171,6 +184,7 @@ function Dashboard({ initialPage }) {
     <UpgradeModal />
     <ConfirmDialog />
     <ToastStack />
+    <InstallPrompt />
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
       {/* Trial banner — only shown for trial tenants */}
       {user.role !== 'superadmin' && <TrialBanner />}
@@ -187,15 +201,19 @@ function Dashboard({ initialPage }) {
       {/* ── Main row (sidebar + content) ── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Sidebar current={page} onNav={navigate} role={user.role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="dashboard-main" style={{
+        <main ref={mainRef} className="dashboard-main" style={{
           flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
           maxWidth: 'calc(100vw - 230px)',
         }}>
-          {page === 'SuperAdmin' && user.role !== 'superadmin'
-            ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
-            : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#6B7280', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page /></Suspense></PageErrorBoundary>}
+          <PullToRefresh onRefresh={handleRefresh} scrollContainerRef={mainRef}>
+            {page === 'SuperAdmin' && user.role !== 'superadmin'
+              ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
+              : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#6B7280', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page key={refreshKey} /></Suspense></PageErrorBoundary>}
+          </PullToRefresh>
         </main>
       </div>
+
+      <BottomTabBar current={page} onNav={navigate} onMore={() => setSidebarOpen(true)} />
     </div>
     </UpgradeProvider>
     </ConfirmProvider>

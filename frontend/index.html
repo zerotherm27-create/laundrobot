@@ -378,6 +378,37 @@
       }
       .sidebar-mobile-overlay.open { display: block; }
 
+      /* ── Bottom tab bar (phone-only, see the max-width:767px block below) ── */
+      .bottom-tab-bar {
+        display: none;
+        position: fixed; bottom: 0; left: 0; right: 0; z-index: 140;
+        background: var(--card);
+        border-top: 0.5px solid var(--border);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .bottom-tab-item {
+        flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+        padding: 7px 0 6px; background: none; border: none; cursor: pointer;
+        font-size: 10px; font-weight: 500; color: #6B7280; font-family: inherit;
+      }
+      .bottom-tab-item.active { color: var(--primary); }
+
+      /* ── Pull-to-refresh indicator ── */
+      .pull-refresh-indicator {
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+        font-size: 12px; color: #6B7280; transition: height .15s ease;
+      }
+
+      /* ── Install prompt banner ── */
+      .install-prompt-banner {
+        position: fixed; left: 12px; right: 12px;
+        bottom: calc(env(safe-area-inset-bottom) + 12px);
+        display: flex; align-items: center; gap: 10px;
+        background: var(--text); color: #fff;
+        padding: 10px 14px; border-radius: var(--radius);
+        box-shadow: var(--shadow-lg); font-size: 13px; z-index: 160;
+      }
+
       /* ── Grid helpers (just carry the class; inline styles set desktop values) ── */
       /* Override via !important inside media queries below */
 
@@ -448,9 +479,11 @@
 
       /* ════ MOBILE  < 768 px ════ */
       @media (max-width: 767px) {
-        /* Show hamburger & topbar */
+        /* Show hamburger, topbar & bottom tab bar */
         .hamburger-btn { display: flex; align-items: center; justify-content: center; }
         .mobile-topbar  { display: flex; }
+        .bottom-tab-bar { display: flex; }
+        .install-prompt-banner { bottom: calc(56px + env(safe-area-inset-bottom) + 12px); }
 
         /* Layout: vertical stack */
         .dashboard-layout { flex-direction: column !important; }
@@ -468,10 +501,11 @@
         }
         .sidebar-drawer.open { left: 0 !important; }
 
-        /* Main: full-width, less padding */
+        /* Main: full-width, less padding; extra bottom padding clears the
+           fixed bottom tab bar (56px) plus its safe-area inset */
         .dashboard-main {
           max-width: 100vw !important;
-          padding: 1rem !important;
+          padding: 1rem 1rem calc(56px + env(safe-area-inset-bottom) + 1rem) !important;
           overflow-y: visible !important;
         }
 
