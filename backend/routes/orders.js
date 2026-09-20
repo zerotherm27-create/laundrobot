@@ -461,7 +461,8 @@ router.get('/:id', auth, async (req, res) => {
 
 // PATCH update order status / notes / service / price
 router.patch('/:id', auth, async (req, res) => {
-  const { status, notes, paid, service_id, weight, price, delivery_date } = req.body;
+  const { status, notes, paid, service_id, weight, price, delivery_date, notify } = req.body;
+  const shouldNotify = notify !== false;
   try {
     const fields = [];
     const params = [];
@@ -494,12 +495,12 @@ router.patch('/:id', auth, async (req, res) => {
         console.warn('[inventory-deduct]', e.message)
       );
     }
-    if (status === 'PROCESSING') {
+    if (status === 'PROCESSING' && shouldNotify) {
       sendStatusNotification(rows[0], req.user.tenant_id, 'PROCESSING').catch(e =>
         console.warn('[processing-notify]', e.message)
       );
     }
-    if (status === 'FOR DELIVERY') {
+    if (status === 'FOR DELIVERY' && shouldNotify) {
       sendStatusNotification(rows[0], req.user.tenant_id, 'FOR DELIVERY').catch(e =>
         console.warn('[delivery-notify]', e.message)
       );
@@ -787,6 +788,29 @@ router.post('/:id/notify-update', auth, async (req, res) => {
     res.json({ ok: true, sent_to: order.fb_id });
   } catch (err) {
     console.error('[notify-update]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST manually (re)send the PROCESSING/FOR DELIVERY status notification —
+// for orders moved with `notify: false` (Kanban's "don't notify" option) and
+// now ready for the customer to actually hear about it.
+router.post('/:id/notify', auth, async (req, res) => {
+  try {
+    const { rows: [order] } = await db.query(
+      `SELECT id, status, booking_ref FROM orders WHERE id=$1 AND tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (order.status === 'PROCESSING' || order.status === 'FOR DELIVERY') {
+      await sendStatusNotification(order, req.user.tenant_id, order.status);
+    } else {
+      return res.status(400).json({ error: `No manual notification available for status "${order.status}".` });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[manual-notify]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

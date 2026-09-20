@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings } from '../api.js';
+import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings, notifyOrderStatus } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -12,6 +12,9 @@ import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
+// Statuses where staff may want to hold off notifying the customer (e.g. laundry
+// finished early). COMPLETED is deliberately excluded — it always auto-notifies.
+const NOTIFY_STATUSES = new Set(['PROCESSING', 'FOR DELIVERY']);
 const STATUS_ICON_NAMES = { 'NEW ORDER':'star','FOR PICK UP':'arrow-up','PROCESSING':'settings','FOR DELIVERY':'truck','COMPLETED':'check-circle' };
 const STATUS_LABELS = { 'NEW ORDER':'New','FOR PICK UP':'For Pick Up','PROCESSING':'Processing','FOR DELIVERY':'For Delivery','COMPLETED':'Completed' };
 
@@ -151,9 +154,26 @@ export default function Kanban() {
 
   async function moveStatus(orderIds, status) {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];
+    let notify = true;
+    if (NOTIFY_STATUSES.has(status)) {
+      notify = await confirm({
+        title: 'Notify customer?',
+        message: `Send the "${STATUS_LABELS[status]}" update to the customer now?`,
+        confirmLabel: 'Yes, notify',
+        cancelLabel: "Don't notify",
+      });
+    }
     setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status } : o));
-    try { await Promise.all(ids.map(id => updateOrderStatus(id, status))); }
+    try { await Promise.all(ids.map(id => updateOrderStatus(id, status, notify))); }
     catch { getOrders().then(r => setOrders(r.data)); }
+  }
+
+  // Manual "notify now" for orders moved silently earlier (card bell icon + modal button)
+  async function notifyNow(orderIds) {
+    try {
+      await Promise.all(orderIds.map(id => notifyOrderStatus(id)));
+      toast('Customer notified.', 'success');
+    } catch (e) { toast('Failed to notify: ' + (e.response?.data?.error || e.message)); }
   }
 
   async function handleDownloadInvoice() {
@@ -533,6 +553,12 @@ export default function Kanban() {
                             style={{ flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer', background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151', opacity: STATUSES.indexOf(g.status) === 0 ? 0.3 : 1, fontFamily: 'inherit', fontWeight: 500 }}>◀</button>
                           <button onClick={e => move(g, 1, e)} disabled={STATUSES.indexOf(g.status) === STATUSES.length - 1}
                             style={{ flex: 1, padding: '4px', fontSize: 11, borderRadius: 6, cursor: 'pointer', background: 'transparent', border: '0.5px solid #E0E0D8', color: '#374151', opacity: STATUSES.indexOf(g.status) === STATUSES.length - 1 ? 0.3 : 1, fontFamily: 'inherit', fontWeight: 500 }}>▶</button>
+                          {NOTIFY_STATUSES.has(g.status) && (
+                            <button onClick={e => { e.stopPropagation(); notifyNow(g.orderIds); }} title="Notify customer now"
+                              style={{ flex: 1, padding: '4px', borderRadius: 6, cursor: 'pointer', background: 'transparent', border: '0.5px solid #BFDBFE', color: '#1D4ED8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Icon name="bell" size={13} color="#1D4ED8" />
+                            </button>
+                          )}
                         </div>
                       </>
                     )}
@@ -757,6 +783,12 @@ export default function Kanban() {
                   }}>{s}</button>
                 ))}
               </div>
+              {NOTIFY_STATUSES.has(modalOrder.status) && (
+                <button onClick={() => notifyNow(modalOrder.orderIds)}
+                  style={{ marginTop: 8, width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid #BFDBFE', background: '#EFF6FF', color: '#1D4ED8', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Notify Customer Now
+                </button>
+              )}
             </div>
 
             <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280', textAlign: 'center' }}>
