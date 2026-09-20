@@ -391,9 +391,6 @@
       }
       .bottom-tab-item.active { color: var(--primary); }
 
-      /* ── PWA install prompt: sits above the bottom tab bar on mobile ── */
-      .install-prompt { bottom: 12px; }
-
       /* ── Sidebar overlay (mobile backdrop) ── */
       .sidebar-mobile-overlay {
         display: none;
@@ -477,7 +474,12 @@
         .hamburger-btn { display: flex; align-items: center; justify-content: center; }
         .mobile-topbar  { display: flex; }
         .bottom-tab-bar { display: flex; }
-        .install-prompt { bottom: calc(66px + env(safe-area-inset-bottom) + 8px) !important; }
+
+        /* Toasts (incl. the install prompt) sit above the bottom tab bar */
+        .toast-stack {
+          bottom: calc(66px + env(safe-area-inset-bottom) + 10px) !important;
+          left: 12px !important; right: 12px !important; max-width: none !important;
+        }
 
         /* Layout: vertical stack */
         .dashboard-layout { flex-direction: column !important; }

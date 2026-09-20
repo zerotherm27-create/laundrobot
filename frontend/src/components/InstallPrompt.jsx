@@ -1,30 +1,31 @@
+import { useEffect, useRef } from 'react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt.js';
-import { Icon } from './Icons.jsx';
+import { useToast, useToastList } from '../context/ToastContext.jsx';
 
+// Renders nothing itself — fires a persistent toast (with an Install action)
+// through the shared toast system the moment the browser says the PWA is
+// installable, instead of a standalone banner competing for its own space.
 export default function InstallPrompt() {
   const { visible, install, dismiss } = useInstallPrompt();
-  if (!visible) return null;
+  const toast = useToast();
+  const { dismissToast } = useToastList();
+  const toastIdRef = useRef(null);
+  const shownRef = useRef(false);
 
-  return (
-    <div className="install-prompt animate-fade-in" style={{
-      position: 'fixed', left: 12, right: 12, zIndex: 160,
-      background: 'var(--card)', border: '0.5px solid var(--border)',
-      borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xl)',
-      padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10,
-      maxWidth: 380, marginLeft: 'auto', marginRight: 'auto',
-    }}>
-      <img src="/logo.png" alt="" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Install LaundroBot</div>
-        <div style={{ fontSize: 11, color: '#6B7280' }}>Add to your home screen for the full app experience.</div>
-      </div>
-      <button onClick={install} className="btn-primary" style={{ flexShrink: 0, padding: '7px 12px', fontSize: 12 }}>
-        Install
-      </button>
-      <button onClick={dismiss} aria-label="Dismiss"
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
-        <Icon name="x" size={16} color="#9CA3AF" />
-      </button>
-    </div>
-  );
+  useEffect(() => {
+    if (visible && !shownRef.current) {
+      shownRef.current = true;
+      toastIdRef.current = toast(
+        'Install LaundroBot for the full app experience — faster loading and offline access.',
+        'info',
+        { persist: true, action: { label: 'Install', onClick: install }, onDismiss: dismiss }
+      );
+    }
+    if (!visible && toastIdRef.current) {
+      dismissToast(toastIdRef.current);
+      toastIdRef.current = null;
+    }
+  }, [visible, install, dismiss, toast, dismissToast]);
+
+  return null;
 }
