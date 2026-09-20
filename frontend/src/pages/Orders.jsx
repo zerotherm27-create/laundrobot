@@ -530,7 +530,7 @@ export default function Orders() {
 
             {/* Manual archive button — shown when completed orders exist */}
             {completedMonths.length > 0 && (
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, minWidth: 0 }}>
                 <span style={{ fontSize: 12, color: '#374151' }}>Archive:</span>
                 {completedMonths.map(m => (
                   <button key={`${m.year}-${m.month}`}
