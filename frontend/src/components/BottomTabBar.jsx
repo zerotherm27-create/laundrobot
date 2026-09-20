@@ -5,6 +5,8 @@ import { NAV, isNavVisible } from './Sidebar.jsx';
 // "More" tab opens the existing sidebar drawer instead of duplicating NAV
 // in a second menu. Hidden on desktop/tablet via CSS (mobile-only, <768px —
 // same breakpoint the sidebar drawer already switches on).
+// Icon-only, no text labels — Instagram-style minimal bottom nav rather than
+// the labeled-icon pattern most native tab bars use.
 const TAB_KEYS = ['Overview', 'Kanban', 'Orders', 'WalkIn'];
 
 export default function BottomTabBar({ current, role, user, navOpen, onNav, onMore }) {
@@ -16,26 +18,28 @@ export default function BottomTabBar({ current, role, user, navOpen, onNav, onMo
 
   return (
     <nav className="bottom-tab-bar" aria-label="Primary sections">
-      {tabs.map(({ key, iconName, label }) => (
-        <button
-          key={key}
-          type="button"
-          className={`bottom-tab-item${current === key ? ' active' : ''}`}
-          onClick={() => onNav(key)}
-          aria-current={current === key ? 'page' : undefined}
-        >
-          <Icon name={iconName} size={20} color={current === key ? 'var(--primary)' : '#6B7280'} />
-          <span>{label}</span>
-        </button>
-      ))}
+      {tabs.map(({ key, iconName, label }) => {
+        const active = current === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            className={`bottom-tab-item${active ? ' active' : ''}`}
+            onClick={() => onNav(key)}
+            aria-label={label}
+            aria-current={active ? 'page' : undefined}
+          >
+            <Icon name={iconName} size={26} strokeWidth={active ? 2.1 : 1.5} color={active ? '#111827' : '#8E8E8E'} />
+          </button>
+        );
+      })}
       <button
         type="button"
         className={`bottom-tab-item${navOpen ? ' active' : ''}`}
         onClick={onMore}
         aria-label="More sections"
       >
-        <Icon name="menu" size={20} color={navOpen ? 'var(--primary)' : '#6B7280'} />
-        <span>More</span>
+        <Icon name="menu" size={26} strokeWidth={navOpen ? 2.1 : 1.5} color={navOpen ? '#111827' : '#8E8E8E'} />
       </button>
     </nav>
   );
