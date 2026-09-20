@@ -3,87 +3,18 @@ import { getOrders, getHumanConversations, releaseConversation, getMyTenantSetti
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
-import { Icon } from '../components/Icons.jsx';
+import { Icon, IconBadge } from '../components/Icons.jsx';
+import { RetentionChart } from '../components/Charts.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
 
 const STAT_META = [
-  { label: 'Total Revenue',  iconName: 'reports',   color: '#d4a800', bg: '#FFF8E1', border: '#d4a800' },
-  { label: 'Total Orders',   iconName: 'orders',    color: '#7F77DD', bg: '#F0EFFC', border: '#7F77DD' },
-  { label: 'Active Orders',  iconName: 'kanban',    color: '#BA7517', bg: '#FDF3E3', border: '#BA7517' },
-  { label: 'Orders Today',   iconName: 'calendar',  color: '#1D9E75', bg: '#EAF3DE', border: '#1D9E75' },
+  { label: 'Total Revenue',  iconName: 'reports',   color: 'var(--accent-dark)', bg: '#FFF8E1' },
+  { label: 'Total Orders',   iconName: 'orders',    color: '#7F77DD',            bg: '#F0EFFC' },
+  { label: 'Active Orders',  iconName: 'kanban',    color: 'var(--warning)',     bg: '#FDF3E3' },
+  { label: 'Orders Today',   iconName: 'calendar',  color: 'var(--success)',     bg: '#EAF3DE' },
 ];
-
-// Mini grouped bar chart for new vs repeat customers (12 months)
-function MiniRetentionChart({ months }) {
-  const [hov, setHov] = useState(null);
-  if (!months || !months.some(m => m.total > 0)) return null;
-
-  const VW = 560, VH = 130;
-  const PL = 28, PR = 8, PT = 10, PB = 24;
-  const plotW = VW - PL - PR, plotH = VH - PT - PB;
-  const maxVal = Math.max(...months.map(m => (m.newCustomers || 0) + (m.repeatCustomers || 0)), 1);
-  const bSlot  = plotW / 12;
-  const gW     = bSlot * 0.70;
-  const bW     = (gW - 2) / 2;
-  const ys     = v => PT + plotH - Math.max(0, Math.min(v, maxVal) / maxVal * plotH);
-  const MO     = ['J','F','M','A','M','J','J','A','S','O','N','D'];
-
-  return (
-    <div style={{ position: 'relative', userSelect: 'none' }}>
-      <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
-        onMouseLeave={() => setHov(null)}>
-        <line x1={PL} y1={PT + plotH} x2={VW - PR} y2={PT + plotH} stroke="#E5E7EB" strokeWidth="1" />
-        {months.map((m, i) => {
-          const nc  = m.newCustomers    || 0;
-          const rc  = m.repeatCustomers || 0;
-          const cx  = PL + i * bSlot + bSlot / 2;
-          const bx  = cx - gW / 2;
-          const isH = hov === i;
-          return (
-            <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
-              {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH} fill="#38a9c2" fillOpacity="0.06" rx="2" />}
-              <rect x={bx}          y={ys(nc)} width={bW} height={Math.max(0, (nc / maxVal) * plotH)} fill="#047857" rx="1" opacity={isH ? 1 : 0.80} />
-              <rect x={bx + bW + 2} y={ys(rc)} width={bW} height={Math.max(0, (rc / maxVal) * plotH)} fill="#38a9c2" rx="1" opacity={isH ? 1 : 0.80} />
-              <text x={cx} y={VH - 4} textAnchor="middle" fontSize="7.5" fill={isH ? '#374151' : '#6B7280'} fontWeight={isH ? '700' : '400'}>
-                {MO[m.month - 1]}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      {hov !== null && (() => {
-        const m   = months[hov];
-        const ret = m.total > 0 ? Math.round((m.repeatCustomers / m.total) * 100) : 0;
-        const lp  = ((hov + 0.5) / 12) * 100;
-        const MO2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return (
-          <div style={{
-            position: 'absolute', top: 6, left: `${lp}%`,
-            transform: hov >= 9 ? 'translateX(calc(-100% - 4px))' : 'translateX(4px)',
-            background: '#1F2937', color: '#F9FAFB', borderRadius: 7, padding: '6px 10px',
-            fontSize: 10, lineHeight: 1.8, whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-          }}>
-            <div style={{ fontWeight: 700, marginBottom: 1 }}>{MO2[m.month - 1]}</div>
-            <div style={{ color: '#6EE7B7' }}>New: {m.newCustomers || 0}</div>
-            <div style={{ color: '#93C5FD' }}>Repeat: {m.repeatCustomers || 0}</div>
-            <div style={{ color: '#6B7280' }}>Retention: {ret}%</div>
-          </div>
-        );
-      })()}
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 6 }}>
-        {[{ c: '#047857', l: 'New' }, { c: '#38a9c2', l: 'Repeat' }].map(x => (
-          <span key={x.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#6B7280' }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: x.c, display: 'inline-block' }} />
-            {x.l}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -251,56 +182,15 @@ export default function Overview() {
         </div>
       )}
 
-      {/* ── Booking link banner ── */}
-      {bookingUrl && (
-        <div style={{
-          background: 'linear-gradient(135deg,#38a9c2,#1d8ba0)',
-          borderRadius: 14, padding: '1.1rem 1.4rem', marginBottom: '1.75rem',
-          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap'
-        }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#fff', marginBottom: 2 }}>Online Booking Link</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bookingUrl}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button onClick={copyLink}
-              style={{ padding: '7px 16px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,.5)', background: copied ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .15s', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              {copied ? <><Icon name="check" size={12} color="#fff" /> Copied!</> : 'Copy Link'}
-            </button>
-            <a href={bookingUrl} target="_blank" rel="noreferrer"
-              style={{ padding: '7px 16px', borderRadius: 20, border: '1.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
-              Preview ↗
-            </a>
-          </div>
-        </div>
-      )}
-
       {/* ── Stat cards ── */}
       <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: '1.75rem' }}>
         {stats.map((s, i) => {
           const meta = STAT_META[i];
           return (
-            <div key={s.label} style={{
-              background: '#fff',
-              border: '0.5px solid #E8E8E0',
-              borderRadius: 14, padding: '1.1rem 1.25rem',
-              boxShadow: 'var(--shadow-xs)',
-              transition: 'box-shadow .15s, transform .15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.08)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; e.currentTarget.style.transform = 'none'; }}
-            >
+            <div key={s.label} className="stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em' }}>{s.label}</span>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: meta.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name={meta.iconName} size={14} color={meta.color} />
-                </div>
+                <IconBadge name={meta.iconName} size={14} color={meta.color} bg={meta.bg} />
               </div>
               {loading ? (
                 <div className="skeleton" style={{ height: 30, width: '60%', marginBottom: 6 }} />
@@ -315,18 +205,45 @@ export default function Overview() {
         })}
       </div>
 
-      {/* ── Revenue banners: Today's + MTD ── */}
+      {/* ── Booking link (utility action, not a KPI — kept low-key so it never
+           outranks the numbers above) ── */}
+      {bookingUrl && (
+        <div className="stat-card" style={{
+          marginBottom: '1.75rem', padding: '0.9rem 1.25rem',
+          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+        }}>
+          <IconBadge name="globe" size={16} color="var(--primary-tint)" bg="#e6f5f8" badgeSize={34} radius={10} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 2 }}>Online Booking Link</div>
+            <div style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bookingUrl}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={copyLink} className="btn-ghost"
+              style={{ padding: '7px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              {copied ? <><Icon name="check" size={12} color="var(--success)" /> Copied!</> : 'Copy Link'}
+            </button>
+            <a href={bookingUrl} target="_blank" rel="noreferrer" className="btn-ghost"
+              style={{ padding: '7px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>
+              Preview ↗
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* ── Revenue: Today's Revenue hero + MTD summary ──
+           Today's is the single loud gradient band on the page — the most-
+           checked number for a shop owner. MTD is the same data as before,
+           just shown as a quiet stat-card instead of a second gradient band
+           competing for attention. ── */}
       <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '1.75rem' }}>
 
         <div className="revenue-banner" style={{
-          background: 'linear-gradient(135deg,#1D9E75,#15795B)',
+          background: 'linear-gradient(135deg, var(--success), #15795B)',
           borderRadius: 14, padding: '1rem 1.4rem',
           display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
         }}>
           <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
-            </svg>
+            <Icon name="bag" size={18} color="#fff" strokeWidth={2} />
           </div>
           <div className="revenue-amount" style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>Today's Revenue</div>
@@ -348,32 +265,24 @@ export default function Overview() {
           </div>
         </div>
 
-        <div className="revenue-banner" style={{
-          background: 'linear-gradient(135deg,#D4A800,#A6810A)',
-          borderRadius: 14, padding: '1rem 1.4rem',
-          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-        }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-          </div>
-          <div className="revenue-amount" style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 2 }}>
+        <div className="stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em' }}>
               MTD Revenue · {new Date().toLocaleDateString('en-PH', { month: 'long' })}
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-.5px', lineHeight: 1, overflowWrap: 'anywhere' }}>
-              ₱{mtdRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-            </div>
+            </span>
+            <IconBadge name="calendar" size={14} color="var(--accent-dark)" bg="#FFF8E1" />
           </div>
-          <div className="revenue-stats" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#111827', letterSpacing: '-.5px', lineHeight: 1.1, marginBottom: 10 }}>
+            ₱{mtdRevenue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+          </div>
+          <div style={{ display: 'flex', gap: 16 }}>
             {[
               { label: 'Orders',     val: mtdLoadCount },
               { label: 'Net Profit', val: '₱' + Math.round(mtdNetProfit).toLocaleString() },
             ].map(s => (
-              <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
-                <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', fontWeight: 500 }}>{s.label}</div>
+              <div key={s.label}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: '#6B7280' }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -382,7 +291,7 @@ export default function Overview() {
       </div>
 
       {/* ── Customer Retention ── */}
-      <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)', marginBottom: '1.75rem' }}>
+      <div className="stat-card" style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Customer Retention</div>
           <span style={{ fontSize: 11, color: '#6B7280' }}>
@@ -409,14 +318,14 @@ export default function Overview() {
         </div>
 
         {/* Chart */}
-        {retention?.months && <MiniRetentionChart months={retention.months} />}
+        {retention?.months && <RetentionChart months={retention.months} />}
       </div>
 
       {/* ── Bottom grid ── */}
       <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
         {/* Orders by status */}
-        <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
+        <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Orders by status</div>
             {!loading && <span style={{ fontSize: 11, color: '#6B7280' }}>{orders.length} total</span>}
@@ -449,7 +358,7 @@ export default function Overview() {
         </div>
 
         {/* Recent orders */}
-        <div style={{ background: '#fff', border: '0.5px solid #E8E8E0', borderRadius: 14, padding: '1.25rem', boxShadow: 'var(--shadow-xs)' }}>
+        <div className="stat-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Recent orders</div>
             <span style={{ fontSize: 11, color: '#6B7280' }}>Last {Math.min(orders.length, 7)}</span>
