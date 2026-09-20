@@ -41,11 +41,13 @@ export const getOrders = (params) => api.get('/orders', { params });
 export const getArchivedOrders = () => api.get('/orders', { params: { archived: 'true', limit: 500 } });
 export const archiveOrderMonth = (year, month) => api.post('/orders/archive-month', { year, month });
 export const unarchiveOrder = (id) => api.post(`/orders/${id}/unarchive`);
-export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}`, { status });
+export const updateOrderStatus = (id, status, notify) =>
+  api.patch(`/orders/${id}`, notify === undefined ? { status } : { status, notify });
 export const updateOrder = (id, data) => api.patch(`/orders/${id}`, data);
 export const updateBooking = (ref, items, customNote, customPrice, deletedIds) =>
   api.put(`/orders/booking/${ref}`, { items, custom_note: customNote || '', custom_price: customPrice || 0, deleted_ids: deletedIds || [] });
 export const notifyOrderUpdate    = (id, data) => api.post(`/orders/${id}/notify-update`, data);
+export const notifyOrderStatus    = (id) => api.post(`/orders/${id}/notify`);
 export const generatePaymentLink  = id          => api.post(`/orders/${id}/payment-link`);
 export const getPaymentStatus     = ref         => api.get(`/orders/booking/${ref}/payment-status`);
 export const deleteOrder = id => api.delete(`/orders/${id}`);
