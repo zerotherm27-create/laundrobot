@@ -5,7 +5,7 @@ import { Icon } from './Icons.jsx';
 import { usePlan } from '../context/UpgradeContext.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
 
-const NAV = [
+export const NAV = [
   { key: 'Overview',      iconName: 'overview',   label: 'Overview' },
   { key: 'Kanban',        iconName: 'kanban',     label: 'Kanban Board' },
   { key: 'Orders',        iconName: 'orders',     label: 'Orders' },
@@ -78,6 +78,18 @@ const GUIDE_STEPS = [
   },
 ];
 
+// Shared with BottomTabBar so mobile tab visibility never drifts from the sidebar's.
+export function isNavVisible(navKey, role, user) {
+  const n = NAV.find(item => item.key === navKey);
+  if (!n) return false;
+  // Users page is always admin-only — never grant to staff
+  if (n.key === 'Users' && role === 'staff') return false;
+  // Other adminOnly items can be explicitly granted via permissions
+  if (n.adminOnly && role === 'staff' && !(user?.permissions || []).includes(n.key)) return false;
+  if (role === 'staff' && user?.permissions?.length > 0) return user.permissions.includes(n.key);
+  return true;
+}
+
 export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
   const { isPro } = usePlan();
   const { user, logout, branches, branchLimit, switchToBranch } = useAuth();
@@ -118,14 +130,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
     setSaving(false);
   }
 
-  const visibleNav = NAV.filter(n => {
-    // Users page is always admin-only — never grant to staff
-    if (n.key === 'Users' && role === 'staff') return false;
-    // Other adminOnly items can be explicitly granted via permissions
-    if (n.adminOnly && role === 'staff' && !(user?.permissions || []).includes(n.key)) return false;
-    if (role === 'staff' && user?.permissions?.length > 0) return user.permissions.includes(n.key);
-    return true;
-  });
+  const visibleNav = NAV.filter(n => isNavVisible(n.key, role, user));
 
   return (
     <>

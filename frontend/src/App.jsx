@@ -1,6 +1,8 @@
 import { useState, useEffect, lazy, Suspense, Component } from 'react';
 import { AuthProvider } from './context/AuthContext.jsx';
 import Sidebar from './components/Sidebar.jsx';
+import BottomTabBar from './components/BottomTabBar.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
 import UpgradeModal from './components/UpgradeModal.jsx';
 import { UpgradeProvider } from './context/UpgradeContext.jsx';
@@ -193,9 +195,26 @@ function Dashboard({ initialPage }) {
         }}>
           {page === 'SuperAdmin' && user.role !== 'superadmin'
             ? <div style={{ padding: '2rem', color: '#A32D2D', fontSize: 15, fontWeight: 600 }}>Access denied.</div>
-            : <PageErrorBoundary><Suspense fallback={<div style={{ color: '#6B7280', fontSize: 13, padding: '2rem' }}>Loading…</div>}><Page /></Suspense></PageErrorBoundary>}
+            : (
+              <PageErrorBoundary>
+                <Suspense fallback={
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+                    <span className="spinner spinner-blue" style={{ width: 24, height: 24, borderWidth: 3 }} />
+                  </div>
+                }>
+                  {/* Keyed by page so switching sections re-triggers the fade-in
+                      instead of the new page silently popping in mid-scroll. */}
+                  <div key={page} className="animate-fade-in">
+                    <Page />
+                  </div>
+                </Suspense>
+              </PageErrorBoundary>
+            )}
         </main>
       </div>
+
+      <BottomTabBar current={page} role={user.role} user={user} navOpen={sidebarOpen} onNav={navigate} onMore={() => setSidebarOpen(o => !o)} />
+      <InstallPrompt />
     </div>
     </UpgradeProvider>
     </ConfirmProvider>
