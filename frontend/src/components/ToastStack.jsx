@@ -12,7 +12,7 @@ export default function ToastStack() {
   if (!toasts.length) return null;
 
   return (
-    <div style={{
+    <div className="toast-stack" style={{
       position: 'fixed', bottom: 20, right: 20, zIndex: 400,
       display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360,
     }}>
@@ -27,7 +27,17 @@ export default function ToastStack() {
           }}>
             <Icon name={tone.icon} size={14} color={tone.color} style={{ flexShrink: 0, marginTop: 1 }} />
             <span style={{ flex: 1, lineHeight: 1.5 }}>{t.message}</span>
-            <button onClick={() => dismissToast(t.id)} aria-label="Dismiss"
+            {t.action && (
+              <button onClick={() => { t.action.onClick(); dismissToast(t.id); }}
+                style={{
+                  flexShrink: 0, background: tone.color, color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                {t.action.label}
+              </button>
+            )}
+            <button onClick={() => { t.onDismiss?.(); dismissToast(t.id); }} aria-label="Dismiss"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: tone.color, fontSize: 14, lineHeight: 1, padding: 2, flexShrink: 0 }}>
               ×
             </button>
