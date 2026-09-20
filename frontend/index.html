@@ -271,6 +271,7 @@
         border: 0.5px solid var(--border);
         border-radius: var(--radius-lg);
         padding: 1.25rem;
+        box-shadow: var(--shadow-xs);
         transition: box-shadow var(--transition), transform var(--transition);
         cursor: default;
       }
@@ -455,6 +456,8 @@
 
         /* 4-col stat grid → 2 cols */
         .stat-grid-4  { grid-template-columns: repeat(2,1fr) !important; }
+        /* 3-col stat grid stays 3 cols at tablet width */
+        .stat-grid-3  { grid-template-columns: repeat(3,1fr) !important; }
         /* 2-col chart/report grid → 1 col */
         .chart-grid-2 { grid-template-columns: 1fr !important; }
         /* Kanban: keep all 5 cols, scroll horizontally (wrapping breaks the pipeline view) */
@@ -502,6 +505,8 @@
 
         /* Stat grid: 2 cols on mobile */
         .stat-grid-4  { grid-template-columns: 1fr 1fr !important; }
+        /* 3-col stat grid: a lone 3rd tile looks broken at 2-col, so stack to 1 */
+        .stat-grid-3  { grid-template-columns: 1fr !important; }
         /* Charts / reports stack */
         .chart-grid-2 { grid-template-columns: 1fr !important; }
 
