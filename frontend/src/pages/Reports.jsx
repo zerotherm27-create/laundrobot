@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getOrders, getMyTenantSettings } from '../api.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
-import { Icon } from '../components/Icons.jsx';
+import { Icon, IconBadge } from '../components/Icons.jsx';
+import { STATUS_COLORS } from '../components/StatusBadge.jsx';
+import { MiniBarChart, HorizBars, DonutChart } from '../components/Charts.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
@@ -102,7 +104,6 @@ export default function Reports() {
     return acc;
   }, {});
   const days = Object.entries(byDay).slice(-14);
-  const maxRevenue = Math.max(...days.map(([, v]) => v.revenue), 1);
 
   function exportCSV() {
     const headers = ['Order ID','Customer','Service','Status','Amount','Paid','Date'];
@@ -125,7 +126,7 @@ export default function Reports() {
     return (
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 500, marginBottom: '1.25rem' }}>Reports</h2>
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.5rem' }}>
+        <div className="stat-card" style={{ padding: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 4 }}>Revenue reports & analytics</div>
@@ -181,62 +182,46 @@ export default function Reports() {
               { label: 'Completed', val: completedOrders, color: '#639922' },
               { label: 'Avg Order Value', val: '₱' + Number(avgOrderValue).toLocaleString(), color: '#1D9E75' },
             ].map(m => (
-              <div key={m.label} style={{ background: '#f5f5f3', borderRadius: 8, padding: '1rem' }}>
-                <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontSize: 24, fontWeight: 500, color: m.color }}>{m.val}</div>
+              <div key={m.label} className="stat-card">
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>{m.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: m.color }}>{m.val}</div>
               </div>
             ))}
           </div>
 
           <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             {/* Revenue chart */}
-            <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
+            <div className="stat-card">
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Revenue over time</div>
-              {days.length === 0 ? (
-                <div style={{ color: '#374151', fontSize: 13, textAlign: 'center', padding: '2rem 0' }}>No data for this period</div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
-                  {days.map(([day, val]) => (
-                    <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <div style={{ fontSize: 9, color: '#374151' }}>₱{Math.round(val.revenue / 1000)}k</div>
-                      <div style={{ width: '100%', background: '#38a9c2', borderRadius: '3px 3px 0 0', height: Math.max(4, (val.revenue / maxRevenue) * 90) + 'px' }} />
-                      <div style={{ fontSize: 8, color: '#374151', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
-                        {day.slice(0, 5)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <MiniBarChart
+                data={days.map(([day, val]) => ({ day, revenue: val.revenue }))}
+                labelKey="day" valueKey="revenue" color="#38a9c2"
+                formatValue={v => `₱${Math.round(v).toLocaleString()}`}
+              />
             </div>
 
             {/* Orders by status */}
-            <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
+            <div className="stat-card">
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Orders by status</div>
-              {byStatus.map(({ status, count }) => (
-                <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, color: '#374151' }}>{status}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 80, height: 6, background: '#f0f0ec', borderRadius: 4 }}>
-                      <div style={{ height: 6, borderRadius: 4, width: totalOrders ? (count / totalOrders * 100) + '%' : '0%', background: '#38a9c2' }} />
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 500, minWidth: 20 }}>{count}</span>
-                  </div>
-                </div>
-              ))}
+              <HorizBars compact formatValue={v => `${v}`} items={byStatus.map(({ status, count }) => ({
+                label: status, value: count, color: STATUS_COLORS[status],
+              }))} />
             </div>
           </div>
 
           {/* Booking channel breakdown */}
-          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem', marginBottom: 16 }}>
+          <div className="stat-card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Booking channel</div>
-            <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            <div className="stat-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
               {[
-                { key: 'walk_in',   label: 'Walk-in',          icon: '🛒', color: '#166534', bg: '#EAF3DE' },
-                { key: 'web',       label: 'Web Booking',       icon: '🌐', color: '#1D4ED8', bg: '#EFF6FF' },
-                { key: 'messenger', label: 'Messenger',         icon: '💬', color: '#7F77DD', bg: '#F0EFFC' },
+                { key: 'walk_in',   label: 'Walk-in',      icon: 'walkin',     color: '#166534', bg: '#EAF3DE' },
+                { key: 'web',       label: 'Web Booking',  icon: 'globe',      color: '#1D4ED8', bg: '#EFF6FF' },
+                { key: 'messenger', label: 'Messenger',    icon: 'messenger',  color: '#7F77DD', bg: '#F0EFFC' },
               ].map(({ key, label, icon, color, bg }) => (
                 <div key={key} style={{ background: bg, borderRadius: 10, padding: '14px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                    <IconBadge name={icon} size={18} color={color} bg="#fff" badgeSize={36} radius={10} />
+                  </div>
                   <div style={{ fontSize: 11, color, fontWeight: 600, marginBottom: 6 }}>{label}</div>
                   <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1 }}>{sourceMap[key]}</div>
                   <div style={{ fontSize: 11, color, marginTop: 4, opacity: 0.8 }}>₱{sourceRevenue[key].toLocaleString()}</div>
@@ -246,7 +231,7 @@ export default function Reports() {
           </div>
 
           {/* Customer Retention */}
-          <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1.25rem', marginBottom: 16 }}>
+          <div className="stat-card" style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
               Customer Retention —{' '}
               <span style={{ fontWeight: 400, color: '#6B7280' }}>{period}</span>
@@ -280,37 +265,14 @@ export default function Reports() {
               <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 {/* Inline donut chart */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 4 }}>
-                  {(() => {
-                    const segs = [
+                  <DonutChart
+                    size={96}
+                    segments={[
                       { value: retentionNewCount,    color: '#047857' },
                       { value: retentionRepeatCount, color: '#38a9c2' },
-                    ].filter(s => s.value > 0);
-                    const total = segs.reduce((s, x) => s + x.value, 0);
-                    const R = 34, CX = 50, CY = 50, SW = 15, C = 2 * Math.PI * R;
-                    let cum = 0;
-                    const arcs = segs.map(seg => {
-                      const dash = (seg.value / total) * C;
-                      const off  = -cum;
-                      cum += dash;
-                      return { color: seg.color, dash, off };
-                    });
-                    return (
-                      <svg viewBox="0 0 100 100" width={96} height={96} style={{ display: 'block', flexShrink: 0 }}>
-                        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#F3F4F6" strokeWidth={SW} />
-                        {arcs.map((arc, i) => (
-                          <circle key={i} cx={CX} cy={CY} r={R} fill="none"
-                            stroke={arc.color} strokeWidth={SW}
-                            strokeDasharray={`${arc.dash} ${C - arc.dash}`}
-                            strokeDashoffset={arc.off}
-                            transform={`rotate(-90 ${CX} ${CY})`} />
-                        ))}
-                        <text x={CX} y={CY - 5}  textAnchor="middle" fontSize="8"   fill="#6B7280">Return</text>
-                        <text x={CX} y={CY + 8}  textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#111827">
-                          {retentionRate.toFixed(0)}%
-                        </text>
-                      </svg>
-                    );
-                  })()}
+                    ]}
+                    center={{ top: 'Return', bottom: `${retentionRate.toFixed(0)}%` }}
+                  />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {[{ color: '#047857', label: 'New' }, { color: '#38a9c2', label: 'Repeat' }].map(l => (
                       <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#6B7280' }}>
@@ -353,7 +315,7 @@ export default function Reports() {
 
           <div className="chart-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             {/* Top services */}
-            <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
+            <div className="stat-card">
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Top services</div>
               {Object.entries(byService).sort((a, b) => b[1].revenue - a[1].revenue).map(([name, val]) => (
                 <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '0.5px solid #f0f0ec', fontSize: 13 }}>
@@ -368,7 +330,7 @@ export default function Reports() {
             </div>
 
             {/* Summary stats */}
-            <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, padding: '1rem' }}>
+            <div className="stat-card">
               <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 14 }}>Summary</div>
               {[
                 ['Period', period],

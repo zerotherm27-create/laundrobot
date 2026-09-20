@@ -222,7 +222,7 @@ export function DonutChart({ segments, size = 92, center }) {
 /**
  * Horizontal proportional bar rows with color dot, label, and value.
  */
-export function HorizBars({ items, compact = false }) {
+export function HorizBars({ items, compact = false, formatValue = PESO }) {
   const max = Math.max(...items.map(i => parseFloat(i.value) || 0), 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 8 : 12 }}>
@@ -245,7 +245,7 @@ export function HorizBars({ items, compact = false }) {
                 </span>
               </div>
               <span style={{ fontSize: compact ? 11 : 12, color: '#6B7280', fontVariantNumeric: 'tabular-nums' }}>
-                {PESO(item.value)}
+                {formatValue(item.value)}
                 {max > 1 && (
                   <span style={{ color: '#6B7280', marginLeft: 4, fontSize: 10 }}>
                     ({pct.toFixed(0)}%)
