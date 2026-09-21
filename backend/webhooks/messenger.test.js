@@ -115,3 +115,31 @@ test('handleOptin falls back to the welcome+menu when ref matches nothing (no de
     'must send the welcome+menu when neither a referral link nor a booking_ref matched'
   );
 });
+
+// ── An ad's untracked "Instant Reply" echo must not pause the AI ─────────────
+// Meta Ads Manager can auto-send its own canned greeting on a Click-to-Messenger
+// ad. That message is sent by Meta, not through our post(), so it echoes back
+// with no recorded mid — indistinguishable from a real human Business-Suite
+// reply by mid/metadata alone. Confirmed live: this falsely paused the AI for
+// 2h on every customer who tapped such an ad, before they'd ever messaged the
+// bot, so their very next question ("how much...") got silence. A genuine
+// human takeover is always a reply into an existing conversation, so both echo
+// branches must gate pauseAiForCustomer behind hasExistingConversation and
+// skip the pause when no conversations row exists yet.
+
+test('an untracked echo only pauses the AI when a prior conversation exists', () => {
+  const messengerBlock = src.split("} else if (event.message?.is_echo) {")[1]?.split('} else if (event.message || event.postback)')[0] || '';
+  assert.match(
+    messengerBlock,
+    /hasExistingConversation\(tenant\.id, event\.recipient\.id\)/,
+    'messenger echo branch must check hasExistingConversation before pausing'
+  );
+  assert.match(messengerBlock, /pauseAiForCustomer/, 'must still pause when a prior conversation does exist');
+
+  const igBlock = src.split('if (event.message?.is_echo ||')[1]?.split('} else if (event.message || event.postback)')[0] || '';
+  assert.match(
+    igBlock,
+    /hasExistingConversation\(tenant\.id, event\.recipient\.id\)/,
+    'instagram echo branch must check hasExistingConversation before pausing'
+  );
+});

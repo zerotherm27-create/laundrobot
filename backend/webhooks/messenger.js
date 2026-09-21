@@ -106,9 +106,13 @@ router.post('/', async (req, res) => {
             const ownEcho = isBotOwnEcho(event.message);
             console.log('[ig-webhook] echo — recipient:', event.recipient.id, '| mid:', event.message.mid, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
             if (!ownEcho) {
-              console.log('[ig-webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
-              try { await pauseAiForCustomer(tenant, event.recipient.id); }
-              catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+              if (await hasExistingConversation(tenant.id, event.recipient.id)) {
+                console.log('[ig-webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
+                try { await pauseAiForCustomer(tenant, event.recipient.id); }
+                catch (err) { console.error('[ig-webhook] echo-pause error:', err.message); }
+              } else {
+                console.log('[ig-webhook] untracked echo but no prior conversation — treating as an ad/system greeting, not a human reply. Not pausing AI for', event.recipient.id);
+              }
             }
           } else if (event.message || event.postback) {
             console.log('[ig-webhook] handling message from:', event.sender.id);
@@ -144,9 +148,13 @@ router.post('/', async (req, res) => {
           const ownEcho = isBotOwnEcho(event.message);
           console.log('[webhook] echo — recipient:', event.recipient.id, '| mid:', event.message.mid, '| metadata:', event.message.metadata, '| ownEcho:', ownEcho);
           if (!ownEcho) {
-            console.log('[webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
-            try { await pauseAiForCustomer(tenant, event.recipient.id); }
-            catch (err) { console.error('[webhook] echo-pause error:', err.message); }
+            if (await hasExistingConversation(tenant.id, event.recipient.id)) {
+              console.log('[webhook] HUMAN REPLY detected — pausing AI for', event.recipient.id);
+              try { await pauseAiForCustomer(tenant, event.recipient.id); }
+              catch (err) { console.error('[webhook] echo-pause error:', err.message); }
+            } else {
+              console.log('[webhook] untracked echo but no prior conversation — treating as an ad/system greeting, not a human reply. Not pausing AI for', event.recipient.id);
+            }
           }
         } else if (event.message || event.postback) {
           console.log('[webhook] msg from:', event.sender.id);
@@ -485,6 +493,24 @@ async function checkForHumanReply(pageToken, userId, tenant) {
     console.warn('[human-check] Graph API check failed:', err.response?.data?.error?.message || err.message);
     return false;
   }
+}
+
+// ── Was this echo the very first event ever seen for this customer? ─────────
+// Meta Ads Manager's own "Instant Reply" (a canned greeting an advertiser
+// configures directly on a Click-to-Messenger ad) is sent by Meta itself, not
+// through our post() — so it echoes back with no recorded mid, indistinguishable
+// from a genuine human Business-Suite reply. Confirmed live: this falsely
+// pauses the AI for 2h on every customer who taps such an ad, before they've
+// ever exchanged a message with the bot. A real staff takeover, by contrast,
+// is always a reply to an existing conversation — no `conversations` row can
+// exist yet for a brand-new customer. Skip the pause in that case; leave it
+// intact once any conversation history exists (the common case an actual
+// staff member interrupts).
+async function hasExistingConversation(tenantId, customerId) {
+  const { rows } = await db.query(
+    'SELECT 1 FROM conversations WHERE tenant_id=$1 AND fb_user_id=$2', [tenantId, customerId]
+  );
+  return rows.length > 0;
 }
 
 // ── Pause AI for a customer (called on admin echo) ───────────────────────────
