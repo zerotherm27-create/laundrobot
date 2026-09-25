@@ -751,7 +751,10 @@ router.post('/:tenantId/orders', async (req, res) => {
               `💰 Total: ₱${Number(grandTotal).toLocaleString('en-PH')}\n\n` +
               (qrUrl
                 ? `Please scan the QR code and upload your payment screenshot to confirm your booking. Thank you! 🧺`
-                : `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`);
+                : paymentUrl
+                  // A Pay Now button is attached below, so ask for payment instead of implying nothing is needed
+                  ? `Kindly settle your payment using the "Pay Now" button below so we can arrange your pickup. Thank you for choosing ${tenant.name}! 🧺`
+                  : `We'll be in touch to confirm your pickup. Thank you for choosing ${tenant.name}! 🧺`);
 
           if (paymentUrl) {
             await sendButtons(tenant.fb_page_access_token, effectiveFbId, confirmText, [{

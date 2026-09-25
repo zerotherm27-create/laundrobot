@@ -29,3 +29,16 @@ test('confirm-qr-payment only reads service names from the caller\'s own tenant'
   const src = read('orders.js');
   assert.match(src, /WHERE o\.booking_ref=\$1 AND o\.tenant_id=\$2`,\s*\[bookingRef, order\.tenant_id\]/);
 });
+
+// ── Booking confirmation wording (Messenger) ───────────────────────────────
+// With a Pay Now button attached, "We'll be in touch to confirm your pickup" implied nothing was needed
+// from the customer. Ask them to pay; keep the old line only when there is no payment link.
+test('pickup confirmation asks the customer to settle payment when a Pay Now link exists', () => {
+  const src = read('public.js');
+  const block = src.slice(src.indexOf("`✅ Booking Confirmed!"), src.indexOf('if (paymentUrl) {'));
+  assert.match(block, /qrUrl\s*\?\s*`Please scan the QR code and upload your payment screenshot/);
+  assert.match(block, /: paymentUrl\s*[\s\S]*?Kindly settle your payment using the "Pay Now" button below so we can arrange your pickup/);
+  assert.match(block, /: `We'll be in touch to confirm your pickup\./);
+  // the "kindly settle" line must come before the generic fallback
+  assert.ok(block.indexOf('Kindly settle') < block.indexOf("We'll be in touch to confirm your pickup."));
+});
