@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, createUser, deleteUser, changePassword, cloneServices, updateTenantPlan } from '../api.js';
+import { getTenants, createTenant, updateTenant, deleteTenant, getUsers, exchangeFbOAuthCode, connectFacebookPageForTenant, createUser, deleteUser, changePassword, cloneServices, updateTenantPlan } from '../api.js';
+import { startFbOAuth } from '../utils/fbOAuth.js';
 import { useModalA11y } from '../hooks/useModalA11y.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -49,6 +50,46 @@ export default function SuperAdmin() {
   const [cloneOptions, setCloneOptions] = useState({ services: true, settings: false, faqs: false, delivery_zones: true });
   const [cloning, setCloning] = useState(false);
   const [cloneResult, setCloneResult] = useState(null);
+
+  // Assisted Facebook connect: finish the OAuth return here (started from edit branch → Connect Facebook Page)
+  const [fbAssist, setFbAssist] = useState(null); // { tenant, pages, token, selected, busy, msg }
+  const [userFilter, setUserFilter] = useState('all'); // 'all' | 'super' | tenant id
+  const [userSearch, setUserSearch] = useState('');
+
+  useEffect(() => {
+    let target = null;
+    try { target = JSON.parse(sessionStorage.getItem('fb_connect_target') || 'null'); } catch { /* ignore */ }
+    sessionStorage.removeItem('fb_connect_target');
+    const raw = sessionStorage.getItem('fb_oauth_pending');
+    if (!target?.id || !raw) return;
+    let pending;
+    try { pending = JSON.parse(raw); } catch { sessionStorage.removeItem('fb_oauth_pending'); return; }
+    sessionStorage.removeItem('fb_oauth_pending');
+    const storedState = sessionStorage.getItem('fb_oauth_state');
+    sessionStorage.removeItem('fb_oauth_state');
+    if (Date.now() - pending.ts > 5 * 60 * 1000) return;
+    if (!storedState || storedState !== pending.state) {
+      setFbAssist({ tenant: target, pages: [], token: '', selected: '', busy: false, msg: '❌ OAuth state mismatch. Please try again.' });
+      return;
+    }
+    setFbAssist({ tenant: target, pages: [], token: '', selected: '', busy: true, msg: 'Fetching your Pages…' });
+    exchangeFbOAuthCode(pending.code, pending.redirectUri)
+      .then(({ data }) => setFbAssist(a => ({ ...a, pages: data.pages, token: data.pageDataToken, selected: data.pages.length === 1 ? data.pages[0].id : '', busy: false, msg: '' })))
+      .catch(err => setFbAssist(a => ({ ...a, busy: false, msg: '❌ ' + (err.response?.data?.error || 'Failed to fetch your Pages.') })));
+  }, []);
+
+  async function handleAssistConnect() {
+    setFbAssist(a => ({ ...a, busy: true, msg: '' }));
+    try {
+      const { data } = await connectFacebookPageForTenant(fbAssist.tenant.id, fbAssist.selected, fbAssist.token);
+      setFbAssist(a => ({ ...a, busy: false, pages: [], selected: '', token: '', msg: data.warning
+        ? `⚠️ Connected "${data.pageName}" to ${fbAssist.tenant.name}, but Messenger setup was incomplete: ${data.warning}`
+        : `✅ Connected "${data.pageName}" to ${fbAssist.tenant.name} — Messenger menu configured!` }));
+      getTenants().then(r => setTenants(r.data)).catch(() => {});
+    } catch (err) {
+      setFbAssist(a => ({ ...a, busy: false, msg: '❌ ' + (err.response?.data?.error || 'Failed to connect page.') }));
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -123,6 +164,19 @@ export default function SuperAdmin() {
 
   const tenantName = (tid) => tenants.find(t => t.id === tid)?.name || '—';
 
+  // A "shop" is a tenant with no parent; sub-branches point at it via primary_tenant_id.
+  // Show each shop followed by its sub-branches; a sub-branch whose parent is missing stays top-level.
+  const tenantIds = new Set(tenants.map(t => t.id));
+  const shops = tenants.filter(t => !t.primary_tenant_id || !tenantIds.has(t.primary_tenant_id));
+  const subsOf = (id) => tenants.filter(t => t.primary_tenant_id === id);
+  const groupedTenants = shops.flatMap(shop => [{ t: shop, sub: false }, ...subsOf(shop.id).map(t => ({ t, sub: true }))]);
+
+  const q = userSearch.trim().toLowerCase();
+  const usersShown = users.filter(u =>
+    (userFilter === 'all' || (userFilter === 'super' ? u.role === 'superadmin' : u.tenant_id === userFilter)) &&
+    (!q || (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q))
+  );
+
   // ── Clone ──
   async function handleClone() {
     if (!cloneSource || !cloneTarget) return alert('Please select both source and target branches.');
@@ -164,8 +218,8 @@ export default function SuperAdmin() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.5rem' }}>
         {[
-          { label: 'Total branches', val: tenants.length, color: '#BA7517' },
-          { label: 'Active branches', val: tenants.filter(t => t.active).length, color: '#1D9E75' },
+          { label: 'Shops', val: shops.length, color: '#BA7517' },
+          { label: 'Sub-branches', val: tenants.length - shops.length, color: '#1D9E75' },
           { label: 'Total users', val: users.length, color: '#38a9c2' },
         ].map(m => (
           <div key={m.label} style={{ background: '#f5f5f3', borderRadius: 8, padding: '1rem' }}>
@@ -177,7 +231,7 @@ export default function SuperAdmin() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
-        {[['branches','🏢 Branches'], ['users','👤 Users'], ['clone','📋 Clone Branch Data']].map(([key, label]) => (
+        {[['branches','🏢 Shops'], ['users','👤 Users'], ['clone','📋 Clone Branch Data']].map(([key, label]) => (
           <button key={key} onClick={() => { setTab(key); setCloneResult(null); }} style={{
             padding: '7px 18px', fontSize: 13, borderRadius: 6, border: 'none', cursor: 'pointer',
             background: tab === key ? '#BA7517' : '#f0f0ec',
@@ -194,15 +248,19 @@ export default function SuperAdmin() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f5f5f3' }}>
-                  {['Branch','FB Page ID','Orders','Revenue','Status','Plan',''].map(h => (
+                  {['Shop / branch','Owner','FB Page ID','Orders','Revenue','Status','Plan',''].map(h => (
                     <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tenants.map(t => (
+                {groupedTenants.map(({ t, sub }) => (
                   <tr key={t.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{t.name}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 500, paddingLeft: sub ? 28 : 12 }}>
+                      {sub && <span style={{ color: '#9ca3af', marginRight: 6 }}>↳</span>}{t.name}
+                      {sub && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#f0f0ec', color: '#6b7280', fontWeight: 400 }}>branch</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: '#374151', fontSize: 12 }}>{t.owner_email || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#374151', fontFamily: 'monospace', fontSize: 12 }}>{t.fb_page_id}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{t.total_orders || 0}</td>
                     <td style={{ padding: '10px 12px', fontWeight: 500, color: '#3B6D11' }}>₱{Number(t.total_revenue || 0).toLocaleString()}</td>
@@ -245,7 +303,7 @@ export default function SuperAdmin() {
                   </tr>
                 ))}
                 {tenants.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No branches yet.</td></tr>
+                  <tr><td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No shops yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -395,6 +453,16 @@ export default function SuperAdmin() {
       {/* ── USERS TAB ── */}
       {tab === 'users' && (
         <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderBottom: '0.5px solid #f0f0ec', flexWrap: 'wrap' }}>
+            <input value={userSearch} onChange={e => setUserSearch(e.target.value)} placeholder="Search name or email…" aria-label="Search users"
+              style={{ flex: '1 1 180px', padding: '6px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }} />
+            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} aria-label="Filter users by shop"
+              style={{ padding: '6px 10px', fontSize: 13, borderRadius: 6, border: '0.5px solid #ccc' }}>
+              <option value="all">All users ({users.length})</option>
+              <option value="super">Super admins</option>
+              {tenants.map(t => <option key={t.id} value={t.id}>{t.primary_tenant_id ? '↳ ' : ''}{t.name}</option>)}
+            </select>
+          </div>
           {loading ? <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div> : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -405,7 +473,7 @@ export default function SuperAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {usersShown.map(u => (
                   <tr key={u.id} style={{ borderTop: '0.5px solid #f0f0ec' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>{u.name || '—'}</td>
                     <td style={{ padding: '10px 12px', color: '#374151' }}>{u.email}</td>
@@ -427,7 +495,7 @@ export default function SuperAdmin() {
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
+                {usersShown.length === 0 && (
                   <tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No users found.</td></tr>
                 )}
               </tbody>
@@ -523,6 +591,39 @@ export default function SuperAdmin() {
         </div>
       )}
 
+      {/* ── ASSISTED FACEBOOK CONNECT (return from Facebook) ── */}
+      {fbAssist && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 210 }}>
+          <div role="dialog" aria-modal="true" aria-label="Connect Facebook Page"
+            style={{ background: '#fff', borderRadius: 12, padding: '1.5rem', width: 420, maxHeight: '90vh', overflowY: 'auto', border: '0.5px solid #e8e8e0' }}>
+            <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 4 }}>Connect Facebook Page</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>For: <strong>{fbAssist.tenant.name}</strong></div>
+            {fbAssist.pages.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {fbAssist.pages.map(p => (
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                    border: `1.5px solid ${fbAssist.selected === p.id ? '#1877F2' : '#e5e7eb'}` }}>
+                    <input type="radio" name="assist-page" checked={fbAssist.selected === p.id} onChange={() => setFbAssist(a => ({ ...a, selected: p.id }))} />
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>{p.category}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {fbAssist.msg && <div style={{ fontSize: 13, marginBottom: 12 }}>{fbAssist.msg}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setFbAssist(null)} style={btn('#f0f0ec', '#555')}>{fbAssist.pages.length ? 'Cancel' : 'Close'}</button>
+              {fbAssist.pages.length > 0 && (
+                <button onClick={handleAssistConnect} disabled={!fbAssist.selected || fbAssist.busy}
+                  style={btn('#1877F2', '#fff', { opacity: !fbAssist.selected || fbAssist.busy ? 0.5 : 1 })}>
+                  {fbAssist.busy ? 'Connecting…' : 'Connect Page'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── TENANT FORM MODAL ── */}
       {tenantForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
@@ -547,6 +648,22 @@ export default function SuperAdmin() {
                 </button>
               </div>
             </div>
+            {!tenantForm.isNew && (
+              <div style={{ marginBottom: 12 }}>
+                <button type="button"
+                  onClick={() => {
+                    sessionStorage.setItem('fb_connect_target', JSON.stringify({ id: tenantForm.id, name: tenantForm.name }));
+                    const err = startFbOAuth({ includeInstagram: false });
+                    if (err) { sessionStorage.removeItem('fb_connect_target'); alert(err); }
+                  }}
+                  style={{ padding: '7px 12px', fontSize: 12, borderRadius: 6, border: '1px solid #1877F2', color: '#1877F2', background: '#fff', cursor: 'pointer' }}>
+                  Connect Facebook Page (as admin)…
+                </button>
+                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>
+                  Log in with YOUR Facebook account (must be an admin of the shop's Page). You'll come back to this screen to pick the Page for this branch.
+                </div>
+              </div>
+            )}
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Xendit API Key</label>
               <div style={{ position: 'relative' }}>

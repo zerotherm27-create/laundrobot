@@ -275,7 +275,10 @@ function Inner() {
       ts: Date.now(),
     }));
     window.history.replaceState({}, '', '/settings');
-    return <Dashboard initialPage="Settings" />;
+    // Superadmin assisted connect (started from SuperAdmin → edit branch) finishes on that page:
+    // a tenant-less superadmin login has no Settings data to render.
+    const assisted = user.role === 'superadmin' && !!sessionStorage.getItem('fb_connect_target');
+    return <Dashboard initialPage={assisted ? 'SuperAdmin' : 'Settings'} />;
   }
 
   return <Dashboard />;

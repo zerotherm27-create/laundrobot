@@ -379,14 +379,16 @@ router.post('/settings/facebook-oauth-exchange', auth, async (req, res) => {
   }
 });
 
-// POST save selected Facebook Page and run Messenger setup (step 2 of OAuth connect flow)
-router.post('/settings/facebook-connect', auth, async (req, res) => {
+// Shared by the tenant self-serve connect and the superadmin "connect on behalf of" route.
+// Verifies the short-lived pageDataToken (minted by facebook-oauth-exchange for req.user's own
+// tenant), attaches the selected Page to `targetTenantId`, and runs the Messenger setup.
+async function attachPageToTenant(req, res, targetTenantId) {
   const { pageId, pageDataToken } = req.body;
   if (!pageId || !pageDataToken) return res.status(400).json({ error: 'pageId and pageDataToken are required' });
   try {
     console.log('[facebook-connect] step: jwt.verify');
     const payload = jwt.verify(pageDataToken, process.env.JWT_SECRET);
-    if (payload.tid !== req.user.tenant_id) return res.status(403).json({ error: 'Token mismatch' });
+    if ((payload.tid ?? null) !== (req.user.tenant_id ?? null)) return res.status(403).json({ error: 'Token mismatch' });
 
     console.log('[facebook-connect] step: find page', pageId, 'in', payload.pages?.map(p => p.id));
     const page = payload.pages.find(p => p.id === pageId);
@@ -395,26 +397,27 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
 
     console.log('[facebook-connect] step: db SELECT existing');
     const { rows: [existing] } = await db.query(
-      `SELECT custom_domain, ig_user_id FROM tenants WHERE id=$1`, [req.user.tenant_id]
+      `SELECT custom_domain, ig_user_id FROM tenants WHERE id=$1`, [targetTenantId]
     );
+    if (!existing) return res.status(404).json({ error: 'Tenant not found' });
     console.log('[facebook-connect] step: db UPDATE tenant');
     const { rows: [tenant] } = await db.query(
       `UPDATE tenants SET fb_page_id=$1, fb_page_access_token=$2 WHERE id=$3 RETURNING id, name`,
-      [page.id, page.access_token, req.user.tenant_id]
+      [page.id, page.access_token, targetTenantId]
     );
     console.log('[facebook-connect] db updated, tenant:', tenant?.name);
 
     let warning = null;
     try {
       console.log('[facebook-connect] step: setupMessengerProfile');
-      const result = await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
+      const result = await setupMessengerProfile(page.access_token, tenant.name, targetTenantId, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
       warning = result?.fbError || null;
     } catch (e) {
       console.warn('[facebook-connect] messenger profile setup failed:', e.message);
       warning = e.message;
     }
 
-    res.json({ success: true, pageName: page.name, warning });
+    res.json({ success: true, pageName: page.name, tenantName: tenant.name, warning });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'This Facebook Page is already connected to another LaundroBot account. Disconnect it there first, or contact support.' });
@@ -425,7 +428,10 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
     console.error('[facebook-connect] CAUGHT ERROR:', err.name, err.message, err.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}
+
+// POST save selected Facebook Page and run Messenger setup (step 2 of OAuth connect flow)
+router.post('/settings/facebook-connect', auth, (req, res) => attachPageToTenant(req, res, req.user.tenant_id));
 
 // GET validate the stored Facebook page token against Graph API
 router.get('/settings/facebook-status', auth, async (req, res) => {
@@ -451,7 +457,8 @@ router.get('/settings/facebook-status', auth, async (req, res) => {
 router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap,
+      `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap, t.primary_tenant_id,
+              (SELECT u.email FROM users u WHERE u.tenant_id = t.id AND u.role = 'admin' ORDER BY u.created_at ASC LIMIT 1) AS owner_email,
               CASE WHEN t.fb_page_access_token IS NOT NULL AND length(t.fb_page_access_token) >= 4
                    THEN right(t.fb_page_access_token, 4) ELSE NULL END AS fb_token_hint,
               CASE WHEN t.xendit_api_key IS NOT NULL AND length(t.xendit_api_key) >= 4
@@ -629,6 +636,10 @@ router.post('/', auth, superadminOnly, async (req, res) => {
     res.json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
+
+// POST assisted connect: superadmin (an app admin, so Meta lets them through) attaches a Page
+// they administer to any tenant — used while Facebook Login is unavailable to non-role users.
+router.post('/:id/facebook-connect', auth, superadminOnly, (req, res) => attachPageToTenant(req, res, req.params.id));
 
 // POST setup Messenger profile manually (Get Started, greeting, persistent menu)
 router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {

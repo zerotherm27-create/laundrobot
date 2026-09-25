@@ -85,6 +85,7 @@ export const updateMyTenantSettings = data => api.put('/tenants/settings', data)
 export const resetMessengerMenu = () => api.post('/tenants/settings/setup-messenger');
 export const getFacebookPages = (userToken) => api.post('/tenants/settings/facebook-pages', { userToken });
 export const connectFacebookPage = (pageId, pageDataToken) => api.post('/tenants/settings/facebook-connect', { pageId, pageDataToken });
+export const connectFacebookPageForTenant = (tenantId, pageId, pageDataToken) => api.post(`/tenants/${tenantId}/facebook-connect`, { pageId, pageDataToken });
 export const exchangeFbOAuthCode = (code, redirectUri) => api.post('/tenants/settings/facebook-oauth-exchange', { code, redirectUri });
 export const testFacebookConnection = () => api.get('/tenants/settings/facebook-status');
 export const fetchInstagramAccount = () => api.post('/tenants/settings/instagram-fetch');

@@ -5,17 +5,15 @@ const db = require('../db');
 
 // GET all users for tenant (superadmin can pass ?tenant_id=)
 router.get('/', auth, async (req, res) => {
-  const tenantId = req.user.role === 'superadmin'
-    ? (req.query.tenant_id || null)
-    : req.user.tenant_id;
+  const isSuper = req.user.role === 'superadmin';
+  // Superadmin with no tenant_id filter sees every user on the platform (shop owners included);
+  // everyone else — and a superadmin filtering by tenant — only sees that one tenant's users.
+  const tenantId = isSuper ? (req.query.tenant_id || null) : req.user.tenant_id;
   try {
-    const { rows } = await db.query(
-      `SELECT id, name, email, role, permissions, tenant_id, created_at
-       FROM users
-       WHERE tenant_id = $1 OR ($1::uuid IS NULL AND role = 'superadmin')
-       ORDER BY created_at DESC`,
-      [tenantId]
-    );
+    const cols = `id, name, email, role, permissions, tenant_id, created_at`;
+    const { rows } = (isSuper && !tenantId)
+      ? await db.query(`SELECT ${cols} FROM users ORDER BY created_at DESC`)
+      : await db.query(`SELECT ${cols} FROM users WHERE tenant_id = $1 ORDER BY created_at DESC`, [tenantId]);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });

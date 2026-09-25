@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection, getAnnouncementRecipients, sendAnnouncement } from '../api.js';
+import { startFbOAuth } from '../utils/fbOAuth.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
@@ -363,20 +364,8 @@ export default function Settings() {
   }, []);
 
   function handleFbLogin() {
-    const appId = import.meta.env.VITE_FB_APP_ID;
-    if (!appId) return setFbMsg('❌ Facebook App ID not configured — contact support.');
-    const stateArray = new Uint8Array(16);
-    crypto.getRandomValues(stateArray);
-    const state = Array.from(stateArray).map(b => b.toString(16).padStart(2, '0')).join('');
-    sessionStorage.setItem('fb_oauth_state', state);
-    const redirectUri = window.location.origin + '/settings';
-    // instagram_* scopes are still pending Meta App Review — requesting them from a user with no
-    // role on the app can strip them or fail the whole dialog. Only ask for them when the tenant
-    // already has an Instagram account linked, so reconnecting doesn't drop their IG permissions.
-    const scopes = ['pages_show_list', 'pages_manage_metadata', 'pages_messaging', 'pages_utility_messaging', 'pages_read_engagement', 'business_management'];
-    if (igUserId) scopes.push('instagram_basic', 'instagram_manage_messages');
-    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes.join(',')}&response_type=code&state=${state}`;
-    window.location.href = url;
+    const err = startFbOAuth({ includeInstagram: !!igUserId });
+    if (err) setFbMsg('❌ ' + err);
   }
 
   async function handleFbConnect() {
