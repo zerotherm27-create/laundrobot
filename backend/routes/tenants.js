@@ -404,15 +404,21 @@ router.post('/settings/facebook-connect', auth, async (req, res) => {
     );
     console.log('[facebook-connect] db updated, tenant:', tenant?.name);
 
+    let warning = null;
     try {
       console.log('[facebook-connect] step: setupMessengerProfile');
-      await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
+      const result = await setupMessengerProfile(page.access_token, tenant.name, req.user.tenant_id, process.env.APP_URL, existing?.ig_user_id, existing?.custom_domain);
+      warning = result?.fbError || null;
     } catch (e) {
       console.warn('[facebook-connect] messenger profile setup failed:', e.message);
+      warning = e.message;
     }
 
-    res.json({ success: true, pageName: page.name });
+    res.json({ success: true, pageName: page.name, warning });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'This Facebook Page is already connected to another LaundroBot account. Disconnect it there first, or contact support.' });
+    }
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(400).json({ error: 'Session expired — please try connecting again.' });
     }

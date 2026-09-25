@@ -370,7 +370,12 @@ export default function Settings() {
     const state = Array.from(stateArray).map(b => b.toString(16).padStart(2, '0')).join('');
     sessionStorage.setItem('fb_oauth_state', state);
     const redirectUri = window.location.origin + '/settings';
-    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,pages_manage_metadata,pages_messaging,pages_utility_messaging,pages_read_engagement,business_management,instagram_basic,instagram_manage_messages&response_type=code&state=${state}`;
+    // instagram_* scopes are still pending Meta App Review — requesting them from a user with no
+    // role on the app can strip them or fail the whole dialog. Only ask for them when the tenant
+    // already has an Instagram account linked, so reconnecting doesn't drop their IG permissions.
+    const scopes = ['pages_show_list', 'pages_manage_metadata', 'pages_messaging', 'pages_utility_messaging', 'pages_read_engagement', 'business_management'];
+    if (igUserId) scopes.push('instagram_basic', 'instagram_manage_messages');
+    const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scopes.join(',')}&response_type=code&state=${state}`;
     window.location.href = url;
   }
 
@@ -381,7 +386,9 @@ export default function Settings() {
     try {
       const { data } = await connectFacebookPage(fbSelectedPageId, fbPageDataToken);
       setFbPageId(fbSelectedPageId);
-      setFbMsg(`✅ Connected to "${data.pageName}" — Messenger menu configured!`);
+      setFbMsg(data.warning
+        ? `⚠️ Connected to "${data.pageName}", but Messenger setup was incomplete: ${data.warning}. Try "Reset Messenger menu" or contact support.`
+        : `✅ Connected to "${data.pageName}" — Messenger menu configured!`);
       setFbPages([]);
       setFbPageDataToken('');
       setFbSelectedPageId('');
