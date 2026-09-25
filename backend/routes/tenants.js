@@ -432,6 +432,35 @@ async function attachPageToTenant(req, res, targetTenantId) {
   }
 }
 
+// GET setup progress for the onboarding checklist — one cheap call instead of 7 list fetches.
+// Everything is scoped to the caller's own tenant. "Set" means non-empty (fresh tenants have DB
+// defaults for hours/payment_mode, so a NOT NULL check would tick steps nobody did).
+router.get('/settings/setup-status', auth, async (req, res) => {
+  const empty = { shop_details: false, facebook: false, payments: false, ai_enabled: false, services: 0, delivery: 0, faqs: 0, users: 0, orders: 0 };
+  if (!req.user.tenant_id) return res.json(empty);
+  try {
+    const { rows: [r] } = await db.query(
+      `SELECT
+         (COALESCE(t.shop_address,'') <> '' AND COALESCE(t.contact_number,'') <> '') AS shop_details,
+         (COALESCE(t.fb_page_id,'') <> '') AS facebook,
+         (COALESCE(t.xendit_api_key,'') <> '' OR COALESCE(t.qr_image_url,'') <> '') AS payments,
+         COALESCE(t.ai_enabled, false) AS ai_enabled,
+         (SELECT COUNT(*) FROM services WHERE tenant_id = t.id)::int AS services,
+         ((SELECT COUNT(*) FROM delivery_zones WHERE tenant_id = t.id) +
+          (SELECT COUNT(*) FROM delivery_brackets WHERE tenant_id = t.id))::int AS delivery,
+         (SELECT COUNT(*) FROM faqs WHERE tenant_id = t.id)::int AS faqs,
+         (SELECT COUNT(*) FROM users WHERE tenant_id = t.id)::int AS users,
+         (SELECT COUNT(*) FROM orders WHERE tenant_id = t.id)::int AS orders
+       FROM tenants t WHERE t.id = $1`,
+      [req.user.tenant_id]
+    );
+    res.json(r || empty);
+  } catch (err) {
+    console.error('[setup-status]', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET when platform staff (superadmin) accessed or changed THIS shop — transparency for shop owners.
 // Deliberately omits the actor's email/IP; secrets are never stored in `detail`.
 router.get('/settings/access-log', auth, async (req, res) => {

@@ -69,8 +69,8 @@ const GUIDE_STEPS = [
     body: 'Go to your Facebook Page → "Send Message" → tap "Get Started" or send any message. You should see the welcome menu with Book Now, My Orders, and FAQs. Try placing a test order.',
   },
   {
-    num: '10', title: 'Connect Instagram DMs (Optional)',
-    body: 'Settings → "Instagram Messaging" → paste your Instagram Business Account ID → Save. Requires Meta App Review — contact hello@laundrobot.app if not working.',
+    num: '10', title: 'Instagram DMs (Coming soon)',
+    body: 'Instagram messaging is on its way — we are waiting for Meta to approve it. You will see it switch on in Settings → "Instagram Messaging" when it is ready. Messenger and web booking work now.',
   },
   {
     num: '11', title: 'Custom Domain & White Label (Pro)',
@@ -90,11 +90,14 @@ export function isNavVisible(navKey, role, user) {
   return true;
 }
 
-export default function Sidebar({ current, onNav, role, open = false, onClose = () => {} }) {
+export default function Sidebar({ current, onNav, role, open = false, onClose = () => {}, setup = null, guideOpen: guideOpenProp, onGuideChange }) {
   const { isPro } = usePlan();
   const { user, logout, branches, branchLimit, switchToBranch } = useAuth();
   const [pwOpen,         setPwOpen]         = useState(false);
-  const [guideOpen,      setGuideOpen]      = useState(false);
+  const [guideLocal,     setGuideLocal]     = useState(false);
+  // The guide drawer can be controlled by the app shell (so the onboarding checklist can open it)
+  const guideOpen    = guideOpenProp ?? guideLocal;
+  const setGuideOpen = onGuideChange ?? setGuideLocal;
   const pwModalRef    = useModalA11y(() => setPwOpen(false), pwOpen);
   const guideModalRef = useModalA11y(() => setGuideOpen(false), guideOpen);
   const [form,           setForm]           = useState({ current: '', newPw: '', confirm: '' });
@@ -263,14 +266,28 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
             );
           })}
 
-          {/* Setup Guide */}
+          {/* Getting started (new-shop checklist with live progress) or the static Setup Guide */}
           <div style={{ margin: '8px 12px 4px' }}>
-            <button onClick={() => setGuideOpen(true)}
-              className="nav-item"
-              style={{ width: '100%', background: '#F0FAF5', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontWeight: 600 }}>
-              <Icon name="info" size={15} color="#15803D" style={{ width: 18, flexShrink: 0 }} />
-              Setup Guide
-            </button>
+            {setup && !(setup.summary.complete && setup.hidden) ? (
+              <button onClick={setup.onOpen}
+                className="nav-item"
+                style={{ width: '100%', background: '#F0FAF5', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontWeight: 600 }}>
+                <Icon name={setup.summary.complete ? 'check-circle' : 'info'} size={15} color="#15803D" style={{ width: 18, flexShrink: 0 }} />
+                {setup.summary.complete ? 'Setup complete' : 'Getting started'}
+                {!setup.summary.complete && (
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, background: '#15803D', color: '#fff', borderRadius: 10, padding: '1px 7px' }}>
+                    {setup.summary.done}/{setup.summary.total}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <button onClick={() => setGuideOpen(true)}
+                className="nav-item"
+                style={{ width: '100%', background: '#F0FAF5', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontWeight: 600 }}>
+                <Icon name="info" size={15} color="#15803D" style={{ width: 18, flexShrink: 0 }} />
+                Setup Guide
+              </button>
+            )}
           </div>
 
           {role === 'superadmin' && (

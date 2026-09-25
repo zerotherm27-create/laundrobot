@@ -10,6 +10,9 @@ import ConfirmDialog from './components/ConfirmDialog.jsx';
 import { ConfirmProvider } from './context/ConfirmContext.jsx';
 import ToastStack from './components/ToastStack.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
+import OnboardingWelcome from './components/OnboardingWelcome.jsx';
+import SetupChecklist from './components/SetupChecklist.jsx';
+import useOnboarding from './hooks/useOnboarding.js';
 
 const Login        = lazy(() => import('./pages/Login.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
@@ -124,6 +127,8 @@ function Dashboard({ initialPage }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [subStatus, setSubStatus] = useState(null); // null = loading
   const [subPlan,   setSubPlan]   = useState('starter');
+  const [guideOpen, setGuideOpen] = useState(false); // static "Setup Guide" drawer (rendered by Sidebar)
+  const onboarding = useOnboarding({ user, page });
   const Page = PAGES[page] || Overview;
 
   useEffect(() => {
@@ -166,6 +171,19 @@ function Dashboard({ initialPage }) {
     setSidebarOpen(false);
   }
 
+  // Checklist "Go": jump to the step's page, then scroll to its section once the lazy page has rendered.
+  function goToStep(step) {
+    onboarding.setOpen(false);
+    navigate(step.page);
+    if (!step.anchor) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const el = document.getElementById(step.anchor);
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); clearInterval(timer); }
+      else if (++tries >= 12) clearInterval(timer);
+    }, 250);
+  }
+
   return (
     <ToastProvider>
     <ConfirmProvider>
@@ -173,6 +191,13 @@ function Dashboard({ initialPage }) {
     <UpgradeModal />
     <ConfirmDialog />
     <ToastStack />
+    <OnboardingWelcome open={onboarding.welcomeOpen} shopName={user.tenant_name}
+      requiredCount={onboarding.summary?.requiredTotal ?? 5}
+      onStart={() => onboarding.dismissWelcome(true)} onSkip={() => onboarding.dismissWelcome(false)} />
+    <SetupChecklist open={onboarding.open} onClose={() => onboarding.setOpen(false)} summary={onboarding.summary}
+      onGo={goToStep} onHide={onboarding.hide}
+      onOpenGuide={() => { onboarding.setOpen(false); setGuideOpen(true); }}
+      bookingUrl={user.tenant_id ? `${window.location.origin}/book/${user.tenant_id}` : null} />
     <div className="dashboard-layout" style={{ display: 'flex', minHeight: '100vh', background: '#F7F7F5', flexDirection: 'column' }}>
       {/* Trial banner — only shown for trial tenants */}
       {user.role !== 'superadmin' && <TrialBanner />}
@@ -188,7 +213,9 @@ function Dashboard({ initialPage }) {
 
       {/* ── Main row (sidebar + content) ── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <Sidebar current={page} onNav={navigate} role={user.role} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar current={page} onNav={navigate} role={user.role} open={sidebarOpen} onClose={() => setSidebarOpen(false)}
+          guideOpen={guideOpen} onGuideChange={setGuideOpen}
+          setup={onboarding.enabled && onboarding.summary ? { summary: onboarding.summary, hidden: onboarding.hidden, onOpen: () => { setSidebarOpen(false); onboarding.openChecklist(); } } : null} />
         <main className="dashboard-main" style={{
           flex: 1, padding: '1.75rem 2rem', overflowY: 'auto',
           maxWidth: 'calc(100vw - 230px)',

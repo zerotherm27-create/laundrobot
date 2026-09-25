@@ -10,7 +10,7 @@ const PLAN_TIERS = [
 ];
 
 const FEATURES = [
-  'AI-powered Messenger & Instagram bot',
+  'AI-powered Messenger bot',
   'Unlimited orders & customers',
   'Kanban board & order management',
   'Online booking form (public link)',

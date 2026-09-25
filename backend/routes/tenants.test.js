@@ -47,3 +47,23 @@ test('GET /tenants exposes primary_tenant_id and owner_email so the superadmin l
   assert.match(list, /t\.primary_tenant_id/);
   assert.match(list, /AS owner_email/);
 });
+
+// ── Onboarding checklist status ────────────────────────────────────────────
+test('GET /settings/setup-status is scoped to the caller\'s tenant and registered before /:id routes', () => {
+  const start = src.indexOf("router.get('/settings/setup-status'");
+  assert.ok(start > -1, 'setup-status route missing');
+  const route = src.slice(start, src.indexOf("router.get('/settings/access-log'"));
+  assert.match(route, /\[req\.user\.tenant_id\]/);
+  // every counted table is filtered by tenant
+  for (const table of ['services', 'delivery_zones', 'delivery_brackets', 'faqs', 'users', 'orders']) {
+    assert.match(route, new RegExp(`FROM ${table} WHERE tenant_id = t\\.id`), `${table} count must be tenant-scoped`);
+  }
+  assert.ok(start < src.indexOf("router.get('/:id'"), 'must be registered before GET /:id');
+});
+
+test('setup-status treats empty strings as "not set" (fresh tenants have DB defaults) and no-ops without a tenant', () => {
+  const route = src.slice(src.indexOf("router.get('/settings/setup-status'"), src.indexOf("router.get('/settings/access-log'"));
+  assert.match(route, /COALESCE\(t\.shop_address,''\) <> ''/);
+  assert.match(route, /COALESCE\(t\.fb_page_id,''\) <> ''/);
+  assert.match(route, /if \(!req\.user\.tenant_id\) return res\.json\(empty\)/);
+});

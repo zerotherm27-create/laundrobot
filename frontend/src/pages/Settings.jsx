@@ -115,6 +115,10 @@ export default function Settings() {
   const [aiInstructions, setAiInstructions] = useState('');
   const [aiPauseHours,   setAiPauseHours]   = useState('2');
   const [igUserId,       setIgUserId]       = useState('');
+  // Instagram messaging is greyed out as "coming soon" (pending Meta approval) — except for shops that already
+  // have an Instagram account linked, so existing setups (and the founder's own shop) keep working.
+  const [igLinkedAtLoad,  setIgLinkedAtLoad]  = useState(false);
+  const igLocked = !igLinkedAtLoad;
   const [announcement,        setAnnouncement]        = useState('');
   const [announcementOn,      setAnnouncementOn]      = useState(false);
   const [notifying,           setNotifying]           = useState(false);
@@ -207,6 +211,7 @@ export default function Settings() {
         setAiInstructions(s.data.ai_instructions || '');
         setAiPauseHours(s.data.ai_pause_hours != null ? String(s.data.ai_pause_hours) : '2');
         setIgUserId(s.data.ig_user_id || '');
+        setIgLinkedAtLoad(!!s.data.ig_user_id);
         setAnnouncement(s.data.announcement || '');
         setAnnouncementOn(!!s.data.announcement_enabled);
         setStoreOpen(s.data.store_open || '');
@@ -1150,14 +1155,22 @@ export default function Settings() {
           </div>
 
           {/* Instagram Messaging */}
-          <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3" title="Instagram Messaging"
+          <SectionCard icon={<Icon name="camera" size={18} color="#BE185D" />} iconBg="#FCE7F3"
+            title={<>Instagram Messaging{igLocked && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, color: '#6B7280', background: '#F0F0EC', borderRadius: 4, padding: '2px 7px', verticalAlign: 'middle' }}>Coming soon</span>}</>}
             subtitle="Let customers message you via Instagram Direct — same bot flow as Messenger">
+
+            {igLocked && (
+              <div role="note" style={{ marginBottom: 14, fontSize: 13, color: '#374151', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }}>
+                Instagram messaging is coming soon. We're waiting for Meta to approve it, and we'll let you know as soon as it's ready. Messenger and web booking work now.
+              </div>
+            )}
+            <div aria-disabled={igLocked} style={igLocked ? { opacity: 0.45, filter: 'grayscale(1)', pointerEvents: 'none', userSelect: 'none' } : undefined}>
 
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 13, color: '#374151', marginBottom: 8, lineHeight: 1.5 }}>
                 If your Instagram Business account is linked to your connected Facebook Page, click below to detect it automatically.
               </div>
-              <button type="button" disabled={igConnecting} onClick={async () => {
+              <button type="button" disabled={igConnecting || igLocked} onClick={async () => {
                 setIgConnecting(true); setIgConnectMsg('');
                 try {
                   const { data } = await fetchInstagramAccount();
@@ -1190,13 +1203,13 @@ export default function Settings() {
             </div>
 
             <label style={LABEL}>Instagram Business User ID</label>
-            <input value={igUserId} onChange={e => { setIgUserId(e.target.value); setIgSaved(false); }}
+            <input value={igUserId} disabled={igLocked} onChange={e => { setIgUserId(e.target.value); setIgSaved(false); }}
               placeholder="e.g. 17841400000000000"
               style={INPUT} onFocus={FOCUS} onBlur={BLUR} />
             <div style={{ fontSize: 11, color: '#374151', marginTop: 5, marginBottom: 12, lineHeight: 1.5 }}>
               Auto-filled after clicking Connect above, or enter it manually. Leave blank to keep Instagram messaging disabled.
             </div>
-            <button type="button" disabled={igSaving} onClick={async () => {
+            <button type="button" disabled={igSaving || igLocked} onClick={async () => {
               setIgSaving(true); setIgSaved(false);
               try {
                 await updateMyTenantSettings({ ig_user_id: igUserId });
@@ -1213,6 +1226,7 @@ export default function Settings() {
                 display: 'inline-flex', alignItems: 'center', gap: 5 }}>
               {igSaved ? <><Icon name="check" size={13} color="#065F46" /> Saved</> : igSaving ? 'Saving…' : 'Save Instagram ID'}
             </button>
+            </div>
           </SectionCard>
 
           {/* Messenger Menu */}
