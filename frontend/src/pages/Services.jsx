@@ -6,6 +6,8 @@ import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { compressImage } from '../utils/imageCompress.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import ServicesTutorial from '../components/ServicesTutorial.jsx';
 
 const emptyService  = { name: '', price: '', unit: '', description: '', active: true, image_url: '', category_id: '', sort_order: 0, turnaround_days: 2, available_online: true };
 
@@ -70,6 +72,8 @@ export default function Services() {
   const [categories,    setCategories]    = useState([]);
   const [services,      setServices]      = useState([]);
   const [loading,       setLoading]       = useState(true);
+  const { user } = useAuth();
+  const [tutorialOpen,  setTutorialOpen]  = useState(false);
   const [svcForm,       setSvcForm]       = useState(null);
   const [catForm,       setCatForm]       = useState(null);
   const svcModalRef = useModalA11y(() => { setSvcForm(null); setPreview(null); setFields([]); }, !!svcForm);
@@ -164,8 +168,22 @@ export default function Services() {
 
   useEffect(() => {
     Promise.all([getServices(), getCategories()])
-      .then(([s, c]) => { setServices(s.data); setCategories(c.data); })
+      .then(([s, c]) => {
+        setServices(s.data); setCategories(c.data);
+        // First time an admin opens an EMPTY Services page, show the tutorial once (per shop, per browser).
+        if (s.data.length === 0 && c.data.length === 0 && user?.role === 'admin' && user?.tenant_id) {
+          const key = `lb_svc_tutorial_seen_${user.tenant_id}`;
+          try { if (!localStorage.getItem(key)) { localStorage.setItem(key, '1'); setTutorialOpen(true); } } catch { /* storage blocked — skip auto-open */ }
+        }
+      })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Lets the "About this page" card (PageIntro) open the tutorial without prop plumbing.
+  useEffect(() => {
+    const open = () => setTutorialOpen(true);
+    window.addEventListener('lb:open-services-tutorial', open);
+    return () => window.removeEventListener('lb:open-services-tutorial', open);
   }, []);
 
   // ── Image upload ──────────────────────────────────────────────────────
@@ -375,9 +393,14 @@ export default function Services() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <ServicesTutorial open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Services & Pricing</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => setTutorialOpen(true)}
+            style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#F0FAF5', color: '#15803D', border: '1px solid #BBF7D0', fontWeight: 600 }}>
+            How to set up services
+          </button>
           <button onClick={() => { setCatForm({ ...emptyCategory, isNew: true }); }}
             style={{ padding: '7px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#f0f0ec', color: '#444', border: '0.5px solid #ccc', fontWeight: 500 }}>
             + Category
@@ -394,6 +417,12 @@ export default function Services() {
         sections.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#374151', fontSize: 14, padding: '3rem 0' }}>
             No services yet. Click <b>+ Category</b> to create a category, then <b>+ Service</b> to add services.
+            <div style={{ marginTop: 14 }}>
+              <button type="button" onClick={() => setTutorialOpen(true)}
+                style={{ padding: '8px 16px', fontSize: 13, borderRadius: 6, cursor: 'pointer', background: '#F0FAF5', color: '#15803D', border: '1px solid #BBF7D0', fontWeight: 600 }}>
+                Not sure where to start? See how to set up services
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

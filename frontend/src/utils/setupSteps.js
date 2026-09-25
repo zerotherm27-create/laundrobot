@@ -13,7 +13,7 @@ export const SETUP_STEPS = [
     key: 'services', icon: 'services', page: 'Services',
     title: 'Add your services',
     why: 'Services and prices are what customers choose when they book.',
-    how: 'Open Services, create a category (for example "Wash & Fold"), then add each service with its price and unit.',
+    how: 'Open Services, create a category (for example "Wash & Fold"), then add each service with its price and unit. New to this? Tap "How to set up services" on that page for a step-by-step guide with examples.',
     done: s => s.services > 0,
   },
   {

@@ -12,6 +12,7 @@ import ToastStack from './components/ToastStack.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import OnboardingWelcome from './components/OnboardingWelcome.jsx';
 import SetupChecklist from './components/SetupChecklist.jsx';
+import PageIntro from './components/PageIntro.jsx';
 import useOnboarding from './hooks/useOnboarding.js';
 
 const Login        = lazy(() => import('./pages/Login.jsx'));
@@ -232,6 +233,7 @@ function Dashboard({ initialPage }) {
                   {/* Keyed by page so switching sections re-triggers the fade-in
                       instead of the new page silently popping in mid-scroll. */}
                   <div key={page} className="animate-fade-in">
+                    <PageIntro page={page} user={user} />
                     <Page />
                   </div>
                 </Suspense>
