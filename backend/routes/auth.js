@@ -1,5 +1,6 @@
 require('dotenv').config();
 const router = require('express').Router();
+const { logSuperadminAction } = require('../utils/audit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
@@ -207,6 +208,7 @@ router.post('/switch-branch', require('../middleware/auth'), async (req, res) =>
         { ...claims, tenant_id: target.id, tenant_name: target.name },
         process.env.JWT_SECRET
       );
+      await logSuperadminAction(req, 'switch_into_shop', { tenantId: target.id, detail: { shop: target.name } });
       return res.json({ token, tenant_id: target.id, tenant_name: target.name });
     } catch (err) { console.error('[switch-branch]', err); return res.status(500).json({ error: 'Internal server error' }); }
   }

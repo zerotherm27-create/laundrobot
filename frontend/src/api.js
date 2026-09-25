@@ -87,6 +87,7 @@ export const getFacebookPages = (userToken) => api.post('/tenants/settings/faceb
 export const connectFacebookPage = (pageId, pageDataToken) => api.post('/tenants/settings/facebook-connect', { pageId, pageDataToken });
 export const connectFacebookPageForTenant = (tenantId, pageId, pageDataToken) => api.post(`/tenants/${tenantId}/facebook-connect`, { pageId, pageDataToken });
 export const exchangeFbOAuthCode = (code, redirectUri) => api.post('/tenants/settings/facebook-oauth-exchange', { code, redirectUri });
+export const getAccessLog = () => api.get('/tenants/settings/access-log');
 export const testFacebookConnection = () => api.get('/tenants/settings/facebook-status');
 export const fetchInstagramAccount = () => api.post('/tenants/settings/instagram-fetch');
 export const cloneServices = (sourceTenantId, targetTenantId, clearExisting, cloneOptions) =>

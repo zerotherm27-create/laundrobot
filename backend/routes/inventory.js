@@ -93,6 +93,9 @@ router.post('/stock-in', auth, async (req, res) => {
     const { item_id, quantity, note } = req.body;
     if (!item_id || !quantity || quantity <= 0) return res.status(400).json({ error: 'item_id and positive quantity required' });
     const tid = req.user.tenant_id;
+    // item_id is client-supplied — it must belong to THIS tenant before we log a transaction or echo the row back
+    const { rows: [owned] } = await db.query(`SELECT 1 FROM inventory_items WHERE id=$1 AND tenant_id=$2`, [item_id, tid]);
+    if (!owned) return res.status(404).json({ error: 'Item not found' });
     await db.query(
       `UPDATE inventory_items SET current_stock = current_stock + $1 WHERE id=$2 AND tenant_id=$3`,
       [parseFloat(quantity), item_id, tid]
@@ -103,8 +106,8 @@ router.post('/stock-in', auth, async (req, res) => {
       [tid, item_id, parseFloat(quantity), note || null]
     );
     const { rows: [item] } = await db.query(
-      `SELECT id, name, unit, current_stock, reorder_threshold FROM inventory_items WHERE id=$1`,
-      [item_id]
+      `SELECT id, name, unit, current_stock, reorder_threshold FROM inventory_items WHERE id=$1 AND tenant_id=$2`,
+      [item_id, tid]
     );
     res.json({ transaction: rows[0], item: { ...item, current_stock: parseFloat(item.current_stock)||0 } });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -116,6 +119,8 @@ router.post('/stock-out', auth, async (req, res) => {
     const { item_id, quantity, note } = req.body;
     if (!item_id || !quantity || quantity <= 0) return res.status(400).json({ error: 'item_id and positive quantity required' });
     const tid = req.user.tenant_id;
+    const { rows: [owned] } = await db.query(`SELECT 1 FROM inventory_items WHERE id=$1 AND tenant_id=$2`, [item_id, tid]);
+    if (!owned) return res.status(404).json({ error: 'Item not found' });
     await db.query(
       `UPDATE inventory_items SET current_stock = GREATEST(0, current_stock - $1) WHERE id=$2 AND tenant_id=$3`,
       [parseFloat(quantity), item_id, tid]
@@ -126,8 +131,8 @@ router.post('/stock-out', auth, async (req, res) => {
       [tid, item_id, parseFloat(quantity), note || null]
     );
     const { rows: [item] } = await db.query(
-      `SELECT id, name, unit, current_stock, reorder_threshold FROM inventory_items WHERE id=$1`,
-      [item_id]
+      `SELECT id, name, unit, current_stock, reorder_threshold FROM inventory_items WHERE id=$1 AND tenant_id=$2`,
+      [item_id, tid]
     );
     res.json({ transaction: rows[0], item: { ...item, current_stock: parseFloat(item.current_stock)||0 } });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }

@@ -1072,8 +1072,8 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
     const { rows: orderDetails } = await db.query(
       `SELECT s.name AS service_name FROM orders o
        LEFT JOIN services s ON s.id = o.service_id
-       WHERE o.booking_ref=$1`,
-      [bookingRef]
+       WHERE o.booking_ref=$1 AND o.tenant_id=$2`,
+      [bookingRef, order.tenant_id]
     );
     const serviceName = orderDetails.map(o => o.service_name).filter(Boolean).join(', ');
 

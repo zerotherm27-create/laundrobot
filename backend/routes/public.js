@@ -10,6 +10,8 @@ const { sendPushToTenant } = require('../utils/push');
 const { haversine } = require('./deliveryBrackets');
 
 const coordsLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false });
+// Anonymous phone→address prefill: tenant ids are public, so cap lookups to slow phone-number enumeration
+const customerLookupLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 // Look up a tenant by custom domain — used by the booking form on white-label domains
 router.get('/by-domain/:hostname', async (req, res) => {
@@ -246,7 +248,7 @@ router.patch('/:tenantId/customer/coords', coordsLimiter, async (req, res) => {
 });
 
 // GET customer by phone — repeat customer lookup (returns only fields needed for form prefill, no PII overload)
-router.get('/:tenantId/customer', async (req, res) => {
+router.get('/:tenantId/customer', customerLookupLimiter, async (req, res) => {
   const { phone } = req.query;
   if (!phone?.trim()) return res.json(null);
   try {
@@ -696,7 +698,8 @@ router.post('/:tenantId/orders', async (req, res) => {
             ? `https://m.me/${t.fb_page_id}?ref=${bookingRef}`
             : undefined,
         });
-        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE booking_ref=$2', [invoice.invoiceUrl, bookingRef]);
+        // booking_ref is only unique PER TENANT (BKG-000001 exists in every shop) — always scope by tenant
+        await db.query('UPDATE orders SET xendit_invoice_url=$1 WHERE booking_ref=$2 AND tenant_id=$3', [invoice.invoiceUrl, bookingRef, req.params.tenantId]);
         paymentUrl = invoice.invoiceUrl;
       }
     } catch (e) {

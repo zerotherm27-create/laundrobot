@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const db = require('../db');
 const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../utils/email');
 const { sendMessage, sendButtons, shopLocationText } = require('../utils/messenger');
+const { getInvoiceStatus } = require('../utils/xendit');
+const { resolveBookingTenant } = require('../utils/xenditTenant');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
@@ -28,8 +30,32 @@ router.post('/', async (req, res) => {
       // UUID contains 4 hyphens (8-4-4-4-12), so segments 1..5 reconstruct it
       const _parts = String(external_id).split('-');
       const tenantId = _parts.slice(1, 6).join('-');
-      // Parse plan from description as a fallback; primary source is the amount paid
-      const desc = req.body.description || '';
+
+      // Never trust the callback body for subscriptions. Every tenant knows the shared callback token
+      // (they point their own Xendit account at this URL), so anyone could forge "sub-<tenant>-x" /
+      // "Pro Annual" and self-grant a paid plan. Re-fetch the invoice from the PLATFORM's Xendit
+      // account — only invoices we created there exist — and take plan/description from that.
+      const platformKey = process.env.XENDIT_PLATFORM_API_KEY;
+      if (!platformKey) {
+        console.error('[xendit] XENDIT_PLATFORM_API_KEY not set — cannot verify subscription payment');
+        return res.sendStatus(500);
+      }
+      let verified;
+      try {
+        verified = await getInvoiceStatus(platformKey, xenditInvoiceId);
+      } catch (e) {
+        if (e.response?.status === 404) {
+          console.warn(`[xendit] subscription callback for ${external_id} rejected — invoice ${xenditInvoiceId} not found in platform account`);
+          return res.sendStatus(200); // forged / foreign invoice: do not retry
+        }
+        console.error('[xendit] subscription verification failed, asking Xendit to retry:', e.message);
+        return res.sendStatus(500);
+      }
+      if (!['PAID', 'SETTLED'].includes(verified.status) || verified.external_id !== external_id) {
+        console.warn(`[xendit] subscription callback for ${external_id} rejected — verified status=${verified.status} external_id=${verified.external_id}`);
+        return res.sendStatus(200);
+      }
+      const desc = verified.description || '';
       const isAnnual  = desc.includes('Annual');
       // Look up what plan the tenant was trying to buy from the description label set in auth.js
       // Labels: 'LaundroBot Starter Monthly/Annual', 'LaundroBot Growth Monthly/Annual', 'LaundroBot Pro Monthly/Annual'
@@ -86,10 +112,17 @@ router.post('/', async (req, res) => {
     const refId = String(external_id).replace(/-(MANUAL|ADJ)-\d+$/, '');
     const isBkgRef = refId.startsWith('BKG-');
 
+    let bookingTenantId = null;
     if (isBkgRef) {
-      const { rows: [ctx] } = await db.query(
-        `SELECT tenant_id FROM orders WHERE booking_ref=$1 LIMIT 1`, [refId]
-      );
+      const resolved = await resolveBookingTenant(db, refId, xenditInvoiceId, getInvoiceStatus);
+      if (resolved.reason === 'ambiguous') {
+        // Several shops share this booking_ref and we could not prove which one — applying it could
+        // mark another shop's booking paid. Record nothing and flag it loudly.
+        console.error(`[xendit] AMBIGUOUS booking_ref ${refId} (invoice ${xenditInvoiceId}) exists in several shops — payment NOT applied, resolve manually`);
+        return res.sendStatus(200);
+      }
+      const ctx = resolved.tenantId ? { tenant_id: resolved.tenantId } : null;
+      bookingTenantId = resolved.tenantId;
       if (ctx) {
         // Record the payment amount in the ledger (idempotent on invoice id —
         // Xendit retries callbacks). Amounts, not just flags: an edited booking
@@ -162,8 +195,8 @@ router.post('/', async (req, res) => {
          FROM orders o
          LEFT JOIN services s ON s.id = o.service_id
          LEFT JOIN customers c ON c.id = o.customer_id
-         WHERE ${isBkgRef ? 'o.booking_ref=$1' : 'o.id=$1'}`,
-        [refId]
+         WHERE ${isBkgRef ? 'o.booking_ref=$1 AND o.tenant_id=$2' : 'o.id=$1'}`,
+        isBkgRef ? [refId, bookingTenantId] : [refId]
       );
       console.log('[xendit] orders found:', orders.length, '| fb_id:', orders[0]?.fb_id, '| customer_email:', orders[0]?.customer_email);
 

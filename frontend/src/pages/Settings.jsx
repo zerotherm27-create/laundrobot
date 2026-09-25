@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { getMyTenantSettings, updateMyTenantSettings, getBlockedDates, createBlockedDate, deleteBlockedDate, getPromoCodes, createPromoCode, togglePromoCode, deletePromoCode, resetMessengerMenu, getReferralLinks, getChannelSummary, createReferralLink, updateReferralLink, deleteReferralLink, createSubscriptionInvoice, getFacebookPages, connectFacebookPage, fetchInstagramAccount, exchangeFbOAuthCode, testFacebookConnection, getAnnouncementRecipients, sendAnnouncement } from '../api.js';
 import { startFbOAuth } from '../utils/fbOAuth.js';
+import AccessLog from '../components/AccessLog.jsx';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
@@ -723,6 +724,15 @@ export default function Settings() {
                 <strong>Save announcement</strong> saves this page. <strong>Notify customers</strong> sends the announcement as a Messenger message to customers with an active booking — save first. Facebook only delivers to customers who messaged you in the last 24 hours; Instagram customers see the announcement on the booking page instead.
               </div>
             </SectionCard>
+
+            {/* ── PRIVACY & TRANSPARENCY ── */}
+            {user?.role !== 'staff' && (<>
+              <GroupHeader label="Privacy" />
+              <SectionCard icon={<span style={{ fontSize: 16 }}>🔒</span>} iconBg="#EAF3DE" title="Platform Access Log"
+                subtitle="Every time LaundroBot staff open or change your account for support, it is recorded here">
+                <AccessLog />
+              </SectionCard>
+            </>)}
 
             {/* ── NOTIFICATIONS ── */}
             <GroupHeader label="Notifications" />

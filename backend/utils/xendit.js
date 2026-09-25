@@ -45,7 +45,7 @@ async function getInvoiceStatus(apiKey, invoiceId) {
     `https://api.xendit.co/v2/invoices/${invoiceId}`,
     { auth: { username: apiKey, password: '' } }
   );
-  return { status: data.status, id: data.id, amount: data.amount };
+  return { status: data.status, id: data.id, amount: data.amount, external_id: data.external_id, description: data.description };
 }
 
 // Voids a PENDING invoice so a customer can't pay a stale amount after the

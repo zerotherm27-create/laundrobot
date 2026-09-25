@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 const { setupMessengerProfile } = require('../utils/messengerProfile');
+const { logSuperadminAction } = require('../utils/audit');
 const { AI_INSTRUCTIONS_MAX } = require('../utils/gemini');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
@@ -417,6 +418,7 @@ async function attachPageToTenant(req, res, targetTenantId) {
       warning = e.message;
     }
 
+    await logSuperadminAction(req, 'facebook_page_connect', { tenantId: targetTenantId, detail: { page: page.name } });
     res.json({ success: true, pageName: page.name, tenantName: tenant.name, warning });
   } catch (err) {
     if (err.code === '23505') {
@@ -429,6 +431,25 @@ async function attachPageToTenant(req, res, targetTenantId) {
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// GET when platform staff (superadmin) accessed or changed THIS shop — transparency for shop owners.
+// Deliberately omits the actor's email/IP; secrets are never stored in `detail`.
+router.get('/settings/access-log', auth, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') return res.status(403).json({ error: 'Admin access required' });
+  if (!req.user.tenant_id) return res.json([]);
+  try {
+    const { rows } = await db.query(
+      `SELECT id, action, detail, created_at FROM superadmin_audit_log
+       WHERE target_tenant_id=$1 ORDER BY created_at DESC LIMIT 100`,
+      [req.user.tenant_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    // Table not created yet (db/migrations/2026-09-27-superadmin-audit-log.sql) — nothing to show
+    console.warn('[access-log]', err.message);
+    res.json([]);
+  }
+});
 
 // POST save selected Facebook Page and run Messenger setup (step 2 of OAuth connect flow)
 router.post('/settings/facebook-connect', auth, (req, res) => attachPageToTenant(req, res, req.user.tenant_id));
@@ -632,6 +653,7 @@ router.post('/', auth, superadminOnly, async (req, res) => {
       [name, fb_page_id, fb_page_access_token, xendit_api_key, logo_url]
     );
     // Auto-setup Messenger profile for the new page
+    await logSuperadminAction(req, 'tenant_create', { tenantId: rows[0].id, detail: { shop: name } });
     try { await setupMessengerProfile(fb_page_access_token, name, rows[0].id, process.env.APP_URL); } catch (e) { console.warn('[tenant] messenger profile setup failed:', e.message); }
     res.json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
@@ -649,6 +671,7 @@ router.post('/:id/setup-messenger', auth, superadminOnly, async (req, res) => {
     );
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
     await setupMessengerProfile(tenant.fb_page_access_token, tenant.name, req.params.id, process.env.APP_URL, tenant.ig_user_id, tenant.custom_domain);
+    await logSuperadminAction(req, 'messenger_setup', { tenantId: req.params.id });
     res.json({ message: 'Messenger profile configured successfully' });
   } catch (err) {
     console.error('[setup-messenger]', err.response?.data || err);
@@ -697,6 +720,7 @@ router.put('/:id', auth, superadminOnly, async (req, res) => {
        ai_daily_cap != null ? Number(ai_daily_cap) : null]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Tenant not found' });
+    await logSuperadminAction(req, 'tenant_update', { tenantId: req.params.id, detail: { fields: Object.keys(req.body || {}) } });
     res.json(rows[0]);
 
     // Re-setup Messenger profile when the token changes
@@ -716,6 +740,7 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
   if (source_tenant_id === target_tenant_id) {
     return res.status(400).json({ error: 'Source and target branches must be different' });
   }
+  await logSuperadminAction(req, 'clone_data', { tenantId: target_tenant_id, detail: { source_tenant_id, clear_existing: !!clear_existing, clone_options: clone_options || null } });
 
   const opts = {
     services:       clone_options?.services       !== false,
@@ -902,7 +927,9 @@ router.post('/clone-services', auth, superadminOnly, async (req, res) => {
 // DELETE tenant
 router.delete('/:id', auth, superadminOnly, async (req, res) => {
   try {
+    const { rows: [gone] } = await db.query(`SELECT name FROM tenants WHERE id=$1`, [req.params.id]);
     await db.query(`DELETE FROM tenants WHERE id=$1`, [req.params.id]);
+    await logSuperadminAction(req, 'tenant_delete', { tenantId: req.params.id, detail: { shop: gone?.name || null } });
     res.json({ message: 'Tenant deleted' });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });

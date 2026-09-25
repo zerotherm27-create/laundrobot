@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { logSuperadminAction } = require('../utils/audit');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const db = require('../db');
@@ -52,6 +53,7 @@ router.post('/', auth, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, permissions, tenant_id, created_at`,
       [targetTenantId, name, email, hash, role, JSON.stringify(permissions || [])]
     );
+    await logSuperadminAction(req, 'user_create', { tenantId: targetTenantId, detail: { email: rows[0].email, role: rows[0].role } });
     res.json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -93,6 +95,7 @@ router.put('/:id', auth, async (req, res) => {
     }
     const { rows } = await db.query(query, params);
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    await logSuperadminAction(req, 'user_update', { tenantId: rows[0].tenant_id || null, detail: { email: rows[0].email } });
     res.json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -131,10 +134,13 @@ router.patch('/:id/password', auth, async (req, res) => {
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
-      `UPDATE users SET password_hash=$1 WHERE id=$2 AND (tenant_id=$3 OR $4 = 'superadmin') RETURNING id, email`,
+      `UPDATE users SET password_hash=$1 WHERE id=$2 AND (tenant_id=$3 OR $4 = 'superadmin') RETURNING id, email, tenant_id`,
       [hash, req.params.id, req.user.tenant_id, req.user.role]
     );
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    if (req.user.id !== req.params.id) {
+      await logSuperadminAction(req, 'user_password_reset', { tenantId: rows[0].tenant_id || null, detail: { email: rows[0].email } });
+    }
     res.json({ message: 'Password updated successfully' });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -144,7 +150,9 @@ router.delete('/:id', auth, async (req, res) => {
   const isSuperAdmin = req.user.role === 'superadmin';
   try {
     if (isSuperAdmin) {
+      const { rows: [gone] } = await db.query(`SELECT email, tenant_id FROM users WHERE id=$1 AND role != 'superadmin'`, [req.params.id]);
       await db.query(`DELETE FROM users WHERE id=$1 AND role != 'superadmin'`, [req.params.id]);
+      if (gone) await logSuperadminAction(req, 'user_delete', { tenantId: gone.tenant_id || null, detail: { email: gone.email } });
     } else {
       await db.query(`DELETE FROM users WHERE id=$1 AND tenant_id=$2`, [req.params.id, req.user.tenant_id]);
     }
