@@ -12,6 +12,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { Icon } from '../components/Icons.jsx';
 import { MONTHS, FULL_MONTHS, PESO, PCT, KPESO } from '../utils/format.js';
+import { manilaToday } from '../utils/revenue.js';
 import { TrendChart, DonutChart, HorizBars, RetentionChart } from '../components/Charts.jsx';
 
 const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
@@ -192,11 +193,15 @@ function SnapshotChart({ months, net, rev, mrg }) {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
+const PERIODS = [['day', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly'], ['year', 'Annual']];
+
 function Dashboard() {
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const [year,       setYear]       = useState(now.getFullYear());
-  const [month,      setMonth]      = useState(now.getMonth() + 1);
+  const todayStr = manilaToday(); // Manila calendar date (not the browser's UTC date)
+  const [period,     setPeriod]     = useState('month');
+  const [pickDate,   setPickDate]   = useState(todayStr);
+  const [year,       setYear]       = useState(Number(todayStr.slice(0, 4)));
+  const [month,      setMonth]      = useState(Number(todayStr.slice(5, 7)));
   const [data,       setData]       = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [todayRows,  setTodayRows]  = useState([]);
@@ -206,14 +211,14 @@ function Dashboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      getFinanceDashboard(year, month),
+      getFinanceDashboard({ period, date: pickDate, year, month }),
       getFinanceMonthlySummary(year),
     ]).then(([dash, monthly]) => {
       if (dash.data && typeof dash.data === 'object' && !Array.isArray(dash.data))
         setData(dash.data);
       if (monthly.data?.months) setMonthlyData(monthly.data.months);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [year, month]);
+  }, [period, pickDate, year, month]);
 
   useEffect(() => {
     setTodayLoad(true);
@@ -225,6 +230,7 @@ function Dashboard() {
 
 
   const rev = parseFloat(data?.revenue)           || 0;
+  const hasExpenses = data?.expenses !== null && data?.expenses !== undefined; // expenses are tracked monthly (month/year only)
   const exp = parseFloat(data?.expenses)          || 0;
   const net = parseFloat(data?.netProfit)         || 0;
   const mrg = parseFloat(data?.profitMargin)      || 0;
@@ -232,14 +238,27 @@ function Dashboard() {
   const avg = parseFloat(data?.avgRevenuePerLoad)  || 0;
   const rfd = parseFloat(data?.refundTotal)        || 0;
   const rfc = Number(data?.refundCount             ?? 0);
+  const cogs = parseFloat(data?.cogs)             || 0;
+  const gpf = parseFloat(data?.grossProfit)       || 0;
+  const dlv = parseFloat(data?.deliveryRevenue)    || 0;
+  const dsc = parseFloat(data?.discounts)          || 0;
+  const bkg = Number(data?.bookingCount            ?? 0);
+  const periodWord = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Annual' }[period];
 
   const kpis = data ? [
-    { label: 'MTD Revenue',        val: PESO(rev), color: 'var(--primary)' },
-    { label: 'MTD Expenses',       val: PESO(exp), color: '#DC2626' },
-    { label: 'Net Profit',         val: PESO(net), color: net >= 0 ? '#047857' : '#DC2626' },
-    { label: 'Profit Margin',      val: PCT(mrg),  color: mrg >= 0 ? '#047857' : '#DC2626' },
-    { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD' },
+    { label: `${periodWord} Revenue`, val: PESO(rev), color: 'var(--primary)', sub: 'Paid, excl. cancelled · incl. delivery, after discounts' },
+    { label: 'Cost of goods', val: PESO(cogs), color: '#6B7280',
+      sub: cogs === 0 && rev > 0 ? 'Set your cost per unit in the Pricing Guide' : 'cost per unit × units sold' },
+    { label: 'Gross Profit', val: PESO(gpf), color: gpf >= 0 ? '#047857' : '#DC2626', sub: 'revenue − cost of goods' },
+    ...(hasExpenses ? [
+      { label: `${periodWord} Expenses`, val: PESO(exp), color: '#DC2626' },
+      { label: 'Net Profit',   val: PESO(net), color: net >= 0 ? '#047857' : '#DC2626', sub: 'gross profit − expenses' },
+      { label: 'Profit Margin', val: PCT(mrg), color: mrg >= 0 ? '#047857' : '#DC2626' },
+    ] : []),
+    { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD', sub: `${bkg.toLocaleString()} booking${bkg !== 1 ? 's' : ''}` },
     { label: 'Avg Revenue / Load', val: PESO(avg), color: '#BA7517' },
+    { label: 'Delivery fees',      val: PESO(dlv), color: '#38a9c2', sub: 'included in revenue' },
+    ...(dsc > 0 ? [{ label: 'Promo discounts', val: `-${PESO(dsc)}`, color: '#6B7280', sub: 'already deducted' }] : []),
     ...(rfd > 0 ? [{ label: `Refunds (${rfc} order${rfc !== 1 ? 's' : ''})`, val: PESO(rfd), color: '#DC2626' }] : []),
   ] : [];
 
@@ -252,16 +271,40 @@ function Dashboard() {
   return (
     <div>
       {/* Period selectors */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
-          {FULL_MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
-        <select value={year} onChange={e => setYear(Number(e.target.value))}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
-          {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y}>{y}</option>)}
-        </select>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+        <div role="group" aria-label="Period" style={{ display: 'inline-flex', border: '0.5px solid #ccc', borderRadius: 8, overflow: 'hidden' }}>
+          {PERIODS.map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setPeriod(key)} aria-pressed={period === key}
+              style={{ padding: '6px 14px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
+                background: period === key ? 'var(--primary)' : '#fff', color: period === key ? '#fff' : '#374151', fontWeight: period === key ? 600 : 400 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {(period === 'day' || period === 'week') && (
+          <input type="date" value={pickDate} max={todayStr} onChange={e => e.target.value && setPickDate(e.target.value)}
+            aria-label={period === 'day' ? 'Date' : 'Week ending'}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit' }} />
+        )}
+        {period === 'month' && (
+          <select value={month} onChange={e => setMonth(Number(e.target.value))} aria-label="Month"
+            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+            {FULL_MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+        )}
+        {(period === 'month' || period === 'year') && (
+          <select value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year"
+            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+            {[Number(todayStr.slice(0, 4)) - 1, Number(todayStr.slice(0, 4)), Number(todayStr.slice(0, 4)) + 1].map(y => <option key={y}>{y}</option>)}
+          </select>
+        )}
       </div>
+      {data?.range && (
+        <div style={{ fontSize: 12, color: '#6B7280', marginBottom: '1rem' }}>
+          Showing {data.range.label}
+          {!hasExpenses && ' · Expenses and profit are tracked monthly — switch to Monthly or Annual to see them'}
+        </div>
+      )}
 
       {loading ? <div style={{ color: '#6B7280', fontSize: 14 }}>Loading…</div> : (
         <>
@@ -271,28 +314,31 @@ function Dashboard() {
               <div key={k.label} style={{ ...cardStyle, padding: '1.25rem' }}>
                 <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{k.label}</div>
                 <div style={{ fontSize: 26, fontWeight: 600, color: k.color }}>{k.val}</div>
+                {k.sub && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{k.sub}</div>}
               </div>
             ))}
           </div>
 
           {/* Today's Sales card */}
           {(() => {
-            const todayGross = todayRows.reduce((s, r) => s + (r.gross_amount || 0), 0);
-            const todayNet   = todayRows.reduce((s, r) => s + (r.net_amount   || 0), 0);
-            const todayPaid  = todayRows.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
+            // Cancelled orders are listed below (with a badge) but never counted as sales
+            const liveRows   = todayRows.filter(r => r.status !== 'CANCELLED');
+            const todayGross = liveRows.reduce((s, r) => s + (r.gross_amount || 0), 0);
+            const todayNet   = liveRows.reduce((s, r) => s + (r.net_amount   || 0), 0);
+            const todayPaid  = liveRows.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
             return (
               <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
                   Today's Sales —{' '}
                   <span style={{ fontWeight: 400, color: '#6B7280' }}>
-                    {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {new Date(todayStr + 'T12:00:00Z').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
                   </span>
                 </div>
 
                 {/* Summary strip */}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
                   {[
-                    { label: 'Transactions', val: todayRows.length, color: '#7F77DD' },
+                    { label: 'Transactions', val: liveRows.length, color: '#7F77DD' },
                     { label: 'Gross Sales',  val: PESO(todayGross), color: '#38a9c2' },
                     { label: 'Net Sales',    val: PESO(todayNet),   color: '#374151' },
                     { label: 'Collected',    val: PESO(todayPaid),  color: '#047857' },
@@ -345,7 +391,7 @@ function Dashboard() {
           })()}
 
           {/* Financial Snapshot card */}
-          {data && (rev > 0 || exp > 0) && (
+          {data && hasExpenses && (rev > 0 || exp > 0) && (
             <div style={{ ...cardStyle, padding: '1.25rem' }}>
               {/* Header row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -456,7 +502,14 @@ function PricingGuide() {
                   <td style={tdStyle}>{r.name}</td>
                   <td style={{ ...tdStyle, color: '#6B7280' }}>{r.category_name || '—'}</td>
                   <td style={{ ...tdStyle, color: '#6B7280' }}>{r.unit}</td>
-                  <td style={tdNum}>{PESO(r.price)}</td>
+                  <td style={tdNum}>
+                    {PESO(r.price)}
+                    {r.price_basis === 'average_sold' && (
+                    <div title="This service is priced by option, so its list price is ₱0. Margin is measured against the average price actually sold per unit."
+                    style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>avg sold</div>
+                    )}
+                    {r.price_basis === 'none' && <div style={{ fontSize: 10, color: '#9CA3AF' }}>no sales yet</div>}
+                  </td>
                   <td style={{ ...tdNum, cursor: 'pointer' }}
                     onClick={() => !isEditing && startEdit(r.id, r.cost_per_unit)}
                     {...(!isEditing ? {
@@ -972,10 +1025,10 @@ function MonthlySummary() {
 
   function exportCSV() {
     if (!data) return;
-    const headers = ['Month', 'Gross Sales', 'Discounts', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Cumulative'];
+    const headers = ['Month', 'Gross Sales', 'Discounts', 'Delivery', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Cumulative'];
     const rows = data.months.map(m => [
       FULL_MONTHS[m.month - 1],
-      m.grossSales, m.discounts, m.netRevenue, m.cogs,
+      m.grossSales, m.discounts, m.deliveryRev, m.netRevenue, m.cogs,
       m.grossProfit, m.opExpenses, m.netProfit,
       (m.marginPct).toFixed(1) + '%', m.ytdCumulative,
     ]);
@@ -991,6 +1044,7 @@ function MonthlySummary() {
   const totals = data?.months.reduce((s, m) => ({
     grossSales:   s.grossSales   + m.grossSales,
     discounts:    s.discounts    + m.discounts,
+    deliveryRev:  s.deliveryRev  + (m.deliveryRev || 0),
     netRevenue:   s.netRevenue   + m.netRevenue,
     cogs:         s.cogs         + m.cogs,
     grossProfit:  s.grossProfit  + m.grossProfit,
@@ -999,7 +1053,7 @@ function MonthlySummary() {
     loadCount:    s.loadCount    + m.loadCount,
     refundTotal:  s.refundTotal  + (m.refundTotal  || 0),
     refundCount:  s.refundCount  + (m.refundCount  || 0),
-  }), { grossSales: 0, discounts: 0, netRevenue: 0, cogs: 0, grossProfit: 0, opExpenses: 0, netProfit: 0, loadCount: 0, refundTotal: 0, refundCount: 0 });
+  }), { grossSales: 0, discounts: 0, deliveryRev: 0, netRevenue: 0, cogs: 0, grossProfit: 0, opExpenses: 0, netProfit: 0, loadCount: 0, refundTotal: 0, refundCount: 0 });
 
   const totalMargin = totals && totals.netRevenue > 0
     ? (totals.netProfit / totals.netRevenue) * 100 : 0;
@@ -1109,7 +1163,7 @@ function MonthlySummary() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f9f9f7' }}>
-                  {['Month', 'Gross Sales', 'Discounts', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Profit', 'Orders', 'Refunds'].map(h => (
+                  {['Month', 'Gross Sales', 'Discounts', 'Delivery', 'Net Revenue', 'COGS', 'Gross Profit', 'Op. Expenses', 'Net Profit', 'Margin %', 'YTD Profit', 'Orders', 'Refunds'].map(h => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -1123,6 +1177,9 @@ function MonthlySummary() {
                       <td style={tdNum}>{PESO(m.grossSales)}</td>
                       <td style={{ ...tdNum, color: m.discounts > 0 ? '#EF4444' : '#6B7280' }}>
                         {m.discounts > 0 ? `-${PESO(m.discounts)}` : '—'}
+                      </td>
+                      <td style={{ ...tdNum, color: m.deliveryRev > 0 ? '#38a9c2' : '#6B7280' }}>
+                        {m.deliveryRev > 0 ? `+${PESO(m.deliveryRev)}` : '—'}
                       </td>
                       <td style={tdNum}>{PESO(m.netRevenue)}</td>
                       <td style={{ ...tdNum, color: '#6B7280' }}>{m.cogs > 0 ? PESO(m.cogs) : '—'}</td>
@@ -1154,6 +1211,9 @@ function MonthlySummary() {
                     <td style={{ ...tdNum, fontWeight: 700 }}>{PESO(totals.grossSales)}</td>
                     <td style={{ ...tdNum, fontWeight: 700, color: '#EF4444' }}>
                       {totals.discounts > 0 ? `-${PESO(totals.discounts)}` : '—'}
+                    </td>
+                    <td style={{ ...tdNum, fontWeight: 700, color: '#38a9c2' }}>
+                      {totals.deliveryRev > 0 ? `+${PESO(totals.deliveryRev)}` : '—'}
                     </td>
                     <td style={{ ...tdNum, fontWeight: 700 }}>{PESO(totals.netRevenue)}</td>
                     <td style={{ ...tdNum, fontWeight: 700, color: '#6B7280' }}>{totals.cogs > 0 ? PESO(totals.cogs) : '—'}</td>

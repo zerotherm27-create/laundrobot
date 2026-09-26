@@ -2,49 +2,160 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const db = require('../db');
 
-// GET /finance/dashboard?year=YYYY&month=M
+// ── Single definition of revenue (Option A) ─────────────────────────────────────────────────────────
+// Revenue = money the customer paid on orders that were not cancelled: price + delivery_fee − promo_discount.
+// Overview, Reports and Finance must all use this (or the /finance endpoints that do).
+//   • "archived" is NOT a finance filter: the monthly cron auto-archives every COMPLETED order, so filtering it
+//     would erase past months. Only soft-deleted orders (deleted_by IS NOT NULL) are excluded.
+const NET = "CASE WHEN paid AND status != 'CANCELLED' THEN price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0) ELSE 0 END";
+const MNL = "((created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')";
+// ── Cost of goods ────────────────────────────────────────────────────────────────────────────────────
+// COGS per order row = services.cost_per_unit × units sold. Units are not a column: they are the quantity the customer
+// entered, stored in orders.custom_selections under the service's Number field (or the "weight" field for per-kg
+// services); default 1. Only paid, non-cancelled rows count, exactly like revenue. Needs aliases o (orders), s (services).
+// The CURRENT cost_per_unit is applied to every order, so editing a cost restates history immediately.
+const UNITS = `COALESCE(
+  (SELECT NULLIF(regexp_replace(cs->>'value', '[^0-9.]', '', 'g'), '')::numeric
+     FROM jsonb_array_elements(CASE WHEN jsonb_typeof(o.custom_selections) = 'array' THEN o.custom_selections ELSE '[]'::jsonb END) cs
+    WHERE (lower(coalesce(s.unit,'')) LIKE '%kg%' AND lower(cs->>'label') LIKE '%weight%')
+       OR EXISTS (SELECT 1 FROM service_custom_fields f
+                   WHERE f.service_id = o.service_id AND f.field_type = 'number'
+                     AND lower(trim(f.label)) = lower(trim(cs->>'label')))
+    ORDER BY (lower(cs->>'label') LIKE '%weight%') DESC
+    LIMIT 1),
+  NULLIF(o.weight, 0), 1)`;
+const COGS_ROW = `CASE WHEN o.paid AND o.status != 'CANCELLED' THEN COALESCE(s.cost_per_unit, 0) * ${UNITS} ELSE 0 END`;   // Manila wall-clock time of an order
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const manilaToday = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+const addDays = (ymd, n) => { const d = new Date(ymd + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const lastDayOfMonth = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+const pad2 = n => String(n).padStart(2, '0');
+
+// GET /finance/dashboard
+//   ?period=day|week|month|year|all   (default month)
+//   day: &date=YYYY-MM-DD (default today, Manila)   week: 7 days ending &date   month: &year&month   year: &year
+// All ranges are Asia/Manila calendar dates. Expenses are stored per month, so they (and net profit) are only
+// returned for month/year; day/week/all return null for them.
 router.get('/dashboard', auth, async (req, res) => {
   try {
-    const now = new Date();
-    const year = parseInt(req.query.year) || now.getFullYear();
-    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const tid = req.user.tenant_id;
+    if (!tid) return res.status(400).json({ error: 'No shop selected' });
+    const today = manilaToday();
+    const period = ['day', 'week', 'month', 'year', 'all'].includes(req.query.period) ? req.query.period : 'month';
+    const year = parseInt(req.query.year) || parseInt(today.slice(0, 4));
+    const month = parseInt(req.query.month) || parseInt(today.slice(5, 7));
     if (year < 2020 || year > 2100 || month < 1 || month > 12) {
       return res.status(400).json({ error: 'Invalid year or month' });
     }
-    const tid = req.user.tenant_id;
+    const date = req.query.date || today;
+    if (!DATE_RE.test(date)) return res.status(400).json({ error: 'Invalid date' });
+
+    let from = null, to = null, label = 'All time';
+    if (period === 'day')   { from = to = date; label = date; }
+    if (period === 'week')  { to = date; from = addDays(date, -6); label = `${from} to ${to}`; }
+    if (period === 'month') { from = `${year}-${pad2(month)}-01`; to = `${year}-${pad2(month)}-${pad2(lastDayOfMonth(year, month))}`; label = `${from} to ${to}`; }
+    if (period === 'year')  { from = `${year}-01-01`; to = `${year}-12-31`; label = String(year); }
 
     const { rows: [rev] } = await db.query(
       `SELECT
-        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS revenue,
+        COALESCE(SUM(${NET}), 0)::numeric AS revenue,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS gross_sales,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(delivery_fee,0) ELSE 0 END), 0)::numeric AS delivery_revenue,
+        COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS discounts,
         COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED') AS load_count,
+        COUNT(DISTINCT booking_ref) FILTER (WHERE paid AND status != 'CANCELLED') AS booking_count,
+        COUNT(*) FILTER (WHERE paid IS NOT TRUE AND status != 'CANCELLED') AS unpaid_count,
+        COUNT(*) FILTER (WHERE status = 'CANCELLED') AS cancelled_count,
         COALESCE(SUM(CASE WHEN paid AND status = 'CANCELLED'
           THEN price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0) ELSE 0 END), 0)::numeric AS refund_total,
         COUNT(*) FILTER (WHERE paid AND status = 'CANCELLED') AS refund_count
        FROM orders
        WHERE tenant_id = $1
-         AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
-         AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $3
-         AND (archived = FALSE OR archived IS NULL)`,
-      [tid, year, month]
+         AND deleted_by IS NULL
+         AND ($2::date IS NULL OR DATE(${MNL}) >= $2::date)
+         AND ($3::date IS NULL OR DATE(${MNL}) <= $3::date)`,
+      [tid, from, to]
     );
 
-    const { rows: [exp] } = await db.query(
-      `SELECT COALESCE(SUM(amount), 0)::numeric AS expenses
-       FROM expenses
-       WHERE tenant_id = $1 AND year = $2 AND month = $3`,
-      [tid, year, month]
+    const { rows: [cg] } = await db.query(
+      `SELECT COALESCE(SUM(${COGS_ROW}), 0)::numeric AS cogs
+       FROM orders o LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.tenant_id = $1 AND o.deleted_by IS NULL
+         AND ($2::date IS NULL OR DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') >= $2::date)
+         AND ($3::date IS NULL OR DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') <= $3::date)`,
+      [tid, from, to]
     );
+    let expenses = null;
+    if (period === 'month' || period === 'year') {
+      const { rows: [exp] } = await db.query(
+        `SELECT COALESCE(SUM(amount), 0)::numeric AS expenses
+         FROM expenses
+         WHERE tenant_id = $1 AND year = $2 AND ($3::int IS NULL OR month = $3::int)`,
+        [tid, year, period === 'month' ? month : null]
+      );
+      expenses = parseFloat(exp?.expenses) || 0;
+    }
 
     const revenue = parseFloat(rev?.revenue) || 0;
-    const expenses = parseFloat(exp?.expenses) || 0;
     const loadCount = parseInt(rev?.load_count) || 0;
-    const refundTotal = parseFloat(rev?.refund_total) || 0;
-    const refundCount = parseInt(rev?.refund_count) || 0;
-    const netProfit = revenue - expenses;
-    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-    const avgRevenuePerLoad = loadCount > 0 ? revenue / loadCount : 0;
+    const cogs = parseFloat(cg?.cogs) || 0;
+    const grossProfit = revenue - cogs;                                  // revenue − cost of goods (any period)
+    const netProfit = expenses === null ? null : grossProfit - expenses; // same formula as Monthly Summary
+    const profitMargin = netProfit === null ? null : (revenue > 0 ? (netProfit / revenue) * 100 : 0);
+    res.json({
+      period, range: { from, to, label },
+      revenue, grossSales: parseFloat(rev?.gross_sales) || 0,
+      deliveryRevenue: parseFloat(rev?.delivery_revenue) || 0, discounts: parseFloat(rev?.discounts) || 0,
+      loadCount, bookingCount: parseInt(rev?.booking_count) || 0,
+      unpaidCount: parseInt(rev?.unpaid_count) || 0, cancelledCount: parseInt(rev?.cancelled_count) || 0,
+      avgRevenuePerLoad: loadCount > 0 ? revenue / loadCount : 0,
+      refundTotal: parseFloat(rev?.refund_total) || 0, refundCount: parseInt(rev?.refund_count) || 0,
+      cogs, grossProfit, expenses, netProfit, profitMargin,
+      year, month,
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-    res.json({ revenue, expenses, netProfit, profitMargin, loadCount, avgRevenuePerLoad, refundTotal, refundCount, year, month });
+// GET /finance/sales-detail?from=YYYY-MM-DD&to=YYYY-MM-DD — every order row in the range (Manila dates), for Reports.
+// Includes auto-archived orders; excludes only soft-deleted ones. `firstOrders` maps each customer in the range
+// to their first-ever order time so new-vs-repeat can be worked out without loading all history.
+router.get('/sales-detail', auth, async (req, res) => {
+  try {
+    const tid = req.user.tenant_id;
+    if (!tid) return res.json({ rows: [], firstOrders: {} });
+    const { from, to } = req.query;
+    if (!DATE_RE.test(from || '') || !DATE_RE.test(to || '')) return res.status(400).json({ error: 'from and to (YYYY-MM-DD) are required' });
+    const { rows } = await db.query(
+      `SELECT o.id, o.booking_ref, o.created_at, o.customer_id, c.name AS customer_name,
+              s.name AS service_name, o.price, o.delivery_fee, o.promo_discount, o.paid, o.status, o.source
+       FROM orders o
+       LEFT JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.tenant_id = $1 AND o.deleted_by IS NULL
+         AND DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') BETWEEN $2::date AND $3::date
+       ORDER BY o.created_at DESC
+       LIMIT 20000`,
+      [tid, from, to]
+    );
+    const { rows: firsts } = await db.query(
+      `SELECT customer_id, MIN(created_at) AS first_order
+       FROM orders
+       WHERE tenant_id = $1 AND deleted_by IS NULL AND customer_id IN (
+         SELECT DISTINCT customer_id FROM orders
+         WHERE tenant_id = $1 AND deleted_by IS NULL AND customer_id IS NOT NULL
+           AND DATE((created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') BETWEEN $2::date AND $3::date)
+       GROUP BY customer_id`,
+      [tid, from, to]
+    );
+    const { rows: [ac] } = await db.query(
+      `SELECT COUNT(DISTINCT customer_id)::int AS total FROM orders WHERE tenant_id = $1 AND deleted_by IS NULL AND customer_id IS NOT NULL`,
+      [tid]
+    );
+    res.json({ from, to, rows, firstOrders: Object.fromEntries(firsts.map(r => [r.customer_id, r.first_order])), allTimeCustomers: ac?.total || 0 });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Internal server error' });
@@ -56,19 +167,36 @@ router.get('/pricing-guide', auth, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT s.id, s.name, s.price, s.unit, s.cost_per_unit,
-              c.name AS category_name
+              c.name AS category_name,
+              sold.sold_revenue, sold.sold_units
        FROM services s
        LEFT JOIN service_categories c ON c.id = s.category_id
+       LEFT JOIN (
+         SELECT o.service_id,
+                SUM(o.price)::numeric AS sold_revenue,
+                SUM(${UNITS})::numeric AS sold_units
+         FROM orders o JOIN services s ON s.id = o.service_id
+         WHERE o.tenant_id = $1 AND o.deleted_by IS NULL AND o.paid AND o.status != 'CANCELLED'
+         GROUP BY o.service_id
+       ) sold ON sold.service_id = s.id
        WHERE s.tenant_id = $1 AND s.active = TRUE
        ORDER BY s.sort_order, s.name`,
       [req.user.tenant_id]
     );
+    // Services priced by option (Variation) have a list price of 0, which would make every margin negative.
+    // For those, margin is measured against the average price actually sold per unit.
     const guide = rows.map(s => {
-      const price = parseFloat(s.price) || 0;
+      const listPrice = parseFloat(s.price) || 0;
+      const soldUnits = parseFloat(s.sold_units) || 0;
+      const soldAvg = soldUnits > 0 ? (parseFloat(s.sold_revenue) || 0) / soldUnits : 0;
+      const price = listPrice > 0 ? listPrice : soldAvg;
+      const priceBasis = listPrice > 0 ? 'list' : (soldAvg > 0 ? 'average_sold' : 'none');
       const cost = parseFloat(s.cost_per_unit) || 0;
       const grossMargin = price - cost;
       const marginPct = price > 0 ? (grossMargin / price) * 100 : 0;
-      return { ...s, price, cost_per_unit: cost, gross_margin: grossMargin, margin_pct: marginPct };
+      return { id: s.id, name: s.name, unit: s.unit, category_name: s.category_name,
+               list_price: listPrice, price, price_basis: priceBasis, units_sold: soldUnits,
+               cost_per_unit: cost, gross_margin: grossMargin, margin_pct: marginPct };
     });
     res.json(guide);
   } catch (e) {
@@ -113,7 +241,7 @@ router.get('/daily-sales', auth, async (req, res) => {
        LEFT JOIN services s ON s.id = o.service_id
        WHERE o.tenant_id = $1
          AND DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2::date
-         AND (o.archived = FALSE OR o.archived IS NULL)
+         AND o.deleted_by IS NULL
        ORDER BY o.created_at DESC`,
       [req.user.tenant_id, date]
     );
@@ -261,7 +389,7 @@ router.get('/monthly-summary', auth, async (req, res) => {
        FROM orders
        WHERE tenant_id = $1
          AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
-         AND (archived = FALSE OR archived IS NULL)
+         AND deleted_by IS NULL
        GROUP BY 1 ORDER BY 1`,
       [tid, year]
     );
@@ -270,12 +398,12 @@ router.get('/monthly-summary', auth, async (req, res) => {
     const { rows: cogsRows } = await db.query(
       `SELECT
         EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
-        COALESCE(SUM(CASE WHEN o.paid THEN COALESCE(s.cost_per_unit,0) ELSE 0 END), 0)::numeric AS cogs
+        COALESCE(SUM(${COGS_ROW}), 0)::numeric AS cogs
        FROM orders o
        LEFT JOIN services s ON s.id = o.service_id
        WHERE o.tenant_id = $1
          AND EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $2
-         AND (o.archived = FALSE OR o.archived IS NULL)
+         AND o.deleted_by IS NULL
        GROUP BY 1 ORDER BY 1`,
       [tid, year]
     );
@@ -374,13 +502,13 @@ router.get('/breakeven', auth, async (req, res) => {
     const [{ rows: [rev] }, { rows: [exp] }, { rows: [vc] }] = await Promise.all([
       db.query(
         `SELECT
-          COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END), 0)::numeric AS revenue,
+          COALESCE(SUM(${NET}), 0)::numeric AS revenue,
           COUNT(*) FILTER (WHERE paid AND status != 'CANCELLED')::int AS load_count
          FROM orders
          WHERE tenant_id=$1
            AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
            AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
-           AND (archived=FALSE OR archived IS NULL)`,
+           AND deleted_by IS NULL`,
         [tid, year, month]
       ),
       db.query(
@@ -389,14 +517,14 @@ router.get('/breakeven', auth, async (req, res) => {
         [tid, year, month]
       ),
       db.query(
-        `SELECT COALESCE(AVG(COALESCE(s.cost_per_unit,0)),0)::numeric AS avg_variable_cost
+        `SELECT COALESCE(AVG(COALESCE(s.cost_per_unit,0) * ${UNITS}) FILTER (WHERE o.paid AND o.status != 'CANCELLED'),0)::numeric AS avg_variable_cost
          FROM orders o
          LEFT JOIN services s ON s.id=o.service_id
          WHERE o.tenant_id=$1
            AND EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
            AND EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
            AND o.paid=TRUE
-           AND (o.archived=FALSE OR o.archived IS NULL)`,
+           AND o.deleted_by IS NULL`,
         [tid, year, month]
       ),
     ]);
@@ -443,25 +571,25 @@ router.get('/projections', auth, async (req, res) => {
     const daysElapsed    = isCurrentMonth ? now.getDate() : daysInMonth;
 
     const { rows: [mtd] } = await db.query(
-      `SELECT COALESCE(SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END),0)::numeric AS revenue,
+      `SELECT COALESCE(SUM(${NET}),0)::numeric AS revenue,
               COUNT(*) FILTER (WHERE paid AND status!='CANCELLED')::int AS load_count
        FROM orders
        WHERE tenant_id=$1
          AND EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$2
          AND EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')=$3
-         AND (archived=FALSE OR archived IS NULL)`,
+         AND deleted_by IS NULL`,
       [tid, year, month]
     );
 
     const { rows: history } = await db.query(
       `SELECT EXTRACT(MONTH FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS month,
               EXTRACT(YEAR FROM (created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int AS yr,
-              SUM(CASE WHEN paid AND status != 'CANCELLED' THEN price ELSE 0 END)::numeric AS revenue
+              SUM(${NET})::numeric AS revenue
        FROM orders
        WHERE tenant_id=$1
          AND created_at < DATE_TRUNC('month', (NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')
          AND created_at >= DATE_TRUNC('month', (NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') - INTERVAL '3 months'
-         AND (archived=FALSE OR archived IS NULL)
+         AND deleted_by IS NULL
        GROUP BY 1,2 ORDER BY yr, month`,
       [tid]
     );
@@ -595,7 +723,7 @@ router.get('/customer-retention', auth, async (req, res) => {
                WHERE prev.tenant_id   = o.tenant_id
                  AND prev.customer_id = o.customer_id
                  AND prev.created_at  < DATE_TRUNC('month', MAKE_DATE($2, $3, 1))
-                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+                 AND prev.deleted_by IS NULL
              )
          )::int AS new_customers,
          COUNT(DISTINCT o.customer_id) FILTER (
@@ -605,21 +733,21 @@ router.get('/customer-retention', auth, async (req, res) => {
                WHERE prev.tenant_id   = o.tenant_id
                  AND prev.customer_id = o.customer_id
                  AND prev.created_at  < DATE_TRUNC('month', MAKE_DATE($2, $3, 1))
-                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+                 AND prev.deleted_by IS NULL
              )
          )::int AS repeat_customers
        FROM orders o
        WHERE o.tenant_id = $1
          AND EXTRACT(YEAR  FROM o.created_at) = $2
          AND EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') = $3
-         AND (o.archived = FALSE OR o.archived IS NULL)`,
+         AND o.deleted_by IS NULL`,
       [tid, year, month]
     );
 
     // All-time total unique customers
     const { rows: [allTime] } = await db.query(
       `SELECT COUNT(DISTINCT customer_id) FILTER (WHERE customer_id IS NOT NULL)::int AS total
-       FROM orders WHERE tenant_id = $1 AND (archived = FALSE OR archived IS NULL)`,
+       FROM orders WHERE tenant_id = $1 AND deleted_by IS NULL`,
       [tid]
     );
 
@@ -638,7 +766,7 @@ router.get('/customer-retention', auth, async (req, res) => {
                  AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
                        MAKE_DATE(EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int,
                                  EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int, 1)))
-                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+                 AND prev.deleted_by IS NULL
              )
          )::int AS new_customers,
          COUNT(DISTINCT o.customer_id) FILTER (
@@ -650,14 +778,14 @@ router.get('/customer-retention', auth, async (req, res) => {
                  AND prev.created_at  < DATE_TRUNC('month', DATE_TRUNC('month',
                        MAKE_DATE(EXTRACT(YEAR FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int,
                                  EXTRACT(MONTH FROM (o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int, 1)))
-                 AND (prev.archived = FALSE OR prev.archived IS NULL)
+                 AND prev.deleted_by IS NULL
              )
          )::int AS repeat_customers
        FROM orders o
        WHERE o.tenant_id = $1
          AND o.created_at >= DATE_TRUNC('year', MAKE_DATE($2, 1, 1))
          AND o.created_at <  DATE_TRUNC('year', MAKE_DATE($2, 1, 1)) + INTERVAL '1 year'
-         AND (o.archived = FALSE OR o.archived IS NULL)
+         AND o.deleted_by IS NULL
        GROUP BY 1, 2
        ORDER BY 2, 1`,
       [tid, year]

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings, getFinanceDailySales, getFinanceCustomerRetention, getFinanceDashboard } from '../api.js';
+import { getOrders, getHumanConversations, releaseConversation, getMyTenantSettings, getFinanceCustomerRetention, getFinanceDashboard } from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Avatar } from '../components/Avatar.jsx';
 import { StatusBadge, STATUS_COLORS } from '../components/StatusBadge.jsx';
 import { Icon, IconBadge } from '../components/Icons.jsx';
 import { RetentionChart } from '../components/Charts.jsx';
+import { manilaToday } from '../utils/revenue.js';
 import { useToast } from '../context/ToastContext.jsx';
 
 const STATUSES = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'];
@@ -28,10 +29,9 @@ function timeAgo(dateStr) {
 export default function Overview() {
   const toast = useToast();
   const { user } = useAuth();
-  const now      = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const curYear  = now.getFullYear();
-  const curMonth = now.getMonth() + 1;
+  const todayStr = manilaToday(); // Manila calendar date — same day boundaries as Finance and Reports
+  const curYear  = Number(todayStr.slice(0, 4));
+  const curMonth = Number(todayStr.slice(5, 7));
 
   const [orders,       setOrders]       = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -43,7 +43,8 @@ export default function Overview() {
   const [customDomain, setCustomDomain] = useState('');
   const [tenantPlan,   setTenantPlan]   = useState('');
   const [fbPageId,     setFbPageId]     = useState('');
-  const [todaySales,   setTodaySales]   = useState([]);
+  const [allTime,      setAllTime]      = useState(null); // finance numbers, all time
+  const [todayDash,    setTodayDash]    = useState(null); // finance numbers, today
   const [retention,    setRetention]    = useState(null);
   const [mtd,          setMtd]          = useState(null);
 
@@ -66,12 +67,13 @@ export default function Overview() {
       setTenantPlan(r.data.plan || '');
       setFbPageId(r.data.fb_page_id || '');
     }).catch(() => {});
-    getFinanceDailySales(todayStr)
-      .then(r => setTodaySales(Array.isArray(r.data) ? r.data : []))
-      .catch(() => {});
     getFinanceCustomerRetention(curYear, curMonth)
       .then(r => setRetention(r.data && typeof r.data === 'object' ? r.data : null))
       .catch(() => {});
+    // Headline numbers come from the SAME backend query Finance uses (paid, not cancelled, price + delivery − discounts),
+    // so Overview, Reports and Finance always agree. No 200-order cap, archived months included.
+    getFinanceDashboard({ period: 'all' }).then(r => setAllTime(r.data && typeof r.data === 'object' ? r.data : null)).catch(() => {});
+    getFinanceDashboard({ period: 'day', date: todayStr }).then(r => setTodayDash(r.data && typeof r.data === 'object' ? r.data : null)).catch(() => {});
     getFinanceDashboard(curYear, curMonth)
       .then(r => setMtd(r.data && typeof r.data === 'object' ? r.data : null))
       .catch(() => {});
@@ -91,17 +93,19 @@ export default function Overview() {
     finally { setReleasing(null); }
   }
 
-  const revenue      = orders.filter(o => o.paid).reduce((s, o) => s + Number(o.price), 0);
+  const revenue      = parseFloat(allTime?.revenue) || 0;
+  const allOrders    = Number(allTime?.loadCount ?? 0);
+  const allBookings  = Number(allTime?.bookingCount ?? 0);
   const active       = orders.filter(o => !['COMPLETED','CANCELLED'].includes(o.status)).length;
-  const todayOrders  = todaySales.length;
-  const todayRevenue = todaySales.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
+  const todayOrders  = Number(todayDash?.loadCount ?? 0);
+  const todayRevenue = parseFloat(todayDash?.revenue) || 0;
   const mtdRevenue    = parseFloat(mtd?.revenue)    || 0;
   const mtdNetProfit  = parseFloat(mtd?.netProfit)  || 0;
   const mtdLoadCount  = Number(mtd?.loadCount ?? 0);
 
   const stats = [
-    { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), sub: `${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
-    { label: 'Total Orders',  val: orders.length,                          sub: `all time` },
+    { label: 'All-time Revenue', val: '₱' + Math.round(revenue).toLocaleString(), sub: `paid, excl. cancelled · ${todayOrders} order${todayOrders !== 1 ? 's' : ''} today` },
+    { label: 'Total Orders',  val: allOrders.toLocaleString(),             sub: `${allBookings.toLocaleString()} booking${allBookings !== 1 ? 's' : ''} · all time` },
     { label: 'Active Orders', val: active,                                 sub: `in progress` },
     { label: 'Orders Today',  val: todayOrders,                            sub: new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) },
   ];
@@ -253,9 +257,9 @@ export default function Overview() {
           </div>
           <div className="revenue-stats" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {[
-              { label: 'Transactions', val: todaySales.length },
-              { label: 'Paid',         val: todaySales.filter(r => r.paid).length },
-              { label: 'Unpaid',       val: todaySales.filter(r => !r.paid).length },
+              { label: 'Transactions', val: todayOrders + Number(todayDash?.unpaidCount ?? 0) },
+              { label: 'Paid',         val: todayOrders },
+              { label: 'Unpaid',       val: Number(todayDash?.unpaidCount ?? 0) },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,.12)', borderRadius: 10, padding: '8px 14px' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{s.val}</div>
@@ -328,7 +332,7 @@ export default function Overview() {
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>Orders by status</div>
-            {!loading && <span style={{ fontSize: 11, color: '#6B7280' }}>{orders.length} total</span>}
+            {!loading && <span style={{ fontSize: 11, color: '#6B7280' }}>{orders.length} on the board</span>}
           </div>
           {loading ? (
             <div className="skeleton" style={{ height: 120 }} />

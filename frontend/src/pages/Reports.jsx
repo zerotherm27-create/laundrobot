@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getOrders, getMyTenantSettings } from '../api.js';
+import { getSalesDetail, getFinanceDashboard, getMyTenantSettings } from '../api.js';
+import { manilaToday, periodRange, isRevenueRow, rowRevenue, rowNet, orderManilaDate } from '../utils/revenue.js';
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon, IconBadge } from '../components/Icons.jsx';
 import { STATUS_COLORS } from '../components/StatusBadge.jsx';
@@ -7,110 +8,101 @@ import { MiniBarChart, HorizBars, DonutChart } from '../components/Charts.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
-function getRange(period) {
-  const now = new Date();
-  const start = new Date();
-  if      (period === 'Daily')    { start.setHours(0, 0, 0, 0); }          // today midnight → now
-  else if (period === 'Weekly')   { start.setDate(now.getDate() - 7); }
-  else if (period === 'Monthly')  { start.setMonth(now.getMonth() - 1); }
-  else if (period === 'Annually') { start.setFullYear(now.getFullYear() - 1); }
-  return start;
-}
+const PERIOD_KEY = { Daily: 'day', Weekly: 'week', Monthly: 'month', Annually: 'year' };
 
 export default function Reports() {
-  const [orders, setOrders] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [firstOrders, setFirstOrders] = useState({});
+  const [allTimeCustomers, setAllTimeCustomers] = useState(0);
+  const [dash, setDash] = useState(null);
   const [period, setPeriod] = useState('Monthly');
   const [loading, setLoading] = useState(true);
   const [tenantPlan, setTenantPlan] = useState('starter');
   const { openUpgradeModal } = useUpgrade();
 
+  // Same calendar periods and the same backend revenue query as Finance (Asia/Manila dates, cancelled excluded,
+  // delivery included, discounts deducted, archived months included, no order-count cap).
+  const periodKey = PERIOD_KEY[period];
+  const range = periodRange(periodKey);
+
   useEffect(() => {
-    getOrders()
-      .then(r => {
-        setOrders(r.data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
     getMyTenantSettings().then(r => setTenantPlan(r.data.plan || 'starter')).catch(() => {});
   }, []);
 
-  const start = getRange(period);
-  const filtered = orders.filter(o => new Date(o.created_at) >= start);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    const today = manilaToday();
+    Promise.all([
+      getSalesDetail(range.from, range.to),
+      getFinanceDashboard({ period: periodKey, date: today, year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) }),
+    ]).then(([detail, d]) => {
+      if (!alive) return;
+      setRows(detail.data?.rows || []);
+      setFirstOrders(detail.data?.firstOrders || {});
+      setAllTimeCustomers(detail.data?.allTimeCustomers || 0);
+      setDash(d.data && typeof d.data === 'object' ? d.data : null);
+    }).catch(() => {}).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const revenue = filtered.filter(o => o.paid).reduce((s, o) =>
-    s + Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0), 0);
-  const totalOrders = filtered.length;
-  const completedOrders = filtered.filter(o => o.status === 'COMPLETED').length;
-  const pendingOrders = filtered.filter(o => o.status !== 'COMPLETED').length;
-  const unpaidOrders = filtered.filter(o => !o.paid).length;
-  const avgOrderValue = totalOrders ? (revenue / totalOrders).toFixed(2) : 0;
+  const filtered = rows;                                        // every order in the period (CSV export lists all, with status)
+  const live = rows.filter(o => o.status !== 'CANCELLED');      // cancelled orders are not sales
+  const revenue = parseFloat(dash?.revenue) || 0;               // = Finance dashboard revenue for the same period
+  const totalOrders = live.length;
+  const completedOrders = live.filter(o => o.status === 'COMPLETED').length;
+  const pendingOrders = live.filter(o => o.status !== 'COMPLETED').length;
+  const unpaidOrders = live.filter(o => !o.paid).length;
+  const avgOrderValue = (parseFloat(dash?.avgRevenuePerLoad) || 0).toFixed(2);
 
   // Group by service
-  const byService = filtered.reduce((acc, o) => {
+  const byService = live.reduce((acc, o) => {
     const name = o.service_name || 'Unknown';
     if (!acc[name]) acc[name] = { count: 0, revenue: 0 };
     acc[name].count++;
-    if (o.paid) acc[name].revenue += Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0);
+    acc[name].revenue += rowRevenue(o);
     return acc;
   }, {});
 
   // Group by source (booking channel)
+  const sourceKey = o => { const src = o.source || 'web'; return src === 'walk_in' ? 'walk_in' : src === 'web' ? 'web' : src === 'messenger' ? 'messenger' : 'other'; };
   const sourceMap = { walk_in: 0, web: 0, messenger: 0, other: 0 };
-  for (const o of filtered) {
-    const src = o.source || 'web';
-    if (src === 'walk_in') sourceMap.walk_in++;
-    else if (src === 'web') sourceMap.web++;
-    else if (src === 'messenger') sourceMap.messenger++;
-    else sourceMap.other++;
-  }
+  for (const o of live) sourceMap[sourceKey(o)]++;
   const sourceRevenue = { walk_in: 0, web: 0, messenger: 0, other: 0 };
-  for (const o of filtered.filter(o => o.paid)) {
-    const src = o.source || 'web';
-    const key = src === 'walk_in' ? 'walk_in' : src === 'web' ? 'web' : src === 'messenger' ? 'messenger' : 'other';
-    sourceRevenue[key] += Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0);
-  }
+  for (const o of live.filter(isRevenueRow)) sourceRevenue[sourceKey(o)] += rowNet(o);
 
   // Group by status
   const byStatus = ['NEW ORDER','FOR PICK UP','PROCESSING','FOR DELIVERY','COMPLETED'].map(s => ({
     status: s,
-    count: filtered.filter(o => o.status === s).length,
+    count: live.filter(o => o.status === s).length,
   }));
 
-  // Customer retention — within the filtered period
-  // "New" = customer whose first ever order (across all orders) falls within the period
-  // "Repeat" = had at least one order before the period start
-  const periodStart = start;
-  const customerFirstOrder = {};
-  for (const o of orders) {
-    if (!o.customer_id) continue;
-    const d = new Date(o.created_at);
-    if (!customerFirstOrder[o.customer_id] || d < customerFirstOrder[o.customer_id]) {
-      customerFirstOrder[o.customer_id] = d;
-    }
-  }
-  const periodCustomerIds = [...new Set(filtered.filter(o => o.customer_id).map(o => o.customer_id))];
-  const retentionNewCount    = periodCustomerIds.filter(id => customerFirstOrder[id] >= periodStart).length;
-  const retentionRepeatCount = periodCustomerIds.filter(id => customerFirstOrder[id] <  periodStart).length;
+  // Customer retention — "New" = first-ever order falls inside the period; "Repeat" = ordered before it.
+  // First orders come from the server (all history, including archived months).
+  const periodStart = new Date(range.from + 'T00:00:00+08:00');
+  const periodCustomerIds = [...new Set(live.filter(o => o.customer_id).map(o => o.customer_id))];
+  const retentionNewCount    = periodCustomerIds.filter(id => new Date(firstOrders[id]) >= periodStart).length;
+  const retentionRepeatCount = periodCustomerIds.filter(id => new Date(firstOrders[id]) <  periodStart).length;
   const retentionTotal       = periodCustomerIds.length;
   const retentionRate        = retentionTotal > 0 ? (retentionRepeatCount / retentionTotal) * 100 : 0;
-  const allTimeCustomers     = Object.keys(customerFirstOrder).length;
 
-  // Group orders by day for chart
-  const byDay = filtered.reduce((acc, o) => {
-    const day = new Date(o.created_at).toLocaleDateString();
+  // Group orders by Manila day for the chart (oldest → newest, last 14 days that have orders)
+  const byDay = live.reduce((acc, o) => {
+    const day = orderManilaDate(o);
     if (!acc[day]) acc[day] = { orders: 0, revenue: 0 };
     acc[day].orders++;
-    if (o.paid) acc[day].revenue += Number(o.price);
+    acc[day].revenue += rowRevenue(o);
     return acc;
   }, {});
-  const days = Object.entries(byDay).slice(-14);
+  const days = Object.entries(byDay).sort(([a], [b]) => a.localeCompare(b)).slice(-14)
+    .map(([iso, v]) => [new Date(iso + 'T12:00:00Z').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' }), v]);
 
   function exportCSV() {
     const headers = ['Order ID','Customer','Service','Status','Amount','Paid','Date'];
     const rows = filtered.map(o => [
       o.id, o.customer_name, o.service_name, o.status,
-      o.price, o.paid ? 'Yes' : 'No',
-      new Date(o.created_at).toLocaleDateString()
+      rowNet(o), o.paid ? 'Yes' : 'No',
+      orderManilaDate(o)
     ]);
     const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
@@ -172,12 +164,16 @@ export default function Reports() {
         </div>
       </div>
 
+      <div style={{ fontSize: 12, color: '#6B7280', marginTop: -12, marginBottom: '1rem' }}>
+        Showing {range.label} · revenue = paid orders excluding cancelled, delivery included, discounts deducted
+      </div>
+
       {loading ? <div style={{ color: '#374151', fontSize: 14 }}>Loading...</div> : (
         <>
           {/* Summary cards */}
           <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
             {[
-              { label: 'Total Revenue', val: '₱' + revenue.toLocaleString(), color: '#38a9c2' },
+              { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), color: '#38a9c2' },
               { label: 'Total Orders', val: totalOrders, color: '#7F77DD' },
               { label: 'Completed', val: completedOrders, color: '#639922' },
               { label: 'Avg Order Value', val: '₱' + Number(avgOrderValue).toLocaleString(), color: '#1D9E75' },

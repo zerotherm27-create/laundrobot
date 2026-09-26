@@ -180,7 +180,11 @@ export const subscribePush       = sub  => api.post('/push/subscribe', sub);
 export const unsubscribePush     = endpoint => api.delete('/push/subscribe', { data: { endpoint } });
 
 // Finance
-export const getFinanceDashboard    = (year, month) => api.get('/finance/dashboard', { params: { year, month } });
+// Accepts (year, month) as before, or one params object: { period: 'day'|'week'|'month'|'year'|'all', date, year, month }
+export const getFinanceDashboard    = (yearOrParams, month) => api.get('/finance/dashboard', {
+  params: typeof yearOrParams === 'object' && yearOrParams !== null ? yearOrParams : { year: yearOrParams, month },
+});
+export const getSalesDetail         = (from, to) => api.get('/finance/sales-detail', { params: { from, to } });
 export const getFinancePricingGuide = ()             => api.get('/finance/pricing-guide');
 export const updateServiceCost      = (id, cost)    => api.put(`/finance/pricing-guide/${id}`, { cost_per_unit: cost });
 export const getFinanceDailySales   = date           => api.get('/finance/daily-sales', { params: { date } });

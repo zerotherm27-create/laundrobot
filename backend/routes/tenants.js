@@ -513,10 +513,10 @@ router.get('/', auth, superadminOnly, async (req, res) => {
                    THEN right(t.fb_page_access_token, 4) ELSE NULL END AS fb_token_hint,
               CASE WHEN t.xendit_api_key IS NOT NULL AND length(t.xendit_api_key) >= 4
                    THEN right(t.xendit_api_key, 4) ELSE NULL END AS xendit_key_hint,
-              COUNT(o.id)::int AS total_orders,
-              COALESCE(SUM(CASE WHEN o.paid AND o.status != 'CANCELLED' THEN o.price ELSE 0 END), 0) AS total_revenue
+              COUNT(o.id) FILTER (WHERE o.status != 'CANCELLED')::int AS total_orders,
+              COALESCE(SUM(CASE WHEN o.paid AND o.status != 'CANCELLED' THEN o.price + COALESCE(o.delivery_fee,0) - COALESCE(o.promo_discount,0) ELSE 0 END), 0) AS total_revenue
        FROM tenants t
-       LEFT JOIN orders o ON o.tenant_id = t.id
+       LEFT JOIN orders o ON o.tenant_id = t.id AND o.deleted_by IS NULL
        GROUP BY t.id
        ORDER BY t.created_at DESC`
     );
