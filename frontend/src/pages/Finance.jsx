@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   getFinanceDashboard, getFinancePricingGuide, updateServiceCost,
-  getFinanceDailySales, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
+  getFinanceDailySales, updateItemCost, getFinanceExpenses, upsertExpense, getFinanceMonthlySummary,
   getFinanceTargets, upsertTarget, getFinanceBreakeven, getFinanceProjections, getFinanceInsights,
   getFinanceCustomerRetention,  // used in MonthlySummary
   getRefunds, markRefundIssued,
@@ -429,122 +429,223 @@ function Dashboard() {
 
 function PricingGuide() {
   const toast = useToast();
-  const [rows,    setRows]    = useState([]);
-  const [editing, setEditing] = useState({});
-  const [saving,  setSaving]  = useState({});
-  const [loading, setLoading] = useState(true);
+  const [rows,     setRows]     = useState([]);
+  const [editing,  setEditing]  = useState({});
+  const [saving,   setSaving]   = useState({});
+  const [loading,  setLoading]  = useState(true);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [query,    setQuery]    = useState('');
+  const busy = React.useRef({}); // guards Enter + blur from saving the same cell twice
 
-  useEffect(() => {
-    getFinancePricingGuide()
-      .then(r => setRows(Array.isArray(r.data) ? r.data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const reload = useCallback(() => getFinancePricingGuide()
+    .then(r => setRows(Array.isArray(r.data) ? r.data : []))
+    .catch(() => {}), []);
 
-  function startEdit(id, current) {
-    setEditing(p => ({ ...p, [id]: String(current ?? 0) }));
+  useEffect(() => { reload().finally(() => setLoading(false)); }, [reload]);
+
+  const svcKey  = id => `s:${id}`;
+  const itemKey = (id, it) => `i:${id}|${it.field_label}|${it.option_label}`;
+
+  function startEdit(key, current) {
+    setEditing(p => ({ ...p, [key]: current === null || current === undefined ? '' : String(current) }));
+  }
+  function cancelEdit(key) { setEditing(p => { const n = { ...p }; delete n[key]; return n; }); }
+
+  // save(value) does the API call; afterwards everything is re-read so service margins/avg costs stay exact
+  async function commit(key, save) {
+    const val = editing[key];
+    if (val === undefined || busy.current[key]) return;
+    busy.current[key] = true;
+    setSaving(p => ({ ...p, [key]: true }));
+    try {
+      await save(val);
+      await reload();
+    } catch (e) { toast(e.response?.data?.error || 'Failed to save cost.'); }
+    busy.current[key] = false;
+    setSaving(p => ({ ...p, [key]: false }));
+    cancelEdit(key);
   }
 
-  async function saveEdit(id) {
-    const val = editing[id];
-    if (val == null) return;
-    setSaving(p => ({ ...p, [id]: true }));
-    try {
-      await updateServiceCost(id, parseFloat(val) || 0);
-      setRows(p => p.map(r => {
-        if (r.id !== id) return r;
-        const price      = parseFloat(r.price) || 0;
-        const cost       = parseFloat(val) || 0;
-        const grossMargin = price - cost;
-        const margin_pct  = price > 0 ? (grossMargin / price) * 100 : 0;
-        return { ...r, cost_per_unit: cost, gross_margin: grossMargin, margin_pct };
-      }));
-    } catch { toast('Failed to save cost.'); }
-    setSaving(p => ({ ...p, [id]: false }));
-    setEditing(p => { const n = { ...p }; delete n[id]; return n; });
+  const saveServiceCost = r => commit(svcKey(r.id), v => updateServiceCost(r.id, parseFloat(v) || 0));
+  const saveItemCost = (r, it) => commit(itemKey(r.id, it), v => updateItemCost(r.id, it.field_label, it.option_label, v === '' ? null : v));
+
+  function toggle(id) {
+    setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
   if (loading) return <div style={{ color: '#6B7280', fontSize: 14 }}>Loading…</div>;
 
+  const q = query.trim().toLowerCase();
+  const matchesItem = it => `${it.field_label} ${it.option_label}`.toLowerCase().includes(q);
+  const visible = q
+    ? rows.filter(r => `${r.name} ${r.category_name || ''}`.toLowerCase().includes(q) || (r.items || []).some(matchesItem))
+    : rows;
+  const isOpen = r => expanded.has(r.id) || (!!q && (r.items || []).some(matchesItem));
+
   // Best margin for relative bar scaling
-  const bestMpct = Math.max(...rows.map(r => parseFloat(r.margin_pct) || 0), 1);
+  const allMargins = rows.flatMap(r => [parseFloat(r.margin_pct) || 0, ...(r.items || []).map(i => parseFloat(i.margin_pct) || 0)]);
+  const bestMpct = Math.max(...allMargins, 1);
+
+  const cellInput = (key, onSave) => (
+    <input
+      autoFocus type="number" min="0" step="0.01"
+      value={editing[key]}
+      onChange={e => setEditing(p => ({ ...p, [key]: e.target.value }))}
+      onBlur={onSave}
+      onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') cancelEdit(key); }}
+      style={{ width: 80, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
+      disabled={saving[key]}
+    />
+  );
+
+  const marginCell = (mpctRaw, gm) => {
+    if (mpctRaw === null || mpctRaw === undefined) return (<><td style={tdNum}>—</td><td style={{ ...tdNum, color: '#9CA3AF' }}>—</td></>);
+    const mpct = parseFloat(mpctRaw) || 0;
+    const color = mpct >= 50 ? '#047857' : mpct >= 20 ? '#BA7517' : '#EF4444';
+    const barPct = Math.max(0, Math.min(100, (mpct / bestMpct) * 100));
+    return (
+      <>
+        <td style={tdNum}>{PESO(gm)}</td>
+        <td style={{ ...tdNum, color, fontWeight: 600 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span>{PCT(mpct)}</span>
+            <div style={{ width: 52, height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ height: '100%', width: `${barPct}%`, background: color, borderRadius: 3 }} />
+            </div>
+          </div>
+        </td>
+      </>
+    );
+  };
 
   return (
     <div style={cardStyle}>
       <div style={{ fontSize: 13, color: '#6B7280', marginBottom: '0.75rem' }}>
-        Set the cost per unit for each service. Gross margin and margin % are auto-calculated.
-        Click any <strong>Cost/Unit</strong> cell to edit.
+        Set your cost for each service and, where prices differ, for each <strong>item</strong> (size, type…).
+        Click any <strong>cost</strong> cell to edit. Margins are calculated for you.
       </div>
       <div style={{ background: '#F0F9FF', border: '0.5px solid #BAE6FD', borderRadius: 8, padding: '10px 14px', marginBottom: '1rem', fontSize: 12, color: '#0369A1', lineHeight: 1.7 }}>
-        💡 <strong>How to set Cost / Unit:</strong> Add up everything it costs to complete one order — detergent,
-        fabric conditioner, gas (dryer), electricity, and water. For example: if your total cost per load is
-        <strong> ₱60</strong>, enter <strong>60</strong>. The system shows gross margin automatically.<br />
-        <span style={{ color: '#0284C7' }}>Tip: Update this whenever supply prices change.</span>
+        💡 <strong>How costs work:</strong> the <strong>base cost</strong> on a service is what one unit costs you (detergent, gas, electricity, water).
+        An <strong>item cost</strong> (for example Suit / Coat → XL) is <em>added</em> on top of it, so a size that costs more to clean can carry its own cost.
+        Costs are private, your customers never see them. Changing a cost updates your Finance profit for past months straight away.
       </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search a service or item, e.g. suit xl" aria-label="Search services and items"
+          style={{ flex: '1 1 220px', maxWidth: 360, padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit' }} />
+        <button type="button" className="btn-ghost" onClick={() => setExpanded(new Set(rows.filter(r => (r.items || []).length).map(r => r.id)))}>Expand all</button>
+        <button type="button" className="btn-ghost" onClick={() => setExpanded(new Set())}>Collapse all</button>
+      </div>
+
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f9f9f7' }}>
-              {['Service', 'Category', 'Unit', 'Price', 'Cost / Unit', 'Gross Margin', 'Margin %'].map(h => (
+              {['Service / item', 'Category', 'Unit', 'Price', 'Cost / Unit', 'Gross Margin', 'Margin %'].map(h => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => {
-              const isEditing = r.id in editing;
-              const mpct      = parseFloat(r.margin_pct) || 0;
-              const mpctColor = mpct >= 50 ? '#047857' : mpct >= 20 ? '#BA7517' : '#EF4444';
-              const barPct    = Math.max(0, Math.min(100, (mpct / bestMpct) * 100));
-
+            {visible.length === 0 && (
+              <tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: '#6B7280', padding: '1.5rem' }}>No services match "{query}".</td></tr>
+            )}
+            {visible.map(r => {
+              const sk = svcKey(r.id);
+              const isEditing = sk in editing;
+              const items = r.items || [];
+              const open = isOpen(r);
+              // group items by field so "Size" / "Delivery Time Frame" read as separate lists
+              const groups = [];
+              for (const it of items) {
+                let g = groups.find(x => x.label === it.field_label);
+                if (!g) { g = { label: it.field_label, items: [] }; groups.push(g); }
+                g.items.push(it);
+              }
               return (
-                <tr key={r.id}>
-                  <td style={tdStyle}>{r.name}</td>
-                  <td style={{ ...tdStyle, color: '#6B7280' }}>{r.category_name || '—'}</td>
-                  <td style={{ ...tdStyle, color: '#6B7280' }}>{r.unit}</td>
-                  <td style={tdNum}>
-                    {PESO(r.price)}
-                    {r.price_basis === 'average_sold' && (
-                    <div title="This service is priced by option, so its list price is ₱0. Margin is measured against the average price actually sold per unit."
-                    style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>avg sold</div>
-                    )}
-                    {r.price_basis === 'none' && <div style={{ fontSize: 10, color: '#9CA3AF' }}>no sales yet</div>}
-                  </td>
-                  <td style={{ ...tdNum, cursor: 'pointer' }}
-                    onClick={() => !isEditing && startEdit(r.id, r.cost_per_unit)}
-                    {...(!isEditing ? {
-                      role: 'button', tabIndex: 0,
-                      'aria-label': `Edit cost per unit, currently ${PESO(r.cost_per_unit)}`,
-                      onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(r.id, r.cost_per_unit); } },
-                    } : {})}>
-                    {isEditing ? (
-                      <input
-                        autoFocus type="number" min="0" step="0.01"
-                        value={editing[r.id]}
-                        onChange={e => setEditing(p => ({ ...p, [r.id]: e.target.value }))}
-                        onBlur={() => saveEdit(r.id)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter')  saveEdit(r.id);
-                          if (e.key === 'Escape') setEditing(p => { const n = { ...p }; delete n[r.id]; return n; });
-                        }}
-                        style={{ width: 80, padding: '3px 6px', borderRadius: 4, border: '1px solid var(--primary)', fontSize: 13, textAlign: 'right', fontFamily: 'inherit' }}
-                        disabled={saving[r.id]}
-                      />
-                    ) : (
-                      <span style={{ borderBottom: '1px dashed #ccc' }}>{PESO(r.cost_per_unit)}</span>
-                    )}
-                  </td>
-                  <td style={tdNum}>{PESO(r.gross_margin)}</td>
-                  <td style={{ ...tdNum, color: mpctColor, fontWeight: 600 }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <span>{PCT(r.margin_pct)}</span>
-                      {/* Inline margin bar */}
-                      <div style={{ width: 52, height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ height: '100%', width: `${barPct}%`, background: mpctColor, borderRadius: 3 }} />
+                <React.Fragment key={r.id}>
+                  <tr>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {items.length > 0 ? (
+                          <button type="button" onClick={() => toggle(r.id)} aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} items of ${r.name}`}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#6B7280', fontSize: 12, width: 18 }}>
+                            {open ? '▾' : '▸'}
+                          </button>
+                        ) : <span style={{ width: 18 }} />}
+                        <span>{r.name}</span>
+                        {items.length > 0 && (
+                          <span style={{ fontSize: 10, color: '#6B7280', background: '#F3F4F6', borderRadius: 10, padding: '1px 7px' }}>
+                            {items.length} item{items.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td style={{ ...tdStyle, color: '#6B7280' }}>{r.category_name || '—'}</td>
+                    <td style={{ ...tdStyle, color: '#6B7280' }}>{r.unit}</td>
+                    <td style={tdNum}>
+                      {PESO(r.price)}
+                      {r.price_basis === 'average_sold' && (
+                        <div title="This service is priced by option, so its list price is ₱0. Margin is measured against the average price actually sold per unit."
+                          style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>avg sold</div>
+                      )}
+                      {r.price_basis === 'none' && <div style={{ fontSize: 10, color: '#9CA3AF' }}>no sales yet</div>}
+                    </td>
+                    <td style={{ ...tdNum, cursor: 'pointer' }}
+                      onClick={() => !isEditing && startEdit(sk, r.cost_per_unit)}
+                      {...(!isEditing ? {
+                        role: 'button', tabIndex: 0,
+                        'aria-label': `Edit base cost per unit of ${r.name}, currently ${PESO(r.cost_per_unit)}`,
+                        onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(sk, r.cost_per_unit); } },
+                      } : {})}>
+                      {isEditing ? cellInput(sk, () => saveServiceCost(r)) : (
+                        <>
+                          <span style={{ borderBottom: '1px dashed #ccc' }}>{PESO(r.cost_per_unit)}</span>
+                          {items.length > 0 && <div style={{ fontSize: 10, color: '#6B7280' }}>base</div>}
+                          {r.has_item_costs && r.units_sold > 0 && <div style={{ fontSize: 10, color: '#6B7280' }}>avg incl. items {PESO(r.avg_unit_cost)}</div>}
+                        </>
+                      )}
+                    </td>
+                    {marginCell(r.margin_pct, r.gross_margin)}
+                  </tr>
+
+                  {open && groups.map(g => (
+                    <React.Fragment key={`${r.id}|${g.label}`}>
+                      <tr style={{ background: '#FAFAF8' }}>
+                        <td colSpan={7} style={{ ...tdStyle, paddingLeft: 40, fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.04em' }}>{g.label}</td>
+                      </tr>
+                      {g.items.map(it => {
+                        const ik = itemKey(r.id, it);
+                        const editingItem = ik in editing;
+                        return (
+                          <tr key={ik} style={{ background: '#FCFCFB' }}>
+                            <td style={{ ...tdStyle, paddingLeft: 40 }}>{it.option_label}</td>
+                            <td style={tdStyle} />
+                            <td style={{ ...tdStyle, color: '#6B7280' }}>{r.unit}</td>
+                            <td style={tdNum}>
+                              {it.price_type === 'copy_base' ? <span style={{ color: '#7C3AED', fontSize: 12 }}>= base price</span>
+                                : it.price > 0 ? PESO(it.price) : <span style={{ color: '#9CA3AF' }}>—</span>}
+                            </td>
+                            <td style={{ ...tdNum, cursor: 'pointer' }}
+                              onClick={() => !editingItem && startEdit(ik, it.cost)}
+                              {...(!editingItem ? {
+                                role: 'button', tabIndex: 0,
+                                'aria-label': `Edit cost of ${r.name}, ${it.field_label} ${it.option_label}`,
+                                onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(ik, it.cost); } },
+                              } : {})}>
+                              {editingItem ? cellInput(ik, () => saveItemCost(r, it)) : (
+                                <span style={{ borderBottom: '1px dashed #ccc', color: it.cost === null ? '#9CA3AF' : undefined }}>
+                                  {it.cost === null ? 'set cost' : PESO(it.cost)}
+                                </span>
+                              )}
+                            </td>
+                            {marginCell(it.margin_pct, it.gross_margin)}
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
               );
             })}
           </tbody>

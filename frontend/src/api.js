@@ -184,6 +184,7 @@ export const unsubscribePush     = endpoint => api.delete('/push/subscribe', { d
 export const getFinanceDashboard    = (yearOrParams, month) => api.get('/finance/dashboard', {
   params: typeof yearOrParams === 'object' && yearOrParams !== null ? yearOrParams : { year: yearOrParams, month },
 });
+export const updateItemCost          = (serviceId, fieldLabel, optionLabel, cost) => api.put(`/finance/pricing-guide/${serviceId}/items`, { field_label: fieldLabel, option_label: optionLabel, cost });
 export const getSalesDetail         = (from, to) => api.get('/finance/sales-detail', { params: { from, to } });
 export const getFinancePricingGuide = ()             => api.get('/finance/pricing-guide');
 export const updateServiceCost      = (id, cost)    => api.put(`/finance/pricing-guide/${id}`, { cost_per_unit: cost });

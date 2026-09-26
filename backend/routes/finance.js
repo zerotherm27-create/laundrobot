@@ -8,7 +8,7 @@ const db = require('../db');
 //   • "archived" is NOT a finance filter: the monthly cron auto-archives every COMPLETED order, so filtering it
 //     would erase past months. Only soft-deleted orders (deleted_by IS NOT NULL) are excluded.
 const NET = "CASE WHEN paid AND status != 'CANCELLED' THEN price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0) ELSE 0 END";
-const MNL = "((created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')";
+const MNL = "((created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')";   // Manila wall-clock time of an order
 // ── Cost of goods ────────────────────────────────────────────────────────────────────────────────────
 // COGS per order row = services.cost_per_unit × units sold. Units are not a column: they are the quantity the customer
 // entered, stored in orders.custom_selections under the service's Number field (or the "weight" field for per-kg
@@ -24,7 +24,17 @@ const UNITS = `COALESCE(
     ORDER BY (lower(cs->>'label') LIKE '%weight%') DESC
     LIMIT 1),
   NULLIF(o.weight, 0), 1)`;
-const COGS_ROW = `CASE WHEN o.paid AND o.status != 'CANCELLED' THEN COALESCE(s.cost_per_unit, 0) * ${UNITS} ELSE 0 END`;   // Manila wall-clock time of an order
+// Per-item costs (service_item_costs, private) add to the service's base cost for every option the customer selected,
+// e.g. base ₱10 + Size "XL" ₱25 = ₱35 per unit. No item costs set → identical to base cost × units.
+const ITEM_COST = `COALESCE(
+  (SELECT SUM(ic.cost)
+     FROM service_item_costs ic,
+          jsonb_array_elements(CASE WHEN jsonb_typeof(o.custom_selections) = 'array' THEN o.custom_selections ELSE '[]'::jsonb END) sel
+    WHERE ic.service_id = o.service_id
+      AND lower(trim(ic.field_label))  = lower(trim(sel->>'label'))
+      AND lower(trim(ic.option_label)) = lower(trim(sel->>'value'))), 0)`;
+const UNIT_COST = `(COALESCE(s.cost_per_unit, 0) + ${ITEM_COST})`;
+const COGS_ROW = `CASE WHEN o.paid AND o.status != 'CANCELLED' THEN ${UNIT_COST} * ${UNITS} ELSE 0 END`;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const manilaToday = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
@@ -165,25 +175,46 @@ router.get('/sales-detail', auth, async (req, res) => {
 // GET /finance/pricing-guide
 router.get('/pricing-guide', auth, async (req, res) => {
   try {
+    const tid = req.user.tenant_id;
     const { rows } = await db.query(
       `SELECT s.id, s.name, s.price, s.unit, s.cost_per_unit,
               c.name AS category_name,
-              sold.sold_revenue, sold.sold_units
+              sold.sold_revenue, sold.sold_units, sold.sold_cogs
        FROM services s
        LEFT JOIN service_categories c ON c.id = s.category_id
        LEFT JOIN (
          SELECT o.service_id,
                 SUM(o.price)::numeric AS sold_revenue,
-                SUM(${UNITS})::numeric AS sold_units
+                SUM(${UNITS})::numeric AS sold_units,
+                SUM(${UNIT_COST} * ${UNITS})::numeric AS sold_cogs
          FROM orders o JOIN services s ON s.id = o.service_id
          WHERE o.tenant_id = $1 AND o.deleted_by IS NULL AND o.paid AND o.status != 'CANCELLED'
          GROUP BY o.service_id
        ) sold ON sold.service_id = s.id
        WHERE s.tenant_id = $1 AND s.active = TRUE
        ORDER BY s.sort_order, s.name`,
-      [req.user.tenant_id]
+      [tid]
     );
-    // Services priced by option (Variation) have a list price of 0, which would make every margin negative.
+    // Items = the options of each service's Variation (select) fields; costs are private (service_item_costs)
+    const { rows: fields } = await db.query(
+      `SELECT f.service_id, f.label, f.options
+       FROM service_custom_fields f JOIN services s ON s.id = f.service_id
+       WHERE s.tenant_id = $1 AND s.active = TRUE AND f.field_type = 'select'
+       ORDER BY f.service_id, f.sort_order, f.id`,
+      [tid]
+    );
+    const { rows: costRows } = await db.query(
+      `SELECT service_id, field_label, option_label, cost FROM service_item_costs WHERE tenant_id = $1`, [tid]
+    );
+    const norm = v => String(v ?? '').trim().toLowerCase();
+    const costMap = new Map(costRows.map(c => [`${c.service_id}|${norm(c.field_label)}|${norm(c.option_label)}`, parseFloat(c.cost)]));
+    const fieldsBySvc = new Map();
+    for (const f of fields) {
+      if (!fieldsBySvc.has(f.service_id)) fieldsBySvc.set(f.service_id, []);
+      fieldsBySvc.get(f.service_id).push(f);
+    }
+
+    // Services priced by option have a list price of 0, which would make every margin negative.
     // For those, margin is measured against the average price actually sold per unit.
     const guide = rows.map(s => {
       const listPrice = parseFloat(s.price) || 0;
@@ -191,14 +222,97 @@ router.get('/pricing-guide', auth, async (req, res) => {
       const soldAvg = soldUnits > 0 ? (parseFloat(s.sold_revenue) || 0) / soldUnits : 0;
       const price = listPrice > 0 ? listPrice : soldAvg;
       const priceBasis = listPrice > 0 ? 'list' : (soldAvg > 0 ? 'average_sold' : 'none');
-      const cost = parseFloat(s.cost_per_unit) || 0;
-      const grossMargin = price - cost;
+      const baseCost = parseFloat(s.cost_per_unit) || 0;
+
+      // The "primary" field is the first one with priced options — its option price IS the item price, so its margin
+      // is measured against base + item cost. Other fields are surcharges (e.g. Express): price − their own extra cost.
+      const svcFields = fieldsBySvc.get(s.id) || [];
+      const isPriced = o => typeof o === 'object' && o && (o.price_type || 'fixed') !== 'copy_base' && Number(o.price || 0) > 0;
+      const primary = svcFields.find(f => Array.isArray(f.options) && f.options.some(isPriced));
+      const items = [];
+      let hasItemCosts = false;
+      for (const f of svcFields) {
+        for (const o of (Array.isArray(f.options) ? f.options : [])) {
+          const label = typeof o === 'object' && o ? String(o.label ?? '') : String(o);
+          if (!label.trim()) continue;
+          const copyBase = typeof o === 'object' && o && (o.price_type || 'fixed') === 'copy_base';
+          const itemPrice = copyBase ? null : (typeof o === 'object' && o ? Number(o.price) || 0 : 0);
+          const key = `${s.id}|${norm(f.label)}|${norm(label)}`;
+          const cost = costMap.has(key) ? costMap.get(key) : null;
+          if (cost !== null) hasItemCosts = true;
+          const basis = f === primary ? baseCost + (cost || 0) : (cost || 0);
+          const margin = itemPrice && itemPrice > 0 ? itemPrice - basis : null;
+          items.push({
+            field_label: f.label, option_label: label,
+            price: itemPrice, price_type: copyBase ? 'copy_base' : 'fixed',
+            cost, is_primary: f === primary,
+            gross_margin: margin, margin_pct: margin !== null ? (margin / itemPrice) * 100 : null,
+          });
+        }
+      }
+
+      const soldCogs = parseFloat(s.sold_cogs) || 0;
+      const avgUnitCost = soldUnits > 0 ? soldCogs / soldUnits : baseCost;
+      const effCost = hasItemCosts && soldUnits > 0 ? avgUnitCost : baseCost;   // service margin reflects item costs actually incurred
+      const grossMargin = price - effCost;
       const marginPct = price > 0 ? (grossMargin / price) * 100 : 0;
       return { id: s.id, name: s.name, unit: s.unit, category_name: s.category_name,
                list_price: listPrice, price, price_basis: priceBasis, units_sold: soldUnits,
-               cost_per_unit: cost, gross_margin: grossMargin, margin_pct: marginPct };
+               cost_per_unit: baseCost, avg_unit_cost: avgUnitCost, has_item_costs: hasItemCosts,
+               gross_margin: grossMargin, margin_pct: marginPct, items };
     });
     res.json(guide);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /finance/pricing-guide/:serviceId/items  { field_label, option_label, cost }
+// Sets (or, when cost is blank, clears) the private cost of one item (a service option, e.g. Size → XL).
+router.put('/pricing-guide/:serviceId/items', auth, async (req, res) => {
+  try {
+    const tid = req.user.tenant_id;
+    const serviceId = parseInt(req.params.serviceId, 10);
+    const fieldLabel = String(req.body?.field_label ?? '').trim();
+    const optionLabel = String(req.body?.option_label ?? '').trim();
+    const rawCost = req.body?.cost;
+    if (!Number.isInteger(serviceId) || !fieldLabel || !optionLabel) {
+      return res.status(400).json({ error: 'service, field_label and option_label are required' });
+    }
+    const { rows: [svc] } = await db.query(`SELECT id FROM services WHERE id = $1 AND tenant_id = $2`, [serviceId, tid]);
+    if (!svc) return res.status(404).json({ error: 'Service not found' });
+
+    // The item must really exist on this service (no orphan costs)
+    const { rows: fieldRows } = await db.query(
+      `SELECT options FROM service_custom_fields
+       WHERE service_id = $1 AND field_type = 'select' AND lower(trim(label)) = lower(trim($2))`,
+      [serviceId, fieldLabel]
+    );
+    const wanted = optionLabel.toLowerCase();
+    const exists = fieldRows.some(f => (Array.isArray(f.options) ? f.options : [])
+      .some(o => String(typeof o === 'object' && o ? o.label ?? '' : o).trim().toLowerCase() === wanted));
+    if (!exists) return res.status(404).json({ error: 'That item does not exist on this service' });
+
+    if (rawCost === null || rawCost === undefined || String(rawCost).trim() === '') {
+      await db.query(
+        `DELETE FROM service_item_costs
+         WHERE tenant_id = $1 AND service_id = $2 AND lower(trim(field_label)) = lower(trim($3)) AND lower(trim(option_label)) = lower(trim($4))`,
+        [tid, serviceId, fieldLabel, optionLabel]
+      );
+      return res.json({ field_label: fieldLabel, option_label: optionLabel, cost: null });
+    }
+    const cost = parseFloat(rawCost);
+    if (!Number.isFinite(cost) || cost < 0) return res.status(400).json({ error: 'cost must be 0 or more' });
+    const { rows: [saved] } = await db.query(
+      `INSERT INTO service_item_costs (tenant_id, service_id, field_label, option_label, cost)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (service_id, lower(trim(field_label)), lower(trim(option_label)))
+       DO UPDATE SET cost = EXCLUDED.cost, updated_at = now()
+       RETURNING field_label, option_label, cost`,
+      [tid, serviceId, fieldLabel, optionLabel, cost]
+    );
+    res.json({ field_label: saved.field_label, option_label: saved.option_label, cost: parseFloat(saved.cost) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Internal server error' });
@@ -517,7 +631,7 @@ router.get('/breakeven', auth, async (req, res) => {
         [tid, year, month]
       ),
       db.query(
-        `SELECT COALESCE(AVG(COALESCE(s.cost_per_unit,0) * ${UNITS}) FILTER (WHERE o.paid AND o.status != 'CANCELLED'),0)::numeric AS avg_variable_cost
+        `SELECT COALESCE(AVG(${UNIT_COST} * ${UNITS}) FILTER (WHERE o.paid AND o.status != 'CANCELLED'),0)::numeric AS avg_variable_cost
          FROM orders o
          LEFT JOIN services s ON s.id=o.service_id
          WHERE o.tenant_id=$1

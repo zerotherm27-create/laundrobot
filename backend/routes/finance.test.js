@@ -71,7 +71,7 @@ test('COGS = cost_per_unit × units sold (quantity from the service\'s Number fi
   assert.match(finance, /const UNITS = `COALESCE\(/);
   assert.match(finance, /jsonb_array_elements\(CASE WHEN jsonb_typeof\(o\.custom_selections\) = 'array'/);
   assert.match(finance, /f\.field_type = 'number'/);
-  assert.match(finance, /const COGS_ROW = `CASE WHEN o\.paid AND o\.status != 'CANCELLED' THEN COALESCE\(s\.cost_per_unit, 0\) \* \$\{UNITS\} ELSE 0 END`/);
+  assert.match(finance, /const COGS_ROW = `CASE WHEN o\.paid AND o\.status != 'CANCELLED' THEN \$\{UNIT_COST\} \* \$\{UNITS\} ELSE 0 END`/);
   assert.doesNotMatch(finance, /CASE WHEN o\.paid THEN COALESCE\(s\.cost_per_unit,0\) ELSE 0 END/, 'old once-per-order paid-only COGS must be gone');
   const summary = finance.slice(finance.indexOf("router.get('/monthly-summary'"), finance.indexOf("router.get('/targets'"));
   assert.match(summary, /SUM\(\$\{COGS_ROW\}\)/);
@@ -87,9 +87,59 @@ test('dashboard returns cogs and grossProfit for every period, and netProfit = g
 
 test('break-even variable cost and the Pricing Guide use the same unit-based cost', () => {
   const be = finance.slice(finance.indexOf("router.get('/breakeven'"), finance.indexOf("router.get('/projections'"));
-  assert.match(be, /AVG\(COALESCE\(s\.cost_per_unit,0\) \* \$\{UNITS\}\) FILTER \(WHERE o\.paid AND o\.status != 'CANCELLED'\)/);
+  assert.match(be, /AVG\(\$\{UNIT_COST\} \* \$\{UNITS\}\) FILTER \(WHERE o\.paid AND o\.status != 'CANCELLED'\)/);
   const pg = finance.slice(finance.indexOf("router.get('/pricing-guide'"), finance.indexOf("router.put('/pricing-guide/:serviceId'"));
   assert.match(pg, /SUM\(\$\{UNITS\}\)/);
   assert.match(pg, /price_basis/);
   assert.match(pg, /average_sold/);
+});
+
+// ── Per-item costs (service_item_costs): private, additive to the service's base cost ───────────────────────
+test('COGS unit cost = base cost + private item costs of the options the customer selected', () => {
+  assert.match(finance, /const ITEM_COST = `COALESCE\(/);
+  assert.match(finance, /FROM service_item_costs ic,/);
+  assert.match(finance, /lower\(trim\(ic\.field_label\)\)\s*=\s*lower\(trim\(sel->>'label'\)\)/);
+  assert.match(finance, /lower\(trim\(ic\.option_label\)\) = lower\(trim\(sel->>'value'\)\)/);
+  assert.match(finance, /const UNIT_COST = `\(COALESCE\(s\.cost_per_unit, 0\) \+ \$\{ITEM_COST\}\)`;/);
+  assert.match(finance, /const COGS_ROW = `CASE WHEN o\.paid AND o\.status != 'CANCELLED' THEN \$\{UNIT_COST\} \* \$\{UNITS\} ELSE 0 END`;/);
+  const be = finance.slice(finance.indexOf("router.get('/breakeven'"), finance.indexOf("router.get('/projections'"));
+  assert.match(be, /AVG\(\$\{UNIT_COST\} \* \$\{UNITS\}\)/);
+});
+
+test('pricing guide returns per-item rows and computes margins; costs come only from the private table', () => {
+  const pg = finance.slice(finance.indexOf("router.get('/pricing-guide'"), finance.indexOf("router.put('/pricing-guide/:serviceId/items'"));
+  assert.match(pg, /FROM service_custom_fields f JOIN services s ON s\.id = f\.service_id/);
+  assert.match(pg, /f\.field_type = 'select'/);
+  assert.match(pg, /FROM service_item_costs WHERE tenant_id = \$1/);
+  assert.match(pg, /WHERE s\.tenant_id = \$1 AND s\.active = TRUE AND f\.field_type = 'select'/);
+  assert.match(pg, /copy_base/);
+  assert.match(pg, /items/);
+});
+
+test('PUT item cost is tenant-scoped, checks the item really exists, and upserts on the unique label index', () => {
+  const put = finance.slice(finance.indexOf("router.put('/pricing-guide/:serviceId/items'"), finance.indexOf("router.get('/daily-sales'"));
+  assert.match(put, /SELECT id FROM services WHERE id = \$1 AND tenant_id = \$2/);
+  assert.match(put, /That item does not exist on this service/);
+  assert.match(put, /ON CONFLICT \(service_id, lower\(trim\(field_label\)\), lower\(trim\(option_label\)\)\)/);
+  assert.match(put, /DELETE FROM service_item_costs[\s\S]*?tenant_id = \$1/);
+  assert.match(put, /cost must be 0 or more/);
+});
+
+test('costs are NEVER written into service options (the public booking page serves them)', () => {
+  const services = fs.readFileSync(path.join(__dirname, 'services.js'), 'utf8');
+  assert.doesNotMatch(finance, /UPDATE service_custom_fields/);
+  assert.doesNotMatch(services, /service_item_costs/, 'saving a service must not touch private item costs');
+  const pub = fs.readFileSync(path.join(__dirname, 'public.js'), 'utf8');
+  assert.doesNotMatch(pub, /service_item_costs/);
+  assert.doesNotMatch(pub, /cost_per_unit/);
+});
+
+test('item-cost migration is additive, tenant-owned and keyed by labels (not field ids)', () => {
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'db', 'migrations', '2026-09-28-service-item-costs.sql'), 'utf8');
+  assert.match(sql, /CREATE TABLE IF NOT EXISTS service_item_costs/);
+  assert.match(sql, /tenant_id\s+UUID\s+NOT NULL REFERENCES tenants\(id\)\s+ON DELETE CASCADE/);
+  assert.match(sql, /service_id\s+INTEGER NOT NULL REFERENCES services\(id\) ON DELETE CASCADE/);
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS service_item_costs_uq[\s\S]*lower\(trim\(field_label\)\), lower\(trim\(option_label\)\)/);
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+  assert.doesNotMatch(sql, /DROP |DELETE FROM|UPDATE /i);
 });
