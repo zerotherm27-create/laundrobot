@@ -10,6 +10,7 @@ const igUtils = require('../utils/instagram');
 const { isBotOwnEcho, hasSentMid } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
+const { sendPushToTenant } = require('../utils/push');
 
 // IG sends go through the PAGE's /messages edge (Facebook-login flavor) —
 // pass the fb_page_id, NOT the ig_user_id (see utils/instagram.js).
@@ -556,6 +557,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW(), needs_human_text=$3 WHERE tenant_id=$1 AND fb_user_id=$2',
       [tenant.id, senderId, event.message?.text || null]
     );
+    sendPushToTenant(tenant.id, {
+      title: 'Customer needs a human agent',
+      body: `${customer.name || 'A customer'} — "${(event.message?.text || '').slice(0, 120)}"`,
+      url: '/overview',
+    }).catch(() => {});
     await sendMessage(token, senderId,
       `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
     );
@@ -978,6 +984,11 @@ async function handleMessage(tenant, senderId, event, channel = 'messenger') {
       'UPDATE conversations SET needs_human=TRUE, needs_human_at=NOW(), needs_human_text=$3 WHERE tenant_id=$1 AND fb_user_id=$2',
       [tenant.id, senderId, event.message?.text || null]
     );
+    sendPushToTenant(tenant.id, {
+      title: 'Customer needs a human agent',
+      body: `${customer.name || 'A customer'} — "${(event.message?.text || '').slice(0, 120)}"`,
+      url: '/overview',
+    }).catch(() => {});
     await sendMessage(token, senderId,
       `Got it! I've notified our team and someone will reply to you shortly. 🙏\n\nIf you change your mind and want to chat with the bot again, just type "hi".`
     );
