@@ -209,7 +209,7 @@ function Dashboard({ initialPage }) {
           ☰
         </button>
         <span className="mobile-topbar-title">{PAGE_TITLES[page] || page}</span>
-        <img src="/logo.png" alt="LaundroBot" style={{ width: 28, height: 28, borderRadius: 5, objectFit: 'contain' }} />
+        <img src="/logo-192.png" alt="LaundroBot" style={{ width: 28, height: 28, borderRadius: 5, objectFit: 'contain' }} />
       </div>
 
       {/* ── Main row (sidebar + content) ── */}

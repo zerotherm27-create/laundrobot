@@ -149,7 +149,7 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
         {/* ── Logo + mobile close button ── */}
         <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '0.5px solid #F0F0EC' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/logo.png" alt="LaundroBot" style={{
+            <img src="/logo-192.png" alt="LaundroBot" style={{
               width: 36, height: 36, borderRadius: 6,
               objectFit: 'contain',
               flexShrink: 0,

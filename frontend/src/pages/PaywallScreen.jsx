@@ -47,7 +47,7 @@ export default function PaywallScreen() {
       <div style={{ width: '100%', maxWidth: 540, textAlign: 'center' }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 32 }}>
-          <img src="/logo.png" alt="LaundroBot" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'contain' }} />
+          <img src="/logo-192.png" alt="LaundroBot" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'contain' }} />
           <span style={{ fontWeight: 800, fontSize: 20, color: '#111827', letterSpacing: '-.4px' }}>LaundroBot</span>
         </div>
 

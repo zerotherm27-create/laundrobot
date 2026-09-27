@@ -9,7 +9,7 @@ export default function DataDeletion() {
     <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'system-ui, sans-serif' }}>
       <header style={{ borderBottom: '1px solid #EBEBEB', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 12 }}>
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <img src="/logo.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'contain' }} />
+          <img src="/logo-192.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 7, objectFit: 'contain' }} />
           <span style={{ fontWeight: 800, fontSize: 16, color: '#0D1117' }}>LaundroBot</span>
         </a>
       </header>

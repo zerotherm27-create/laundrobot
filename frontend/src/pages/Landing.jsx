@@ -142,7 +142,7 @@ function MessengerMockup() {
       {/* Teal gradient background at top */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 14px 10px', gap: 4, background: 'linear-gradient(180deg,rgba(56,169,194,.15) 0%,#fff 50%)' }}>
         <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-          <img src="/logo-96.png" alt="" style={{ width: 42, height: 42, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+          <img src="/logo-192.png" alt="" style={{ width: 42, height: 42, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
         </div>
         <div style={{ fontSize: 16, fontWeight: 900, color: '#050505', textAlign: 'center' }}>The Laundry Project</div>
         <div style={{ fontSize: 10, color: '#65676b' }}>1.1K people follow this</div>
@@ -167,7 +167,7 @@ function MessengerMockup() {
   // ── Chat screen ──
   const BotAvatar = (
     <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg,var(--primary-tint),var(--primary-tint-dark))', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <img src="/logo-96.png" alt="" style={{ width: 18, height: 18, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
+      <img src="/logo-192.png" alt="" style={{ width: 18, height: 18, objectFit: 'cover', objectPosition: 'center top', borderRadius: '50%' }} />
     </div>
   );
   const ChatScreen = (
@@ -485,7 +485,7 @@ function Nav() {
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border-subtle)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', flexShrink: 0 }}>
-            <img src="/logo-96.png" alt="LaundroBot" style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
+            <img src="/logo-192.png" alt="LaundroBot" width={34} height={34} style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'contain' }} />
             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', letterSpacing: '-.3px' }}>LaundroBot</span>
           </a>
           <div className="l-nav-links">
@@ -1208,7 +1208,7 @@ function Footer() {
           {/* Brand */}
           <div style={{ flex: '1 1 200px', maxWidth: 260 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '0.75rem' }}>
-              <img src="/logo-96.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
+              <img src="/logo-192.png" alt="LaundroBot" style={{ width: 30, height: 30, borderRadius: 8, objectFit: 'contain' }} />
               <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>LaundroBot</span>
             </div>
             <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>

@@ -42,7 +42,7 @@ export default function Login() {
 
   const Logo = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-      <img src="/logo.png" alt="LaundroBot" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'contain', background: '#fff', flexShrink: 0 }} />
+      <img src="/logo-192.png" alt="LaundroBot" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'contain', background: '#fff', flexShrink: 0 }} />
       <div>
         <div style={{ fontWeight: 700, fontSize: 17, color: '#111827', letterSpacing: '-.3px' }}>LaundroBot</div>
         <div style={{ fontSize: 12, color: '#374151', marginTop: 1, whiteSpace: 'nowrap' }}>Business Management Dashboard</div>
