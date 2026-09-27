@@ -34,7 +34,7 @@ export default function HumanHandoffNotifier({ tenantId, onView }) {
             `${c.customer_name || 'A customer'} needs a human agent` +
               (c.needs_human_text ? ` — "${c.needs_human_text.slice(0, 80)}"` : ''),
             'info',
-            { action: onView ? { label: 'View', onClick: onView } : undefined }
+            { persist: true, action: onView ? { label: 'View', onClick: onView } : undefined }
           );
         }
       } catch { /* transient — next poll retries */ }

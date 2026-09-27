@@ -13,7 +13,7 @@ export default function ToastStack() {
 
   return (
     <div className="toast-stack" style={{
-      position: 'fixed', bottom: 20, right: 20, zIndex: 400,
+      position: 'fixed', top: 70, right: 20, zIndex: 400,
       display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360,
     }}>
       {toasts.map(t => {
