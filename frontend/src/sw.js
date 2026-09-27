@@ -49,8 +49,14 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      const existing = list.find((c) => c.url.includes(safeUrl) && 'focus' in c);
-      if (existing) return existing.focus();
+      // The dashboard is a single-page app — it never updates window.location
+      // as you navigate internally, so matching on c.url would almost never
+      // find the already-open tab. Any window at our origin is "the app".
+      const existing = list.find((c) => 'focus' in c);
+      if (existing) {
+        existing.postMessage({ type: 'push-navigate', url: safeUrl });
+        return existing.focus();
+      }
       return clients.openWindow(safeUrl);
     })
   );

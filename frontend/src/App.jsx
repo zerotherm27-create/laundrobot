@@ -122,6 +122,15 @@ const PAGE_TITLES = {
   Branches:       'Branches',
 };
 
+// Maps a push-notification/deep-link path (e.g. '/overview') to a PAGES key
+// ('Overview'). The dashboard is a single-page app that never updates
+// window.location as you navigate internally, so this is the only way a
+// notification's target url can land on the right section.
+function pageKeyFromPath(path) {
+  const seg = (path || '').replace(/^\//, '').split(/[/?]/)[0].toLowerCase();
+  return Object.keys(PAGES).find(k => k.toLowerCase() === seg) || null;
+}
+
 function Dashboard({ initialPage }) {
   const { user, setBranchLimit } = useAuth();
   const [page, setPage] = useState(initialPage || 'Kanban');
@@ -137,6 +146,20 @@ function Dashboard({ initialPage }) {
     const title = PAGE_TITLES[page] || page;
     document.title = `${title} — LaundroBot`;
   }, [page]);
+
+  // A push notification click focuses this tab (if already open) instead of
+  // opening a new one — the service worker posts the target page here so we
+  // actually switch to it, rather than just bringing the current page forward.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    function onMessage(event) {
+      if (event.data?.type !== 'push-navigate') return;
+      const key = pageKeyFromPath(event.data.url);
+      if (key) setPage(key);
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, []);
 
   // Check subscription on mount; superadmin is always exempt
   useEffect(() => {
@@ -312,7 +335,7 @@ function Inner() {
     return <Dashboard initialPage={assisted ? 'SuperAdmin' : 'Settings'} />;
   }
 
-  return <Dashboard />;
+  return <Dashboard initialPage={pageKeyFromPath(path) || undefined} />;
 }
 
 export default function App() {
