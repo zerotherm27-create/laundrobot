@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import BottomTabBar from './components/BottomTabBar.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
+import HumanHandoffNotifier from './components/HumanHandoffNotifier.jsx';
 import TrialBanner from './components/TrialBanner.jsx';
 import UpgradeModal from './components/UpgradeModal.jsx';
 import { UpgradeProvider } from './context/UpgradeContext.jsx';
@@ -244,6 +245,7 @@ function Dashboard({ initialPage }) {
 
       <BottomTabBar current={page} role={user.role} user={user} navOpen={sidebarOpen} onNav={navigate} onMore={() => setSidebarOpen(o => !o)} />
       <InstallPrompt />
+      <HumanHandoffNotifier tenantId={user.tenant_id} onView={() => navigate('Overview')} />
     </div>
     </UpgradeProvider>
     </ConfirmProvider>
