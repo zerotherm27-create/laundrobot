@@ -38,11 +38,19 @@
     <!-- ── Favicon ── -->
     <link rel="icon" type="image/png" href="/logo.png" />
 
-    <!-- ── Leaflet (map) — skipped only on the marketing landing page ── -->
+    <!-- ── Leaflet (map) — skipped only on the marketing landing page ──
+         The dashboard is a client-routed SPA that never updates window.location
+         (see App.jsx pageKeyFromPath comment), so a logged-in session that
+         starts at "/" (PWA start_url, a bookmark, or just the bare domain)
+         stays at pathname "/" all session, even after navigating to Settings
+         or Delivery Zones. Gating on pathname alone skipped Leaflet for that
+         entire session. Also check for a persisted/session auth token so a
+         logged-in user landing on "/" still gets the map. -->
     <script>
       (function() {
         var p = window.location.pathname;
-        if (p !== '/') {
+        var hasToken = !!(window.localStorage.getItem('token') || window.sessionStorage.getItem('token'));
+        if (p !== '/' || hasToken) {
           var css = document.createElement('link');
           css.rel = 'stylesheet';
           css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
