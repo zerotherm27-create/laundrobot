@@ -27,7 +27,7 @@ export const SETUP_STEPS = [
     key: 'facebook', icon: 'messenger', page: 'Settings', anchor: 'facebook-login-section',
     title: 'Connect your Facebook Page',
     why: 'Lets the bot answer customers on Messenger and send order updates automatically.',
-    how: 'Log in with Facebook and pick your Page. Having trouble? Email hello@laundrobot.app with your Page name and we will connect it for you.',
+    how: 'Log in with Facebook and pick your Page. Having trouble? Email hello@laundrobot.app or message m.me/laundrobotph with your Page name and we will connect it for you.',
     done: s => !!s.facebook,
   },
   {

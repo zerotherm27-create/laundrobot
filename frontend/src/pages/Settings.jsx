@@ -1024,7 +1024,8 @@ export default function Settings() {
                       Step 1 — Add a CNAME record at your domain registrar:<br />
                       <code style={{ background: '#F3F4F6', padding: '2px 6px', borderRadius: 4, display: 'inline-block', margin: '4px 0' }}>book.yourdomain.com → cname.vercel-dns.com</code><br />
                       Step 2 — Enter your domain above and save.<br />
-                      Step 3 — Send your domain to <strong>hello@laundrobot.app</strong> so we can activate it (takes ~5 min).<br />
+                      Step 3 — Send your domain to <strong>hello@laundrobot.app</strong> or message{' '}
+                      <a href="https://m.me/laundrobotph" target="_blank" rel="noopener noreferrer">m.me/laundrobotph</a> so we can activate it (takes ~5 min).<br />
                       <span style={{ color: '#6B7280' }}>DNS propagation can take up to 24 hours.</span>
                     </div>
                   </div>
@@ -1149,7 +1150,8 @@ export default function Settings() {
 
             <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
               Requires <strong>pages_messaging</strong> &amp; <strong>pages_manage_metadata</strong> permissions — available once Meta App Review is approved.
-              If the login fails, email <strong>hello@laundrobot.app</strong> and we'll connect your page manually.
+              If the login fails, email <strong>hello@laundrobot.app</strong> or message{' '}
+              <a href="https://m.me/laundrobotph" target="_blank" rel="noopener noreferrer">m.me/laundrobotph</a> and we'll connect your page manually.
             </div>
           </SectionCard>
           </div>

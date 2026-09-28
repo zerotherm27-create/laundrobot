@@ -74,7 +74,7 @@ const GUIDE_STEPS = [
   },
   {
     num: '11', title: 'Custom Domain & White Label (Pro)',
-    body: 'Settings → "Custom Domain & White Label" → enter your domain (e.g. book.yourshop.com) → add a CNAME record pointing to cname.vercel-dns.com → email hello@laundrobot.app to activate.',
+    body: 'Settings → "Custom Domain & White Label" → enter your domain (e.g. book.yourshop.com) → add a CNAME record pointing to cname.vercel-dns.com → email hello@laundrobot.app or message m.me/laundrobotph to activate.',
   },
 ];
 
@@ -390,7 +390,8 @@ export default function Sidebar({ current, onNav, role, open = false, onClose = 
 
               {/* Footer */}
               <div style={{ marginTop: 24, padding: '14px 16px', borderRadius: 10, background: '#F0F9FF', border: '0.5px solid #BAE6FD', fontSize: 12, color: '#0369A1', lineHeight: 1.6 }}>
-                Need help? Email <strong>hello@laundrobot.app</strong> and we'll get you set up.
+                Need help? Email <strong>hello@laundrobot.app</strong> or message us on{' '}
+                <a href="https://m.me/laundrobotph" target="_blank" rel="noopener noreferrer" style={{ color: '#0369A1', fontWeight: 600 }}>Messenger</a> and we'll get you set up.
               </div>
             </div>
           </div>

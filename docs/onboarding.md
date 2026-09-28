@@ -87,7 +87,7 @@ The bot is now live and the Messenger menu (**Book Now**, **My Orders**, **FAQs*
 
 > The **Get Started** button only appears for users who have **never** messaged your Page before. Existing followers can open the menu by tapping the **☰ icon** at the bottom-left of the chat window.
 
-If anything goes wrong, scroll to **"Facebook Messenger Menu"** in Settings and click **"Reset Messenger Menu"** to re-apply the bot configuration. If the issue persists, email **hello@laundrobot.app**.
+If anything goes wrong, scroll to **"Facebook Messenger Menu"** in Settings and click **"Reset Messenger Menu"** to re-apply the bot configuration. If the issue persists, email **hello@laundrobot.app** or message us on [m.me/laundrobotph](https://m.me/laundrobotph).
 
 ---
 
@@ -252,7 +252,7 @@ Before going live, do a full test yourself:
 
 Instagram DM ordering lets customers place the same bot-powered orders through your Instagram Business account.
 
-> **Important:** Instagram DM access requires Meta to approve the `instagram_manage_messages` permission. The LaundroBot team manages this. Contact **hello@laundrobot.app** if it isn't working yet.
+> **Important:** Instagram DM access requires Meta to approve the `instagram_manage_messages` permission. The LaundroBot team manages this. Contact **hello@laundrobot.app** or [m.me/laundrobotph](https://m.me/laundrobotph) if it isn't working yet.
 
 ### Find your Instagram Business Account ID
 
@@ -351,7 +351,7 @@ Configure the code, discount type (fixed ₱ or percentage), minimum order, max 
 |---|---|---|
 | CNAME | `book` | `cname.vercel-dns.com` |
 
-4. Email **hello@laundrobot.app** with your domain so the team can activate it (takes ~5 min after DNS propagates)
+4. Email **hello@laundrobot.app** or message [m.me/laundrobotph](https://m.me/laundrobotph) with your domain so the team can activate it (takes ~5 min after DNS propagates)
 
 DNS propagation typically takes 5–30 minutes. Once live, your custom URL loads the booking form directly.
 
@@ -390,5 +390,6 @@ DNS propagation typically takes 5–30 minutes. Once live, your custom URL loads
 ## Need Help?
 
 **Email:** hello@laundrobot.app
+**Messenger:** [m.me/laundrobotph](https://m.me/laundrobotph)
 
 Always include your **LaundroBot account email** when contacting support so we can look up your account quickly.
