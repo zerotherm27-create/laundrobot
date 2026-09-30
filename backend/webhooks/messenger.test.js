@@ -115,3 +115,10 @@ test('handleOptin falls back to the welcome+menu when ref matches nothing (no de
     'must send the welcome+menu when neither a referral link nor a booking_ref matched'
   );
 });
+
+test('ad-click referral events are recorded silently (no menu send that Meta rejects with 400)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'messenger.js'), 'utf8');
+  assert.match(src, /event\.referral\.source === 'ADS'/);
+  assert.match(src, /handleOptin\(tenant, event\.sender\.id, event\.referral\.ref, \{ silent: fromAd \}\)/);
+  assert.match(src, /if \(silent\) return;/);
+});

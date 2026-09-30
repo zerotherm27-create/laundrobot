@@ -133,10 +133,14 @@ router.post('/', async (req, res) => {
       for (const event of (e.messaging || [])) {
         if (event.optin) {
           try { await handleOptin(tenant, event.sender.id, event.optin.ref); }
-          catch (err) { console.error('[webhook] optin error:', err.message); }
+          catch (err) { console.error('[webhook] optin error:', err.response?.data || err.message); }
         } else if (event.referral) {
-          try { await handleOptin(tenant, event.sender.id, event.referral.ref); }
-          catch (err) { console.error('[webhook] referral error:', err.message); }
+          // Click-to-Messenger ad: the ad sends its own greeting and the customer
+          // hasn't messaged us yet, so a menu send is rejected (400). Record the
+          // click/attribution only; the customer's next message goes to the AI.
+          const fromAd = event.referral.source === 'ADS';
+          try { await handleOptin(tenant, event.sender.id, event.referral.ref, { silent: fromAd }); }
+          catch (err) { console.error('[webhook] referral error:', err.response?.data || err.message); }
         } else if (event.message?.is_echo) {
           // Pause AI when a human staff member replies — but NOT when the bot
           // itself sends a message. We recognise the bot's own echoes by the
@@ -356,7 +360,7 @@ async function showServiceCatalog(sends, token, senderId, tenantId, categoryId, 
 }
 
 // ── Send to Messenger optin handler ─────────────────────────────────────────
-async function handleOptin(tenant, senderId, ref) {
+async function handleOptin(tenant, senderId, ref, { silent = false } = {}) {
   const token = tenant.fb_page_access_token;
   if (!token) return;
   const sends = makeSends('messenger', token, null);
@@ -376,6 +380,7 @@ async function handleOptin(tenant, senderId, ref) {
          DO UPDATE SET referral_ref = $3, updated_at = NOW()`,
         [tenant.id, senderId, ref]
       );
+      if (silent) return;
       // Referral link — drop into booking menu
       await sends.sendButtons(token, senderId,
         `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
@@ -414,6 +419,7 @@ async function handleOptin(tenant, senderId, ref) {
   // gets, instead of a dead-end "you're connected, we'll send order updates"
   // message with no order behind it.
   if (!customerName) {
+    if (silent) return;
     await sends.sendButtons(token, senderId,
       `👋 Hi! Welcome to ${tenant.name}!\n\nWhat would you like to do?`,
       [
