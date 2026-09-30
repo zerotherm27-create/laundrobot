@@ -84,22 +84,24 @@ function hasSentMid(mid) {
 }
 
 // Given a Graph conversation's messages (newest-first), return the Page messages
-// that could be a staff reply: those sent AFTER a customer message.
-// A Click-to-Messenger ad's built-in greeting is sent by the Page before the
-// customer's first message with a mid we never recorded; without this filter it
-// reads as a human reply and pauses the AI for every ad click.
+// that could be a staff reply.
+// A Click-to-Messenger ad makes Meta send automatic Page messages ("X replied to
+// an ad.", the ad greeting, "Call now to get faster service.") around the
+// customer's first message — before AND up to a few seconds after it — with mids
+// we never recorded. Without this filter they read as a staff reply and pause the
+// AI on every ad click. So we ignore Page messages that predate the customer's
+// first message or land within AD_GRACE_MS after it.
 // `limit` is the page size requested; if the thread fills it, the start of the
-// thread isn't visible, so we can't prove a page message predates the customer
-// and keep it as a candidate (the old, conservative behaviour).
+// thread isn't visible, so we can't tell what is ad automation and keep every
+// Page message as a candidate (the old, conservative behaviour).
+const AD_GRACE_MS = 60 * 1000;
 function pageMessagesAfterCustomer(messages, userId, limit) {
-  const truncated = messages.length >= limit;
-  const out = [];
-  messages.forEach((msg, i) => {
-    if (msg.from?.id === userId) return;
-    const customerBefore = messages.slice(i + 1).some(m => m.from?.id === userId);
-    if (customerBefore || truncated) out.push(msg);
-  });
-  return out;
+  if (messages.length >= limit) return messages.filter(m => m.from?.id !== userId);
+  const custTimes = messages.filter(m => m.from?.id === userId).map(m => new Date(m.created_time).getTime());
+  if (!custTimes.length) return [];
+  const firstCustomer = Math.min(...custTimes);
+  return messages.filter(m =>
+    m.from?.id !== userId && new Date(m.created_time).getTime() > firstCustomer + AD_GRACE_MS);
 }
 
 module.exports = { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend, hasSentMid, pageMessagesAfterCustomer };

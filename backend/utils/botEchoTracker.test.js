@@ -98,3 +98,22 @@ test('truncated window (oldest message unseen) keeps the conservative behaviour'
   // limit == thread length → we can't see the start of the thread
   assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 2).map(m => m.id), ['m_a', 'm_b']);
 });
+
+test('ad automation right AFTER the first customer message (e.g. "Call now") is ignored', () => {
+  const thread = [
+    msg('m_call_now', 'PAGE', '2026-09-30T07:14:34+0000'),
+    msg('m_cust', CUST, '2026-09-30T07:14:32+0000'),
+    msg('m_greeting', 'PAGE', '2026-09-30T07:14:31+0000'),
+    msg('m_replied_to_ad', 'PAGE', '2026-09-30T07:14:30+0000'),
+  ];
+  assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 5), []);
+});
+
+test('a staff reply minutes after the customer message is still detected', () => {
+  const thread = [
+    msg('m_staff', 'PAGE', '2026-09-30T07:20:00+0000'),
+    msg('m_call_now', 'PAGE', '2026-09-30T07:14:34+0000'),
+    msg('m_cust', CUST, '2026-09-30T07:14:32+0000'),
+  ];
+  assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 5).map(m => m.id), ['m_staff']);
+});
