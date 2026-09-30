@@ -7,7 +7,7 @@ const db = require('../db');
 const messengerUtils = require('../utils/messenger');
 const { sendMessage, sendTaggedMessage, sendButtons, sendQuickReplies, sendCatalog, sendTyping } = messengerUtils;
 const igUtils = require('../utils/instagram');
-const { isBotOwnEcho, hasSentMid } = require('../utils/botEchoTracker');
+const { isBotOwnEcho, hasSentMid, pageMessagesAfterCustomer } = require('../utils/botEchoTracker');
 const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 const { sendPushToTenant } = require('../utils/push');
@@ -467,8 +467,9 @@ async function checkForHumanReply(pageToken, userId, tenant) {
     });
     const messages = data?.data?.[0]?.messages?.data || [];
     const cutoffMs = Date.now() - pauseHours * 3_600_000;
-    for (const msg of messages) {
-      if (msg.from?.id === userId) continue;                          // customer's own message
+    // Ignore page messages that predate the customer's first message (the
+    // Click-to-Messenger ad greeting) — a staff reply always follows the customer.
+    for (const msg of pageMessagesAfterCustomer(messages, userId, 5)) {
       if (new Date(msg.created_time).getTime() < cutoffMs) continue; // too old to matter
       if (hasSentMid(msg.id)) continue;                              // in-memory: bot's own send
       // Not in memory (possible after restart) — check DB before concluding it's human

@@ -83,4 +83,23 @@ function hasSentMid(mid) {
   return true;
 }
 
-module.exports = { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend, hasSentMid };
+// Given a Graph conversation's messages (newest-first), return the Page messages
+// that could be a staff reply: those sent AFTER a customer message.
+// A Click-to-Messenger ad's built-in greeting is sent by the Page before the
+// customer's first message with a mid we never recorded; without this filter it
+// reads as a human reply and pauses the AI for every ad click.
+// `limit` is the page size requested; if the thread fills it, the start of the
+// thread isn't visible, so we can't prove a page message predates the customer
+// and keep it as a candidate (the old, conservative behaviour).
+function pageMessagesAfterCustomer(messages, userId, limit) {
+  const truncated = messages.length >= limit;
+  const out = [];
+  messages.forEach((msg, i) => {
+    if (msg.from?.id === userId) return;
+    const customerBefore = messages.slice(i + 1).some(m => m.from?.id === userId);
+    if (customerBefore || truncated) out.push(msg);
+  });
+  return out;
+}
+
+module.exports = { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend, hasSentMid, pageMessagesAfterCustomer };

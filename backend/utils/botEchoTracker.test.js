@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend } = require('./botEchoTracker');
+const { isBotOwnEcho, BOT_METADATA_TAG, noteBotSend, pageMessagesAfterCustomer } = require('./botEchoTracker');
 
 // ── mid-based detection (primary path) ───────────────────────────────────────
 // Meta returns message_id on every Send API call; the same id comes back as
@@ -63,4 +63,38 @@ test('noteBotSend ignores falsy mids silently', () => {
   assert.doesNotThrow(() => noteBotSend(null));
   assert.doesNotThrow(() => noteBotSend(undefined));
   assert.doesNotThrow(() => noteBotSend(''));
+});
+
+// ── Click-to-Messenger ad greeting ───────────────────────────────────────────
+// The ad's built-in greeting is sent by the Page (via Meta, so its mid is not
+// one we recorded) BEFORE the customer's first message. It must not be read as
+// a staff reply, or the AI pauses for 2h on every ad click.
+// Graph returns messages newest-first.
+const CUST = 'cust1';
+const msg = (id, from, t) => ({ id, from: { id: from }, created_time: t });
+
+test('ad greeting that predates the first customer message is not a human reply', () => {
+  const thread = [
+    msg('m_cust', CUST, '2026-09-30T03:46:00+0000'),
+    msg('m_ad_greeting', 'PAGE', '2026-09-30T03:45:00+0000'),
+  ];
+  assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 5), []);
+});
+
+test('page message sent after a customer message is still a candidate human reply', () => {
+  const thread = [
+    msg('m_staff', 'PAGE', '2026-09-30T03:50:00+0000'),
+    msg('m_cust', CUST, '2026-09-30T03:46:00+0000'),
+    msg('m_ad_greeting', 'PAGE', '2026-09-30T03:45:00+0000'),
+  ];
+  assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 5).map(m => m.id), ['m_staff']);
+});
+
+test('truncated window (oldest message unseen) keeps the conservative behaviour', () => {
+  const thread = [
+    msg('m_a', 'PAGE', '2026-09-30T03:50:00+0000'),
+    msg('m_b', 'PAGE', '2026-09-30T03:49:00+0000'),
+  ];
+  // limit == thread length → we can't see the start of the thread
+  assert.deepEqual(pageMessagesAfterCustomer(thread, CUST, 2).map(m => m.id), ['m_a', 'm_b']);
 });
