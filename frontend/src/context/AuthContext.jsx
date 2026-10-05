@@ -78,6 +78,8 @@ export function AuthProvider({ children }) {
   function logout() {
     sessionStorage.removeItem('token');
     ['token','token_persistent','role','tenant_id','tenant_name','email','permissions'].forEach(k => localStorage.removeItem(k));
+    // Signed-out users land on the dedicated sign-in page, not the marketing landing page.
+    window.history.replaceState({}, '', '/login');
     setUser(null);
   }
 

@@ -13,6 +13,14 @@ export default function Login() {
 
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
+  const [online, setOnline] = useState(() => navigator.onLine !== false);
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
   const [view, setView]         = useState('login');
   const [fpEmail, setFpEmail]   = useState('');
   const [fpMsg, setFpMsg]       = useState('');
@@ -24,7 +32,11 @@ export default function Login() {
     e.preventDefault();
     setLoading(true); setError('');
     try { await login(email, password, keepLoggedIn); }
-    catch { setError('Invalid email or password. Please try again.'); }
+    catch (err) {
+      setError(err.response
+        ? 'Invalid email or password. Please try again.'
+        : "You're offline. Connect to the internet to sign in.");
+    }
     finally { setLoading(false); }
   }
 
@@ -148,6 +160,12 @@ export default function Login() {
                   Forgot password?
                 </button>
               </div>
+
+              {!online && (
+                <div style={{ background: '#FFF6E5', border: '0.5px solid #F2C879', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8A5A00', marginBottom: 16 }}>
+                  📡 You're offline. Connect to the internet to sign in. Any walk-in orders saved on this device will sync after you log in.
+                </div>
+              )}
 
               {error && (
                 <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
