@@ -17,6 +17,7 @@ import PageIntro from './components/PageIntro.jsx';
 import useOnboarding from './hooks/useOnboarding.js';
 
 const Login        = lazy(() => import('./pages/Login.jsx'));
+const VerifyEmail  = lazy(() => import('./pages/VerifyEmail.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const BookingForm  = lazy(() => import('./pages/BookingForm.jsx'));
@@ -298,6 +299,8 @@ function Inner() {
 
   const params     = new URLSearchParams(window.location.search);
   const resetToken = params.get('reset_token');
+  const verifyToken = params.get('verify_token');
+  if (verifyToken) return <Suspense fallback={null}><VerifyEmail token={verifyToken} /></Suspense>;
   if (resetToken) {
     document.title = 'Reset Password — LaundroBot';
     return (

@@ -4,6 +4,9 @@ const { logSuperadminAction } = require('../utils/audit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const { isDisposableEmail } = require('../utils/disposableEmail');
+const { createVerificationToken, sendVerificationEmail } = require('../utils/verification');
+const { sendEmail } = require('../utils/email');
 
 // Login
 router.post('/login', async (req, res) => {
@@ -30,6 +33,12 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Self-serve signups must confirm their email first (checked after the password so it can't be used
+    // to probe which emails are registered). `=== false`: rows from before the migration are undefined → allowed.
+    if (user.email_verified === false) {
+      return res.status(403).json({ code: 'EMAIL_NOT_VERIFIED', error: 'Please confirm your email first. Check your inbox (and spam folder) for the confirmation link.' });
     }
 
     let permissions = [];
@@ -86,12 +95,18 @@ function normalizeEmail(raw) {
 
 // Self-service signup — creates a new tenant + admin user with a 14-day trial
 router.post('/signup', async (req, res) => {
-  const { business_name, email, password } = req.body;
+  const { business_name, email, password, website } = req.body;
+  // Honeypot: real users never see or fill this hidden field; bots do. Pretend it worked, create nothing.
+  if (website) return res.json({ verification_required: true, email: String(email || '').trim().toLowerCase() });
   if (!business_name?.trim() || !email?.trim() || !password) {
     return res.status(400).json({ error: 'business_name, email and password are required' });
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  if (isDisposableEmail(email)) {
+    return res.status(400).json({ error: 'Please use your real business email address — temporary email services are not accepted.' });
   }
 
   const normalizedEmail = normalizeEmail(email);
@@ -121,12 +136,12 @@ router.post('/signup', async (req, res) => {
       return res.status(409).json({ error: 'An account with that email already exists.' });
     }
 
-    // IP trial limit — max 2 trial accounts per IP (allows legitimate shared-office cases)
+    // IP trial limit — max 5 trial accounts per IP (email confirmation is now the main guard, so shared networks get more room)
     if (signupIp && signupIp !== 'unknown') {
       const { rows: ipTrials } = await client.query(
         `SELECT COUNT(*) AS cnt FROM tenants WHERE signup_ip = $1`, [signupIp]
       );
-      if (parseInt(ipTrials[0]?.cnt || 0) >= 2) {
+      if (parseInt(ipTrials[0]?.cnt || 0) >= 5) {
         await client.query('ROLLBACK');
         return res.status(429).json({
           error: 'A trial account has already been created from your network. Please contact support if you need assistance.',
@@ -145,36 +160,27 @@ router.post('/signup', async (req, res) => {
     // Create admin user
     const hash = await bcrypt.hash(password, 10);
     const { rows: [newUser] } = await client.query(
-      `INSERT INTO users (email, password_hash, role, tenant_id, normalized_email)
-       VALUES ($1, $2, 'admin', $3, $4) RETURNING id`,
+      `INSERT INTO users (email, password_hash, role, tenant_id, normalized_email, email_verified)
+       VALUES ($1, $2, 'admin', $3, $4, FALSE) RETURNING id`,
       [email.trim().toLowerCase(), hash, tenant.id, normalizedEmail]
     );
 
+    const verifyToken = await createVerificationToken(client, newUser.id);
     await client.query('COMMIT');
 
-    const token = jwt.sign(
-      {
-        id: newUser.id,
-        role: 'admin',
-        tenant_id: tenant.id,
-        tenant_name: tenant.name,
-        email: email.trim().toLowerCase(),
-        permissions: [],
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // No session yet: the owner must confirm their email first. Mail problems never fail signup ("Resend" exists).
+    const cleanEmail = email.trim().toLowerCase();
+    await sendVerificationEmail(cleanEmail, verifyToken, tenant.name);
+    if (process.env.SIGNUP_NOTIFY_EMAIL) {
+      sendEmail({
+        to: process.env.SIGNUP_NOTIFY_EMAIL,
+        subject: `New LaundroBot signup: ${tenant.name}`,
+        html: `<p>New trial signup (email not yet confirmed).</p><p><b>${String(tenant.name).replace(/</g, '&lt;')}</b><br>${cleanEmail}<br>IP: ${signupIp}</p>`,
+        text: `New trial signup (email not yet confirmed).\n${tenant.name}\n${cleanEmail}\nIP: ${signupIp}`,
+      }).catch(() => {});
+    }
 
-    res.json({
-      token,
-      role: 'admin',
-      tenant_id: tenant.id,
-      tenant_name: tenant.name,
-      email: email.trim().toLowerCase(),
-      permissions: [],
-      subscription_status: tenant.subscription_status,
-      trial_ends_at: tenant.trial_ends_at,
-    });
+    res.json({ verification_required: true, email: cleanEmail });
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('Signup error:', err);

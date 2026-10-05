@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import api from '../api';
+import api, { resendVerification } from '../api';
 
 export default function Login() {
   useEffect(() => { document.title = 'Sign In — LaundroBot'; }, []);
@@ -10,6 +10,8 @@ export default function Login() {
   const [showPw, setShowPw]     = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resent, setResent]     = useState(false);
 
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
@@ -30,9 +32,10 @@ export default function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setUnverified(false); setResent(false);
     try { await login(email, password, keepLoggedIn); }
     catch (err) {
+      if (err.response?.data?.code === 'EMAIL_NOT_VERIFIED') { setUnverified(true); setError(err.response.data.error); setLoading(false); return; }
       setError(err.response
         ? 'Invalid email or password. Please try again.'
         : err.offlineNoSession
@@ -172,6 +175,13 @@ export default function Login() {
               {error && (
                 <div style={{ background: '#FCEBEB', border: '0.5px solid #F09595', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#A32D2D', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   ⚠️ {error}
+                  {unverified && (
+                    <button type="button" disabled={resent}
+                      onClick={async () => { try { await resendVerification(email); } catch { /* generic */ } setResent(true); }}
+                      style={{ marginLeft: 'auto', whiteSpace: 'nowrap', background: 'none', border: 'none', color: '#A32D2D', textDecoration: 'underline', cursor: resent ? 'default' : 'pointer', fontSize: 13 }}>
+                      {resent ? 'Sent' : 'Resend email'}
+                    </button>
+                  )}
                 </div>
               )}
 

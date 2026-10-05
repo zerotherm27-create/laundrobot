@@ -1,31 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
-import { signup as apiSignup } from '../api.js';
+import { signup as apiSignup, resendVerification } from '../api.js';
 
 export default function Signup() {
   useEffect(() => { document.title = 'Start Your Free Trial — LaundroBot'; }, []);
-  const { login: authLogin } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
   const [showPw, setShowPw]             = useState(false);
   const [error, setError]               = useState('');
   const [loading, setLoading]           = useState(false);
+  const [website, setWebsite]           = useState(''); // honeypot — real users never see it
+  const [sentTo, setSentTo]             = useState('');
+  const [resent, setResent]             = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const { data } = await apiSignup(businessName, email, password);
-      // Store session same way login does
-      localStorage.setItem('token',       data.token);
-      localStorage.setItem('role',        data.role);
-      localStorage.setItem('tenant_id',   data.tenant_id   || '');
-      localStorage.setItem('tenant_name', data.tenant_name || '');
-      localStorage.setItem('email',       data.email       || email);
-      localStorage.setItem('permissions', JSON.stringify(data.permissions || []));
-      // Hard redirect so App re-reads localStorage
-      window.location.href = '/';
+      const { data } = await apiSignup(businessName, email, password, website);
+      setSentTo(data.email || email);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
     } finally {
@@ -75,6 +68,23 @@ export default function Signup() {
           <span style={{ fontSize: 12, fontWeight: 600, color: '#065F46' }}>14-day free trial — no credit card required</span>
         </div>
 
+        {sentTo ? (
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8, letterSpacing: '-.4px' }}>Check your email</h1>
+            <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.6, marginBottom: 12 }}>
+              We sent a confirmation link to <strong>{sentTo}</strong>. Click it to activate your account and start your 14-day trial.
+            </p>
+            <p style={{ fontSize: 12.5, color: '#6B7280', lineHeight: 1.6, marginBottom: 18 }}>
+              Don't see it? Check your spam or promotions folder. The link expires in 24 hours.
+            </p>
+            <button type="button" disabled={resent}
+              onClick={async () => { try { await resendVerification(sentTo); } catch { /* generic message either way */ } setResent(true); }}
+              style={{ padding: '9px 18px', borderRadius: 8, border: '0.5px solid #D1D5DB', background: '#fff', cursor: resent ? 'default' : 'pointer', fontSize: 13, color: '#374151', marginRight: 10 }}>
+              {resent ? 'Sent — check your inbox' : 'Resend email'}
+            </button>
+            <a href="/login" style={{ fontSize: 13, color: '#378ADD' }}>Back to sign in</a>
+          </div>
+        ) : (<>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 4, letterSpacing: '-.4px' }}>
           Create your account
         </h1>
@@ -83,6 +93,9 @@ export default function Signup() {
         </p>
 
         <form onSubmit={handleSubmit}>
+          <input type="text" name="website" value={website} onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1} autoComplete="off" aria-hidden="true"
+            style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
               Business name
@@ -163,6 +176,7 @@ export default function Signup() {
           <a href="/terms" style={{ color: '#6B7280' }}>Terms of Service</a> and{' '}
           <a href="/privacy" style={{ color: '#6B7280' }}>Privacy Policy</a>.
         </p>
+        </>)}
       </div>
     </div>
   );

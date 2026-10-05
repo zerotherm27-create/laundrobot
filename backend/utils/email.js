@@ -7,13 +7,17 @@ function getFrom() {
   return process.env.RESEND_FROM || 'LaundroBot <noreply@laundrobot.app>';
 }
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, text }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn('[email] RESEND_API_KEY not set — skipping email');
     return;
   }
-  await axios.post(RESEND_API, { from: getFrom(), to, subject, html }, {
+  // A plain-text alternative and a real reply-to both help inbox placement (HTML-only mail scores worse).
+  const payload = { from: getFrom(), to, subject, html };
+  if (text) payload.text = text;
+  if (process.env.RESEND_REPLY_TO) payload.reply_to = process.env.RESEND_REPLY_TO;
+  await axios.post(RESEND_API, payload, {
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
   });
 }

@@ -43,12 +43,24 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts. Please try again in 15 minutes.' },
 });
 
+// Signup + resend are the abuse surface for the free trial / email bombing: much tighter than authLimiter.
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many signup attempts from your network. Please try again later.' },
+});
+app.use('/auth/signup', signupLimiter);
+app.use('/auth/resend-verification', signupLimiter);
+
 const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
 app.use(generalLimiter);
 
 const routes = [
   ['/auth',       './routes/auth',         authLimiter],
   ['/auth',       './routes/resetPassword', authLimiter],
+  ['/auth',       './routes/verifyEmail',   authLimiter],
   ['/orders',     './routes/orders'],
   ['/services',   './routes/services'],
   ['/categories', './routes/categories'],
