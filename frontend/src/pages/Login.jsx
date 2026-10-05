@@ -35,7 +35,9 @@ export default function Login() {
     catch (err) {
       setError(err.response
         ? 'Invalid email or password. Please try again.'
-        : "You're offline. Connect to the internet to sign in.");
+        : err.offlineNoSession
+          ? "You're offline and this device has no saved sign-in for that account (or the password is wrong). Connect to the internet and sign in once."
+          : "Couldn't reach the server. Check your connection and try again.");
     }
     finally { setLoading(false); }
   }
@@ -163,7 +165,7 @@ export default function Login() {
 
               {!online && (
                 <div style={{ background: '#FFF6E5', border: '0.5px solid #F2C879', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#8A5A00', marginBottom: 16 }}>
-                  📡 You're offline. Connect to the internet to sign in. Any walk-in orders saved on this device will sync after you log in.
+                  📡 You're offline. You can still sign in if you've signed in on this device before. Walk-in orders saved on this device sync once you're back online.
                 </div>
               )}
 

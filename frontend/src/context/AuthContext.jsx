@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { saveOfflineSession, openOfflineSession } from '../utils/offlineAuth.js';
 import { login as apiLogin, getMyBranches, switchBranch as apiSwitchBranch } from '../api.js';
 
 const AuthContext = createContext();
@@ -48,23 +49,39 @@ export function AuthProvider({ children }) {
     getMyBranches().then(r => setBranches(r.data || [])).catch(() => {});
   }, [user?.tenant_id]);
 
+  function applySession(token, persistent, p) {
+    saveToken(token, persistent);
+    localStorage.setItem('role',        p.role);
+    localStorage.setItem('tenant_id',   p.tenant_id   || '');
+    localStorage.setItem('tenant_name', p.tenant_name || '');
+    localStorage.setItem('email',       p.email);
+    localStorage.setItem('permissions', JSON.stringify(p.permissions));
+    setUser({ token, ...p });
+  }
+
   async function login(email, password, keepLoggedIn = false) {
-    const { data } = await apiLogin(email, password, keepLoggedIn);
-    const permissions = data.permissions || [];
-    saveToken(data.token, keepLoggedIn);
-    localStorage.setItem('role',        data.role);
-    localStorage.setItem('tenant_id',   data.tenant_id   || '');
-    localStorage.setItem('tenant_name', data.tenant_name || '');
-    localStorage.setItem('email',       data.email       || email);
-    localStorage.setItem('permissions', JSON.stringify(permissions));
-    setUser({
-      token:       data.token,
+    let data;
+    try {
+      ({ data } = await apiLogin(email, password, keepLoggedIn));
+    } catch (err) {
+      // No server response = offline/unreachable: fall back to the encrypted session saved
+      // on this device by a previous online login (see utils/offlineAuth.js).
+      if (!err.response) {
+        const saved = await openOfflineSession(email, password);
+        if (saved) { applySession(saved.token, saved.persistent, saved.profile); return; }
+        err.offlineNoSession = true;
+      }
+      throw err;
+    }
+    const profile = {
       role:        data.role,
       tenant_id:   data.tenant_id,
       tenant_name: data.tenant_name,
       email:       data.email || email,
-      permissions,
-    });
+      permissions: data.permissions || [],
+    };
+    applySession(data.token, keepLoggedIn, profile);
+    saveOfflineSession(email, password, { token: data.token, persistent: keepLoggedIn, profile });
   }
 
   async function switchToBranch(tenantId) {
