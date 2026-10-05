@@ -164,16 +164,29 @@ function Dashboard({ initialPage }) {
   // Check subscription on mount; superadmin is always exempt
   useEffect(() => {
     if (user.role === 'superadmin') { setSubStatus('active'); setSubPlan('pro'); return; }
+    const cacheKey = `lb_sub_${user.tenant_id || user.email}`;
     getSubscription()
       .then(r => {
         setSubStatus(r.data.subscription_status || 'active');
         setSubPlan(r.data.subscription_plan   || 'starter');
         if (r.data.branch_limit) setBranchLimit(r.data.branch_limit);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ s: r.data.subscription_status || 'active', p: r.data.subscription_plan || 'starter', b: r.data.branch_limit || null })); } catch { /* ignore */ }
       })
       .catch(err => {
+        // No server response = offline/unreachable. Fall back to the last status verified online
+        // on this device (so walk-in keeps working). Never grant access on a real server error,
+        // and never when nothing was ever verified here.
+        if (!err.response) {
+          let cached = null;
+          try { cached = JSON.parse(localStorage.getItem(cacheKey)); } catch { /* ignore */ }
+          if (cached && cached.s !== 'expired') {
+            setSubStatus(cached.s); setSubPlan(cached.p);
+            if (cached.b) setBranchLimit(cached.b);
+            return;
+          }
+        }
         console.error('Subscription check failed', err);
         setSubStatus('error');
-        // Don't grant access on failure
       });
   }, [user.role]);
 
