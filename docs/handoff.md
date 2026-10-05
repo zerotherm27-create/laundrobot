@@ -1,3 +1,82 @@
+# Handoff — TLP POS push integration after payment confirmation
+
+**Date:** 2026-10-05
+**Scope:** `backend/utils/tlpPos.js` (new), `backend/db/migrations/2026-10-05-tlp-pos-service-tags.sql` (new), `backend/.env.example` (new), `backend/webhooks/xendit.js`, `backend/routes/orders.js`
+**Companion repo:** TLP POS at `/Users/jojo/Documents/TLP POS` — also changed `api/orders/import.js` in that repo (commits `1772402`, `0db60ca`).
+**Commits (LaundroBot main, pushed):**
+- `126f979` — feat: dispatch paid orders to TLP POS after payment confirmation
+
+---
+
+## Context
+
+TLP POS (the laundromat ops dashboard) needs to know about paid LaundroBot orders immediately. Previously only a 5-minute pull poll existed; now LaundroBot pushes the order to TLP POS the moment payment is confirmed, in two places: the Xendit webhook callback and the manual verify-payment endpoint.
+
+## Schema change — `services` table
+
+Migration `2026-10-05-tlp-pos-service-tags.sql` adds two nullable columns to `services`:
+
+```sql
+machine_kind     TEXT   -- 'washer' | 'dryer' | NULL
+duration_minutes INT    -- e.g. 35 — must match a TLP POS product
+```
+
+**Run this migration against Supabase before enabling dispatch.** After running, open each machine-wash/dry service in the LaundroBot admin and fill in these two fields. Services left NULL are silently skipped by the dispatch — handwash, dryclean, fold-only orders never reach TLP POS.
+
+## `utils/tlpPos.js`
+
+New standalone helper: `dispatchToTlpPos(db, ref, tenantId, isByBookingRef)`.
+
+- `isByBookingRef = true` → fetches all paid non-cancelled orders with that `booking_ref` (covers multi-load bookings where each load is a separate row)
+- `isByBookingRef = false` → fetches the single order by `id`
+- Joins `services` and `customers` to get machine kind, duration, price, and customer info
+- Builds one service entry per load (each DB row = one machine load, `quantity: 1`)
+- Skips if no machine services in the result
+- POSTs to `process.env.TLP_POS_IMPORT_URL` with `Bearer TLP_POS_IMPORT_TOKEN`
+- **All errors are caught and logged — never re-thrown.** Payment confirmation must never fail because TLP POS is down.
+
+## Hooks in `webhooks/xendit.js`
+
+Two dispatch calls added:
+
+1. **BKG-ref path** (line ~161): fires after the `UPDATE orders SET paid=TRUE WHERE booking_ref=...` succeeds, only inside the `total_paid >= total_due` block (partial payments are correctly skipped).
+2. **Order-id path** (line ~189): fires after the `UPDATE orders SET paid=TRUE WHERE id=...` succeeds.
+
+Both are `.catch(e => console.error('[tlp-pos]', e.message))` fire-and-forget.
+
+## Hook in `routes/orders.js` verify-payment
+
+Dispatch fires after the manual `UPDATE orders SET paid=TRUE` (line ~988), before `res.json({ ok: true })`. Uses `isByBookingRef = !!order.booking_ref` so booking-grouped orders (multiple loads) are all fetched together.
+
+## `.env.example`
+
+Created for the first time. Add to LaundroBot's actual `.env`:
+
+```
+TLP_POS_IMPORT_URL=https://your-tlp-pos.vercel.app/api/orders/import
+TLP_POS_IMPORT_TOKEN=<must match LAUNDROBOT_IMPORT_TOKEN in TLP POS .env>
+```
+
+If either var is unset, `dispatchToTlpPos` returns early — dispatch is opt-in by configuration.
+
+## TLP POS `import.js` changes (companion)
+
+The import endpoint previously called `buildOrderBundle(body)` directly, bypassing `mapLaundrobotOrder`. Fixed:
+
+- Now calls `mapLaundrobotOrder(rawOrder)` to match `{ kind, durationMinutes }` pairs against TLP products and expand multi-load quantities into per-load `ServiceLine` entries with UUIDs
+- Returns `{ ok: true, skipped: true }` for non-machine orders (not an error)
+- Checks for existing `external_order_id` before inserting — idempotent, safe for Xendit retries
+- Auth hardened: `LAUNDROBOT_IMPORT_TOKEN` now fails closed when unset (was fail-open); uses `crypto.timingSafeEqual`; returns 401 (not 500) on auth failure
+
+## What's intentionally left open
+
+- **Run the migration.** Until `machine_kind` + `duration_minutes` are set on services, no orders will be dispatched (the filter returns 0 machine services).
+- **Set the env vars on both sides.** LaundroBot needs `TLP_POS_IMPORT_URL` + `TLP_POS_IMPORT_TOKEN`; TLP POS needs `LAUNDROBOT_IMPORT_TOKEN`.
+- **TLP POS Supabase setup** is still pending (table not yet created, credentials not set).
+- **No end-to-end live test done** — verified only by code review and log pattern (`[tlp-pos] dispatched order BKG-xxx`).
+
+---
+
 # Handoff — Native mobile UI, Kanban notify control, Overview/Reports redesign
 
 **Date:** 2026-09-20
