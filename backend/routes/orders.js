@@ -6,6 +6,7 @@ const { sendTaggedMessage, sendStatusUpdate, sendButtons, shopLocationText } = r
 const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
+const { dispatchToTlpPos } = require('../utils/tlpPos');
 
 const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
@@ -983,6 +984,9 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
        WHERE tenant_id=$1 AND ${order.booking_ref ? 'booking_ref=$2' : 'id=$2'}`,
       [req.user.tenant_id, ref]
     );
+    // Dispatch to TLP POS (fire-and-forget — never block manual payment confirmation)
+    dispatchToTlpPos(db, ref, req.user.tenant_id, !!order.booking_ref)
+      .catch(e => console.error('[tlp-pos]', e.message));
     res.json({ ok: true });
   } catch (err) {
     console.error('[verify-payment]', err);

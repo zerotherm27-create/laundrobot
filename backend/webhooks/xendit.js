@@ -5,6 +5,7 @@ const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../
 const { sendMessage, sendButtons, shopLocationText } = require('../utils/messenger');
 const { getInvoiceStatus } = require('../utils/xendit');
 const { resolveBookingTenant } = require('../utils/xenditTenant');
+const { dispatchToTlpPos } = require('../utils/tlpPos');
 
 router.post('/', async (req, res) => {
   const callbackToken = req.headers['x-callback-token'];
@@ -156,6 +157,8 @@ router.post('/', async (req, res) => {
              WHERE booking_ref=$2 AND tenant_id=$3`,
             [xenditInvoiceId, refId, ctx.tenant_id]
           );
+          // Dispatch to TLP POS (fire-and-forget — never block payment confirmation)
+          dispatchToTlpPos(db, refId, ctx.tenant_id, true).catch(e => console.error('[tlp-pos]', e.message));
         } else {
           // Partial payment: silence reminders for this booking but keep it unpaid.
           await db.query(
@@ -182,6 +185,8 @@ router.post('/', async (req, res) => {
            WHERE id=$2 AND tenant_id=$3`,
           [xenditInvoiceId, refId, ctx.tenant_id]
         );
+        // Dispatch to TLP POS (fire-and-forget — never block payment confirmation)
+        dispatchToTlpPos(db, refId, ctx.tenant_id, false).catch(e => console.error('[tlp-pos]', e.message));
       }
     }
 
