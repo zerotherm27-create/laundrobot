@@ -56,11 +56,22 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
         const selections = readSelections(o.custom_selections);
         const size = pick(selections, /size/i);                 // e.g. "Large Bag (max 12kg/bag)"
         const bags = Math.min(20, Math.max(1, Math.round(Number(pick(selections, /quantity|qty|bags/i)) || 1)));
-        // Every option the customer chose (except the quantity), e.g. "CLOTHES FULL SERVICE GIANT (max 8kg / load)".
+        // Add-ons like "+10 Mins Wash Titan: 1" or "+10 Mins Dry Giant: 2" are extra machine minutes (count x minutes).
+        const isAddon = f => /^\+?\s*\d+\s*mins?\b.*\b(wash|dry)\b/i.test(String(f?.label ?? ''));
+        const extras = selections.filter(isAddon).map(f => {
+          const m = /(\d+)\s*mins?\b.*\b(wash|dry)\b/i.exec(String(f.label));
+          const units = Math.max(0, Math.round(Number(f.value) || 0));
+          return { kind: m[2].toLowerCase() === 'wash' ? 'washer' : 'dryer', minutes: Number(m[1]) * units };
+        }).filter(x => x.minutes > 0);
+        // Every option the customer chose (except the quantity and add-ons), e.g. "CLOTHES FULL SERVICE GIANT (max 8kg / load)".
         // The size isn't always in a field called "Size", so TLP POS reads these too.
         const options = selections
-          .filter(f => !/quantity|qty|bags|delivery|pickup/i.test(String(f?.label ?? '')))
-          .map(f => String(f?.value ?? '').trim())
+          .filter(f => !/quantity|qty|bags|delivery|pickup/i.test(String(f?.label ?? '')) && !isAddon(f))
+          .map(f => {
+            const value = String(f?.value ?? '').trim();
+            const label = String(f?.label ?? '').trim();
+            return value && label ? `${label}: ${value}` : value;   // as LaundroBot shows it, e.g. "CLOTHES MACHINE WASH: CLOTHES SELF SERVICE TITAN ..."
+          })
           .filter(Boolean)
           .slice(0, 10);
         return {
@@ -72,6 +83,7 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
           ...(o.service_name ? { serviceName: String(o.service_name) } : {}),
           ...(size ? { size: String(size) } : {}),
           ...(options.length ? { options } : {}),
+          ...(extras.length ? { extras } : {}),
           // Weight in kg, when the customer entered one.
           ...(o.weight != null && Number(o.weight) > 0 ? { weightKg: Number(o.weight) } : {}),
         };
