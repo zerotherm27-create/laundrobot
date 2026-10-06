@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings, notifyOrderStatus } from '../api.js';
+import { getOrders, updateOrderStatus, updateOrder, cancelOrder, sendInvoice, getMyTenantSettings, notifyOrderStatus, getTlpPosStatus, sendToTlpPos } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -129,6 +129,11 @@ export default function Kanban() {
   const [invoiceSending, setInvoiceSending] = useState(false);
   const [invoiceResult,  setInvoiceResult]  = useState('');
   const [showActions,      setShowActions]      = useState(false);
+
+  // "Send to LaundroDesk" button: active only when this LaundroBot is connected to LaundroDesk
+  const [tlpConnected, setTlpConnected] = useState(false);
+  const [tlpSending,   setTlpSending]   = useState(false);
+  useEffect(() => { getTlpPosStatus().then(r => setTlpConnected(!!r.data?.connected)).catch(() => setTlpConnected(false)); }, []);
   const [showCancelSection, setShowCancelSection] = useState(false);
 
   // Delivery date override state (inside modal)
@@ -701,6 +706,31 @@ export default function Kanban() {
                   {modalOrder.paid ? <><Icon name="check" size={12} color="#3B6D11" /> Paid</> : <><Icon name="x" size={12} color="#A32D2D" /> Unpaid</>}
                 </span>
               </div>
+
+              {/* Send to LaundroDesk (machine-wash orders; safe to repeat) */}
+              <button type="button"
+                disabled={!tlpConnected || !modalOrder.paid || tlpSending}
+                title={!tlpConnected ? 'Not connected to LaundroDesk' : !modalOrder.paid ? 'The order must be paid first' : 'Send this order to LaundroDesk'}
+                onClick={async () => {
+                  setTlpSending(true);
+                  try {
+                    const { data } = await sendToTlpPos(modalOrder.id);
+                    toast(data.message || 'Sent to LaundroDesk.', 'success');
+                  } catch (e) {
+                    toast(e.response?.data?.message || e.response?.data?.error || 'Could not send to LaundroDesk.');
+                  }
+                  setTlpSending(false);
+                }}
+                style={{ marginTop: 8, width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #B5D4F4',
+                  fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                  cursor: (!tlpConnected || !modalOrder.paid || tlpSending) ? 'not-allowed' : 'pointer',
+                  opacity: (!tlpConnected || !modalOrder.paid) ? 0.5 : 1,
+                  background: '#E6F1FB', color: '#185FA5' }}>
+                {tlpSending ? 'Sending…' : 'Send to LaundroDesk'}
+              </button>
+              {!tlpConnected && (
+                <div style={{ marginTop: 4, fontSize: 11, color: '#888', textAlign: 'center' }}>Not connected to LaundroDesk</div>
+              )}
             </div>
 
             {/* Delivery date row — editable */}
