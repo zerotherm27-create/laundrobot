@@ -487,6 +487,12 @@ router.patch('/:id', auth, async (req, res) => {
     if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
     res.json(rows[0]);
 
+    // Marked paid by hand: send the order to LaundroDesk too (fire-and-forget; import is idempotent)
+    if (paid === true) {
+      dispatchToTlpPos(db, rows[0].booking_ref || rows[0].id, req.user.tenant_id, !!rows[0].booking_ref)
+        .catch(e => console.error('[tlp-pos]', e.message));
+    }
+
     // Fire status-change Messenger notifications (fire-and-forget)
     if (status === 'COMPLETED') {
       sendCompletionNotification(rows[0], req.user.tenant_id).catch(e =>
@@ -1068,6 +1074,8 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
     );
 
     const bookingRef = order.booking_ref || req.params.id;
+    dispatchToTlpPos(db, bookingRef, req.user.tenant_id, !!order.booking_ref)
+      .catch(e => console.error('[tlp-pos]', e.message));
     // Grand total = price + delivery_fee - promo_discount (see frontend/src/utils/orderPrice.js) —
     // summing price alone silently drops the delivery fee from the "Amount Paid" notification.
     const total = allOrders.reduce((s, o) => s + Number(o.price) + Number(o.delivery_fee || 0) - Number(o.promo_discount || 0), 0);
