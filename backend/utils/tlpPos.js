@@ -1,5 +1,16 @@
 'use strict';
 
+// An order's chosen options are saved as JSON: [{ label: "Size", value: "Large Bag (max 12kg/bag)" }, { label: "Quantity", value: "2" }, ...]
+const readSelections = (raw) => {
+  try {
+    const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+const pick = (selections, re) => selections.find(f => re.test(String(f?.label ?? '')))?.value;
+
 // Dispatch a paid LaundroBot booking to TLP POS's /api/orders/import endpoint.
 //
 // ref           : booking_ref (e.g. 'BKG-001234') when isByBookingRef=true, otherwise order.id
@@ -20,8 +31,8 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
     const params = isByBookingRef ? [ref, tenantId] : [ref];
 
     const { rows: orders } = await db.query(
-      `SELECT o.id, o.booking_ref, o.price, o.notes,
-              s.machine_kind, s.duration_minutes,
+      `SELECT o.id, o.booking_ref, o.price, o.notes, o.weight, o.custom_selections,
+              s.machine_kind, s.duration_minutes, s.name AS service_name,
               c.name AS customer_name, c.phone AS contact_number
        FROM orders o
        LEFT JOIN services s ON s.id = o.service_id
@@ -32,15 +43,35 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
 
     if (orders.length === 0) return;
 
-    // One service entry per load (row), machine services only
+    // One service entry per order row. A row can hold several bags
+    // ("Quantity: 2"); TLP POS turns that into one load per bag and splits the price.
+    // Every paid service is sent, even ones not tagged as a washer/dryer: TLP POS recognises the machine-wash
+    // order types itself and ignores everything else (handwash, dry cleaning, ...).
     const services = orders
-      .filter(o => o.machine_kind && o.duration_minutes)
-      .map(o => ({
-        kind: o.machine_kind,
-        durationMinutes: Number(o.duration_minutes),
-        quantity: 1,
-        priceCents: Math.round(Number(o.price) * 100),
-      }));
+      .map(o => {
+        const selections = readSelections(o.custom_selections);
+        const size = pick(selections, /size/i);                 // e.g. "Large Bag (max 12kg/bag)"
+        const bags = Math.min(20, Math.max(1, Math.round(Number(pick(selections, /quantity|qty|bags/i)) || 1)));
+        // Every option the customer chose (except the quantity), e.g. "CLOTHES FULL SERVICE GIANT (max 8kg / load)".
+        // The size isn't always in a field called "Size", so TLP POS reads these too.
+        const options = selections
+          .filter(f => !/quantity|qty|bags|delivery|pickup/i.test(String(f?.label ?? '')))
+          .map(f => String(f?.value ?? '').trim())
+          .filter(Boolean)
+          .slice(0, 10);
+        return {
+          ...(o.machine_kind ? { kind: o.machine_kind } : {}),
+          ...(o.duration_minutes ? { durationMinutes: Number(o.duration_minutes) } : {}),
+          quantity: bags,
+          priceCents: Math.round(Number(o.price) * 100),         // the row's total; TLP POS splits it per bag
+          // Service name and chosen size: TLP POS sends "Large" bags to the larger machines (W5 / D5).
+          ...(o.service_name ? { serviceName: String(o.service_name) } : {}),
+          ...(size ? { size: String(size) } : {}),
+          ...(options.length ? { options } : {}),
+          // Weight in kg, when the customer entered one.
+          ...(o.weight != null && Number(o.weight) > 0 ? { weightKg: Number(o.weight) } : {}),
+        };
+      });
 
     if (services.length === 0) return;
 
