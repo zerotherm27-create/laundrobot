@@ -6,7 +6,7 @@ const { sendTaggedMessage, sendStatusUpdate, sendButtons, shopLocationText } = r
 const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
-const { dispatchToTlpPos } = require('../utils/tlpPos');
+const { dispatchToTlpPos, isTlpPosConnected } = require('../utils/tlpPos');
 
 const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
@@ -120,6 +120,35 @@ router.get('/booking/:ref/payment-status', auth, async (req, res) => {
     res.json({ paid: order.paid === true });
   } catch (err) {
     console.error('[payment-status]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET whether this LaundroBot is connected to LaundroDesk (decides if the "Send to LaundroDesk" button is active)
+router.get('/tlp-pos/status', auth, (req, res) => {
+  res.json({ connected: isTlpPosConnected() });
+});
+
+// POST send one paid order (or its whole booking) to LaundroDesk by hand. Safe to repeat: LaundroDesk ignores orders it already has.
+router.post('/:id/send-to-tlp-pos', auth, async (req, res) => {
+  try {
+    if (!isTlpPosConnected()) return res.status(400).json({ error: 'Not connected to LaundroDesk.' });
+    const { rows: [order] } = await db.query(
+      `SELECT id, booking_ref FROM orders WHERE id=$1 AND tenant_id=$2`,
+      [req.params.id, req.user.tenant_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const result = await dispatchToTlpPos(db, order.booking_ref || order.id, req.user.tenant_id, !!order.booking_ref);
+    const MESSAGES = {
+      sent: 'Sent to LaundroDesk.',
+      not_paid: 'This order is not paid yet, so it cannot be sent.',
+      not_machine_wash: 'Only machine-wash orders are sent to LaundroDesk.',
+      failed: result.message ? `Could not reach LaundroDesk: ${result.message}` : 'Could not reach LaundroDesk.',
+      not_connected: 'Not connected to LaundroDesk.',
+    };
+    res.status(result.status === 'sent' ? 200 : 422).json({ ok: result.status === 'sent', status: result.status, message: MESSAGES[result.status] });
+  } catch (err) {
+    console.error('[send-to-tlp-pos]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

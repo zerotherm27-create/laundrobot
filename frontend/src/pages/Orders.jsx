@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, unarchiveOrder, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment } from '../api.js';
+import { getOrders, getArchivedOrders, archiveOrderMonth, unarchiveOrder, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment, getTlpPosStatus, sendToTlpPos } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -238,6 +238,11 @@ export default function Orders() {
 
   // Paid toggle
   const [paidToggling, setPaidToggling] = useState(false);
+
+  // "Send to LaundroDesk" button: active only when this LaundroBot is connected to LaundroDesk
+  const [tlpConnected, setTlpConnected] = useState(false);
+  const [tlpSending, setTlpSending] = useState(false);
+  useEffect(() => { getTlpPosStatus().then(r => setTlpConnected(!!r.data?.connected)).catch(() => setTlpConnected(false)); }, []);
 
   const loadActive = useCallback(() => {
     setLoading(true);
@@ -760,6 +765,31 @@ export default function Orders() {
                           color:      selected.paid ? '#A32D2D'  : '#3B6D11' }}>
                         {paidToggling ? 'Saving…' : selected.paid ? 'Paid — Mark as Unpaid' : 'Unpaid — Mark as Paid'}
                       </button>
+
+                      {/* ── Send to LaundroDesk (machine-wash orders; safe to repeat) ── */}
+                      <button type="button"
+                        disabled={!tlpConnected || !selected.paid || tlpSending}
+                        title={!tlpConnected ? 'Not connected to LaundroDesk' : !selected.paid ? 'Mark the order as paid first' : 'Send this order to LaundroDesk'}
+                        onClick={async () => {
+                          setTlpSending(true);
+                          try {
+                            const { data } = await sendToTlpPos(selected.id);
+                            toast(data.message || 'Sent to LaundroDesk.', 'success');
+                          } catch (e) {
+                            toast(e.response?.data?.message || e.response?.data?.error || 'Could not send to LaundroDesk.');
+                          }
+                          setTlpSending(false);
+                        }}
+                        style={{ marginTop: 8, width: '100%', padding: '8px', borderRadius: 8, border: '1px solid #B5D4F4',
+                          fontFamily: 'inherit', fontSize: 13, fontWeight: 700, transition: 'all .15s',
+                          cursor: (!tlpConnected || !selected.paid || tlpSending) ? 'not-allowed' : 'pointer',
+                          opacity: (!tlpConnected || !selected.paid) ? 0.5 : 1,
+                          background: '#E6F1FB', color: '#185FA5' }}>
+                        {tlpSending ? 'Sending…' : 'Send to LaundroDesk'}
+                      </button>
+                      {!tlpConnected && (
+                        <div style={{ marginTop: 4, fontSize: 11, color: '#888', textAlign: 'center' }}>Not connected to LaundroDesk</div>
+                      )}
                     </div>
 
                     {selected.xendit_invoice_url && (

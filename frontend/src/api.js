@@ -60,6 +60,8 @@ export const markRefundIssued = (id, note) => api.patch(`/orders/${id}/refund`, 
 export const verifyPayment       = id => api.post(`/orders/${id}/verify-payment`);
 export const uploadPaymentScreenshot = (id, screenshot) => api.post(`/orders/${id}/upload-screenshot`, { screenshot });
 export const confirmQrPayment    = id => api.post(`/orders/${id}/confirm-qr-payment`);
+export const getTlpPosStatus     = ()  => api.get('/orders/tlp-pos/status');
+export const sendToTlpPos        = id  => api.post(`/orders/${id}/send-to-tlp-pos`);
 export const sendInvoice   = (id, pdfBase64, customerEmail) =>
   api.post(`/orders/${id}/send-invoice`, { pdf_base64: pdfBase64, customer_email: customerEmail });
 

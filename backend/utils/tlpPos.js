@@ -22,12 +22,15 @@ const pick = (selections, re) => selections.find(f => re.test(String(f?.label ??
 // tenantId      : required when isByBookingRef=true; ignored otherwise
 // isByBookingRef: true for Xendit BKG-ref path; false for single-order paths
 //
-// Fire-and-forget: all errors are logged, never re-thrown.
-// Payment confirmation must never fail because TLP POS is down or misconfigured.
+// Never throws: errors are logged and returned. Payment confirmation must never fail because TLP POS is down or misconfigured.
+// Resolves to { status: 'sent' | 'not_connected' | 'not_paid' | 'not_machine_wash' | 'failed', message? }
+// (automatic callers ignore the result; the "Send to LaundroDesk" button shows it).
+const isTlpPosConnected = () => !!(process.env.TLP_POS_IMPORT_URL && process.env.TLP_POS_IMPORT_TOKEN);
+
 const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
   const importUrl   = process.env.TLP_POS_IMPORT_URL;
   const importToken = process.env.TLP_POS_IMPORT_TOKEN;
-  if (!importUrl || !importToken) return;
+  if (!importUrl || !importToken) return { status: 'not_connected' };
 
   try {
     const whereClause = isByBookingRef
@@ -46,7 +49,7 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
       params
     );
 
-    if (orders.length === 0) return;
+    if (orders.length === 0) return { status: 'not_paid' };
 
     // One service entry per order row. A row can hold several bags
     // ("Quantity: 2"); TLP POS turns that into one load per bag and splits the price.
@@ -90,7 +93,7 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
       })
       .filter(svc => (svc.kind && svc.durationMinutes) || MACHINE_WASH.test([svc.serviceName, svc.size, ...(svc.options ?? [])].join(' ')));
 
-    if (services.length === 0) return;
+    if (services.length === 0) return { status: 'not_machine_wash' };
 
     const first = orders[0];
     const payload = {
@@ -113,12 +116,14 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error(`[tlp-pos] dispatch failed ${res.status}: ${text}`);
-    } else {
-      console.log(`[tlp-pos] dispatched order ${payload.id} (${services.length} service line(s))`);
+      return { status: 'failed', message: `LaundroDesk answered ${res.status}` };
     }
+    console.log(`[tlp-pos] dispatched order ${payload.id} (${services.length} service line(s))`);
+    return { status: 'sent' };
   } catch (e) {
     console.error('[tlp-pos] dispatch error:', e.message);
+    return { status: 'failed', message: e.message };
   }
 };
 
-module.exports = { dispatchToTlpPos };
+module.exports = { dispatchToTlpPos, isTlpPosConnected };
