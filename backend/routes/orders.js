@@ -141,12 +141,14 @@ router.post('/:id/send-to-tlp-pos', auth, async (req, res) => {
     const result = await dispatchToTlpPos(db, order.booking_ref || order.id, req.user.tenant_id, !!order.booking_ref);
     const MESSAGES = {
       sent: 'Sent to LaundroDesk.',
+      already_sent: 'Already sent. This order is already in LaundroDesk.',
       not_paid: 'This order is not paid yet, so it cannot be sent.',
       not_machine_wash: 'Only machine-wash orders are sent to LaundroDesk.',
       failed: result.message ? `Could not reach LaundroDesk: ${result.message}` : 'Could not reach LaundroDesk.',
       not_connected: 'Not connected to LaundroDesk.',
     };
-    res.status(result.status === 'sent' ? 200 : 422).json({ ok: result.status === 'sent', status: result.status, message: MESSAGES[result.status] });
+    const ok = result.status === 'sent' || result.status === 'already_sent';
+    res.status(ok ? 200 : 422).json({ ok, status: result.status, message: MESSAGES[result.status] });
   } catch (err) {
     console.error('[send-to-tlp-pos]', err);
     res.status(500).json({ error: 'Internal server error' });

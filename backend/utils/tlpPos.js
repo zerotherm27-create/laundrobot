@@ -23,7 +23,7 @@ const pick = (selections, re) => selections.find(f => re.test(String(f?.label ??
 // isByBookingRef: true for Xendit BKG-ref path; false for single-order paths
 //
 // Never throws: errors are logged and returned. Payment confirmation must never fail because TLP POS is down or misconfigured.
-// Resolves to { status: 'sent' | 'not_connected' | 'not_paid' | 'not_machine_wash' | 'failed', message? }
+// Resolves to { status: 'sent' | 'already_sent' | 'not_connected' | 'not_paid' | 'not_machine_wash' | 'failed', message? }
 // (automatic callers ignore the result; the "Send to LaundroDesk" button shows it).
 const isTlpPosConnected = () => !!(process.env.TLP_POS_IMPORT_URL && process.env.TLP_POS_IMPORT_TOKEN);
 
@@ -117,6 +117,12 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
       const text = await res.text().catch(() => '');
       console.error(`[tlp-pos] dispatch failed ${res.status}: ${text}`);
       return { status: 'failed', message: `LaundroDesk answered ${res.status}` };
+    }
+    // LaundroDesk answers { skipped: true, reason: 'already imported' } when it already has this booking.
+    const answer = await res.json().catch(() => ({}));
+    if (answer?.skipped && answer.reason === 'already imported') {
+      console.log(`[tlp-pos] order ${payload.id} was already in LaundroDesk`);
+      return { status: 'already_sent' };
     }
     console.log(`[tlp-pos] dispatched order ${payload.id} (${services.length} service line(s))`);
     return { status: 'sent' };
