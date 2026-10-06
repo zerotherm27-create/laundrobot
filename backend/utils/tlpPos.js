@@ -9,6 +9,11 @@ const readSelections = (raw) => {
     return [];
   }
 };
+// Only machine-wash orders go to TLP POS. That means a service tagged as a washer/dryer with a cycle length, or one whose
+// name or chosen options say "full service" / "machine wash". Everything else (handwash, dry cleaning, fold, ...) stays in
+// LaundroBot. Keep this rule in step with PACKAGE_RULES in TLP POS (api/_laundrobot.js).
+const MACHINE_WASH = /full service|machine wash/i;
+
 const pick = (selections, re) => selections.find(f => re.test(String(f?.label ?? '')))?.value;
 
 // Dispatch a paid LaundroBot booking to TLP POS's /api/orders/import endpoint.
@@ -45,8 +50,7 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
 
     // One service entry per order row. A row can hold several bags
     // ("Quantity: 2"); TLP POS turns that into one load per bag and splits the price.
-    // Every paid service is sent, even ones not tagged as a washer/dryer: TLP POS recognises the machine-wash
-    // order types itself and ignores everything else (handwash, dry cleaning, ...).
+    // Only machine-wash services are sent (see MACHINE_WASH above): other orders never leave LaundroBot.
     const services = orders
       .map(o => {
         const selections = readSelections(o.custom_selections);
@@ -71,7 +75,8 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
           // Weight in kg, when the customer entered one.
           ...(o.weight != null && Number(o.weight) > 0 ? { weightKg: Number(o.weight) } : {}),
         };
-      });
+      })
+      .filter(svc => (svc.kind && svc.durationMinutes) || MACHINE_WASH.test([svc.serviceName, svc.size, ...(svc.options ?? [])].join(' ')));
 
     if (services.length === 0) return;
 
