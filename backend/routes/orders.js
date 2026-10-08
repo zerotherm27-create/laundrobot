@@ -126,7 +126,11 @@ router.get('/booking/:ref/payment-status', auth, async (req, res) => {
 
 // GET whether this LaundroBot is connected to LaundroDesk (decides if the "Send to LaundroDesk" button is active)
 router.get('/tlp-pos/status', auth, (req, res) => {
-  res.json({ connected: isTlpPosConnected() });
+  let appUrl = process.env.LAUNDRODESK_APP_URL || null;
+  if (!appUrl && process.env.TLP_POS_IMPORT_URL) {
+    try { appUrl = new URL(process.env.TLP_POS_IMPORT_URL).origin; } catch { appUrl = null; }
+  }
+  res.json({ connected: isTlpPosConnected(), app_url: appUrl });
 });
 
 // POST send one paid order (or its whole booking) to LaundroDesk by hand. Safe to repeat: LaundroDesk ignores orders it already has.

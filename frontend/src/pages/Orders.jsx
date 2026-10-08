@@ -242,7 +242,8 @@ export default function Orders() {
   // "Send to LaundroDesk" button: active only when this LaundroBot is connected to LaundroDesk
   const [tlpConnected, setTlpConnected] = useState(false);
   const [tlpSending, setTlpSending] = useState(false);
-  useEffect(() => { getTlpPosStatus().then(r => setTlpConnected(!!r.data?.connected)).catch(() => setTlpConnected(false)); }, []);
+  const [tlpAppUrl,    setTlpAppUrl]    = useState(null);
+  useEffect(() => { getTlpPosStatus().then(r => { setTlpConnected(!!r.data?.connected); setTlpAppUrl(r.data?.app_url || null); }).catch(() => setTlpConnected(false)); }, []);
 
   const loadActive = useCallback(() => {
     setLoading(true);
@@ -774,7 +775,12 @@ export default function Orders() {
                           setTlpSending(true);
                           try {
                             const { data } = await sendToTlpPos(selected.id);
-                            toast(data.message || 'Sent to LaundroDesk.', 'success');
+                            if (tlpAppUrl) {
+                              const open = await confirm({ title: 'Open LaundroDesk?', message: data.message || 'Sent to LaundroDesk.', confirmLabel: 'Open LaundroDesk', cancelLabel: 'Not now' });
+                              if (open) window.open(tlpAppUrl, '_blank', 'noopener');
+                            } else {
+                              toast(data.message || 'Sent to LaundroDesk.', 'success');
+                            }
                           } catch (e) {
                             toast(e.response?.data?.message || e.response?.data?.error || 'Could not send to LaundroDesk.');
                           }
