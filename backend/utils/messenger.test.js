@@ -114,3 +114,31 @@ test('drop-off customer emails receive the isDropoff flag', () => {
   assert.match(xenditSrc, /isDropoff: orders\.some/, 'xendit.js must pass isDropoff to sendCustomerPaymentEmail');
   assert.match(ordersSrc, /isDropoff: order\.is_dropoff/, 'confirm-qr-payment must pass isDropoff to sendCustomerPaymentEmail');
 });
+
+// ── Payment confirmations must survive the 24h window ──
+// A plain button template is a RESPONSE send; Meta rejects it with error 10 when the
+// customer's last message is >24h old, so payment confirmations to returning web
+// customers silently never arrived. They now fall back to the utility template.
+test('sendButtonsWithFallback falls back to the utility template on error 10', () => {
+  const fnBody = src.split('async function sendButtonsWithFallback')[1]?.split('\nasync function')[0] || '';
+  assert.match(fnBody, /code === 10/, 'must detect the outside-24h-window error');
+  assert.match(fnBody, /sendUtilityTemplate\(/, 'must fall back to the utility template');
+  assert.match(fnBody, /throw err/, 'other errors must still propagate');
+});
+
+test('payment confirmations (Xendit webhook + confirm-qr-payment) use the fallback sender', () => {
+  const webhook = fs.readFileSync(path.join(__dirname, '..', 'webhooks', 'xendit.js'), 'utf8');
+  const orders = fs.readFileSync(path.join(__dirname, '..', 'routes', 'orders.js'), 'utf8');
+  assert.match(webhook, /sendButtonsWithFallback\(tenant\.fb_page_id/);
+  assert.doesNotMatch(webhook, /\bsendButtons\(tenant/);
+  assert.match(orders, /sendButtonsWithFallback\(tenant\.fb_page_id/);
+});
+
+test('verify-payment notifies the customer through the shared fallback sender', () => {
+  const orders = fs.readFileSync(path.join(__dirname, '..', 'routes', 'orders.js'), 'utf8');
+  const route = orders.split("router.post('/:id/verify-payment'")[1]?.split("router.post('/:id/send-invoice'")[0] || '';
+  assert.match(route, /notifyPaymentMessenger\(/, 'verify-payment marks the booking paid and must tell the customer');
+  assert.match(route, /sendCustomerPaymentEmail\(/);
+  const helper = orders.split('async function notifyPaymentMessenger')[1]?.split('\n// POST verify Xendit')[0] || '';
+  assert.match(helper, /sendButtonsWithFallback\(tenant\.fb_page_id/);
+});

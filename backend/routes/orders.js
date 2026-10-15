@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { randomUUID } = require('crypto');
 const auth = require('../middleware/auth');
 const db = require('../db');
-const { sendTaggedMessage, sendStatusUpdate, sendButtons, shopLocationText } = require('../utils/messenger');
+const { sendTaggedMessage, sendStatusUpdate, sendButtons, sendButtonsWithFallback, shopLocationText } = require('../utils/messenger');
 const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
@@ -963,6 +963,38 @@ router.patch('/:id/refund', auth, async (req, res) => {
   }
 });
 
+// Messenger "payment confirmed" message, shared by confirm-qr-payment and verify-payment.
+// Falls back to the utility template when the customer is outside the 24h window.
+async function notifyPaymentMessenger(tenantId, { fbId, customerName, bookingRef, total, isDropoff }) {
+  const { rows: [tenant] } = await db.query(
+    `SELECT name, fb_page_id, fb_page_access_token, contact_number, notification_email, shop_address FROM tenants WHERE id=$1`,
+    [tenantId]
+  );
+  if (!tenant?.fb_page_access_token) return;
+  // Drop-off customers bring the laundry in themselves — tell them where.
+  const msg = isDropoff
+    ? `✅ Payment Confirmed! You're all set.\n\n` +
+      `Hi ${customerName || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
+      `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
+      `You can now drop off your laundry at our shop on your scheduled date. See you soon! 🧺\n\n` +
+      shopLocationText(tenant)
+    : `✅ Payment Confirmed!\n\n` +
+      `Hi ${customerName || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
+      `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
+      `We'll check your order for confirmation.\n\n` +
+      `For concerns, reach out to us:\n` +
+      `📧 Email: ${tenant.notification_email || 'hello@laundrobot.app'}\n` +
+      (tenant.contact_number ? `📱 Contact: ${tenant.contact_number}` : '');
+  const appUrl = process.env.APP_URL;
+  const bookBtn = appUrl
+    ? { type: 'web_url', title: '🛒 Book Again', url: `${appUrl}/book/${tenantId}`, webview_height_ratio: 'full', messenger_extensions: true }
+    : { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' };
+  await sendButtonsWithFallback(tenant.fb_page_id, tenant.fb_page_access_token, fbId, msg, [
+    bookBtn,
+    { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
+  ], customerName || 'there', bookingRef, 'paid and confirmed');
+}
+
 // POST verify Xendit payment and mark order as paid if confirmed
 router.post('/:id/verify-payment', auth, async (req, res) => {
   try {
@@ -1028,6 +1060,35 @@ router.post('/:id/verify-payment', auth, async (req, res) => {
     // Dispatch to TLP POS (fire-and-forget — never block manual payment confirmation)
     dispatchToTlpPos(db, ref, req.user.tenant_id, !!order.booking_ref)
       .catch(e => console.error('[tlp-pos]', e.message));
+
+    // Tell the customer. This route only runs when the Xendit webhook did not already
+    // mark the booking paid, so nobody has been notified yet. Never fail the confirm.
+    try {
+      const { rows: [info] } = await db.query(
+        `SELECT c.name AS customer_name, c.email AS customer_email, c.fb_id,
+                (SELECT bool_or(is_dropoff) FROM orders WHERE tenant_id=$1 AND ${order.booking_ref ? 'booking_ref=$2' : 'id=$2'}) AS is_dropoff,
+                (SELECT address FROM orders WHERE id=$3) AS address,
+                (SELECT string_agg(s.name, ', ') FROM orders o2 LEFT JOIN services s ON s.id=o2.service_id
+                  WHERE o2.tenant_id=$1 AND ${order.booking_ref ? 'o2.booking_ref=$2' : 'o2.id=$2'}) AS service_name
+         FROM orders o LEFT JOIN customers c ON c.id=o.customer_id
+         WHERE o.id=$3 AND o.tenant_id=$1`,
+        [req.user.tenant_id, ref, order.id]
+      );
+      const paidTotal = Number(invoiceAmount) || 0;
+      if (info) {
+        sendCustomerPaymentEmail(req.user.tenant_id, {
+          orderId: ref, customerName: info.customer_name, customerEmail: info.customer_email,
+          serviceName: info.service_name, address: info.address, total: paidTotal, isDropoff: info.is_dropoff,
+        }).catch(e => console.warn('[verify-payment] customer email failed:', e.message));
+        if (info.fb_id) {
+          await notifyPaymentMessenger(req.user.tenant_id, {
+            fbId: info.fb_id, customerName: info.customer_name, bookingRef: ref, total: paidTotal, isDropoff: info.is_dropoff,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[verify-payment] customer notify failed:', e.response?.data?.error?.message || e.message);
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('[verify-payment]', err);
@@ -1147,36 +1208,11 @@ router.post('/:id/confirm-qr-payment', auth, async (req, res) => {
     // Messenger: notify customer if they have fb_id
     if (order.fb_id) {
       try {
-        const { rows: [tenant] } = await db.query(
-          `SELECT name, fb_page_access_token, contact_number, notification_email, shop_address FROM tenants WHERE id=$1`,
-          [req.user.tenant_id]
-        );
-        if (tenant?.fb_page_access_token) {
-          // Drop-off customers bring the laundry in themselves — tell them where.
-          const msg = order.is_dropoff
-            ? `✅ Payment Confirmed! You're all set.\n\n` +
-              `Hi ${order.customer_name || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
-              `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
-              `You can now drop off your laundry at our shop on your scheduled date. See you soon! 🧺\n\n` +
-              shopLocationText(tenant)
-            : `✅ Payment Confirmed!\n\n` +
-            `Hi ${order.customer_name || 'there'}! We've received your payment for booking ${bookingRef}.\n\n` +
-            `💰 Amount Paid: ₱${total.toLocaleString('en-PH')}\n\n` +
-            `We'll check your order for confirmation.\n\n` +
-            `For concerns, reach out to us:\n` +
-            `📧 Email: ${tenant.notification_email || 'hello@laundrobot.app'}\n` +
-            (tenant.contact_number ? `📱 Contact: ${tenant.contact_number}` : '');
-          const appUrl = process.env.APP_URL;
-          const bookBtn = appUrl
-            ? { type: 'web_url', title: '🛒 Book Again', url: `${appUrl}/book/${req.user.tenant_id}`, webview_height_ratio: 'full', messenger_extensions: true }
-            : { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' };
-          await sendButtons(tenant.fb_page_access_token, order.fb_id, msg, [
-            bookBtn,
-            { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-          ]);
-        }
+        await notifyPaymentMessenger(req.user.tenant_id, {
+          fbId: order.fb_id, customerName: order.customer_name, bookingRef, total, isDropoff: order.is_dropoff,
+        });
       } catch (e) {
-        console.warn('[confirm-qr-payment] messenger failed:', e.message);
+        console.warn('[confirm-qr-payment] messenger failed:', e.response?.data?.error?.message || e.message);
       }
     }
 

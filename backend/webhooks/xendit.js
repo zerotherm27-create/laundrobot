@@ -2,7 +2,7 @@ const router = require('express').Router();
 const crypto = require('crypto');
 const db = require('../db');
 const { sendPaidOrderEmail, sendCustomerPaymentEmail, sendEmail } = require('../utils/email');
-const { sendMessage, sendButtons, shopLocationText } = require('../utils/messenger');
+const { sendMessage, sendButtons, sendButtonsWithFallback, shopLocationText } = require('../utils/messenger');
 const { getInvoiceStatus } = require('../utils/xendit');
 const { resolveBookingTenant } = require('../utils/xenditTenant');
 const { dispatchToTlpPos } = require('../utils/tlpPos');
@@ -239,7 +239,7 @@ router.post('/', async (req, res) => {
             // notification_email is used in the message below — it was missing from
             // this SELECT, so every customer got the 'hello@laundrobot.app' fallback
             // instead of their own shop's support address.
-            `SELECT name, fb_page_access_token, contact_number, shop_address, notification_email FROM tenants WHERE id=$1`,
+            `SELECT name, fb_page_id, fb_page_access_token, contact_number, shop_address, notification_email FROM tenants WHERE id=$1`,
             [first.tenant_id]
           );
           if (tenant?.fb_page_access_token) {
@@ -261,10 +261,10 @@ router.post('/', async (req, res) => {
             const bookBtn = appUrl
               ? { type: 'web_url', title: '🛒 Book Again', url: `${appUrl}/book/${first.tenant_id}`, webview_height_ratio: 'full', messenger_extensions: true }
               : { type: 'postback', title: '🛒 Book Again', payload: 'BOOK' };
-            sendButtons(tenant.fb_page_access_token, first.fb_id, msg, [
+            sendButtonsWithFallback(tenant.fb_page_id, tenant.fb_page_access_token, first.fb_id, msg, [
               bookBtn,
               { type: 'postback', title: '📦 My Orders', payload: 'MY_ORDERS' },
-            ]).catch(e => {
+            ], first.customer_name || 'there', first.booking_ref || first.id, 'paid and confirmed').catch(e => {
               console.warn('[xendit webhook] messenger notify failed:', e.response?.data?.error?.message || e.message);
             });
           }

@@ -181,6 +181,25 @@ async function sendButtons(token, recipientId, text, buttons) {
   });
 }
 
+// Button message with the same outside-24h fallback as sendStatusUpdate. A plain
+// button template is a RESPONSE send, which Meta rejects with error 10 once the
+// customer's last message is >24h old, so payment confirmations silently never
+// arrived. Buttons can't go in a utility template, so the fallback sends the
+// short template line instead.
+async function sendButtonsWithFallback(pageId, token, recipientId, text, buttons, customerName, orderRef, statusPhrase) {
+  try {
+    await sendButtons(token, recipientId, text, buttons);
+  } catch (err) {
+    const e = err.response?.data?.error;
+    if (e?.code === 10 && pageId) {
+      console.log(`[sendButtonsWithFallback] outside 24h window for ${recipientId}; trying utility template`);
+      await sendUtilityTemplate(pageId, token, recipientId, customerName, orderRef, statusPhrase);
+    } else {
+      throw err;
+    }
+  }
+}
+
 // Quick replies — appear as tappable chips above keyboard (max 13, title max 20 chars)
 async function sendQuickReplies(token, recipientId, text, replies) {
   await post(token, {
@@ -249,4 +268,4 @@ function shopLocationText(tenant) {
   return `🏪 Where to drop off:\n${lines.join('\n')}\n\n`;
 }
 
-module.exports = { sendMessage, sendTaggedMessage, sendHumanAgentMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendQuickReplies, sendCatalog, sendTyping, shopLocationText };
+module.exports = { sendMessage, sendTaggedMessage, sendHumanAgentMessage, sendStatusUpdate, sendUtilityTemplate, sendButtons, sendButtonsWithFallback,sendQuickReplies, sendCatalog, sendTyping, shopLocationText };
