@@ -718,6 +718,26 @@ router.post('/:tenantId/orders', async (req, res) => {
       ).catch(() => {});
     }
 
+    // The same person can start a cart in Messenger (cart keyed by their PSID) and finish the
+    // booking in a browser with no PSID, or get matched to an older customer row. Mark carts
+    // belonging to any customer of this shop with the same phone or email converted too, or
+    // "complete your booking" reminders keep firing after they have booked.
+    {
+      const orderPhone = phone?.trim() || null;
+      const orderEmail = email?.trim().toLowerCase() || null;
+      if (orderPhone || orderEmail) {
+        await db.query(
+          `UPDATE carts SET converted=TRUE, converted_at=NOW()
+           WHERE tenant_id=$1 AND converted=FALSE AND fb_user_id IN (
+             SELECT fb_id FROM customers
+             WHERE tenant_id=$1 AND fb_id IS NOT NULL
+               AND (($2::text IS NOT NULL AND phone=$2) OR ($3::text IS NOT NULL AND lower(email)=$3))
+           )`,
+          [req.params.tenantId, orderPhone, orderEmail]
+        ).catch(() => {});
+      }
+    }
+
     // Messenger confirmation to customer
     if (effectiveFbId) {
       try {

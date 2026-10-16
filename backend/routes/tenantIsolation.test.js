@@ -42,3 +42,19 @@ test('pickup confirmation asks the customer to settle payment when a Pay Now lin
   // the "kindly settle" line must come before the generic fallback
   assert.ok(block.indexOf('Kindly settle') < block.indexOf("We'll be in touch to confirm your pickup."));
 });
+
+// ── Cart reminders must stop once the same person books ──
+// A cart started in Messenger (keyed by PSID) was left unconverted when the booking was
+// finished in a browser with no PSID / matched to an older customer row, so "complete your
+// booking" reminders kept firing after the customer had booked and paid (BKG-000302).
+test('public order creation converts carts of any same-shop customer with the same phone or email', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, 'public.js'), 'utf8');
+  const stmt = src.split("UPDATE carts SET converted=TRUE, converted_at=NOW()")[1]?.split('.catch')[0] || '';
+  assert.ok(stmt, 'order creation must run the phone/email cart-conversion UPDATE');
+  assert.match(stmt, /tenant_id=\$1 AND converted=FALSE/, 'must be tenant-scoped and only touch open carts');
+  assert.match(stmt, /fb_user_id IN \(\s*SELECT fb_id FROM customers\s*WHERE tenant_id=\$1/, 'customer lookup must also be tenant-scoped');
+  assert.match(stmt, /phone=\$2/);
+  assert.match(stmt, /lower\(email\)=\$3/);
+});
