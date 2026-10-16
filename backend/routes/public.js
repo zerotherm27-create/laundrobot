@@ -557,9 +557,22 @@ router.post('/:tenantId/orders', async (req, res) => {
       );
       customerId = c.id;
     } else {
+      // Phone alone must never hand a booking someone else's Messenger identity: only web-only
+      // customers (fb_id IS NULL) are matched, otherwise the order was linked to an old chat
+      // contact's PSID and every notification (payment, COMPLETED…) went to that stranger
+      // (BKG-000302). Shops let customers without a local number use the SHOP's own number,
+      // so for that number the phone says nothing about who the customer is — require the
+      // same email as well, otherwise create a new customer.
+      const { rows: [shop] } = await client.query('SELECT contact_number FROM tenants WHERE id=$1', [req.params.tenantId]);
+      const last10 = (v) => String(v || '').replace(/\D/g, '').slice(-10);
+      const usesShopNumber = !!shop?.contact_number && last10(shop.contact_number) === last10(phone);
+      const matchEmail = email?.trim().toLowerCase() || null;
       const { rows: [existing] } = await client.query(
-        'SELECT id FROM customers WHERE tenant_id=$1 AND phone=$2',
-        [req.params.tenantId, phone.trim()]
+        `SELECT id FROM customers
+         WHERE tenant_id=$1 AND phone=$2 AND fb_id IS NULL
+           AND (NOT $3::boolean OR ($4::text IS NOT NULL AND lower(email)=$4))
+         ORDER BY created_at LIMIT 1`,
+        [req.params.tenantId, phone.trim(), usesShopNumber, matchEmail]
       );
       if (existing) {
         await client.query(
@@ -723,8 +736,15 @@ router.post('/:tenantId/orders', async (req, res) => {
     // belonging to any customer of this shop with the same phone or email converted too, or
     // "complete your booking" reminders keep firing after they have booked.
     {
-      const orderPhone = phone?.trim() || null;
+      let orderPhone = phone?.trim() || null;
       const orderEmail = email?.trim().toLowerCase() || null;
+      // The shop's own number is a placeholder for customers without a local number — it
+      // identifies nobody, so match those bookings on email only.
+      try {
+        const { rows: [shop] } = await db.query('SELECT contact_number FROM tenants WHERE id=$1', [req.params.tenantId]);
+        const last10 = (v) => String(v || '').replace(/\D/g, '').slice(-10);
+        if (shop?.contact_number && last10(shop.contact_number) === last10(orderPhone)) orderPhone = null;
+      } catch { /* fall through with the phone */ }
       if (orderPhone || orderEmail) {
         await db.query(
           `UPDATE carts SET converted=TRUE, converted_at=NOW()

@@ -58,3 +58,29 @@ test('public order creation converts carts of any same-shop customer with the sa
   assert.match(stmt, /phone=\$2/);
   assert.match(stmt, /lower\(email\)=\$3/);
 });
+
+// ── A phone match must never hand a web booking someone else's Messenger identity ──
+// BKG-000302: booked in a browser (no PSID); the phone-only lookup attached it to an old chat
+// contact's customer row, so payment/COMPLETED messages went to a stranger. Shops also let
+// customers without a local number use the shop's own number, so that number must not match
+// on phone alone.
+test('public order customer lookup (no fb_id) only matches web-only customers and is safe for the shop number', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, 'public.js'), 'utf8');
+  const branch = src.split('Phone alone must never hand a booking')[1]?.split("if (existing)")[0] || '';
+  assert.ok(branch, 'no-fb_id customer lookup must exist');
+  assert.match(branch, /tenant_id=\$1 AND phone=\$2 AND fb_id IS NULL/, 'must only match customers without a Messenger identity, tenant-scoped');
+  assert.match(branch, /ORDER BY created_at LIMIT 1/, 'must be deterministic');
+  assert.match(branch, /contact_number/, 'must detect the shop\'s own number used as a placeholder');
+  assert.match(branch, /lower\(email\)=\$4/, 'shop-number bookings must also match on email');
+});
+
+test('cart conversion ignores the shop\'s own number as an identity (email only)', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, 'public.js'), 'utf8');
+  const block = src.split('belonging to any customer of this shop with the same phone or email')[1]?.split('// Messenger confirmation to customer')[0] || '';
+  assert.match(block, /contact_number/);
+  assert.match(block, /orderPhone = null/);
+});
