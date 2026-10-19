@@ -15,6 +15,17 @@ async function runCartReminder() {
         AND ca.reminder_count < 5
         AND ca.fb_user_id IS NOT NULL
         AND t.active = TRUE
+        -- Safety net independent of the converted flag: never remind someone who already has a
+        -- booking (paid or not, any channel) made after the cart was started.
+        AND NOT EXISTS (
+          SELECT 1 FROM orders o
+          JOIN customers cu ON cu.id = o.customer_id
+          WHERE cu.tenant_id = ca.tenant_id
+            AND cu.fb_id = ca.fb_user_id
+            AND o.tenant_id = ca.tenant_id
+            AND o.created_at > ca.created_at
+            AND o.status != 'CANCELLED'
+        )
         AND (
           (ca.reminder_count = 0 AND ca.created_at  < NOW() - INTERVAL '2 hours') OR
           (ca.reminder_count = 1 AND ca.reminded_at < NOW() - INTERVAL '4 hours') OR
