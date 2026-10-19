@@ -44,7 +44,9 @@ async function runCartReminder() {
         const listLine = serviceNames.length ? `\n\n🧺 ${serviceNames.join(', ')}` : '';
 
         const appUrl = process.env.APP_URL;
-        const bookUrl = appUrl ? `${appUrl}/book/${cart.tenant_id}` : null;
+        // ?psid= ties the web booking back to this Messenger user, so order creation marks this
+        // cart converted and the reminders stop (every other booking link already carries it).
+        const bookUrl = appUrl ? `${appUrl}/book/${cart.tenant_id}?psid=${cart.fb_user_id}` : null;
         const message = `Hi! 👋 We noticed you started booking with ${cart.shop_name} but didn't finish.${listLine}\n\nIt only takes a minute — tap below to complete your booking!`;
 
         const includeSubscribeBtn = cart.reminder_count < 3;
