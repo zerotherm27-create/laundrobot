@@ -136,6 +136,20 @@ router.post('/signup', async (req, res) => {
       return res.status(409).json({ error: 'An account with that email already exists.' });
     }
 
+    // Same shop name = same shop. A second email must not mint a second free trial (LABADAY, 2026-10-14).
+    // Compared on letters+digits only, so "Laba Day" / "laba-day" collide. Sub-branches are created by
+    // POST /tenants/branch, not here, so they may still share a name.
+    const { rows: nameTaken } = await client.query(
+      `SELECT 1 FROM tenants WHERE lower(regexp_replace(name, '[^a-zA-Z0-9]', '', 'g')) = $1 LIMIT 1`,
+      [business_name.toLowerCase().replace(/[^a-z0-9]/g, '')]
+    );
+    if (nameTaken.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'A shop with this name already exists. If it is yours, please log in with your original email, or contact support.',
+      });
+    }
+
     // IP trial limit — max 5 trial accounts per IP (email confirmation is now the main guard, so shared networks get more room)
     if (signupIp && signupIp !== 'unknown') {
       const { rows: ipTrials } = await client.query(

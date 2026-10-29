@@ -72,3 +72,45 @@ test('login normalizes email before looking up the user', async () => {
   delete require.cache[authPath];
   delete require.cache[dbPath];
 });
+
+test('signup rejects a shop name that already exists under another email', async () => {
+  const dbPath = require.resolve('../db');
+  const authPath = require.resolve('./auth');
+  delete require.cache[authPath];
+  const queries = [];
+  const client = {
+    query: async (sql, params) => {
+      queries.push(sql);
+      if (/lower\(regexp_replace\(name/.test(sql)) {
+        assert.equal(params[0], 'labaday');
+        return { rows: [{ '?column?': 1 }] };
+      }
+      return { rows: [] };
+    },
+    release() {},
+  };
+  require.cache[dbPath] = {
+    id: dbPath,
+    filename: dbPath,
+    loaded: true,
+    exports: { query: async () => ({ rows: [] }), pool: { connect: async () => client } },
+  };
+
+  const app = express();
+  app.use(express.json());
+  app.use('/auth', require('./auth'));
+
+  const response = await request(app, 'POST', '/auth/signup', {
+    business_name: 'Laba-Day ',
+    email: 'second@gmail.com',
+    password: 'longenough1',
+  });
+
+  assert.equal(response.status, 409);
+  assert.match(response.body.error, /shop with this name already exists/);
+  assert.ok(!queries.some(q => /INSERT INTO tenants/.test(q)), 'must not create a tenant');
+  assert.ok(queries.includes('ROLLBACK'));
+
+  delete require.cache[authPath];
+  delete require.cache[dbPath];
+});
