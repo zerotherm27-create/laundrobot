@@ -40,9 +40,13 @@ export default function HumanHandoffNotifier({ tenantId, onView }) {
       } catch { /* transient — next poll retries */ }
     }
 
+    // Skip polls while the tab is hidden (each one is a DB read = Supabase egress); catch up the moment
+    // it is visible again. Push notifications cover staff who aren't looking at the tab.
+    const tick = () => { if (document.visibilityState === 'visible') poll(); };
     poll();
-    const timer = setInterval(poll, POLL_MS);
-    return () => { cancelled = true; clearInterval(timer); };
+    const timer = setInterval(tick, POLL_MS);
+    document.addEventListener('visibilitychange', tick);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
   }, [tenantId, toast, onView]);
 
   return null;

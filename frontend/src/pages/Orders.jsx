@@ -7,6 +7,7 @@ import { Icon } from '../components/Icons.jsx';
 import { StatusBadge, STATUS_COLORS, STATUS_BG } from '../components/StatusBadge.jsx';
 import CreateOrderModal from './CreateOrderModal.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import usePolling from '../hooks/usePolling.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
@@ -262,12 +263,8 @@ export default function Orders() {
 
   useEffect(() => { loadActive(); }, [loadActive]);
 
-  useEffect(() => {
-    const t = setInterval(() => {
-      getOrders().then(r => setOrders(r.data)).catch(() => {});
-    }, 30000);
-    return () => clearInterval(t);
-  }, []);
+  // Pauses while the tab is hidden (every poll is a DB read = Supabase egress).
+  usePolling(() => { getOrders().then(r => setOrders(r.data)).catch(() => {}); }, 60000);
 
   function switchToArchives() {
     setView('archives');

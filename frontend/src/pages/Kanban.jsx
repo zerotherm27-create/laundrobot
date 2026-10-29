@@ -8,6 +8,7 @@ import { Icon } from '../components/Icons.jsx';
 import { orderServicePrice, orderRowTotal, bookingGrandTotal } from '../utils/orderPrice.js';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { useModalA11y } from '../hooks/useModalA11y.js';
+import usePolling from '../hooks/usePolling.js';
 import { useConfirm } from '../context/ConfirmContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
@@ -152,11 +153,11 @@ export default function Kanban() {
   useEffect(() => {
     loadOrders();
     getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
-    const t = setInterval(() => {
-      getOrders().then(r => setOrders(r.data)).catch(() => {});
-    }, 30000);
-    return () => clearInterval(t);
   }, []);
+
+  // Live board refresh. Pauses while the tab is hidden (egress); 60s is plenty — status moves made here
+  // update local state immediately.
+  usePolling(() => { getOrders().then(r => setOrders(r.data)).catch(() => {}); }, 60000);
 
   async function moveStatus(orderIds, status) {
     const ids = Array.isArray(orderIds) ? orderIds : [orderIds];

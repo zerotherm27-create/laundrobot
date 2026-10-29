@@ -122,3 +122,11 @@ test('ad-click referral events are recorded silently (no menu send that Meta rej
   assert.match(src, /handleOptin\(tenant, event\.sender\.id, event\.referral\.ref, \{ silent: fromAd \}\)/);
   assert.match(src, /if \(silent\) return;/);
 });
+
+test('webhook tenant lookups never pull the base64 image columns (DB egress per inbound message)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'messenger.js'), 'utf8');
+  assert.doesNotMatch(src, /SELECT \* FROM tenants/);
+  const cols = src.match(/WEBHOOK_TENANT_COLS = '([^']+)'/)[1].split(',').map(c => c.trim());
+  for (const heavy of ['logo_url', 'qr_image_url', 'maya_qr_url']) assert.ok(!cols.includes(heavy), heavy);
+  assert.equal((src.match(/FROM tenants WHERE (ig_user_id|fb_page_id)/g) || []).length, 2);
+});

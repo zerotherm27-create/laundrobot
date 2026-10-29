@@ -12,6 +12,11 @@ const { createInvoice } = require('../utils/xendit');
 const { askGemini } = require('../utils/gemini');
 const { sendPushToTenant } = require('../utils/push');
 
+// Every inbound message loads the tenant. Leave out the base64 image columns (logo_url, qr_image_url,
+// maya_qr_url: ~40 KB per shop, up to 276 KB) — nothing in the webhook path reads them, and they made
+// every message cost that much DB egress. Add a column here if a handler starts needing it.
+const WEBHOOK_TENANT_COLS = 'id, name, fb_page_id, fb_page_access_token, xendit_api_key, active, created_at, notification_email, contact_number, store_open, store_close, booking_cutoff, minimum_order, ai_enabled, ai_instructions, shop_address, shop_lat, shop_lng, delivery_note, delivery_radius, ig_user_id, ai_pause_hours, trial_ends_at, subscription_status, subscription_paid_until, subscription_plan, custom_domain, white_label, plan, payment_mode, ai_daily_cap, ai_daily_used, ai_daily_reset, open_days, google_review_link, review_cooldown_days, signup_ip, primary_tenant_id, announcement, announcement_enabled';
+
 // IG sends go through the PAGE's /messages edge (Facebook-login flavor) —
 // pass the fb_page_id, NOT the ig_user_id (see utils/instagram.js).
 function makeSends(channel, token, pageId) {
@@ -90,7 +95,7 @@ router.post('/', async (req, res) => {
         const igId = e.id;
         console.log('[ig-webhook] entry id:', igId, '| messaging events:', e.messaging?.length ?? 0);
         const { rows: [tenant] } = await db.query(
-          'SELECT * FROM tenants WHERE ig_user_id = $1 AND active = TRUE', [igId]
+          `SELECT ${WEBHOOK_TENANT_COLS} FROM tenants WHERE ig_user_id = $1 AND active = TRUE`, [igId]
         );
         if (!tenant) {
           console.log('[ig-webhook] NO TENANT MATCHED for ig_user_id:', igId, '— check that this matches the ig_user_id in your tenant settings');
@@ -126,7 +131,7 @@ router.post('/', async (req, res) => {
     for (const e of entry) {
       const pageId = e.id;
       const { rows: [tenant] } = await db.query(
-        'SELECT * FROM tenants WHERE fb_page_id = $1 AND active = TRUE', [pageId]
+        `SELECT ${WEBHOOK_TENANT_COLS} FROM tenants WHERE fb_page_id = $1 AND active = TRUE`, [pageId]
       );
       if (!tenant) { console.log('[webhook] no tenant for page:', pageId); continue; }
       if (!tenant.fb_page_access_token) { console.warn('[webhook] tenant has no page access token:', tenant.id); continue; }
