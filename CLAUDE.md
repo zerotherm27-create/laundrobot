@@ -143,6 +143,13 @@ Multi-tenant SaaS for laundry shops: Messenger/Instagram booking bot + admin das
 - **Pending sync banner** shows above the Walk-in header when there are queued orders, with a manual "Sync now" button and count.
 
 ## Inventory formula matching
+## Finance → Dashboard tab (rebuilt 2026-11-04)
+- **Layout:** KPI row (Revenue + growth, Gross margin, then Net cash movement / Operating profit / Net profit margin — or Orders / Avg per order / Outstanding when the period has no expense data) → shared `TrendChart` (12 months) + revenue-vs-target bar → "Unpaid orders by age" (`HorizBars`) next to "Cash and break-even" → Today's Sales table. Lives in `Finance.jsx` `Dashboard()`; numbers come from `GET /finance/dashboard` + `monthly-summary`, never recomputed in the page.
+- **There is NO cash balance, payables, debt or EBITDA in the data** (a generic "financial dashboard" checklist asks for them — don't invent them). "Operating profit" = net profit (gross profit − monthly expenses); "Net cash movement" = collected − expenses. A real Cash Position/runway would need an owner-entered balance table (prod migration, founder's yes) — deliberately not built.
+- `/finance/dashboard` now also takes `period=quarter|ytd` and returns `grossMargin`, `revenueGrowth`, `previous`, `arAging`/`arTotal`. **Growth compares an in-progress period with the SAME number of days of the previous one** (`previous.sameDaysOnly`), otherwise early-month growth is always a big fake drop. `arAging` is a right-now snapshot (unpaid, non-cancelled, age in Manila days: 0–1 / 2–3 / 4–7 / 8+) and ignores the period; TLP really does have 8+ day unpaid bookings, so auto-cancel does not clear them all.
+- `TrendChart` leaves months with no activity off the profit line (future months used to plunge to ₱0) and scales with card width (fixed height letterboxed it).
+- KPI cards show whole pesos (`PESO0`); tables keep centavos. Do not paste an AI/ChatGPT/Gemini-generated dashboard over this — it will use guessed column names (`is_paid`, `order_status`, `order_date`) and a wrong tech stack.
+
 - **Trim + case-insensitive matching** is required for formula deduction in `backend/routes/inventory.js` `deductInventory()`. Service custom field labels (e.g. `'QUANTITY'`, `'Quantity'`) must be matched with `.toLowerCase()` + `.trim()`. Variant label/value strings from both the formula and the order must be `.trim()`-compared.
 - **Mismatch warning badge** in `frontend/src/pages/Inventory.jsx` — when a saved formula's variant label/value no longer matches the service's current custom fields, a ⚠️ badge is shown so staff know the formula needs updating.
 

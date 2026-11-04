@@ -52,7 +52,7 @@ router.get('/dashboard', auth, async (req, res) => {
     const tid = req.user.tenant_id;
     if (!tid) return res.status(400).json({ error: 'No shop selected' });
     const today = manilaToday();
-    const period = ['day', 'week', 'month', 'year', 'all'].includes(req.query.period) ? req.query.period : 'month';
+    const period = ['day', 'week', 'month', 'quarter', 'ytd', 'year', 'all'].includes(req.query.period) ? req.query.period : 'month';
     const year = parseInt(req.query.year) || parseInt(today.slice(0, 4));
     const month = parseInt(req.query.month) || parseInt(today.slice(5, 7));
     if (year < 2020 || year > 2100 || month < 1 || month > 12) {
@@ -66,6 +66,46 @@ router.get('/dashboard', auth, async (req, res) => {
     if (period === 'week')  { to = date; from = addDays(date, -6); label = `${from} to ${to}`; }
     if (period === 'month') { from = `${year}-${pad2(month)}-01`; to = `${year}-${pad2(month)}-${pad2(lastDayOfMonth(year, month))}`; label = `${from} to ${to}`; }
     if (period === 'year')  { from = `${year}-01-01`; to = `${year}-12-31`; label = String(year); }
+    // quarter = the calendar quarter containing the picked month; ytd = Jan 1 → today (or Dec 31 for a past year)
+    const qStart = Math.floor((month - 1) / 3) * 3 + 1;
+    if (period === 'quarter') {
+      const qEnd = qStart + 2;
+      from = `${year}-${pad2(qStart)}-01`; to = `${year}-${pad2(qEnd)}-${pad2(lastDayOfMonth(year, qEnd))}`;
+      label = `Q${Math.floor((month - 1) / 3) + 1} ${year}`;
+    }
+    if (period === 'ytd') {
+      from = `${year}-01-01`;
+      to = year === Number(today.slice(0, 4)) ? today : `${year}-12-31`;
+      label = `${from} to ${to}`;
+    }
+
+    // The equal-length period immediately before this one (for "vs previous period" growth). null for 'all'.
+    const shiftMonth = (y, m, delta) => { const t = y * 12 + (m - 1) + delta; return { y: Math.floor(t / 12), m: (t % 12) + 1 }; };
+    let prevFrom = null, prevTo = null;
+    if (period === 'day')  { prevFrom = prevTo = addDays(date, -1); }
+    if (period === 'week') { prevFrom = addDays(date, -13); prevTo = addDays(date, -7); }
+    if (period === 'month') {
+      const p = shiftMonth(year, month, -1);
+      prevFrom = `${p.y}-${pad2(p.m)}-01`; prevTo = `${p.y}-${pad2(p.m)}-${pad2(lastDayOfMonth(p.y, p.m))}`;
+    }
+    if (period === 'quarter') {
+      const s = shiftMonth(year, qStart, -3), e = shiftMonth(year, qStart, -1);
+      prevFrom = `${s.y}-${pad2(s.m)}-01`; prevTo = `${e.y}-${pad2(e.m)}-${pad2(lastDayOfMonth(e.y, e.m))}`;
+    }
+    if (period === 'year') { prevFrom = `${year - 1}-01-01`; prevTo = `${year - 1}-12-31`; }
+    if (period === 'ytd') {
+      const tm = Number(to.slice(5, 7)), td = Number(to.slice(8, 10));
+      prevFrom = `${year - 1}-01-01`; prevTo = `${year - 1}-${pad2(tm)}-${pad2(Math.min(td, lastDayOfMonth(year - 1, tm)))}`;
+    }
+
+    // A period still in progress (e.g. 4 days into November) is compared with the SAME number of days of the previous
+    // period, not all of it — otherwise growth is always a misleading big negative early in the month.
+    let prevPartial = false;
+    if (prevFrom && to && to > today && from <= today) {
+      const elapsed = Math.round((Date.parse(today) - Date.parse(from)) / 86400000);
+      const cap = addDays(prevFrom, elapsed);
+      if (cap < prevTo) { prevTo = cap; prevPartial = true; }
+    }
 
     const { rows: [rev] } = await db.query(
       `SELECT
@@ -96,16 +136,55 @@ router.get('/dashboard', auth, async (req, res) => {
          AND ($3::date IS NULL OR DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') <= $3::date)`,
       [tid, from, to]
     );
+    // Expenses are stored per calendar month, so only month-aligned periods have them (not day/week/all).
     let expenses = null;
-    if (period === 'month' || period === 'year') {
+    const expMonths = { month: [month, month], quarter: [qStart, qStart + 2], year: [1, 12],
+                        ytd: [1, to ? Number(to.slice(5, 7)) : 12] }[period];
+    if (expMonths) {
       const { rows: [exp] } = await db.query(
         `SELECT COALESCE(SUM(amount), 0)::numeric AS expenses
          FROM expenses
-         WHERE tenant_id = $1 AND year = $2 AND ($3::int IS NULL OR month = $3::int)`,
-        [tid, year, period === 'month' ? month : null]
+         WHERE tenant_id = $1 AND year = $2 AND month BETWEEN $3::int AND $4::int`,
+        [tid, year, expMonths[0], expMonths[1]]
       );
       expenses = parseFloat(exp?.expenses) || 0;
     }
+
+    // Previous period revenue → growth %. Same NET definition and Manila dates as the main query.
+    let prevRevenue = null;
+    if (prevFrom) {
+      const { rows: [pv] } = await db.query(
+        `SELECT COALESCE(SUM(${NET}), 0)::numeric AS revenue
+         FROM orders
+         WHERE tenant_id = $1 AND deleted_by IS NULL
+           AND DATE(${MNL}) >= $2::date AND DATE(${MNL}) <= $3::date`,
+        [tid, prevFrom, prevTo]
+      );
+      prevRevenue = parseFloat(pv?.revenue) || 0;
+    }
+
+    // Accounts-receivable aging: a snapshot of right now (not period-bound) — unpaid, non-cancelled orders, bucketed by
+    // age in Manila calendar days. Amount = grand total of the order row. Count = distinct bookings.
+    const { rows: arRows } = await db.query(
+      `SELECT bucket, COUNT(DISTINCT COALESCE(booking_ref, id::text))::int AS bookings,
+              COALESCE(SUM(price + COALESCE(delivery_fee,0) - COALESCE(promo_discount,0)), 0)::numeric AS amount
+       FROM (
+         SELECT id, booking_ref, price, delivery_fee, promo_discount,
+                CASE WHEN (DATE(NOW() AT TIME ZONE 'Asia/Manila') - DATE(${MNL})) <= 1 THEN 0
+                     WHEN (DATE(NOW() AT TIME ZONE 'Asia/Manila') - DATE(${MNL})) <= 3 THEN 1
+                     WHEN (DATE(NOW() AT TIME ZONE 'Asia/Manila') - DATE(${MNL})) <= 7 THEN 2
+                     ELSE 3 END AS bucket
+         FROM orders
+         WHERE tenant_id = $1 AND deleted_by IS NULL AND paid IS NOT TRUE AND status != 'CANCELLED'
+       ) u
+       GROUP BY bucket`,
+      [tid]
+    );
+    const AR_LABELS = ['0–1 days', '2–3 days', '4–7 days', '8+ days'];
+    const arAging = AR_LABELS.map((label, i) => {
+      const r = arRows.find(x => Number(x.bucket) === i);
+      return { label, bookings: r ? r.bookings : 0, amount: r ? parseFloat(r.amount) || 0 : 0 };
+    });
 
     const revenue = parseFloat(rev?.revenue) || 0;
     const loadCount = parseInt(rev?.load_count) || 0;
@@ -122,6 +201,10 @@ router.get('/dashboard', auth, async (req, res) => {
       avgRevenuePerLoad: loadCount > 0 ? revenue / loadCount : 0,
       refundTotal: parseFloat(rev?.refund_total) || 0, refundCount: parseInt(rev?.refund_count) || 0,
       cogs, grossProfit, expenses, netProfit, profitMargin,
+      grossMargin: revenue > 0 ? (grossProfit / revenue) * 100 : null,
+      previous: prevFrom ? { from: prevFrom, to: prevTo, revenue: prevRevenue, sameDaysOnly: prevPartial } : null,
+      revenueGrowth: prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : null,
+      arAging, arTotal: arAging.reduce((s, b) => s + b.amount, 0),
       year, month,
     });
   } catch (e) {

@@ -42,19 +42,24 @@ export function TrendChart({ months }) {
   const bW    = (gW - 2) / 2;
   const ys    = v => PT + plotH - Math.max(0, Math.min(parseFloat(v) || 0, maxVal) / maxVal * plotH);
 
+  // Months with no activity (future months, or before the shop started) are left off the profit line — otherwise it
+  // plunges to ₱0 for months that simply haven't happened yet.
+  const hasActivity = m => (parseFloat(m.netRevenue) || 0) > 0 || (parseFloat(m.opExpenses) || 0) > 0;
+
   // Pre-compute profit line points
   const profitPts = months.map((m, i) => {
+    if (!hasActivity(m)) return null;
     const np = parseFloat(m.netProfit) || 0;
     const cx = PL + i * bSlot + bSlot / 2;
     const cy = np >= 0 ? ys(np) : PT + plotH;
     return `${cx},${cy}`;
-  }).join(' ');
+  }).filter(Boolean).join(' ');
 
   return (
     <div style={{ position: 'relative', userSelect: 'none' }}>
       <svg
         viewBox={`0 0 ${VW} ${VH}`}
-        style={{ width: '100%', height: VH, display: 'block' }}
+        style={{ width: '100%', height: 'auto', display: 'block' }}   /* scale with the card width — a fixed height letterboxed it */
         onMouseLeave={() => setHov(null)}
       >
         {/* Grid lines + Y-axis labels */}
@@ -113,6 +118,7 @@ export function TrendChart({ months }) {
 
         {/* Net Profit dots */}
         {months.map((m, i) => {
+          if (!hasActivity(m)) return null;
           const np = parseFloat(m.netProfit) || 0;
           const cx = PL + i * bSlot + bSlot / 2;
           const cy = np >= 0 ? ys(np) : PT + plotH;

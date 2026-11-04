@@ -35,6 +35,22 @@ test('dashboard supports day/week/month/year/all in Asia/Manila and returns null
   assert.match(route, /bookingCount/);
 });
 
+test('dashboard adds quarter/ytd, growth vs previous period and AR aging — all tenant-scoped, Manila dates, no archived filter', () => {
+  const route = finance.slice(finance.indexOf("router.get('/dashboard'"), finance.indexOf("router.get('/order-history'"));
+  for (const p of ['quarter', 'ytd']) assert.ok(route.includes(`'${p}'`), `period ${p}`);
+  assert.match(route, /revenueGrowth/);
+  assert.match(route, /arAging/);
+  assert.match(route, /grossMargin/);
+  // growth query: same NET definition, tenant scoped, excludes soft-deleted
+  assert.match(route, /SELECT COALESCE\(SUM\(\$\{NET\}\), 0\)::numeric AS revenue[\s\S]*?WHERE tenant_id = \$1 AND deleted_by IS NULL/);
+  // AR query: unpaid + not cancelled, tenant scoped, soft-deleted excluded, age in Manila days
+  assert.match(route, /WHERE tenant_id = \$1 AND deleted_by IS NULL AND paid IS NOT TRUE AND status != 'CANCELLED'/);
+  assert.match(route, /NOW\(\) AT TIME ZONE 'Asia\/Manila'/);
+  assert.match(route, /sameDaysOnly/);          // an in-progress period is compared with the same number of days before
+  assert.match(route, /if \(cap < prevTo\)/);
+  assert.doesNotMatch(route.replace(/\/\/.*$/gm, ''), /archived/i);
+});
+
 test('sales-detail is tenant-scoped, excludes soft-deleted, includes archived history, and is capped', () => {
   const route = finance.slice(finance.indexOf("router.get('/sales-detail'"), finance.indexOf('// GET /finance/pricing-guide'));
   assert.match(route, /o\.tenant_id = \$1 AND o\.deleted_by IS NULL/);

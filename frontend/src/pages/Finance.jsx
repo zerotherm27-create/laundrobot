@@ -61,366 +61,365 @@ const thStyle   = { textAlign: 'left', fontSize: 12, color: '#6B7280', fontWeigh
 const tdStyle   = { fontSize: 13, color: '#111827', padding: '8px 12px', borderTop: '0.5px solid #f0f0ec' };
 const tdNum     = { ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
 
-// ─── Snapshot Chart (Revenue/Expenses bars + Profit line) ────────────────────
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+// Three tiers, top to bottom: KPI row → 12-month trend → cash & receivables. Today's sales is the drill-down.
+// Numbers come from GET /finance/dashboard (revenue, margins, growth, AR aging) + monthly-summary (trend, burn) —
+// never recomputed here, so this page can't drift from Overview / Reports / Monthly Summary.
 
-function SnapshotChart({ months, net, rev, mrg }) {
-  const [hov, setHov] = useState(null);
+const PERIODS = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['quarter', 'Quarter'], ['ytd', 'YTD'], ['year', 'Year']];
+const PREV_WORD = { day: 'yesterday', week: 'previous 7 days', month: 'last month', quarter: 'last quarter', ytd: 'same period last year', year: 'last year' };
+const GOOD = '#047857', BAD = '#DC2626', INK = '#111827', MUTED = '#6B7280';
+const AR_COLORS = ['#38a9c2', '#BA7517', '#EA580C', '#DC2626'];
+const PESO0 = n => `${Number(n || 0) < 0 ? '−' : ''}₱${Math.abs(Math.round(Number(n || 0))).toLocaleString('en-PH')}`;
+const selectStyle = { padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', background: '#fff' };
 
-  const VW = 640, VH = 220;
-  const PL = 58, PR = 12, PT = 14, PB = 28;
-  const plotW = VW - PL - PR, plotH = VH - PT - PB;
-  const maxVal = Math.max(
-    ...months.flatMap(m => [parseFloat(m.netRevenue) || 0, parseFloat(m.opExpenses) || 0]),
-    100
+function SectionTitle({ title, sub, right }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{title}</div>
+        {sub && <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>{sub}</div>}
+      </div>
+      {right}
+    </div>
   );
-  const bSlot = plotW / 12;
-  const gW    = bSlot * 0.72;
-  const bW    = (gW - 2) / 2;
-  const ys    = v => PT + plotH - Math.max(0, Math.min(parseFloat(v) || 0, maxVal) / maxVal * plotH);
+}
 
-  const profitPts = months.map((m, i) => {
-    const np = parseFloat(m.netProfit) || 0;
-    const cx = PL + i * bSlot + bSlot / 2;
-    const cy = np >= 0 ? ys(np) : PT + plotH;
-    return `${cx},${cy}`;
-  }).join(' ');
+function KpiCard({ label, value, color = INK, sub, delta }) {
+  return (
+    <div className="stat-card" style={{ padding: '1rem 1.1rem' }}>
+      <div style={{ fontSize: 12, color: MUTED, marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 'clamp(18px, 5.2vw, 24px)', fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', lineHeight: 1.15, overflowWrap: 'anywhere' }}>{value}</div>
+      {delta && (
+        <div style={{ fontSize: 12, fontWeight: 600, marginTop: 6, color: delta.tone === 'pos' ? GOOD : delta.tone === 'neg' ? BAD : MUTED }}>
+          {delta.text}
+        </div>
+      )}
+      {sub && <div style={{ fontSize: 11, color: '#6B7280', marginTop: delta ? 2 : 6 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function StatRow({ label, hint, children }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, padding: '10px 0', borderTop: '0.5px solid #f0f0ec' }}>
+      <div>
+        <div style={{ fontSize: 13, color: '#374151' }}>{label}</div>
+        {hint && <div style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>{hint}</div>}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: INK, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{children}</div>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading dashboard">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {[0, 1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: 104, borderRadius: 12 }} />)}
+      </div>
+      <div className="skeleton" style={{ height: 290, borderRadius: 12, marginBottom: 16 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+        <div className="skeleton" style={{ height: 220, borderRadius: 12 }} />
+      </div>
+    </div>
+  );
+}
+
+// Drill-down: every transaction today (Manila date). Cancelled rows are listed with a badge but never counted.
+function TodaySales({ todayStr }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    getFinanceDailySales(todayStr)
+      .then(r => live && setRows(Array.isArray(r.data) ? r.data : []))
+      .catch(() => live && setRows([]))
+      .finally(() => live && setLoading(false));
+    return () => { live = false; };
+  }, [todayStr]);
+
+  const liveRows = rows.filter(r => r.status !== 'CANCELLED');
+  const gross = liveRows.reduce((s, r) => s + (r.gross_amount || 0), 0);
+  const netAmt = liveRows.reduce((s, r) => s + (r.net_amount || 0), 0);
+  const collected = liveRows.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
 
   return (
-    <div style={{ position: 'relative', userSelect: 'none' }}>
-      <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', height: VH, display: 'block' }}
-        onMouseLeave={() => setHov(null)}>
-        {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => {
-          const v = frac * maxVal, y = ys(v);
-          return (
-            <g key={i}>
-              <line x1={PL} y1={y} x2={VW - PR} y2={y}
-                stroke={i === 0 ? '#E5E7EB' : '#F3F4F6'}
-                strokeWidth={i === 0 ? '1' : '0.5'} />
-              {i > 0 && <text x={PL - 4} y={y + 3.5} textAnchor="end" fontSize="8" fill="#6B7280">{KPESO(v)}</text>}
-            </g>
-          );
-        })}
-
-        {months.map((m, i) => {
-          const mRev = parseFloat(m.netRevenue) || 0;
-          const mExp = parseFloat(m.opExpenses) || 0;
-          const cx   = PL + i * bSlot + bSlot / 2;
-          const bx   = cx - gW / 2;
-          const isH  = hov === i;
-          return (
-            <g key={i} onMouseEnter={() => setHov(i)} style={{ cursor: 'default' }}>
-              {isH && <rect x={PL + i * bSlot} y={PT} width={bSlot} height={plotH}
-                fill="#6366F1" fillOpacity="0.04" rx="2" />}
-              <rect x={bx}          y={ys(mRev)} width={bW} height={Math.max(0, (mRev / maxVal) * plotH)}
-                fill="#6366F1" rx="3" opacity={isH ? 1 : 0.85} />
-              <rect x={bx + bW + 2} y={ys(mExp)} width={bW} height={Math.max(0, (mExp / maxVal) * plotH)}
-                fill="#22D3EE" rx="3" opacity={isH ? 1 : 0.75} />
-              <text x={cx} y={VH - 6} textAnchor="middle" fontSize="8"
-                fill={isH ? '#374151' : '#6B7280'} fontWeight={isH ? '600' : '400'}>
-                {MONTHS[m.month - 1]}
-              </text>
-            </g>
-          );
-        })}
-
-        {months.length > 0 && (
-          <polyline points={profitPts} fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinejoin="round" />
-        )}
-        {months.map((m, i) => {
-          const np = parseFloat(m.netProfit) || 0;
-          const cx = PL + i * bSlot + bSlot / 2;
-          const cy = np >= 0 ? ys(np) : PT + plotH;
-          return <circle key={i} cx={cx} cy={cy} r={hov === i ? 4.5 : 3} fill="#7C3AED" stroke="#fff" strokeWidth="1.5" />;
-        })}
-      </svg>
-
-      {hov !== null && months[hov] && (() => {
-        const m  = months[hov];
-        const np = parseFloat(m.netProfit) || 0;
-        const lp = ((hov + 0.5) / 12) * 100;
-        return (
-          <div style={{
-            position: 'absolute', top: 8, left: `${lp}%`,
-            transform: hov >= 9 ? 'translateX(calc(-100% - 6px))' : 'translateX(6px)',
-            background: '#1F2937', color: '#F9FAFB', borderRadius: 8,
-            padding: '8px 12px', fontSize: 11, lineHeight: 1.9,
-            whiteSpace: 'nowrap', zIndex: 20, pointerEvents: 'none',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.28)',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{FULL_MONTHS[m.month - 1]}</div>
-            <div style={{ color: '#A5B4FC' }}>Revenue: {PESO(m.netRevenue)}</div>
-            <div style={{ color: '#67E8F9' }}>Expenses: {PESO(m.opExpenses)}</div>
-            <div style={{ color: np >= 0 ? '#C4B5FD' : '#FCA5A5', fontWeight: 600 }}>Profit: {PESO(np)}</div>
-            <div style={{ color: '#6B7280', fontSize: 10, marginTop: 1 }}>
-              {m.loadCount || 0} orders · {PCT(m.marginPct)} margin
-            </div>
-          </div>
-        );
-      })()}
-
-      <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 10 }}>
+    <div style={{ ...cardStyle, padding: '1.25rem' }}>
+      <SectionTitle
+        title="Today's sales"
+        sub={new Date(todayStr + 'T12:00:00Z').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+      />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
         {[
-          { color: '#6366F1', shape: 'bar',  label: 'Revenue' },
-          { color: '#22D3EE', shape: 'bar',  label: 'Expenses' },
-          { color: '#7C3AED', shape: 'line', label: 'Profit' },
-        ].map(l => (
-          <span key={l.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6B7280' }}>
-            {l.shape === 'bar'
-              ? <span style={{ width: 10, height: 10, borderRadius: 2, background: l.color, display: 'inline-block' }} />
-              : <svg width="16" height="10" viewBox="0 0 16 10" style={{ display: 'block' }}>
-                  <line x1="0" y1="5" x2="16" y2="5" stroke={l.color} strokeWidth="2" />
-                  <circle cx="8" cy="5" r="2.5" fill={l.color} />
-                </svg>
-            }
-            {l.label}
-          </span>
+          { label: 'Transactions', val: liveRows.length, color: INK },
+          { label: 'Gross sales', val: PESO(gross), color: INK },
+          { label: 'Net sales', val: PESO(netAmt), color: INK },
+          { label: 'Collected', val: PESO(collected), color: GOOD },
+        ].map(s => (
+          <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
+            <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>{s.label}</div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: s.color, fontVariantNumeric: 'tabular-nums' }}>{s.val}</div>
+          </div>
         ))}
       </div>
-
-      {rev > 0 && (
-        <div style={{
-          marginTop: 14, padding: '8px 12px', borderRadius: 8,
-          background: net >= 0 ? '#F5F3FF' : '#FFF5F5',
-          fontSize: 12, color: net >= 0 ? '#7C3AED' : '#DC2626',
-          display: 'flex', alignItems: 'center', gap: 5,
-        }}>
-          {net >= 0
-            ? <><Icon name="check" size={12} color="#7C3AED" /> {`Profitable — keeping ${PCT(mrg)} of every peso earned this month`}</>
-            : `! Expenses exceed revenue by ${PESO(Math.abs(net))}`}
+      {loading ? (
+        <div className="skeleton" style={{ height: 60, borderRadius: 8 }} />
+      ) : rows.length === 0 ? (
+        <div style={{ fontSize: 13, color: MUTED, textAlign: 'center', padding: '1rem 0' }}>No transactions today yet.</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f9f9f7' }}>
+                {['Time', 'Customer', 'Service', 'Net amount', 'Status'].map(h => (
+                  <th key={h} style={h === 'Net amount' ? { ...thStyle, textAlign: 'right' } : thStyle}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id} className="tr-hover">
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap', color: MUTED }}>
+                    {new Date(r.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' })}
+                  </td>
+                  <td style={tdStyle}>{r.customer_name || '—'}</td>
+                  <td style={{ ...tdStyle, color: MUTED }}>{r.service_name || '—'}</td>
+                  <td style={{ ...tdNum, fontWeight: 600 }}>{PESO(r.net_amount)}</td>
+                  <td style={tdStyle}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                      background: r.status === 'COMPLETED' ? '#D1FAE5' : r.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7',
+                      color: r.status === 'COMPLETED' ? GOOD : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
+                    }}>{r.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-const PERIODS = [['day', 'Daily'], ['week', 'Weekly'], ['month', 'Monthly'], ['year', 'Annual']];
-
 function Dashboard() {
-  const now = new Date();
   const todayStr = manilaToday(); // Manila calendar date (not the browser's UTC date)
-  const [period,     setPeriod]     = useState('month');
-  const [pickDate,   setPickDate]   = useState(todayStr);
-  const [year,       setYear]       = useState(Number(todayStr.slice(0, 4)));
-  const [month,      setMonth]      = useState(Number(todayStr.slice(5, 7)));
-  const [data,       setData]       = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [todayRows,  setTodayRows]  = useState([]);
-  const [todayLoad,  setTodayLoad]  = useState(true);
-  const [monthlyData, setMonthlyData] = useState(null);
+  const curYear = Number(todayStr.slice(0, 4));
+  const [period, setPeriod] = useState('month');
+  const [pickDate, setPickDate] = useState(todayStr);
+  const [year, setYear] = useState(curYear);
+  const [month, setMonth] = useState(Number(todayStr.slice(5, 7)));
+  const [data, setData] = useState(null);
+  const [monthly, setMonthly] = useState([]);
+  const [targets, setTargets] = useState(null);
+  const [be, setBe] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [tick, setTick] = useState(0); // bump to retry
 
   useEffect(() => {
+    let live = true; // ignore a slow response that arrives after the user changed the period again
     setLoading(true);
+    setError('');
     Promise.all([
       getFinanceDashboard({ period, date: pickDate, year, month }),
       getFinanceMonthlySummary(year),
-    ]).then(([dash, monthly]) => {
-      if (dash.data && typeof dash.data === 'object' && !Array.isArray(dash.data))
-        setData(dash.data);
-      if (monthly.data?.months) setMonthlyData(monthly.data.months);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, [period, pickDate, year, month]);
+      getFinanceTargets(year).catch(() => null),      // optional extras: a failure here must not blank the page
+      getFinanceBreakeven(year, month).catch(() => null),
+    ]).then(([dash, ms, tg, bk]) => {
+      if (!live) return;
+      if (!dash.data || typeof dash.data !== 'object' || Array.isArray(dash.data)) throw new Error('bad response');
+      setData(dash.data);
+      setMonthly(Array.isArray(ms.data?.months) ? ms.data.months : []);
+      setTargets(tg?.data || null);
+      setBe(bk?.data || null);
+    }).catch(() => {
+      if (live) setError("Couldn't load the dashboard. Check your connection and try again.");
+    }).finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [period, pickDate, year, month, tick]);
 
-  useEffect(() => {
-    setTodayLoad(true);
-    getFinanceDailySales(todayStr)
-      .then(r => setTodayRows(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setTodayRows([]))
-      .finally(() => setTodayLoad(false));
-  }, [todayStr]);
+  const rev = parseFloat(data?.revenue) || 0;
+  const hasExp = data?.expenses !== null && data?.expenses !== undefined; // expenses are logged monthly
+  const exp = parseFloat(data?.expenses) || 0;
+  const net = parseFloat(data?.netProfit) || 0;
+  const mrg = parseFloat(data?.profitMargin) || 0;
+  const gpf = parseFloat(data?.grossProfit) || 0;
+  const cogs = parseFloat(data?.cogs) || 0;
+  const gm = data?.grossMargin;                      // null when there is no revenue
+  const growth = data?.revenueGrowth;                // null when the previous period had no revenue
+  const cash = rev - exp;
+  const bookings = Number(data?.bookingCount ?? 0);
+  const arTotal = parseFloat(data?.arTotal) || 0;
+  const arBookings = (data?.arAging || []).reduce((s, b) => s + b.bookings, 0);
 
+  const growthDelta = !data ? null
+    : growth === null ? { text: `No revenue ${PREV_WORD[period] || 'before'} to compare`, tone: 'muted' }
+    : { text: `${growth >= 0 ? '▲' : '▼'} ${Math.abs(growth).toFixed(1)}% vs ${PREV_WORD[period]}${data.previous?.sameDaysOnly ? ' (same days)' : ''}`, tone: growth >= 0 ? 'pos' : 'neg' };
 
-  const rev = parseFloat(data?.revenue)           || 0;
-  const hasExpenses = data?.expenses !== null && data?.expenses !== undefined; // expenses are tracked monthly (month/year only)
-  const exp = parseFloat(data?.expenses)          || 0;
-  const net = parseFloat(data?.netProfit)         || 0;
-  const mrg = parseFloat(data?.profitMargin)      || 0;
-  const cnt = Number(data?.loadCount              ?? 0);
-  const avg = parseFloat(data?.avgRevenuePerLoad)  || 0;
-  const rfd = parseFloat(data?.refundTotal)        || 0;
-  const rfc = Number(data?.refundCount             ?? 0);
-  const cogs = parseFloat(data?.cogs)             || 0;
-  const gpf = parseFloat(data?.grossProfit)       || 0;
-  const dlv = parseFloat(data?.deliveryRevenue)    || 0;
-  const dsc = parseFloat(data?.discounts)          || 0;
-  const bkg = Number(data?.bookingCount            ?? 0);
-  const periodWord = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Annual' }[period];
+  // KPI row. Always five cards; the last three swap to order stats when the period has no expense data.
+  const kpis = !data ? [] : [
+    { label: 'Revenue', value: PESO0(rev), delta: growthDelta, sub: bookings > 0 ? `${bookings.toLocaleString()} booking${bookings !== 1 ? 's' : ''}` : undefined },
+    { label: 'Gross margin', value: gm === null || gm === undefined ? '—' : PCT(gm), color: gpf >= 0 ? INK : BAD,
+      sub: cogs === 0 && rev > 0 ? 'Set costs in the Pricing Guide' : `${PESO0(gpf)} after cost of goods` },
+    ...(hasExp ? [
+      { label: 'Net cash movement', value: PESO0(cash), color: cash >= 0 ? GOOD : BAD, sub: 'Collected − expenses' },
+      { label: 'Operating profit', value: PESO0(net), color: net >= 0 ? GOOD : BAD, sub: 'Gross profit − expenses' },
+      { label: 'Net profit margin', value: rev > 0 ? PCT(mrg) : '—', color: mrg >= 0 ? INK : BAD, sub: 'Share of revenue kept' },
+    ] : [
+      { label: 'Orders', value: Number(data.loadCount ?? 0).toLocaleString(), sub: 'Paid, excl. cancelled' },
+      { label: 'Avg revenue / order', value: PESO0(parseFloat(data.avgRevenuePerLoad) || 0) },
+      { label: 'Outstanding', value: PESO0(arTotal), color: arTotal > 0 ? '#B45309' : INK, sub: `${arBookings} unpaid booking${arBookings !== 1 ? 's' : ''} right now` },
+    ]),
+  ];
 
-  const kpis = data ? [
-    { label: `${periodWord} Revenue`, val: PESO(rev), color: 'var(--primary)', sub: 'Paid, excl. cancelled · incl. delivery, after discounts' },
-    { label: 'Cost of goods', val: PESO(cogs), color: '#6B7280',
-      sub: cogs === 0 && rev > 0 ? 'Set your cost per unit in the Pricing Guide' : 'cost per unit × units sold' },
-    { label: 'Gross Profit', val: PESO(gpf), color: gpf >= 0 ? '#047857' : '#DC2626', sub: 'revenue − cost of goods' },
-    ...(hasExpenses ? [
-      { label: `${periodWord} Expenses`, val: PESO(exp), color: '#DC2626' },
-      { label: 'Net Profit',   val: PESO(net), color: net >= 0 ? '#047857' : '#DC2626', sub: 'gross profit − expenses' },
-      { label: 'Profit Margin', val: PCT(mrg), color: mrg >= 0 ? '#047857' : '#DC2626' },
-    ] : []),
-    { label: 'Total Orders',       val: cnt.toLocaleString(), color: '#7F77DD', sub: `${bkg.toLocaleString()} booking${bkg !== 1 ? 's' : ''}` },
-    { label: 'Avg Revenue / Load', val: PESO(avg), color: '#BA7517' },
-    { label: 'Delivery fees',      val: PESO(dlv), color: '#38a9c2', sub: 'included in revenue' },
-    ...(dsc > 0 ? [{ label: 'Promo discounts', val: `-${PESO(dsc)}`, color: '#6B7280', sub: 'already deducted' }] : []),
-    ...(rfd > 0 ? [{ label: `Refunds (${rfc} order${rfc !== 1 ? 's' : ''})`, val: PESO(rfd), color: '#DC2626' }] : []),
-  ] : [];
+  // Revenue vs target (targets are revenue-only: weekly / monthly / annual)
+  const target = !targets ? 0 : period === 'week' ? targets.weekly : period === 'month' ? targets.monthly
+    : (period === 'year' || period === 'ytd') ? targets.annual : 0;
+  const targetPct = target > 0 ? (rev / target) * 100 : 0;
 
-  // Donut: profit (green) vs expenses (red)
-  const donutSegs = [
-    { value: Math.max(0, net), color: '#047857' },
-    { value: exp,              color: '#EF4444' },
-  ].filter(s => s.value > 0);
+  // Burn: average expenses over the last 3 months that have any (months not yet reached are ignored)
+  const lastM = year === curYear ? Number(todayStr.slice(5, 7)) : 12;
+  const monthsSoFar = monthly.filter(m => m.month <= lastM);
+  const last3 = monthsSoFar.filter(m => (m.opExpenses || 0) > 0).slice(-3);
+  const burn = last3.length ? last3.reduce((s, m) => s + m.opExpenses, 0) / last3.length : null;
+  const active = monthsSoFar.filter(m => (m.netRevenue || 0) > 0 || (m.opExpenses || 0) > 0);
+  const profitableMonths = active.filter(m => m.netProfit > 0).length;
+  const beRev = be?.breakEvenRevenue;
+
+  const quarter = Math.floor((month - 1) / 3) + 1;
+  const yearOptions = [curYear - 2, curYear - 1, curYear];
 
   return (
-    <div>
-      {/* Period selectors */}
+    <div style={{ opacity: loading && data ? 0.6 : 1, transition: 'opacity .15s' }}>
+      {/* Period controls */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-        <div role="group" aria-label="Period" style={{ display: 'inline-flex', border: '0.5px solid #ccc', borderRadius: 8, overflow: 'hidden' }}>
-          {PERIODS.map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setPeriod(key)} aria-pressed={period === key}
-              style={{ padding: '6px 14px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
-                background: period === key ? 'var(--primary)' : '#fff', color: period === key ? '#fff' : '#374151', fontWeight: period === key ? 600 : 400 }}>
-              {label}
-            </button>
-          ))}
+        <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
+          <div role="group" aria-label="Period" style={{ display: 'inline-flex', border: '0.5px solid #ccc', borderRadius: 8, overflow: 'hidden' }}>
+            {PERIODS.map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setPeriod(key)} aria-pressed={period === key}
+                style={{ padding: '6px 14px', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', border: 'none', whiteSpace: 'nowrap',
+                  background: period === key ? 'var(--primary)' : '#fff', color: period === key ? '#fff' : '#374151', fontWeight: period === key ? 600 : 400 }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         {(period === 'day' || period === 'week') && (
           <input type="date" value={pickDate} max={todayStr} onChange={e => e.target.value && setPickDate(e.target.value)}
-            aria-label={period === 'day' ? 'Date' : 'Week ending'}
-            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit' }} />
+            aria-label={period === 'day' ? 'Date' : 'Week ending'} style={selectStyle} />
         )}
         {period === 'month' && (
-          <select value={month} onChange={e => setMonth(Number(e.target.value))} aria-label="Month"
-            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
+          <select value={month} onChange={e => setMonth(Number(e.target.value))} aria-label="Month" style={selectStyle}>
             {FULL_MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
           </select>
         )}
-        {(period === 'month' || period === 'year') && (
-          <select value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year"
-            style={{ padding: '6px 10px', borderRadius: 6, border: '0.5px solid #ccc', fontSize: 13, fontFamily: 'inherit', cursor: 'pointer' }}>
-            {[Number(todayStr.slice(0, 4)) - 1, Number(todayStr.slice(0, 4)), Number(todayStr.slice(0, 4)) + 1].map(y => <option key={y}>{y}</option>)}
+        {period === 'quarter' && (
+          <select value={quarter} onChange={e => setMonth((Number(e.target.value) - 1) * 3 + 1)} aria-label="Quarter" style={selectStyle}>
+            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+          </select>
+        )}
+        {['month', 'quarter', 'ytd', 'year'].includes(period) && (
+          <select value={year} onChange={e => setYear(Number(e.target.value))} aria-label="Year" style={selectStyle}>
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         )}
       </div>
-      {data?.range && (
-        <div style={{ fontSize: 12, color: '#6B7280', marginBottom: '1rem' }}>
+      {data?.range && !error && (
+        <div style={{ fontSize: 12, color: MUTED, marginBottom: '1rem' }}>
           Showing {data.range.label}
-          {!hasExpenses && ' · Expenses and profit are tracked monthly — switch to Monthly or Annual to see them'}
+          {!hasExp && ' · Expenses and profit are logged monthly — pick Month, Quarter, YTD or Year to see them'}
         </div>
       )}
 
-      {loading ? <div style={{ color: '#6B7280', fontSize: 14 }}>Loading…</div> : (
+      {error ? (
+        <div role="alert" style={{ ...cardStyle, padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: BAD }}>{error}</span>
+          <button type="button" className="btn-primary" onClick={() => setTick(t => t + 1)}>Try again</button>
+        </div>
+      ) : !data ? <DashboardSkeleton /> : (
         <>
-          {/* KPI grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
-            {kpis.map(k => (
-              <div key={k.label} style={{ ...cardStyle, padding: '1.25rem' }}>
-                <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>{k.label}</div>
-                <div style={{ fontSize: 26, fontWeight: 600, color: k.color }}>{k.val}</div>
-                {k.sub && <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{k.sub}</div>}
-              </div>
-            ))}
+          {/* Tier 1 — KPIs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+            {kpis.map(k => <KpiCard key={k.label} {...k} />)}
           </div>
 
-          {/* Today's Sales card */}
-          {(() => {
-            // Cancelled orders are listed below (with a badge) but never counted as sales
-            const liveRows   = todayRows.filter(r => r.status !== 'CANCELLED');
-            const todayGross = liveRows.reduce((s, r) => s + (r.gross_amount || 0), 0);
-            const todayNet   = liveRows.reduce((s, r) => s + (r.net_amount   || 0), 0);
-            const todayPaid  = liveRows.reduce((s, r) => s + (r.paid ? (r.net_amount || 0) : 0), 0);
-            return (
-              <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 14 }}>
-                  Today's Sales —{' '}
-                  <span style={{ fontWeight: 400, color: '#6B7280' }}>
-                    {new Date(todayStr + 'T12:00:00Z').toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+          {/* Tier 2 — 12-month trend */}
+          <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: 16 }}>
+            <SectionTitle title={`Revenue, expenses and profit — ${year}`} sub="Hover or tap a month for details" />
+            <TrendChart months={monthly} />
+            {target > 0 && (
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: '0.5px solid #f0f0ec' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, color: '#374151' }}>
+                    Revenue vs {period === 'week' ? 'weekly' : period === 'month' ? 'monthly' : 'annual'} target
+                  </span>
+                  <span style={{ fontSize: 12, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                    {PESO(rev)} of {PESO(target)} · <strong style={{ color: targetPct >= 100 ? GOOD : INK }}>{targetPct.toFixed(0)}%</strong>
                   </span>
                 </div>
-
-                {/* Summary strip */}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-                  {[
-                    { label: 'Transactions', val: liveRows.length, color: '#7F77DD' },
-                    { label: 'Gross Sales',  val: PESO(todayGross), color: '#38a9c2' },
-                    { label: 'Net Sales',    val: PESO(todayNet),   color: '#374151' },
-                    { label: 'Collected',    val: PESO(todayPaid),  color: '#047857' },
-                  ].map(s => (
-                    <div key={s.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '8px 14px', minWidth: 110 }}>
-                      <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 3 }}>{s.label}</div>
-                      <div style={{ fontSize: 17, fontWeight: 600, color: s.color }}>{s.val}</div>
-                    </div>
-                  ))}
+                <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(targetPct))}
+                  style={{ height: 7, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, targetPct)}%`, background: targetPct >= 100 ? GOOD : 'var(--primary-tint)', borderRadius: 4, transition: 'width .5s ease' }} />
                 </div>
+              </div>
+            )}
+          </div>
 
-                {todayLoad ? (
-                  <div style={{ fontSize: 13, color: '#6B7280' }}>Loading…</div>
-                ) : todayRows.length === 0 ? (
-                  <div style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', padding: '1rem 0' }}>No transactions today yet.</div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: '#f9f9f7' }}>
-                          {['Time', 'Customer', 'Service', 'Net Amount', 'Status'].map(h => (
-                            <th key={h} style={thStyle}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {todayRows.map(r => (
-                          <tr key={r.id}>
-                            <td style={{ ...tdStyle, whiteSpace: 'nowrap', color: '#6B7280' }}>
-                              {new Date(r.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
-                            </td>
-                            <td style={tdStyle}>{r.customer_name || '—'}</td>
-                            <td style={{ ...tdStyle, color: '#6B7280' }}>{r.service_name || '—'}</td>
-                            <td style={{ ...tdNum, fontWeight: 600 }}>{PESO(r.net_amount)}</td>
-                            <td style={tdStyle}>
-                              <span style={{
-                                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                                background: r.status === 'COMPLETED' ? '#D1FAE5' : r.status === 'CANCELLED' ? '#FEE2E2' : '#FEF3C7',
-                                color:      r.status === 'COMPLETED' ? '#047857' : r.status === 'CANCELLED' ? '#EF4444' : '#B45309',
-                              }}>{r.status}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+          {/* Tier 3 — receivables + cash */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12, marginBottom: 16 }}>
+            <div style={{ ...cardStyle, padding: '1.25rem' }}>
+              <SectionTitle
+                title="Unpaid orders by age"
+                sub="Right now, regardless of the period above"
+                right={arTotal > 0 && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: INK, fontVariantNumeric: 'tabular-nums' }}>{PESO(arTotal)}</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>{arBookings} booking{arBookings !== 1 ? 's' : ''}</div>
                   </div>
                 )}
-              </div>
-            );
-          })()}
-
-          {/* Financial Snapshot card */}
-          {data && hasExpenses && (rev > 0 || exp > 0) && (
-            <div style={{ ...cardStyle, padding: '1.25rem' }}>
-              {/* Header row */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Monthly Performance Summary</div>
-                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{year} · hover a month for details</div>
+              />
+              {arTotal > 0 ? (
+                <HorizBars
+                  items={data.arAging.map((b, i) => ({ label: b.label, value: b.amount, color: AR_COLORS[i], sub: `${b.bookings} booking${b.bookings !== 1 ? 's' : ''}` }))}
+                />
+              ) : (
+                <div style={{ fontSize: 13, color: MUTED, background: '#f9f9f7', borderRadius: 8, padding: '1.5rem 1rem', textAlign: 'center' }}>
+                  Nothing outstanding — every active order is paid.
                 </div>
-                {/* KPI pills */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[
-                    { label: 'Revenue',  val: PESO(rev), color: '#6366F1' },
-                    { label: 'Expenses', val: PESO(exp), color: '#22D3EE' },
-                    { label: 'Profit',   val: PESO(net), color: net >= 0 ? '#7C3AED' : '#EF4444' },
-                    { label: 'Margin',   val: PCT(mrg),  color: mrg >= 0 ? '#047857' : '#EF4444' },
-                  ].map(p => (
-                    <div key={p.label} style={{ background: '#f9f9f7', borderRadius: 8, padding: '5px 12px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 10, color: '#6B7280' }}>{p.label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: p.color }}>{p.val}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Chart */}
-              <SnapshotChart months={monthlyData || []} net={net} rev={rev} mrg={mrg} />
+              )}
             </div>
-          )}
+
+            <div style={{ ...cardStyle, padding: '1.25rem' }}>
+              <SectionTitle title="Cash and break-even" sub={`${FULL_MONTHS[month - 1]} ${year} unless noted`} />
+              <StatRow label="Net cash movement" hint="Collected − expenses, for the period above">
+                {hasExp ? <span style={{ color: cash >= 0 ? GOOD : BAD }}>{PESO(cash)}</span> : <span style={{ color: MUTED, fontWeight: 400 }}>Month, Quarter, YTD or Year only</span>}
+              </StatRow>
+              <StatRow label="Average monthly expenses" hint={last3.length ? `Last ${last3.length} month${last3.length !== 1 ? 's' : ''} with expenses logged` : undefined}>
+                {burn === null ? <span style={{ color: MUTED, fontWeight: 400 }}>No expenses logged</span> : PESO(burn)}
+              </StatRow>
+              <StatRow label="Break-even revenue" hint="Revenue needed to cover this month's expenses">
+                {beRev ? (
+                  <span>
+                    {PESO(beRev)}{' '}
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, marginLeft: 4,
+                      background: be.isAboveBreakEven ? '#D1FAE5' : '#FEF3C7', color: be.isAboveBreakEven ? GOOD : '#B45309',
+                    }}>{be.isAboveBreakEven ? 'Above' : 'Below'}</span>
+                  </span>
+                ) : <span style={{ color: MUTED, fontWeight: 400 }}>{be?.fixedCosts > 0 ? 'Not reachable at current costs' : 'Log expenses to see this'}</span>}
+              </StatRow>
+              <StatRow label="Profitable months" hint={`${year}, months with activity`}>
+                {active.length ? `${profitableMonths} of ${active.length}` : <span style={{ color: MUTED, fontWeight: 400 }}>—</span>}
+              </StatRow>
+            </div>
+          </div>
+
+          {/* Drill-down */}
+          <TodaySales todayStr={todayStr} />
         </>
       )}
     </div>
@@ -1880,10 +1879,10 @@ function TabBar({ tab, setTab }) {
           <div style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.05em', paddingLeft: 4 }}>
             {group.label}
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {group.tabs.map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
-                padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer',
+                padding: '8px 16px', fontSize: 13, borderRadius: '6px 6px 0 0', cursor: 'pointer', whiteSpace: 'nowrap',
                 background:   tab === t ? '#fff'         : 'transparent',
                 color:        tab === t ? 'var(--primary)' : '#6B7280',
                 border:       tab === t ? '0.5px solid #e8e8e0' : '0.5px solid transparent',
