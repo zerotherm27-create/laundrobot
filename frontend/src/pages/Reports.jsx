@@ -10,6 +10,7 @@ import { MiniBarChart, HorizBars, DonutChart } from '../components/Charts.jsx';
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
 
 const PERIOD_KEY = { Daily: 'day', Weekly: 'week', Monthly: 'month', Annually: 'year' };
+const PREV_WORD = { day: 'yesterday', week: 'previous 7 days', month: 'last month', year: 'last year' };
 
 export default function Reports() {
   const [rows, setRows] = useState([]);
@@ -55,6 +56,14 @@ export default function Reports() {
   const pendingOrders = live.filter(o => o.status !== 'COMPLETED').length;
   const unpaidOrders = live.filter(o => !o.paid).length;
   const avgOrderValue = (parseFloat(dash?.avgRevenuePerLoad) || 0).toFixed(2);
+
+  // "Am I doing better?" — revenue vs the previous period, computed by the backend (an in-progress period is compared
+  // with the same number of days of the previous one). null = nothing to compare against, so show nothing.
+  const growth = dash?.revenueGrowth;
+  const growthNote = typeof growth === 'number'
+    ? { text: `${growth >= 0 ? '▲' : '▼'} ${Math.abs(growth).toFixed(1)}% vs ${PREV_WORD[periodKey]}${dash?.previous?.sameDaysOnly ? ' (same days)' : ''}`,
+        color: growth >= 0 ? '#047857' : '#DC2626' }
+    : null;
 
   // Group by service
   const byService = live.reduce((acc, o) => {
@@ -148,9 +157,9 @@ export default function Reports() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: '1.25rem' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Reports</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {PERIODS.map(p => (
             <button key={p} onClick={() => setPeriod(p)} style={{
               padding: '6px 14px', fontSize: 13, borderRadius: 6, cursor: 'pointer',
@@ -174,7 +183,7 @@ export default function Reports() {
           {/* Summary cards */}
           <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.5rem' }}>
             {[
-              { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), color: '#38a9c2' },
+              { label: 'Total Revenue', val: '₱' + Math.round(revenue).toLocaleString(), color: '#38a9c2', note: growthNote },
               { label: 'Total Orders', val: totalOrders, color: '#7F77DD' },
               { label: 'Completed', val: completedOrders, color: '#639922' },
               { label: 'Avg Order Value', val: '₱' + Number(avgOrderValue).toLocaleString(), color: '#1D9E75' },
@@ -182,6 +191,7 @@ export default function Reports() {
               <div key={m.label} className="stat-card">
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>{m.label}</div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: m.color }}>{m.val}</div>
+                {m.note && <div style={{ fontSize: 12, fontWeight: 600, marginTop: 6, color: m.note.color }}>{m.note.text}</div>}
               </div>
             ))}
           </div>
