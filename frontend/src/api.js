@@ -41,7 +41,8 @@ export const createSubscriptionInvoice = (plan) =>
 
 export const createWalkInOrder = data => api.post('/orders/walk-in', data);
 export const getOrders = (params) => api.get('/orders', { params });
-export const getArchivedOrders = () => api.get('/orders', { params: { archived: 'true', limit: 500 } });
+export const getArchivedOrders = (month) => api.get('/orders', { params: { archived: 'true', limit: 500, ...(month ? { month } : {}) } });
+export const getArchiveMonths = () => api.get('/orders/archive-months');
 export const archiveOrderMonth = (year, month) => api.post('/orders/archive-month', { year, month });
 export const unarchiveOrder = (id) => api.post(`/orders/${id}/unarchive`);
 export const updateOrderStatus = (id, status, notify) =>
@@ -190,6 +191,7 @@ export const getFinanceDashboard    = (yearOrParams, month) => api.get('/finance
   params: typeof yearOrParams === 'object' && yearOrParams !== null ? yearOrParams : { year: yearOrParams, month },
 });
 export const updateItemCost          = (serviceId, fieldLabel, optionLabel, cost) => api.put(`/finance/pricing-guide/${serviceId}/items`, { field_label: fieldLabel, option_label: optionLabel, cost });
+export const getOrderHistory        = params => api.get('/finance/order-history', { params });
 export const getSalesDetail         = (from, to) => api.get('/finance/sales-detail', { params: { from, to } });
 export const getFinancePricingGuide = ()             => api.get('/finance/pricing-guide');
 export const updateServiceCost      = (id, cost)    => api.put(`/finance/pricing-guide/${id}`, { cost_per_unit: cost });

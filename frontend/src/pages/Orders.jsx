@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getOrders, getArchivedOrders, archiveOrderMonth, unarchiveOrder, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment, getTlpPosStatus, sendToTlpPos } from '../api.js';
+import { getOrders, getArchivedOrders, getArchiveMonths, archiveOrderMonth, unarchiveOrder, updateOrderStatus, updateOrder, updateBooking, notifyOrderUpdate, deleteOrder, getServices, generatePaymentLink, cancelOrder, sendInvoice, getMyTenantSettings, confirmQrPayment, getTlpPosStatus, sendToTlpPos } from '../api.js';
 import { pdf } from '@react-pdf/renderer';
 import InvoiceDocument from '../components/InvoiceDocument.jsx';
 import { Avatar } from '../components/Avatar.jsx';
@@ -170,9 +170,11 @@ function groupByBookingRef(orders) {
 function groupByMonth(orders) {
   const groups = {};
   for (const o of orders) {
-    const d = new Date(o.archived_at || o.created_at);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    if (!groups[key]) groups[key] = { label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`, year: d.getFullYear(), month: d.getMonth()+1, orders: [] };
+    // Group by the month the order was PLACED (Manila). archived_at is the month after, which hid September under October.
+    const d = new Date(new Date(o.created_at).getTime() + 8 * 3600 * 1000);
+    const y = d.getUTCFullYear(), m = d.getUTCMonth();
+    const key = `${y}-${String(m+1).padStart(2,'0')}`;
+    if (!groups[key]) groups[key] = { label: `${MONTH_NAMES[m]} ${y}`, year: y, month: m+1, orders: [] };
     groups[key].orders.push(o);
   }
   return Object.values(groups).sort((a, b) => `${b.year}-${b.month}` > `${a.year}-${a.month}` ? 1 : -1);
@@ -256,10 +258,21 @@ export default function Orders() {
     getMyTenantSettings().then(r => setShopInfo(r.data)).catch(() => {});
   }, []);
 
-  const loadArchived = useCallback(() => {
+  // Archives are loaded one order-month at a time (no 500-order cap); `archiveMonths` lists every month that has any.
+  const [archiveMonths, setArchiveMonths] = useState([]);
+  const [archiveMonth, setArchiveMonth]   = useState(null); // 'YYYY-MM'
+  const loadArchived = useCallback((month) => {
     setArchiveLoading(true);
-    getArchivedOrders().then(r => setArchived(r.data)).finally(() => setArchiveLoading(false));
-  }, []);
+    getArchiveMonths()
+      .then(r => {
+        setArchiveMonths(r.data);
+        const m = month || r.data[0]?.month || null;
+        setArchiveMonth(m);
+        return m ? getArchivedOrders(m).then(x => setArchived(x.data)) : setArchived([]);
+      })
+      .catch(() => toast('Failed to load archives.'))
+      .finally(() => setArchiveLoading(false));
+  }, [toast]);
 
   useEffect(() => { loadActive(); }, [loadActive]);
 
@@ -269,7 +282,7 @@ export default function Orders() {
   function switchToArchives() {
     setView('archives');
     setSelected(null);
-    if (!archived.length) loadArchived();
+    if (!archived.length) loadArchived(archiveMonth);
   }
 
   function enterEditMode(order) {
@@ -1380,7 +1393,13 @@ export default function Orders() {
                   style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, border: '0.5px solid #ccc', background: '#fff', cursor: 'pointer', color: '#374151' }}>✕</button>
               )}
             </div>
-            <button onClick={loadArchived} style={{ ...INPUT_S, cursor: 'pointer', color: '#374151' }}>↺ Refresh</button>
+            <select value={archiveMonth || ''} onChange={e => loadArchived(e.target.value)} style={{ ...INPUT_S, cursor: 'pointer' }} aria-label="Archive month">
+              {archiveMonths.map(m => {
+                const [y, mm] = m.month.split('-');
+                return <option key={m.month} value={m.month}>{MONTH_NAMES[Number(mm) - 1]} {y} ({m.count})</option>;
+              })}
+            </select>
+            <button onClick={() => loadArchived(archiveMonth)} style={{ ...INPUT_S, cursor: 'pointer', color: '#374151' }}>↺ Refresh</button>
           </div>
 
           {archiveLoading ? (

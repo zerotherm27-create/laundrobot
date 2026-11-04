@@ -125,3 +125,14 @@ test('newTotal is not double-counted once the extra-charge row is persisted', ()
   assert.doesNotMatch(editBlock, /rowTotal\(o\),\s*0\)\s*\)\s*\+\s*extraAmount/,
     'newTotal must not add extraAmount again — activeUpdated already includes the persisted row');
 });
+
+// Archives tab: September orders were filed under "October" because the UI grouped by archived_at (the cron archives
+// last month's orders the next month), and a hard 500-order cap would silently hide the oldest history.
+test('archives are browsed by order month (created_at, Manila) and archive-months is registered before /:id', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, 'orders.js'), 'utf8');
+  assert.match(src, /router\.get\('\/archive-months'/);
+  assert.ok(src.indexOf("router.get('/archive-months'") < src.indexOf("router.get('/:id'"));
+  assert.match(src, /to_char\(\(o\.created_at AT TIME ZONE 'UTC'\) AT TIME ZONE 'Asia\/Manila', 'YYYY-MM'\) = /);
+  const ui = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../frontend/src/pages/Orders.jsx'), 'utf8');
+  assert.doesNotMatch(ui, /new Date\(o\.archived_at \|\| o\.created_at\)/);
+});

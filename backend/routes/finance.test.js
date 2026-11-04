@@ -143,3 +143,11 @@ test('item-cost migration is additive, tenant-owned and keyed by labels (not fie
   assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
   assert.doesNotMatch(sql, /DROP |DELETE FROM|UPDATE /i);
 });
+
+test('order-history: tenant-scoped, skips soft-deleted, paginated by booking, never selects payment_screenshot', () => {
+  const route = finance.slice(finance.indexOf("router.get('/order-history'"), finance.indexOf("router.get('/sales-detail'"));
+  assert.match(route, /o\.tenant_id = \$1 AND o\.deleted_by IS NULL/);
+  assert.match(route, /LIMIT \$5 OFFSET \$6/);
+  assert.match(route, /Math\.min\(.*200\)/);
+  assert.doesNotMatch(route.replace(/\/\/.*$/gm, ''), /payment_screenshot|archived/i);
+});

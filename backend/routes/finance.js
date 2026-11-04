@@ -130,6 +130,56 @@ router.get('/dashboard', auth, async (req, res) => {
   }
 });
 
+// GET /finance/order-history?from=&to=&q=&limit=&offset= — FULL details of every order, archived or not (only
+// soft-deleted ones are excluded), grouped by booking and paginated BY BOOKING (newest first). Manila dates.
+// `q` matches booking ref, order id, customer name/phone. payment_screenshot (huge base64) is deliberately not selected.
+router.get('/order-history', auth, async (req, res) => {
+  try {
+    const tid = req.user.tenant_id;
+    if (!tid) return res.json({ bookings: [], total: 0 });
+    const { from, to } = req.query;
+    if (!DATE_RE.test(from || '') || !DATE_RE.test(to || '')) return res.status(400).json({ error: 'from and to (YYYY-MM-DD) are required' });
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const q = String(req.query.q || '').trim().slice(0, 80);
+    const like = q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : null;
+    const { rows } = await db.query(
+      `WITH base AS (
+         SELECT o.*, COALESCE(o.booking_ref, o.id) AS bkey,
+                c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email, c.address AS customer_address,
+                s.name AS service_name, s.unit AS service_unit
+         FROM orders o
+         LEFT JOIN customers c ON c.id = o.customer_id
+         LEFT JOIN services s ON s.id = o.service_id
+         WHERE o.tenant_id = $1 AND o.deleted_by IS NULL
+           AND DATE((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila') BETWEEN $2::date AND $3::date
+           AND ($4::text IS NULL OR o.booking_ref ILIKE $4 OR o.id ILIKE $4 OR c.name ILIKE $4 OR c.phone ILIKE $4)
+       ), keys AS (
+         SELECT bkey, MAX(created_at) AS ts, COUNT(*) OVER () AS total_keys FROM base GROUP BY bkey
+         ORDER BY MAX(created_at) DESC LIMIT $5 OFFSET $6
+       )
+       SELECT b.id, b.booking_ref, b.created_at, b.status, b.paid, b.payment_method, b.source, b.is_dropoff,
+              b.customer_id, b.customer_name, b.customer_phone, b.customer_email, b.customer_address,
+              b.service_name, b.service_unit, b.weight, b.price, b.delivery_fee, b.delivery_zone, b.promo_code, b.promo_discount,
+              b.pickup_date, b.delivery_date, b.address, b.notes, b.custom_selections, b.referral_ref,
+              b.refund_status, b.refund_note, b.refunded_at, b.refunded_by, k.total_keys
+       FROM base b JOIN keys k ON k.bkey = b.bkey
+       ORDER BY k.ts DESC, b.bkey, b.created_at`,
+      [tid, from, to, like, limit, offset]
+    );
+    const map = new Map();
+    for (const r of rows) {
+      const key = r.booking_ref || r.id;
+      if (!map.has(key)) map.set(key, { key, booking_ref: r.booking_ref, items: [] });
+      map.get(key).items.push(r);
+    }
+    res.json({ bookings: [...map.values()], total: rows[0] ? parseInt(rows[0].total_keys) : 0, limit, offset });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /finance/sales-detail?from=YYYY-MM-DD&to=YYYY-MM-DD — every order row in the range (Manila dates), for Reports.
 // Includes auto-archived orders; excludes only soft-deleted ones. `firstOrders` maps each customer in the range
 // to their first-ever order time so new-vs-repeat can be worked out without loading all history.

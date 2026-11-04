@@ -166,6 +166,9 @@ router.get('/', auth, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 200, 500);
     const offset = (page - 1) * limit;
     const isArchived = archived === 'true';
+    // Archives are browsed one ORDER month at a time (Manila date of created_at) — not by archived_at, which is the
+    // month AFTER the orders were placed (the cron archives last month's completed orders next month).
+    const month = isArchived && /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : null;
     let query = `
       SELECT o.*, c.name as customer_name, c.phone as customer_phone, c.address as customer_address,
              c.email as customer_email,
@@ -176,10 +179,27 @@ router.get('/', auth, async (req, res) => {
       WHERE o.tenant_id = $1 AND ${isArchived ? 'o.archived = TRUE' : '(o.archived = FALSE OR o.archived IS NULL)'}
     `;
     const params = [req.user.tenant_id];
+    if (month) {
+      query += ` AND to_char((o.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila', 'YYYY-MM') = $${params.length + 1}`;
+      params.push(month);
+    }
     if (status) { query += ` AND o.status = $${params.length + 1}`; params.push(status); }
     query += ` ORDER BY o.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
     const { rows } = await db.query(query, params);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// GET months that have archived orders (by order date, Manila) — registered before '/:id' routes.
+router.get('/archive-months', auth, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT to_char((created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila', 'YYYY-MM') AS month, COUNT(*)::int AS count
+       FROM orders WHERE tenant_id = $1 AND archived = TRUE
+       GROUP BY 1 ORDER BY 1 DESC`,
+      [req.user.tenant_id]
+    );
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });

@@ -4,6 +4,7 @@ import { manilaToday, periodRange, isRevenueRow, rowRevenue, rowNet, orderManila
 import { useUpgrade } from '../context/UpgradeContext.jsx';
 import { Icon, IconBadge } from '../components/Icons.jsx';
 import { STATUS_COLORS } from '../components/StatusBadge.jsx';
+import OrderHistory from '../components/OrderHistory.jsx';
 import { MiniBarChart, HorizBars, DonutChart } from '../components/Charts.jsx';
 
 const PERIODS = ['Daily', 'Weekly', 'Monthly', 'Annually'];
@@ -346,6 +347,11 @@ export default function Reports() {
           </div>
         </>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 10 }}>Order history</div>
+        <OrderHistory />
+      </div>
     </div>
   );
 }

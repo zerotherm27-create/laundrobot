@@ -15,7 +15,9 @@ import { MONTHS, FULL_MONTHS, PESO, PCT, KPESO } from '../utils/format.js';
 import { manilaToday } from '../utils/revenue.js';
 import { TrendChart, DonutChart, HorizBars, RetentionChart } from '../components/Charts.jsx';
 
-const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds'];
+import OrderHistory from '../components/OrderHistory.jsx';
+
+const TABS = ['Dashboard', 'Pricing Guide', 'Daily Sales', 'Expenses', 'Monthly Summary', 'Insights', 'Refunds', 'Order History'];
 // Grouped for the tab bar: quick day-to-day checks vs. deeper planning/analysis views.
 const TAB_GROUPS = [
   { label: 'Today',    tabs: ['Dashboard', 'Daily Sales', 'Refunds'] },
@@ -1927,6 +1929,7 @@ export default function Finance() {
       {tab === 'Monthly Summary' && <MonthlySummary />}
       {tab === 'Insights'        && <Insights />}
       {tab === 'Refunds'         && <Refunds />}
+      {tab === 'Order History'   && <OrderHistory />}
     </div>
   );
 }
