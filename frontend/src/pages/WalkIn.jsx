@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getServices, getCategories, getMyTenantSettings, createWalkInOrder, generatePaymentLink, getPaymentStatus, searchCustomers } from '../api.js';
-import { saveWalkInCache, loadWalkInCache, enqueueOrder, getPendingOrders, syncPendingOrders } from '../utils/offlineQueue.js';
+import { saveWalkInCache, loadWalkInCache, enqueueOrder, getPendingOrders, syncPendingOrders, removePendingOrder } from '../utils/offlineQueue.js';
 import { Icon } from '../components/Icons.jsx';
 import { printReceiptRawBT } from '../components/ThermalReceipt.jsx';
 import { GCashLogo, MayaLogo, CashLogo, CreditCardLogo } from '../components/PaymentLogos.jsx';
@@ -361,10 +361,14 @@ export default function WalkIn() {
   const [isOffline,    setIsOffline]    = useState(!navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing,      setSyncing]      = useState(false);
+  const [failedOrders, setFailedOrders] = useState([]);
 
   useEffect(() => {
-    // Load pending count on mount
-    getPendingOrders().then(q => setPendingCount(q.length)).catch(() => {});
+    // Load pending + failed counts on mount
+    getPendingOrders().then(q => {
+      setPendingCount(q.filter(o => !o.failed).length);
+      setFailedOrders(q.filter(o => o.failed));
+    }).catch(() => {});
 
     // Seed from IndexedDB if no in-memory cache (handles offline after full reload)
     if (!hasCached) {
@@ -583,26 +587,45 @@ export default function WalkIn() {
 
   // ── Offline sync ─────────────────────────────────────────────────────────
 
-  const doSync = useCallback(async () => {
+  const refreshQueue = useCallback(async () => {
+    const all = await getPendingOrders().catch(() => []);
+    setPendingCount(all.filter(o => !o.failed).length);
+    setFailedOrders(all.filter(o => o.failed));
+  }, []);
+
+  const doSync = useCallback(async (retryFailed = false) => {
     const pending = await getPendingOrders().catch(() => []);
-    if (!pending.length) return;
+    if (!pending.some(o => retryFailed || !o.failed)) { refreshQueue(); return; }
     setSyncing(true);
     try {
-      await syncPendingOrders(payload => createWalkInOrder(payload));
-      const remaining = await getPendingOrders();
-      setPendingCount(remaining.length);
+      await syncPendingOrders(payload => createWalkInOrder(payload), { retryFailed });
     } catch (_) {}
+    await refreshQueue();
     setSyncing(false);
-  }, []);
+  }, [refreshQueue]);
+
+  async function discardFailed(id) {
+    if (!window.confirm('Discard this order? It was never saved to the system.')) return;
+    await removePendingOrder(id).catch(() => {});
+    refreshQueue();
+  }
 
   useEffect(() => {
     function handleOnline()  { setIsOffline(false); doSync(); }
     function handleOffline() { setIsOffline(true); }
+    // Also retry on a timer and when the tab/app comes back to the foreground,
+    // since the 'online' event alone is missed if the page was closed or never went offline.
+    function handleVisible() { if (document.visibilityState === 'visible' && navigator.onLine) doSync(); }
+    const timer = setInterval(() => { if (navigator.onLine) doSync(); }, 30000);
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisible);
+    if (navigator.onLine) doSync();
     return () => {
+      clearInterval(timer);
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisible);
     };
   }, [doSync]);
 
@@ -815,7 +838,7 @@ export default function WalkIn() {
               : `🔄 ${pendingCount} order${pendingCount !== 1 ? 's' : ''} pending sync`}
           </div>
           {!isOffline && pendingCount > 0 && (
-            <button onClick={doSync} disabled={syncing}
+            <button onClick={() => doSync()} disabled={syncing}
               style={{ padding: '5px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
                 background: '#38a9c2', color: '#fff', cursor: syncing ? 'not-allowed' : 'pointer',
                 opacity: syncing ? 0.7 : 1, fontFamily: 'inherit', flexShrink: 0 }}>
@@ -824,6 +847,31 @@ export default function WalkIn() {
           )}
         </div>
       )}
+
+      {/* Orders the server rejected — kept on this device until retried or discarded */}
+      {failedOrders.map(o => (
+        <div key={o.id} style={{
+          padding: '10px 14px', borderRadius: 10, marginBottom: 10,
+          background: '#FEF2F2', border: '1px solid #FECACA',
+        }}>
+          <div style={{ fontSize: 13, color: '#991B1B', fontWeight: 600 }}>
+            ⚠️ Order {o.tempRef} ({o.payload?.name || 'no name'}) could not be saved
+          </div>
+          <div style={{ fontSize: 12, color: '#991B1B', marginTop: 2 }}>{o.error || 'Rejected by server'}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button onClick={() => doSync(true)} disabled={syncing || isOffline}
+              style={{ padding: '5px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7, border: 'none',
+                background: '#38a9c2', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              Retry
+            </button>
+            <button onClick={() => discardFailed(o.id)}
+              style={{ padding: '5px 14px', fontSize: 12, fontWeight: 700, borderRadius: 7,
+                border: '1px solid #FECACA', background: '#fff', color: '#991B1B', cursor: 'pointer', fontFamily: 'inherit' }}>
+              Discard
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Header */}
       <div style={{ marginBottom: '1.25rem' }}>
