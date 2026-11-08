@@ -142,7 +142,8 @@ router.post('/:id/send-to-tlp-pos', auth, async (req, res) => {
       [req.params.id, req.user.tenant_id]
     );
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const result = await dispatchToTlpPos(db, order.booking_ref || order.id, req.user.tenant_id, !!order.booking_ref);
+    // manual = true: a person pressed the button, so LaundroDesk accepts it even in its Manual mode.
+    const result = await dispatchToTlpPos(db, order.booking_ref || order.id, req.user.tenant_id, !!order.booking_ref, true);
     const MESSAGES = {
       sent: 'Sent to LaundroDesk.',
       already_sent: 'Already sent. This order is already in LaundroDesk.',

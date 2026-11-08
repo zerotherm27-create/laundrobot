@@ -21,13 +21,15 @@ const pick = (selections, re) => selections.find(f => re.test(String(f?.label ??
 // ref           : booking_ref (e.g. 'BKG-001234') when isByBookingRef=true, otherwise order.id
 // tenantId      : required when isByBookingRef=true; ignored otherwise
 // isByBookingRef: true for Xendit BKG-ref path; false for single-order paths
+// manual        : true only when a person pressed "Send to LaundroDesk". LaundroDesk's Manual mode accepts only these;
+//                 Automatic accepts everything, Off refuses everything.
 //
 // Never throws: errors are logged and returned. Payment confirmation must never fail because TLP POS is down or misconfigured.
 // Resolves to { status: 'sent' | 'already_sent' | 'not_connected' | 'not_paid' | 'not_machine_wash' | 'failed', message? }
 // (automatic callers ignore the result; the "Send to LaundroDesk" button shows it).
 const isTlpPosConnected = () => !!(process.env.TLP_POS_IMPORT_URL && process.env.TLP_POS_IMPORT_TOKEN);
 
-const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
+const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef, manual = false) => {
   const importUrl   = process.env.TLP_POS_IMPORT_URL;
   const importToken = process.env.TLP_POS_IMPORT_TOKEN;
   if (!importUrl || !importToken) return { status: 'not_connected' };
@@ -101,6 +103,7 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
       customerName: first.customer_name,
       ...(first.contact_number ? { contactNumber: first.contact_number } : {}),
       ...(first.notes          ? { notes:         first.notes          } : {}),
+      ...(manual ? { manual: true } : {}),
       services,
     };
 
@@ -116,7 +119,10 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef) => {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error(`[tlp-pos] dispatch failed ${res.status}: ${text}`);
-      return { status: 'failed', message: `LaundroDesk answered ${res.status}` };
+      // LaundroDesk explains a refusal in plain words (e.g. "Order import is paused."); show it on the Send button.
+      let why = '';
+      try { why = String(JSON.parse(text)?.message ?? '').slice(0, 160); } catch { /* not JSON */ }
+      return { status: 'failed', message: why ? `LaundroDesk answered ${res.status}: ${why}` : `LaundroDesk answered ${res.status}` };
     }
     // LaundroDesk answers { skipped: true, reason: 'already imported' } when it already has this booking.
     const answer = await res.json().catch(() => ({}));
