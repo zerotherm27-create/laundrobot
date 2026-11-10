@@ -2,11 +2,7 @@
 // instagram_* scopes are still pending Meta App Review — requesting them from a user with no role
 // on the app can strip them or fail the whole dialog. Only ask for them when the tenant already
 // has an Instagram account linked, so reconnecting doesn't drop their IG permissions.
-// Only permissions Meta has approved for this app (App Review, 2026-07-01 / 2026-10-27). Do NOT re-add
-// pages_read_engagement / business_management: never approved, unused for messaging, and requesting
-// unapproved scopes from a user with no role on the app can make the login dialog unavailable.
-// (business_management only fed the optional /me/businesses lookup in routes/tenants.js, which degrades gracefully.)
-const BASE_SCOPES = ['pages_show_list', 'pages_manage_metadata', 'pages_messaging', 'pages_utility_messaging'];
+const BASE_SCOPES = ['pages_show_list', 'pages_manage_metadata', 'pages_messaging', 'pages_utility_messaging', 'pages_read_engagement', 'business_management'];
 const IG_SCOPES = ['instagram_basic', 'instagram_manage_messages'];
 
 // Returns an error string if the redirect can't start, otherwise navigates away.
