@@ -27,8 +27,8 @@ api.interceptors.response.use(
 export const login = (email, password, keepLoggedIn = false) =>
   api.post('/auth/login', { email, password, keep_logged_in: keepLoggedIn });
 
-export const signup = (business_name, email, password, website = '') =>
-  api.post('/auth/signup', { business_name, email, password, website });
+export const signup = (business_name, email, password, website = '', phone = '', facebook_page = '') =>
+  api.post('/auth/signup', { business_name, email, password, website, phone, facebook_page });
 
 export const verifyEmail = token => api.post('/auth/verify-email', { token });
 export const resendVerification = email => api.post('/auth/resend-verification', { email });

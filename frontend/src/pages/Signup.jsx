@@ -5,6 +5,8 @@ export default function Signup() {
   useEffect(() => { document.title = 'Start Your Free Trial — LaundroBot'; }, []);
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail]               = useState('');
+  const [phone, setPhone]               = useState('');
+  const [fbPage, setFbPage]             = useState('');
   const [password, setPassword]         = useState('');
   const [showPw, setShowPw]             = useState(false);
   const [error, setError]               = useState('');
@@ -17,7 +19,7 @@ export default function Signup() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const { data } = await apiSignup(businessName, email, password, website);
+      const { data } = await apiSignup(businessName, email, password, website, phone, fbPage);
       setSentTo(data.email || email);
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong. Please try again.');
@@ -114,6 +116,28 @@ export default function Signup() {
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)}
               required placeholder="you@email.com"
+              className="input-base" style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+              Mobile number
+            </label>
+            <input
+              type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)}
+              required placeholder="0917 123 4567"
+              className="input-base" style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 6 }}>
+              Facebook Page link <span style={{ color: '#6B7280', fontWeight: 400 }}>(optional)</span>
+            </label>
+            <input
+              type="text" value={fbPage} onChange={e => setFbPage(e.target.value)}
+              placeholder="facebook.com/yourlaundry"
               className="input-base" style={inputStyle}
             />
           </div>

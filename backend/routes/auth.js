@@ -93,9 +93,24 @@ function normalizeEmail(raw) {
   return `${local}@${domain}`;
 }
 
+// Philippine mobile → canonical 09XXXXXXXXX (accepts 09…, +639…, 639…, spaces/dashes). null if invalid.
+function normalizePhPhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.startsWith('63') && d.length === 12) d = '0' + d.slice(2);
+  return /^09\d{9}$/.test(d) ? d : null;
+}
+
+// Optional Facebook Page link: must be a facebook.com / fb.com / fb.me / m.me address. '' = not given, null = invalid.
+function cleanFbPage(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return '';
+  if (v.length > 200 || !/^(https?:\/\/)?(www\.|m\.|web\.)?(facebook\.com|fb\.com|fb\.me|m\.me)\//i.test(v)) return null;
+  return v;
+}
+
 // Self-service signup — creates a new tenant + admin user with a 14-day trial
 router.post('/signup', async (req, res) => {
-  const { business_name, email, password, website } = req.body;
+  const { business_name, email, password, website, phone, facebook_page } = req.body;
   // Honeypot: real users never see or fill this hidden field; bots do. Pretend it worked, create nothing.
   if (website) return res.json({ verification_required: true, email: String(email || '').trim().toLowerCase() });
   if (!business_name?.trim() || !email?.trim() || !password) {
@@ -103,6 +118,15 @@ router.post('/signup', async (req, res) => {
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  const ownerPhone = normalizePhPhone(phone);
+  if (!ownerPhone) {
+    return res.status(400).json({ error: 'Please enter a valid Philippine mobile number, e.g. 0917 123 4567.' });
+  }
+  const fbPage = cleanFbPage(facebook_page);
+  if (fbPage === null) {
+    return res.status(400).json({ error: 'Facebook Page link should look like facebook.com/yourpage (or leave it blank).' });
   }
 
   if (isDisposableEmail(email)) {
@@ -150,6 +174,17 @@ router.post('/signup', async (req, res) => {
       });
     }
 
+    // One trial per owner phone — a new email/shop name must not mint a second free trial.
+    const { rows: phoneTaken } = await client.query(
+      `SELECT 1 FROM tenants WHERE owner_phone = $1 LIMIT 1`, [ownerPhone]
+    );
+    if (phoneTaken.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'An account with this mobile number already exists. Please log in with your original email, or contact support.',
+      });
+    }
+
     // IP trial limit — max 5 trial accounts per IP (email confirmation is now the main guard, so shared networks get more room)
     if (signupIp && signupIp !== 'unknown') {
       const { rows: ipTrials } = await client.query(
@@ -165,10 +200,10 @@ router.post('/signup', async (req, res) => {
 
     // Create tenant with 14-day trial
     const { rows: [tenant] } = await client.query(
-      `INSERT INTO tenants (name, trial_ends_at, subscription_status, signup_ip)
-       VALUES ($1, NOW() + INTERVAL '14 days', 'trial', $2)
+      `INSERT INTO tenants (name, trial_ends_at, subscription_status, signup_ip, owner_phone, owner_fb_page)
+       VALUES ($1, NOW() + INTERVAL '14 days', 'trial', $2, $3, $4)
        RETURNING id, name, trial_ends_at, subscription_status`,
-      [business_name.trim(), signupIp]
+      [business_name.trim(), signupIp, ownerPhone, fbPage || null]
     );
 
     // Create admin user
@@ -189,8 +224,8 @@ router.post('/signup', async (req, res) => {
       sendEmail({
         to: process.env.SIGNUP_NOTIFY_EMAIL,
         subject: `New LaundroBot signup: ${tenant.name}`,
-        html: `<p>New trial signup (email not yet confirmed).</p><p><b>${String(tenant.name).replace(/</g, '&lt;')}</b><br>${cleanEmail}<br>IP: ${signupIp}</p>`,
-        text: `New trial signup (email not yet confirmed).\n${tenant.name}\n${cleanEmail}\nIP: ${signupIp}`,
+        html: `<p>New trial signup (email not yet confirmed).</p><p><b>${String(tenant.name).replace(/</g, '&lt;')}</b><br>${cleanEmail}<br>Phone: ${ownerPhone}<br>Page: ${String(fbPage || '—').replace(/</g, '&lt;')}<br>IP: ${signupIp}</p>`,
+        text: `New trial signup (email not yet confirmed).\n${tenant.name}\n${cleanEmail}\nPhone: ${ownerPhone}\nPage: ${fbPage || '—'}\nIP: ${signupIp}`,
       }).catch(() => {});
     }
 

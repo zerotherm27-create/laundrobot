@@ -104,6 +104,7 @@ test('signup rejects a shop name that already exists under another email', async
     business_name: 'Laba-Day ',
     email: 'second@gmail.com',
     password: 'longenough1',
+    phone: '0917 123 4567',
   });
 
   assert.equal(response.status, 409);
@@ -113,4 +114,56 @@ test('signup rejects a shop name that already exists under another email', async
 
   delete require.cache[authPath];
   delete require.cache[dbPath];
+});
+
+function loadSignupApp(clientQuery) {
+  const dbPath = require.resolve('../db');
+  const authPath = require.resolve('./auth');
+  delete require.cache[authPath];
+  const client = { query: clientQuery, release() {} };
+  require.cache[dbPath] = {
+    id: dbPath, filename: dbPath, loaded: true,
+    exports: { query: async () => ({ rows: [] }), pool: { connect: async () => client } },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use('/auth', require('./auth'));
+  return { app, cleanup() { delete require.cache[authPath]; delete require.cache[dbPath]; } };
+}
+
+test('signup requires a valid Philippine mobile number and a facebook.com Page link', async () => {
+  const { app, cleanup } = loadSignupApp(async () => ({ rows: [] }));
+  const base = { business_name: 'Fresh Wash', email: 'owner@gmail.com', password: 'longenough1' };
+
+  let r = await request(app, 'POST', '/auth/signup', base);
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /mobile number/);
+
+  r = await request(app, 'POST', '/auth/signup', { ...base, phone: '12345' });
+  assert.equal(r.status, 400);
+
+  r = await request(app, 'POST', '/auth/signup', { ...base, phone: '09171234567', facebook_page: 'https://evil.example/x' });
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /Facebook Page link/);
+  cleanup();
+});
+
+test('signup rejects an owner phone that already has a trial and normalizes +63 numbers', async () => {
+  const queries = [];
+  const { app, cleanup } = loadSignupApp(async (sql, params) => {
+    queries.push(sql);
+    if (/owner_phone = \$1/.test(sql)) {
+      assert.equal(params[0], '09171234567');
+      return { rows: [{ '?column?': 1 }] };
+    }
+    return { rows: [] };
+  });
+  const r = await request(app, 'POST', '/auth/signup', {
+    business_name: 'Fresh Wash', email: 'owner@gmail.com', password: 'longenough1',
+    phone: '+63 917-123-4567',
+  });
+  assert.equal(r.status, 409);
+  assert.match(r.body.error, /mobile number already exists/);
+  assert.ok(!queries.some(q => /INSERT INTO tenants/.test(q)), 'must not create a tenant');
+  cleanup();
 });
