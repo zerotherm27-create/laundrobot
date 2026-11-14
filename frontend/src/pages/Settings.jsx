@@ -73,7 +73,7 @@ function UpgradeCta({ title, desc, features }) {
         style={{ width: '100%', padding: '9px', borderRadius: 8, background: '#047857', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
         View plans & upgrade →
       </button>
-      <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
+      <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,599/month billed yearly · Cancel anytime</div>
     </div>
   );
 }

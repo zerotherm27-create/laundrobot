@@ -6,19 +6,19 @@ import { useModalA11y } from '../hooks/useModalA11y.js';
 const PLANS = [
   {
     tier: 'starter', label: 'Starter', tagline: 'For shops tired of managing orders by hand',
-    monthly: 999, annualMo: 833, annualTotal: '₱9,990',
+    monthly: 999, annualMo: 799, annualTotal: '₱9,588',
     color: '#38a9c2', lightBg: '#F0FBFD',
     features: ['1 branch · 2 staff accounts', 'Messenger bot + AI chatbot (Tagalog & English)', 'Booking webform with Xendit payments', 'Kanban order board + Walk-in POS', 'Email notifications to owner & customer', 'Up to 200 orders/month'],
   },
   {
     tier: 'growth', label: 'Growth', tagline: 'Works harder than a part-time staff — for less',
-    monthly: 1999, annualMo: 1666, annualTotal: '₱19,990',
+    monthly: 1999, annualMo: 1599, annualTotal: '₱19,188',
     color: '#047857', lightBg: '#F0FDF4', badge: 'Most Popular',
     features: ['Everything in Starter', 'Up to 3 branches · 5 staff accounts', 'Blast messaging to all your customers', 'Promo codes & referral links', 'Auto payment reminders (4-stage follow-up)', 'Auto-cancel unpaid orders after 24 hours', 'Revenue reports & analytics', 'Up to 1,000 orders/month'],
   },
   {
     tier: 'pro', label: 'Pro', tagline: 'One dashboard for all your branches',
-    monthly: 5499, annualMo: 4583, annualTotal: '₱54,990',
+    monthly: 5499, annualMo: 4399, annualTotal: '₱52,788',
     color: '#7C3AED', lightBg: '#F5F3FF',
     features: ['Everything in Growth', 'Up to 10 branches · 10 staff accounts', 'Custom AI instructions per branch', 'White-label booking form (your domain)', 'Unlimited orders', 'Priority support + dedicated onboarding'],
   },
@@ -53,7 +53,7 @@ export default function UpgradeModal() {
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', marginBottom: 10 }}>Choose your plan</div>
             <div style={{ display: 'inline-flex', background: '#F3F4F6', borderRadius: 20, padding: 3, gap: 2 }}>
-              {[{ label: 'Monthly', val: false }, { label: 'Annual — Save 17%', val: true }].map(opt => (
+              {[{ label: 'Monthly', val: false }, { label: 'Annual — Save 20%', val: true }].map(opt => (
                 <button key={opt.label} onClick={() => setUpgradeAnnual(opt.val)}
                   style={{ padding: '5px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, background: upgradeAnnual === opt.val ? '#fff' : 'transparent', color: upgradeAnnual === opt.val ? '#111827' : '#6B7280', boxShadow: upgradeAnnual === opt.val ? '0 1px 4px rgba(0,0,0,.12)' : 'none', transition: 'all .15s' }}>
                   {opt.label}
@@ -84,7 +84,7 @@ export default function UpgradeModal() {
                 </div>
                 <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>/month</div>
                 {upgradeAnnual
-                  ? <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 10 }}>Billed {p.annualTotal}/year · 2 months free</div>
+                  ? <div style={{ fontSize: 9, color: p.color, fontWeight: 600, marginBottom: 10 }}>Billed {p.annualTotal}/year · save 20%</div>
                   : <div style={{ marginBottom: 10 }} />}
                 <div style={{ height: '0.5px', background: '#E5E7EB', marginBottom: 10 }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

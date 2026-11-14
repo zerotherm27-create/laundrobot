@@ -925,9 +925,8 @@ const PLANS = [
     name: 'Starter',
     tagline: 'For shops tired of managing orders by hand',
     monthly: 999,
-    annual: 833,
-    annualTotal: '₱9,990',
-    monthsFree: 2,
+    annual: 799,
+    annualTotal: '₱9,588',
     color: 'var(--primary-tint)',
     textColor: 'var(--primary-tint-text)',
     bg: 'var(--primary-light)',
@@ -946,9 +945,8 @@ const PLANS = [
     name: 'Growth',
     tagline: 'Works harder than a part-time staff — for less',
     monthly: 1999,
-    annual: 1666,
-    annualTotal: '₱19,990',
-    monthsFree: 2,
+    annual: 1599,
+    annualTotal: '₱19,188',
     color: 'var(--primary-tint)',
     textColor: '#fff',
     bg: 'var(--primary-tint)',
@@ -971,9 +969,8 @@ const PLANS = [
     name: 'Pro',
     tagline: 'One dashboard for all your branches',
     monthly: 5499,
-    annual: 4583,
-    annualTotal: '₱54,990',
-    monthsFree: 2,
+    annual: 4399,
+    annualTotal: '₱52,788',
     color: 'var(--purple)',
     textColor: '#4740a8',
     bg: 'var(--purple-bg)',
@@ -1031,11 +1028,11 @@ function PricingCard({ plan, annual }) {
           </div>
           {annual && (
             <div style={{ fontSize: 12, color: 'var(--primary-tint)', fontWeight: 600, marginTop: 4 }}>
-              Billed {plan.annualTotal}/year · {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} free
+              Billed {plan.annualTotal}/year · save 20%
             </div>
           )}
           {!annual && (
-            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>or save {plan.monthsFree} month{plan.monthsFree > 1 ? 's' : ''} with annual billing</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>or save 20% with annual billing</div>
           )}
         </div>
 
@@ -1134,7 +1131,7 @@ function Pricing() {
               <button key={opt.label} onClick={() => setAnnual(opt.val)}
                 style={{ padding: '8px 18px', minHeight: 44, borderRadius: 46, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'background 150ms var(--l-ease-out), color 150ms var(--l-ease-out)', background: annual === opt.val ? 'var(--primary-tint)' : 'transparent', color: annual === opt.val ? '#fff' : '#6B7280', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                 {opt.label}
-                {opt.val && <span style={{ background: 'var(--accent)', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 17%</span>}
+                {opt.val && <span style={{ background: 'var(--accent)', color: '#7a5800', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 50, flexShrink: 0 }}>SAVE 20%</span>}
               </button>
             ))}
           </div>

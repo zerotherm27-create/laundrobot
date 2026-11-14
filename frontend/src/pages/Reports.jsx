@@ -149,7 +149,7 @@ export default function Reports() {
             style={{ width: '100%', padding: '10px', borderRadius: 8, background: '#047857', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 6 }}>
             View plans & upgrade →
           </button>
-          <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,666/month · 2 months free · Cancel anytime</div>
+          <div style={{ fontSize: 10, color: '#6B7280', textAlign: 'center' }}>₱1,599/month billed yearly · Cancel anytime</div>
         </div>
       </div>
     );
