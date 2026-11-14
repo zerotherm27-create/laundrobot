@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
         [tenantId]
       );
       const tierLabel = isPro ? 'Pro' : isGrowth ? 'Growth' : 'Starter';
-      const amount = req.body.amount || (isPro ? (isAnnual ? 52788 : 5499) : isGrowth ? (isAnnual ? 19188 : 1999) : (isAnnual ? 9588 : 999));
+      const amount = req.body.amount || require('../utils/subscriptionPlans').PLANS[subPlan].amount;
       sendEmail({
         to: [process.env.PLATFORM_NOTIFY_EMAIL || 'hello@laundrobot.app'],
         subject: `💰 New Subscription — ${newTenant?.name || tenantId} (${tierLabel} ${isAnnual ? 'Annual' : 'Monthly'})`,

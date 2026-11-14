@@ -111,13 +111,28 @@ test('every template renders with subject, text, html and an unsubscribe link', 
   }
 });
 
-test('"Choose a plan" opens the plan chooser after sign-in, and replies never go to noreply', () => {
+test('"Choose a plan" opens the no-login plan page; mail is sent from a real inbox', () => {
   const links = buildLinks('11111111-1111-1111-1111-111111111111');
-  assert.match(links.subscribe, /\/login\?choose_plan=1$/);
-  assert.match(render('trial_3d', { shopName: 'X', links }).html, /login\?choose_plan=1/);
-  const modal = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'src', 'components', 'UpgradeModal.jsx'), 'utf8');
-  assert.match(modal, /params\.has\('choose_plan'\)/);
+  assert.match(links.subscribe, /\/\?plan_token=[\w-]+\.[\w-]+\.[\w-]+$/);
+  assert.strictEqual(verifyLink(links.subscribe.split('plan_token=')[1], 'plan'), '11111111-1111-1111-1111-111111111111');
+  assert.match(render('trial_3d', { shopName: 'X', links }).html, /plan_token=/);
+  // The emails say "reply to this email", so From and Reply-To must be a real inbox, never noreply@.
+  assert.match(src, /from: FROM\(\)/);
   assert.match(src, /replyTo: REPLY_TO\(\)/);
+  assert.match(src, /LIFECYCLE_FROM \|\| undefined/);   // no hard-coded sender: an unverified domain would reject every send
+  assert.ok(!/noreply/i.test(src), 'job never sends from noreply');
+});
+
+test('plan-link checkout: signed token, shop-scoped, shared price list, never a login', () => {
+  const plans = require('../utils/subscriptionPlans').PLANS;
+  assert.deepStrictEqual(Object.values(plans).map(p => p.amount), [999, 1999, 5499, 9588, 19188, 52788]);
+  assert.match(routeSrc, /router\.post\('\/plan-link'/);
+  assert.match(routeSrc, /router\.post\('\/plan-link\/pay'/);
+  assert.match(routeSrc, /verifyLink\(req\.body\?\.token, 'plan'\)/);
+  assert.ok(!/jwt\.sign|res\.json\(\{ token/.test(routeSrc.slice(routeSrc.indexOf("'/plan-link'"))), 'plan-link never issues a session');
+  const authSrc = fs.readFileSync(path.join(__dirname, '..', 'routes', 'auth.js'), 'utf8');
+  assert.match(authSrc, /subscriptionPlans/);
+  assert.ok(!/starter_annual: *\{ amount/.test(authSrc), 'prices are defined only in utils/subscriptionPlans.js');
 });
 
 test('link tokens are action-bound and cannot be used as (or forged from) a login session', () => {

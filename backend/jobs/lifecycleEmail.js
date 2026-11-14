@@ -17,6 +17,11 @@ const WINDOW = 2 * DAY;
 const MIN_GAP = 20 * 60 * 60 * 1000; // never two emails to one shop inside 20h
 const SEND_HOUR_MANILA = 10;
 const TRIAL_DAYS = 14; // must match the trial length set in routes/auth.js + routes/verifyEmail.js
+// These emails say "reply to this email", so replies must reach a real, monitored inbox: reply-to is
+// always set (default hello@laundrobot.app). FROM stays the backend's configured sender (RESEND_FROM)
+// until LIFECYCLE_FROM is set — only set it once that address's domain is VERIFIED in Resend, or every
+// send is rejected (laundrobot.app was not verified when this was written; thelaundryproject.app was).
+const FROM = () => process.env.LIFECYCLE_FROM || undefined;
 const REPLY_TO = () => process.env.LIFECYCLE_REPLY_TO || 'hello@laundrobot.app';
 
 const ms = d => (d ? new Date(d).getTime() : null);
@@ -127,7 +132,8 @@ async function runLifecycleEmail({ now = new Date(), force = false } = {}) {
         to: row.email,
         ...render(step, { shopName: row.name, links }),
         headers: { 'List-Unsubscribe': `<${links.unsubscribe}>` },
-        replyTo: REPLY_TO(), // the emails say "reply to this email" — never let that go to noreply@
+        from: FROM(),
+        replyTo: REPLY_TO(),
       });
       sent++;
       console.log(`[lifecycle] sent ${step} to ${row.email} (${row.name})`);
@@ -143,4 +149,5 @@ async function runLifecycleEmail({ now = new Date(), force = false } = {}) {
 module.exports = runLifecycleEmail;
 module.exports.pickStep = pickStep;
 module.exports.REPLY_TO = REPLY_TO;
+module.exports.FROM = FROM;
 module.exports.CANDIDATES_SQL = CANDIDATES_SQL;

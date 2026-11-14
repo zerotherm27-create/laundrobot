@@ -19,6 +19,7 @@ import useOnboarding from './hooks/useOnboarding.js';
 const Login        = lazy(() => import('./pages/Login.jsx'));
 const VerifyEmail  = lazy(() => import('./pages/VerifyEmail.jsx'));
 const LifecycleLink = lazy(() => import('./pages/LifecycleLink.jsx'));
+const PlanLink     = lazy(() => import('./pages/PlanLink.jsx'));
 const Signup       = lazy(() => import('./pages/Signup.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const BookingForm  = lazy(() => import('./pages/BookingForm.jsx'));
@@ -306,6 +307,9 @@ function Inner() {
   const extendToken = params.get('extend_trial');
   const unsubToken  = params.get('unsubscribe');
   if (extendToken) return <Suspense fallback={null}><LifecycleLink kind="extend" token={extendToken} /></Suspense>;
+  // "Choose a plan" from a trial email: pick a plan and pay with no login (token identifies the shop).
+  const planToken = params.get('plan_token');
+  if (planToken || params.has('plan_paid')) return <Suspense fallback={null}><PlanLink token={planToken} paid={params.has('plan_paid')} /></Suspense>;
   if (unsubToken)  return <Suspense fallback={null}><LifecycleLink kind="unsub" token={unsubToken} /></Suspense>;
   if (resetToken) {
     document.title = 'Reset Password — LaundroBot';

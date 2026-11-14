@@ -7,7 +7,8 @@ const jwt = require('jsonwebtoken');
 // be used as a link.
 const secret = () => `${process.env.JWT_SECRET}:lifecycle-link`;
 
-const ACTIONS = { extend: '30d', unsub: null }; // action → expiry (unsubscribe links never expire)
+// action → expiry (unsubscribe links never expire). 'plan' opens the no-login plan page for that shop.
+const ACTIONS = { extend: '30d', plan: '60d', unsub: null };
 
 function signLink(tenantId, action) {
   if (!(action in ACTIONS)) throw new Error(`Unknown link action: ${action}`);
@@ -32,8 +33,8 @@ function buildLinks(tenantId, verifyToken) {
   const base = appUrl();
   return {
     app:         `${base}/login`,
-    // Sign in (if needed), then the app opens the plan chooser (UpgradeModal reads ?choose_plan=1).
-    subscribe:   `${base}/login?choose_plan=1`,
+    // No login: the token identifies the shop; the page (PlanLink.jsx) lets the owner pick a plan and pay.
+    subscribe:   `${base}/?plan_token=${signLink(tenantId, 'plan')}`,
     extend:      `${base}/?extend_trial=${signLink(tenantId, 'extend')}`,
     unsubscribe: `${base}/?unsubscribe=${signLink(tenantId, 'unsub')}`,
     ...(verifyToken ? { verify: `${base}/?verify_token=${verifyToken}` } : {}),

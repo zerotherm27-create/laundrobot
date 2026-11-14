@@ -337,34 +337,22 @@ router.get('/subscription', require('../middleware/auth'), async (req, res) => {
 
 // POST create a subscription payment invoice via platform Xendit key
 router.post('/subscription/pay', require('../middleware/auth'), async (req, res) => {
-  const { plan } = req.body; // 'starter_monthly' | 'growth_monthly' | 'pro_monthly' | '*_annual'
-  const PLANS = {
-    starter_monthly: { amount: 999,   label: 'LaundroBot Starter Monthly', tier: 'starter' },
-    growth_monthly:  { amount: 1999,  label: 'LaundroBot Growth Monthly',  tier: 'growth'  },
-    pro_monthly:     { amount: 5499,  label: 'LaundroBot Pro Monthly',     tier: 'pro'     },
-    starter_annual:  { amount: 9588,  label: 'LaundroBot Starter Annual',  tier: 'starter' },
-    growth_annual:   { amount: 19188, label: 'LaundroBot Growth Annual',   tier: 'growth'  },
-    pro_annual:      { amount: 52788, label: 'LaundroBot Pro Annual',      tier: 'pro'     },
-  };
-  const chosen = PLANS[plan] || PLANS.starter_monthly;
-  const platformKey = process.env.XENDIT_PLATFORM_API_KEY;
-  if (!platformKey) return res.status(500).json({ error: 'Platform payment not configured' });
-
+  // 'starter_monthly' | 'growth_monthly' | 'pro_monthly' | '*_annual' — prices live in utils/subscriptionPlans.js
+  const { PLANS, createSubscriptionInvoice } = require('../utils/subscriptionPlans');
+  const plan = PLANS[req.body.plan] ? req.body.plan : 'starter_monthly';
   try {
     const { rows: [tenant] } = await db.query(
       `SELECT name FROM tenants WHERE id = $1`, [req.user.tenant_id]
     );
-    const { createInvoice } = require('../utils/xendit');
-    const externalId = `sub-${req.user.tenant_id}-${Date.now()}`;
-    const { invoiceUrl } = await createInvoice(platformKey, {
-      externalId,
-      amount: chosen.amount,
+    const out = await createSubscriptionInvoice({
+      tenantId: req.user.tenant_id,
+      tenantName: tenant?.name || req.user.tenant_name,
       payerEmail: req.user.email,
-      description: `${chosen.label} — ${tenant?.name || req.user.tenant_name}`,
-      successRedirectUrl: `${process.env.APP_URL || 'https://laundrobot.app'}/?subscribed=1`,
+      plan,
     });
-    res.json({ invoiceUrl, externalId, amount: chosen.amount });
+    res.json(out);
   } catch (err) {
+    if (err.code === 'NOT_CONFIGURED') return res.status(500).json({ error: 'Platform payment not configured' });
     console.error('Subscription pay error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }

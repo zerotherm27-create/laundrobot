@@ -158,7 +158,7 @@ function render(step, { shopName, links }) {
     ...after,
     ...(button ? [`${button.label}: ${url}`] : []),
     ...(note ? [note] : []),
-    'LaundroBot',
+    'Questions? Just reply to this email.\n\nThe LaundroBot team',
     `${footer}\nUnsubscribe: ${links.unsubscribe}`,
   ].join('\n\n');
 
@@ -167,58 +167,55 @@ function render(step, { shopName, links }) {
   return { subject, text, html };
 }
 
-// LaundroBot-branded layout. Colors mirror frontend/index.html (--primary #17677a, --primary-tint
-// #38a9c2, --bg #F7F7F5, --text #0D1117). Table-based with inline styles only, because email clients
-// (Gmail, Outlook) strip <style> blocks and ignore flex/grid. The logo is served from the live site.
+// LaundroBot-branded layout, deliberately plain: it should read like a note from a person at the
+// company, not a template. No card, no colored bars, no icon chips. Just the logo, left-aligned text,
+// one solid button, a signature and a small footer. Colors mirror frontend/index.html (--primary
+// #17677a, --text #0D1117). Table-based with inline styles only (Gmail/Outlook strip <style>).
 const BRAND = {
   site: 'https://www.laundrobot.app',
   logo: 'https://www.laundrobot.app/logo-96.png',
-  messenger: 'https://m.me/laundrobotph',
   font: "'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
 };
 
 function brandedHtml({ subject, paragraphs, bullets, after, button, url, note, footer, unsubscribe }) {
   const f = `font-family:${BRAND.font};`;
-  const para = p => `<p style="${f}font-size:15px;line-height:1.65;color:#374151;margin:0 0 12px;">${esc(p)}</p>`;
-  // Numbered tips: a teal number chip beside a bold title and a short explanation.
-  const tips = bullets.length ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 10px;">
-          ${bullets.map(([title, body], i) => `<tr>
-            <td width="34" valign="top" style="padding:8px 0;"><div style="${f}width:26px;height:26px;line-height:26px;border-radius:13px;background:#e6f5f8;color:#17677a;font-size:13px;font-weight:800;text-align:center;">${i + 1}</div></td>
-            <td valign="top" style="padding:8px 0;">
-              <div style="${f}font-size:15px;line-height:1.4;font-weight:700;color:#0D1117;">${esc(title)}</div>
-              <div style="${f}font-size:14px;line-height:1.6;color:#374151;margin-top:2px;">${esc(body)}</div>
-            </td></tr>`).join('\n          ')}
-        </table>` : '';
+  const body = `${f}font-size:16px;line-height:1.65;color:#1f2937;margin:0 0 16px;`;
+  const para = p => `<p style="${body}">${esc(p)}</p>`;
+  // Tips as a plain numbered list: bold lead-in, then the explanation on the same line.
+  const tips = bullets.length ? `<ol style="${f}font-size:16px;line-height:1.65;color:#1f2937;margin:0 0 18px;padding-left:22px;">
+        ${bullets.map(([title, text]) => `<li style="margin:0 0 12px;"><strong style="color:#0D1117;">${esc(title)}.</strong> ${esc(text)}</li>`).join('\n        ')}
+      </ol>` : '';
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#F7F7F5;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F7F5;">
-  <tr><td align="center" style="padding:28px 12px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
-      <tr><td style="padding:0 4px 16px;">
+<body style="margin:0;padding:0;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td align="center" style="padding:32px 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;">
+      <tr><td style="padding:0 0 28px;">
         <a href="${BRAND.site}" style="text-decoration:none;">
-          <img src="${BRAND.logo}" width="36" height="36" alt="" style="vertical-align:middle;border:0;border-radius:9px;">
-          <span style="${f}font-size:17px;font-weight:800;color:#0D1117;vertical-align:middle;padding-left:8px;letter-spacing:-.02em;">LaundroBot</span>
+          <img src="${BRAND.logo}" width="30" height="30" alt="" style="vertical-align:middle;border:0;border-radius:7px;">
+          <span style="${f}font-size:16px;font-weight:800;color:#0D1117;vertical-align:middle;padding-left:8px;letter-spacing:-.02em;">LaundroBot</span>
         </a>
       </td></tr>
-      <tr><td style="background:#ffffff;border:1px solid #E8E8E0;border-top:4px solid #38a9c2;border-radius:14px;padding:28px 28px 24px;">
-        <h1 style="${f}font-size:21px;line-height:1.3;font-weight:800;color:#0D1117;letter-spacing:-.02em;margin:0 0 16px;">${esc(subject)}</h1>
-        <p style="${f}font-size:15px;line-height:1.65;color:#374151;margin:0 0 12px;">Hi,</p>
+      <tr><td>
+        <h1 style="${f}font-size:22px;line-height:1.3;font-weight:800;color:#0D1117;letter-spacing:-.02em;margin:0 0 18px;">${esc(subject)}</h1>
+        <p style="${body}">Hi,</p>
         ${paragraphs.map(para).join('\n        ')}
         ${tips}
         ${after.map(para).join('\n        ')}
-        ${button ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 14px;"><tr>
-          <td style="background:#17677a;border-radius:50px;">
-            <a href="${esc(url)}" style="${f}display:inline-block;padding:13px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">${esc(button.label)}</a>
+        ${button ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 18px;"><tr>
+          <td style="background:#17677a;border-radius:6px;">
+            <a href="${esc(url)}" style="${f}display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">${esc(button.label)}</a>
           </td></tr></table>` : ''}
-        ${note ? `<p style="${f}font-size:13px;line-height:1.5;color:#6B7280;margin:0 0 12px;">${esc(note)}</p>` : ''}
-        ${button ? `<p style="${f}font-size:12px;line-height:1.5;color:#6B7280;margin:14px 0 0;word-break:break-all;">Button not working? Copy this link into your browser:<br><a href="${esc(url)}" style="color:#1a7d94;">${esc(url)}</a></p>` : ''}
+        ${note ? `<p style="${f}font-size:14px;line-height:1.5;color:#6B7280;margin:0 0 16px;">${esc(note)}</p>` : ''}
+        <p style="${body}margin-bottom:4px;">Questions? Just reply to this email.</p>
+        <p style="${body}">The LaundroBot team</p>
       </td></tr>
-      <tr><td style="padding:18px 8px 0;text-align:center;">
-        <p style="${f}font-size:13px;line-height:1.6;color:#374151;margin:0 0 6px;">Questions? Reply to this email or <a href="${BRAND.messenger}" style="color:#1a7d94;font-weight:600;">message us on Facebook</a>.</p>
-        <p style="${f}font-size:11px;line-height:1.6;color:#6B7280;margin:0;">${esc(footer)}<br>
-          <a href="${BRAND.site}" style="color:#6B7280;">laundrobot.app</a> &nbsp;·&nbsp; <a href="${esc(unsubscribe)}" style="color:#6B7280;">Unsubscribe from these emails</a></p>
+      <tr><td style="padding:22px 0 0;border-top:1px solid #E5E7EB;">
+        ${button ? `<p style="${f}font-size:12px;line-height:1.6;color:#6B7280;margin:0 0 10px;word-break:break-all;">Button not working? Copy this link into your browser:<br><a href="${esc(url)}" style="color:#6B7280;">${esc(url)}</a></p>` : ''}
+        <p style="${f}font-size:12px;line-height:1.6;color:#6B7280;margin:0;">${esc(footer)}<br>
+          <a href="${esc(unsubscribe)}" style="color:#6B7280;">Unsubscribe from these emails</a></p>
       </td></tr>
     </table>
   </td></tr>

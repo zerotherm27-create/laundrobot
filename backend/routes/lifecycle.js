@@ -68,4 +68,51 @@ router.post('/unsubscribe', async (req, res) => {
   }
 });
 
+// ── No-login "Choose a plan" (the link in the trial emails) ──────────────────────────────────────
+// The signed token identifies the shop, so the owner can pick a plan and pay without signing in.
+// It grants NOTHING else: no session, no shop data beyond the shop's name.
+
+// POST /auth/plan-link { token } — who is this link for, and can they still subscribe?
+router.post('/plan-link', async (req, res) => {
+  const tenantId = verifyLink(req.body?.token, 'plan');
+  if (!tenantId) return res.status(400).json({ error: 'This link is invalid or has expired. Sign in to choose a plan.' });
+  try {
+    const { rows: [t] } = await db.query(
+      `SELECT name, subscription_status, subscription_paid_until FROM tenants WHERE id = $1 AND active = TRUE`, [tenantId]
+    );
+    if (!t) return res.status(404).json({ error: 'We could not find this shop.' });
+    const subscribed = t.subscription_status === 'active'
+      && (!t.subscription_paid_until || new Date(t.subscription_paid_until) > new Date());
+    res.json({ shop_name: t.name, subscribed });
+  } catch (err) {
+    console.error('[lifecycle] plan-link', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/plan-link/pay { token, plan } — create the Xendit invoice for that shop.
+router.post('/plan-link/pay', async (req, res) => {
+  const tenantId = verifyLink(req.body?.token, 'plan');
+  if (!tenantId) return res.status(400).json({ error: 'This link is invalid or has expired. Sign in to choose a plan.' });
+  const { PLANS, createSubscriptionInvoice } = require('../utils/subscriptionPlans');
+  const plan = String(req.body?.plan || '');
+  if (!PLANS[plan]) return res.status(400).json({ error: 'Please choose a plan.' });
+  try {
+    const { rows: [t] } = await db.query(
+      `SELECT t.name,
+              (SELECT u.email FROM users u WHERE u.tenant_id = t.id AND u.role = 'admin' AND u.email IS NOT NULL
+               ORDER BY u.created_at ASC LIMIT 1) AS owner_email
+       FROM tenants t WHERE t.id = $1 AND t.active = TRUE`, [tenantId]
+    );
+    if (!t || !t.owner_email) return res.status(404).json({ error: 'We could not find this shop.' });
+    const { invoiceUrl } = await createSubscriptionInvoice({
+      tenantId, tenantName: t.name, payerEmail: t.owner_email, plan, successPath: '/?plan_paid=1',
+    });
+    res.json({ invoiceUrl });
+  } catch (err) {
+    console.error('[lifecycle] plan-link/pay', err.response?.data || err);
+    res.status(500).json({ error: 'Could not open the payment page. Please try again.' });
+  }
+});
+
 module.exports = router;

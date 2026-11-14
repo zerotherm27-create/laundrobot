@@ -35,6 +35,8 @@ export const resendVerification = email => api.post('/auth/resend-verification',
 // Links in the automated trial emails (pages/LifecycleLink.jsx)
 export const extendTrial = token => api.post('/auth/extend-trial', { token });
 export const unsubscribeEmails = token => api.post('/auth/unsubscribe', { token });
+export const getPlanLink = token => api.post('/auth/plan-link', { token });
+export const payPlanLink = (token, plan) => api.post('/auth/plan-link/pay', { token, plan });
 
 export const getSubscription = () =>
   api.get('/auth/subscription');
