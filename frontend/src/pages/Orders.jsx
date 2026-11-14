@@ -242,11 +242,13 @@ export default function Orders() {
   // Paid toggle
   const [paidToggling, setPaidToggling] = useState(false);
 
-  // "Send to LaundroDesk" button: active only when this LaundroBot is connected to LaundroDesk
+  // "Send to LaundroDesk" button: shown only to the shop that uses LaundroDesk (The Laundry Project, decided by the
+  // backend); active only when the connection is set up
+  const [tlpAvailable, setTlpAvailable] = useState(false);
   const [tlpConnected, setTlpConnected] = useState(false);
   const [tlpSending, setTlpSending] = useState(false);
   const [tlpAppUrl,    setTlpAppUrl]    = useState(null);
-  useEffect(() => { getTlpPosStatus().then(r => { setTlpConnected(!!r.data?.connected); setTlpAppUrl(r.data?.app_url || null); }).catch(() => setTlpConnected(false)); }, []);
+  useEffect(() => { getTlpPosStatus().then(r => { setTlpAvailable(!!r.data?.available); setTlpConnected(!!r.data?.connected); setTlpAppUrl(r.data?.app_url || null); }).catch(() => { setTlpAvailable(false); setTlpConnected(false); }); }, []);
 
   const loadActive = useCallback(() => {
     setLoading(true);
@@ -778,6 +780,7 @@ export default function Orders() {
                       </button>
 
                       {/* ── Send to LaundroDesk (machine-wash orders; safe to repeat) ── */}
+                      {tlpAvailable && (<>
                       <button type="button"
                         disabled={!tlpConnected || !selected.paid || tlpSending}
                         title={!tlpConnected ? 'Not connected to LaundroDesk' : !selected.paid ? 'Mark the order as paid first' : 'Send this order to LaundroDesk'}
@@ -806,6 +809,7 @@ export default function Orders() {
                       {!tlpConnected && (
                         <div style={{ marginTop: 4, fontSize: 11, color: '#888', textAlign: 'center' }}>Not connected to LaundroDesk</div>
                       )}
+                      </>)}
                     </div>
 
                     {selected.xendit_invoice_url && (

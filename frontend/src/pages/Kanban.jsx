@@ -131,11 +131,13 @@ export default function Kanban() {
   const [invoiceResult,  setInvoiceResult]  = useState('');
   const [showActions,      setShowActions]      = useState(false);
 
-  // "Send to LaundroDesk" button: active only when this LaundroBot is connected to LaundroDesk
+  // "Send to LaundroDesk" button: shown only to the shop that uses LaundroDesk (The Laundry Project, decided by the
+  // backend); active only when the connection is set up
+  const [tlpAvailable, setTlpAvailable] = useState(false);
   const [tlpConnected, setTlpConnected] = useState(false);
   const [tlpSending,   setTlpSending]   = useState(false);
   const [tlpAppUrl,    setTlpAppUrl]    = useState(null);
-  useEffect(() => { getTlpPosStatus().then(r => { setTlpConnected(!!r.data?.connected); setTlpAppUrl(r.data?.app_url || null); }).catch(() => setTlpConnected(false)); }, []);
+  useEffect(() => { getTlpPosStatus().then(r => { setTlpAvailable(!!r.data?.available); setTlpConnected(!!r.data?.connected); setTlpAppUrl(r.data?.app_url || null); }).catch(() => { setTlpAvailable(false); setTlpConnected(false); }); }, []);
   const [showCancelSection, setShowCancelSection] = useState(false);
 
   // Delivery date override state (inside modal)
@@ -710,6 +712,7 @@ export default function Kanban() {
               </div>
 
               {/* Send to LaundroDesk (machine-wash orders; safe to repeat) */}
+              {tlpAvailable && (<>
               <button type="button"
                 disabled={!tlpConnected || !modalOrder.paid || tlpSending}
                 title={!tlpConnected ? 'Not connected to LaundroDesk' : !modalOrder.paid ? 'The order must be paid first' : 'Send this order to LaundroDesk'}
@@ -738,6 +741,7 @@ export default function Kanban() {
               {!tlpConnected && (
                 <div style={{ marginTop: 4, fontSize: 11, color: '#888', textAlign: 'center' }}>Not connected to LaundroDesk</div>
               )}
+              </>)}
             </div>
 
             {/* Delivery date row — editable */}

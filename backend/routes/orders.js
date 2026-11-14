@@ -6,7 +6,7 @@ const { sendTaggedMessage, sendStatusUpdate, sendButtons, sendButtonsWithFallbac
 const { createInvoice, createRefund, getInvoiceStatus, expireInvoice } = require('../utils/xendit');
 const { sendInvoiceEmail, sendCustomerPaymentEmail, sendPaidOrderEmail } = require('../utils/email');
 const { sendPushToTenant } = require('../utils/push');
-const { dispatchToTlpPos, isTlpPosConnected } = require('../utils/tlpPos');
+const { dispatchToTlpPos, isTlpPosConnected, isTlpPosTenant } = require('../utils/tlpPos');
 
 const { deductInventory } = require('./inventory');
 const MONTH_LIMITS = { starter: 200, growth: 1000, pro: Infinity };
@@ -124,19 +124,21 @@ router.get('/booking/:ref/payment-status', auth, async (req, res) => {
   }
 });
 
-// GET whether this LaundroBot is connected to LaundroDesk (decides if the "Send to LaundroDesk" button is active)
+// GET whether this shop uses LaundroDesk (`available`: show the "Send to LaundroDesk" button at all) and whether the
+// connection is set up (`connected`: button active). Only The Laundry Project has LaundroDesk; other shops get false/false.
 router.get('/tlp-pos/status', auth, (req, res) => {
+  if (!isTlpPosTenant(req.user.tenant_id)) return res.json({ available: false, connected: false, app_url: null });
   let appUrl = process.env.LAUNDRODESK_APP_URL || null;
   if (!appUrl && process.env.TLP_POS_IMPORT_URL) {
     try { appUrl = new URL(process.env.TLP_POS_IMPORT_URL).origin; } catch { appUrl = null; }
   }
-  res.json({ connected: isTlpPosConnected(), app_url: appUrl });
+  res.json({ available: true, connected: isTlpPosConnected(req.user.tenant_id), app_url: appUrl });
 });
 
 // POST send one paid order (or its whole booking) to LaundroDesk by hand. Safe to repeat: LaundroDesk ignores orders it already has.
 router.post('/:id/send-to-tlp-pos', auth, async (req, res) => {
   try {
-    if (!isTlpPosConnected()) return res.status(400).json({ error: 'Not connected to LaundroDesk.' });
+    if (!isTlpPosConnected(req.user.tenant_id)) return res.status(400).json({ error: 'Not connected to LaundroDesk.' });
     const { rows: [order] } = await db.query(
       `SELECT id, booking_ref FROM orders WHERE id=$1 AND tenant_id=$2`,
       [req.params.id, req.user.tenant_id]

@@ -19,7 +19,7 @@ const pick = (selections, re) => selections.find(f => re.test(String(f?.label ??
 // Dispatch a paid LaundroBot booking to TLP POS's /api/orders/import endpoint.
 //
 // ref           : booking_ref (e.g. 'BKG-001234') when isByBookingRef=true, otherwise order.id
-// tenantId      : required when isByBookingRef=true; ignored otherwise
+// tenantId      : always required: only the LaundroDesk shop's orders are sent (see isTlpPosTenant); also scopes the booking_ref lookup
 // isByBookingRef: true for Xendit BKG-ref path; false for single-order paths
 // manual        : true only when a person pressed "Send to LaundroDesk". LaundroDesk's Manual mode accepts only these;
 //                 Automatic accepts everything, Off refuses everything.
@@ -27,12 +27,20 @@ const pick = (selections, re) => selections.find(f => re.test(String(f?.label ??
 // Never throws: errors are logged and returned. Payment confirmation must never fail because TLP POS is down or misconfigured.
 // Resolves to { status: 'sent' | 'already_sent' | 'not_connected' | 'not_paid' | 'not_machine_wash' | 'failed', message? }
 // (automatic callers ignore the result; the "Send to LaundroDesk" button shows it).
-const isTlpPosConnected = () => !!(process.env.TLP_POS_IMPORT_URL && process.env.TLP_POS_IMPORT_TOKEN);
+//
+// LaundroDesk belongs to ONE shop (The Laundry Project). The import URL/token are server-wide settings, so without this
+// check every shop would see the button and have its paid machine-wash orders pushed into The Laundry Project's LaundroDesk.
+// TLP_POS_TENANT_ID (comma-separated for several branches) overrides the default, which is The Laundry Project's tenant id.
+const TLP_POS_TENANT_IDS = (process.env.TLP_POS_TENANT_ID || '8d545ba2-8262-4bf3-aba1-109528789213')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const isTlpPosTenant = (tenantId) => !!tenantId && TLP_POS_TENANT_IDS.includes(String(tenantId));
+const isTlpPosConnected = (tenantId) =>
+  isTlpPosTenant(tenantId) && !!(process.env.TLP_POS_IMPORT_URL && process.env.TLP_POS_IMPORT_TOKEN);
 
 const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef, manual = false) => {
   const importUrl   = process.env.TLP_POS_IMPORT_URL;
   const importToken = process.env.TLP_POS_IMPORT_TOKEN;
-  if (!importUrl || !importToken) return { status: 'not_connected' };
+  if (!importUrl || !importToken || !isTlpPosTenant(tenantId)) return { status: 'not_connected' };
 
   try {
     const whereClause = isByBookingRef
@@ -138,4 +146,4 @@ const dispatchToTlpPos = async (db, ref, tenantId, isByBookingRef, manual = fals
   }
 };
 
-module.exports = { dispatchToTlpPos, isTlpPosConnected };
+module.exports = { dispatchToTlpPos, isTlpPosConnected, isTlpPosTenant };
