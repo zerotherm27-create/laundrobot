@@ -1199,7 +1199,7 @@ function CtaBand() {
         <p style={{ fontSize: 14, color: '#6B7280', margin: '1.5rem 0 0' }}>
           Have a question first?{' '}
           <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-tint-dark)', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-            Message us on Messenger
+            Message us on Facebook
           </a>
         </p>
       </div>
@@ -1224,7 +1224,7 @@ function MessengerGlyph({ size = 22, color = '#fff' }) {
 function MessengerFab() {
   return (
     <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="l-msgr-fab btn-press"
-      aria-label="Message us on Messenger">
+      aria-label="Message us on Facebook">
       <MessengerGlyph />
       <span className="l-msgr-fab-label">Message us</span>
     </a>
@@ -1272,7 +1272,7 @@ function Footer() {
             <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Support</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <FooterLink href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer">Book a demo</FooterLink>
-              <FooterLink href={MESSENGER_URL} target="_blank" rel="noopener noreferrer">Message us on Messenger</FooterLink>
+              <FooterLink href={MESSENGER_URL} target="_blank" rel="noopener noreferrer">Message us on Facebook</FooterLink>
               <FooterLink href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Facebook Page</FooterLink>
               <FooterLink href="/login">Sign in</FooterLink>
               <FooterLink href="/privacy">Privacy Policy</FooterLink>
