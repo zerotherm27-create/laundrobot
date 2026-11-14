@@ -168,8 +168,8 @@ function render(step, { shopName, links }) {
 }
 
 // LaundroBot-branded layout, deliberately plain: it should read like a note from a person at the
-// company, not a template. No card, no colored bars, no icon chips. Just the logo, left-aligned text,
-// one solid button, a signature and a small footer. Colors mirror frontend/index.html (--primary
+// company, not a template. One white card with a thin (1px) teal outline — no colored bars, no icon
+// chips — with left-aligned text, one solid button and a signature; the small footer sits below it. Colors mirror frontend/index.html (--primary
 // #17677a, --text #0D1117). Table-based with inline styles only (Gmail/Outlook strip <style>).
 const BRAND = {
   site: 'https://www.laundrobot.app',
@@ -188,17 +188,17 @@ function brandedHtml({ subject, paragraphs, bullets, after, button, url, note, f
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-  <tr><td align="center" style="padding:32px 20px;">
+<body style="margin:0;padding:0;background:#F7F7F5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F7F5;">
+  <tr><td align="center" style="padding:28px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;">
-      <tr><td style="padding:0 0 28px;">
+      <tr><td style="padding:0 4px 16px;">
         <a href="${BRAND.site}" style="text-decoration:none;">
           <img src="${BRAND.logo}" width="30" height="30" alt="" style="vertical-align:middle;border:0;border-radius:7px;">
           <span style="${f}font-size:16px;font-weight:800;color:#0D1117;vertical-align:middle;padding-left:8px;letter-spacing:-.02em;">LaundroBot</span>
         </a>
       </td></tr>
-      <tr><td>
+      <tr><td style="background:#ffffff;border:1px solid #38a9c2;border-radius:12px;padding:30px 28px 26px;">
         <h1 style="${f}font-size:22px;line-height:1.3;font-weight:800;color:#0D1117;letter-spacing:-.02em;margin:0 0 18px;">${esc(subject)}</h1>
         <p style="${body}">Hi,</p>
         ${paragraphs.map(para).join('\n        ')}
@@ -212,7 +212,7 @@ function brandedHtml({ subject, paragraphs, bullets, after, button, url, note, f
         <p style="${body}margin-bottom:4px;">Questions? Just reply to this email.</p>
         <p style="${body}">The LaundroBot team</p>
       </td></tr>
-      <tr><td style="padding:22px 0 0;border-top:1px solid #E5E7EB;">
+      <tr><td style="padding:18px 8px 0;">
         ${button ? `<p style="${f}font-size:12px;line-height:1.6;color:#6B7280;margin:0 0 10px;word-break:break-all;">Button not working? Copy this link into your browser:<br><a href="${esc(url)}" style="color:#6B7280;">${esc(url)}</a></p>` : ''}
         <p style="${f}font-size:12px;line-height:1.6;color:#6B7280;margin:0;">${esc(footer)}<br>
           <a href="${esc(unsubscribe)}" style="color:#6B7280;">Unsubscribe from these emails</a></p>
