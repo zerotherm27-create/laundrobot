@@ -13,6 +13,45 @@ const btn = (bg, color, extra = {}) => ({
   border: 'none', cursor: 'pointer', background: bg, color, ...extra,
 });
 
+const fmtDate = d => new Date(d).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' });
+
+// What the Shops table shows for a shop's trial / subscription and when it ends.
+// A trial is only flipped to 'expired' in the DB when the shop next opens the app,
+// so a past trial date is treated as ended here even if the status still says 'trial'.
+export function subscriptionInfo(t, now = new Date()) {
+  const status = t.subscription_status;
+  if (!status) return { label: '—', tone: 'muted' };
+  const end = status === 'trial' ? t.trial_ends_at
+    : status === 'active' ? t.subscription_paid_until
+    : (t.subscription_paid_until || t.trial_ends_at);
+  const daysLeft = end ? Math.ceil((new Date(end) - now) / 86400000) : null;
+  const left = daysLeft === null ? '' : daysLeft <= 0 ? '' : daysLeft === 1 ? ' · 1 day left' : ` · ${daysLeft} days left`;
+
+  if (status === 'trial') {
+    if (!end) return { label: 'Trial', detail: 'No end date', tone: 'trial' };
+    if (daysLeft <= 0) return { label: 'Trial ended', detail: `Ended ${fmtDate(end)}`, tone: 'bad' };
+    return { label: 'Trial', detail: `Ends ${fmtDate(end)}${left}`, tone: daysLeft <= 3 ? 'warn' : 'trial' };
+  }
+  if (status === 'active') {
+    if (!end) return { label: 'Subscribed', detail: 'No end date (set manually)', tone: 'good' };
+    if (daysLeft <= 0) return { label: 'Payment overdue', detail: `Paid until ${fmtDate(end)}`, tone: 'bad' };
+    return { label: 'Subscribed', detail: `Paid until ${fmtDate(end)}${left}`, tone: daysLeft <= 3 ? 'warn' : 'good' };
+  }
+  return {
+    label: status === 'cancelled' ? 'Cancelled' : 'Expired',
+    detail: end ? `Ended ${fmtDate(end)}` : '',
+    tone: 'bad',
+  };
+}
+
+const SUB_TONES = {
+  good:  { background: '#EAF3DE', color: '#3B6D11' },
+  trial: { background: '#E6F1FB', color: '#185FA5' },
+  warn:  { background: '#FAEEDA', color: '#8A5A0B' },
+  bad:   { background: '#FDE8E8', color: '#A32D2D' },
+  muted: { background: 'transparent', color: '#9ca3af' },
+};
+
 export default function SuperAdmin() {
   const confirm = useConfirm();
   const toast = useToast();
@@ -243,12 +282,12 @@ export default function SuperAdmin() {
 
       {/* ── BRANCHES TAB ── */}
       {tab === 'branches' && (
-        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: '#fff', border: '0.5px solid #e8e8e0', borderRadius: 12, overflowX: 'auto' }}>
           {loading ? <div style={{ padding: '2rem', color: '#374151', fontSize: 14 }}>Loading...</div> : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f5f5f3' }}>
-                  {['Shop / branch','Owner','FB Page ID','Orders','Revenue','Status','Plan',''].map(h => (
+                  {['Shop / branch','Owner','FB Page ID','Orders','Revenue','Status','Trial / subscription','Plan',''].map(h => (
                     <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontWeight: 500, fontSize: 12, color: '#374151' }}>{h}</th>
                   ))}
                 </tr>
@@ -269,6 +308,17 @@ export default function SuperAdmin() {
                         {t.active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                      {(() => {
+                        const s = subscriptionInfo(t);
+                        return (
+                          <>
+                            <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 4, ...SUB_TONES[s.tone] }}>{s.label}</span>
+                            {s.detail && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>{s.detail}</div>}
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td style={{ padding: '10px 12px' }}>
                       <select
                         value={t.plan || 'starter'}
@@ -276,7 +326,7 @@ export default function SuperAdmin() {
                           const plan = e.target.value;
                           try {
                             await updateTenantPlan(t.id, plan, plan !== 'starter' ? 'active' : undefined);
-                            setTenants(prev => prev.map(x => x.id === t.id ? { ...x, plan } : x));
+                            setTenants(prev => prev.map(x => x.id === t.id ? { ...x, plan, ...(plan !== 'starter' ? { subscription_status: 'active' } : {}) } : x));
                           } catch { toast('Failed to update plan.'); }
                         }}
                         style={{
@@ -303,7 +353,7 @@ export default function SuperAdmin() {
                   </tr>
                 ))}
                 {tenants.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No shops yet.</td></tr>
+                  <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#374151', fontSize: 13 }}>No shops yet.</td></tr>
                 )}
               </tbody>
             </table>

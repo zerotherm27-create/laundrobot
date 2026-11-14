@@ -508,6 +508,7 @@ router.get('/', auth, superadminOnly, async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT t.id, t.name, t.fb_page_id, t.logo_url, t.active, t.created_at, t.plan, t.ai_daily_cap, t.primary_tenant_id,
+              t.subscription_status, t.subscription_plan, t.trial_ends_at, t.subscription_paid_until,
               (SELECT u.email FROM users u WHERE u.tenant_id = t.id AND u.role = 'admin' ORDER BY u.created_at ASC LIMIT 1) AS owner_email,
               CASE WHEN t.fb_page_access_token IS NOT NULL AND length(t.fb_page_access_token) >= 4
                    THEN right(t.fb_page_access_token, 4) ELSE NULL END AS fb_token_hint,
