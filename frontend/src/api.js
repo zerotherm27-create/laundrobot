@@ -32,6 +32,9 @@ export const signup = (business_name, email, password, website = '', phone = '',
 
 export const verifyEmail = token => api.post('/auth/verify-email', { token });
 export const resendVerification = email => api.post('/auth/resend-verification', { email });
+// Links in the automated trial emails (pages/LifecycleLink.jsx)
+export const extendTrial = token => api.post('/auth/extend-trial', { token });
+export const unsubscribeEmails = token => api.post('/auth/unsubscribe', { token });
 
 export const getSubscription = () =>
   api.get('/auth/subscription');

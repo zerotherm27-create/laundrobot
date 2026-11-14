@@ -7,7 +7,7 @@ function getFrom() {
   return process.env.RESEND_FROM || 'LaundroBot <noreply@laundrobot.app>';
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, headers }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn('[email] RESEND_API_KEY not set — skipping email');
@@ -16,6 +16,7 @@ async function sendEmail({ to, subject, html, text }) {
   // A plain-text alternative and a real reply-to both help inbox placement (HTML-only mail scores worse).
   const payload = { from: getFrom(), to, subject, html };
   if (text) payload.text = text;
+  if (headers) payload.headers = headers; // e.g. List-Unsubscribe on the automated trial emails
   if (process.env.RESEND_REPLY_TO) payload.reply_to = process.env.RESEND_REPLY_TO;
   await axios.post(RESEND_API, payload, {
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

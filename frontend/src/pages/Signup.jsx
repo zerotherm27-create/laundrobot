@@ -199,6 +199,7 @@ export default function Signup() {
           By signing up you agree to our{' '}
           <a href="/terms" style={{ color: '#6B7280' }}>Terms of Service</a> and{' '}
           <a href="/privacy" style={{ color: '#6B7280' }}>Privacy Policy</a>.
+          {' '}We&apos;ll email you tips and reminders about your trial. Unsubscribe anytime.
         </p>
         </>)}
       </div>

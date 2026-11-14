@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const runFollowUp      = require('./jobs/followup');
 const runCartReminder  = require('./jobs/cartReminder');
 const runOverdueNotify = require('./jobs/overdueNotify');
+const runLifecycleEmail = require('./jobs/lifecycleEmail');
 const app = express();
 
 // Trust Railway's reverse proxy so req.ip returns the real client IP
@@ -61,6 +62,7 @@ const routes = [
   ['/auth',       './routes/auth',         authLimiter],
   ['/auth',       './routes/resetPassword', authLimiter],
   ['/auth',       './routes/verifyEmail',   authLimiter],
+  ['/auth',       './routes/lifecycle',     authLimiter],
   ['/orders',     './routes/orders'],
   ['/services',   './routes/services'],
   ['/categories', './routes/categories'],
@@ -169,6 +171,13 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
   });
   console.log('✓ monthly archive cron scheduled (1st of each month)');
+
+  // Automated trial emails to shop owners. Runs hourly but only sends in the 10:00 Manila hour, and
+  // does nothing at all unless LIFECYCLE_EMAILS is 'on' (or 'dry' to log only).
+  cron.schedule('5 * * * *', () => {
+    runLifecycleEmail().catch(err => console.error('[lifecycle] unhandled error:', err.message));
+  });
+  console.log(`✓ lifecycle email cron scheduled (mode: ${process.env.LIFECYCLE_EMAILS || 'off'})`);
 
   // Prune old bot_sends rows — keeps the table small (only need last 5h)
   cron.schedule('15 * * * *', async () => {
