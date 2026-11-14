@@ -12,6 +12,16 @@ const RESPONSIVE_CSS = `
   .l-showcase      { display: flex; align-items: flex-start; gap: 3rem; flex-wrap: wrap; justify-content: center; }
   .l-pricing-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; align-items: start; }
 
+  .l-msgr-fab {
+    position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 90;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 20px 0 16px;
+    border-radius: 50px; background: #0084FF; color: #fff; font-size: 15px; font-weight: 700;
+    text-decoration: none; box-shadow: 0 6px 20px rgba(0,132,255,.35);
+    transition: background 150ms ease-out, transform 150ms ease-out;
+  }
+  .l-msgr-fab:hover { background: #0073E0; transform: translateY(-2px); }
+  .l-msgr-fab:focus-visible { outline: 3px solid #fff; box-shadow: 0 0 0 5px #0084FF; }
+
   @media (max-width: 860px) {
     .l-pricing-grid { grid-template-columns: 1fr; max-width: 440px; margin-left: auto; margin-right: auto; }
   }
@@ -25,6 +35,8 @@ const RESPONSIVE_CSS = `
     .l-feat-col:nth-child(2) > *:first-child { border-top: 1px solid var(--border-subtle); }
     .l-steps      { flex-direction: column; align-items: stretch; gap: 1rem; }
     .l-showcase   { flex-direction: column; align-items: center; }
+    .l-msgr-fab   { right: 16px; width: 56px; height: 56px; min-height: 56px; padding: 0; justify-content: center; }
+    .l-msgr-fab-label { display: none; }
   }
 
   @keyframes mascotFloat {
@@ -1184,8 +1196,38 @@ function CtaBand() {
             Book a free demo
           </a>
         </div>
+        <p style={{ fontSize: 14, color: '#6B7280', margin: '1.5rem 0 0' }}>
+          Have a question first?{' '}
+          <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-tint-dark)', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Message us on Messenger
+          </a>
+        </p>
       </div>
     </section>
+  );
+}
+
+// ── Messenger call-out ────────────────────────────────────────────────────────
+// LaundroBot's own Facebook Page (same handle the in-app setup guide points to).
+const MESSENGER_URL = 'https://m.me/laundrobotph';
+const FACEBOOK_URL = 'https://www.facebook.com/laundrobotph';
+
+function MessengerGlyph({ size = 22, color = '#fff' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.44 3.14 7.17.16.15.26.35.27.57l.05 1.78a.8.8 0 0 0 1.12.71l1.99-.88a.8.8 0 0 1 .53-.04c.91.25 1.89.39 2.9.39 5.64 0 10-4.13 10-9.7S17.64 2 12 2Zm6 7.46-2.94 4.66a1.5 1.5 0 0 1-2.17.4l-2.34-1.75a.6.6 0 0 0-.72 0l-3.15 2.4c-.42.32-.97-.19-.69-.63l2.94-4.66a1.5 1.5 0 0 1 2.17-.4l2.34 1.75a.6.6 0 0 0 .72 0l3.15-2.4c.42-.32.97.19.69.63Z" />
+    </svg>
+  );
+}
+
+// Floating button, bottom-right on every scroll position. Text label hides on phones.
+function MessengerFab() {
+  return (
+    <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="l-msgr-fab btn-press"
+      aria-label="Message us on Messenger">
+      <MessengerGlyph />
+      <span className="l-msgr-fab-label">Message us</span>
+    </a>
   );
 }
 
@@ -1230,6 +1272,8 @@ function Footer() {
             <p style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '0.75rem' }}>Support</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <FooterLink href="https://calendly.com/laundrobotph/30min" target="_blank" rel="noopener noreferrer">Book a demo</FooterLink>
+              <FooterLink href={MESSENGER_URL} target="_blank" rel="noopener noreferrer">Message us on Messenger</FooterLink>
+              <FooterLink href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">Facebook Page</FooterLink>
               <FooterLink href="/login">Sign in</FooterLink>
               <FooterLink href="/privacy">Privacy Policy</FooterLink>
               <FooterLink href="/terms">Terms of Service</FooterLink>
@@ -1267,6 +1311,7 @@ export default function Landing() {
         <CtaBand />
       </main>
       <Footer />
+      <MessengerFab />
     </div>
   );
 }
