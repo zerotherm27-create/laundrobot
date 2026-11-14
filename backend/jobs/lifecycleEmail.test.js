@@ -22,8 +22,21 @@ const shop = (endsIn, extra = {}) => ({
   marketing_unsubscribed_at: null, sent: [], last_sent_at: null, ...extra,
 });
 
+// Trial runs 14 days; shop(n) ends in n days, so it started (14 - n) days ago.
+test('how-to tip emails go out on day 1, 4 and 8 of the trial', () => {
+  assert.strictEqual(pickStep(shop(13.5), NOW), null);          // signed up today
+  assert.strictEqual(pickStep(shop(13), NOW), 'tips_1');        // day 1
+  assert.strictEqual(pickStep(shop(10.5), NOW), null);          // day 3.5 — between tips
+  assert.strictEqual(pickStep(shop(10), NOW), 'tips_2');        // day 4
+  assert.strictEqual(pickStep(shop(6), NOW), 'tips_3');         // day 8
+  assert.strictEqual(pickStep(shop(6, { sent: ['tips_3'] }), NOW), null);
+  // Never to someone who has not confirmed their email, and never after a trial extension.
+  assert.strictEqual(pickStep(shop(13, { email_verified: false }), NOW), 'unverified_1');
+  assert.strictEqual(pickStep(shop(6, { trial_extended_at: at(-1) }), NOW), null);
+});
+
 test('trial-ending reminders fire 3 days and 1 day before the end', () => {
-  assert.strictEqual(pickStep(shop(5), NOW), null);
+  assert.strictEqual(pickStep(shop(4), NOW), null);
   assert.strictEqual(pickStep(shop(3), NOW), 'trial_3d');
   assert.strictEqual(pickStep(shop(2.5), NOW), 'trial_3d');
   assert.strictEqual(pickStep(shop(1), NOW), 'trial_1d');
@@ -94,7 +107,17 @@ test('every template renders with subject, text, html and an unsubscribe link', 
     assert.ok(m.text.includes(links.unsubscribe), `${step} text has unsubscribe`);
     assert.ok(m.html.includes('Unsubscribe'), `${step} html has unsubscribe`);
     assert.ok(!m.html.includes('<Shop>'), `${step} escapes the shop name`);
+    assert.ok(m.html.includes('logo-96.png') && m.html.includes('LaundroBot'), `${step} is branded`);
   }
+});
+
+test('"Choose a plan" opens the plan chooser after sign-in, and replies never go to noreply', () => {
+  const links = buildLinks('11111111-1111-1111-1111-111111111111');
+  assert.match(links.subscribe, /\/login\?choose_plan=1$/);
+  assert.match(render('trial_3d', { shopName: 'X', links }).html, /login\?choose_plan=1/);
+  const modal = fs.readFileSync(path.join(__dirname, '..', '..', 'frontend', 'src', 'components', 'UpgradeModal.jsx'), 'utf8');
+  assert.match(modal, /params\.has\('choose_plan'\)/);
+  assert.match(src, /replyTo: REPLY_TO\(\)/);
 });
 
 test('link tokens are action-bound and cannot be used as (or forged from) a login session', () => {

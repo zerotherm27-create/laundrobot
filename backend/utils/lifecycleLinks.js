@@ -31,7 +31,9 @@ function appUrl() {
 function buildLinks(tenantId, verifyToken) {
   const base = appUrl();
   return {
-    subscribe:   `${base}/login`,
+    app:         `${base}/login`,
+    // Sign in (if needed), then the app opens the plan chooser (UpgradeModal reads ?choose_plan=1).
+    subscribe:   `${base}/login?choose_plan=1`,
     extend:      `${base}/?extend_trial=${signLink(tenantId, 'extend')}`,
     unsubscribe: `${base}/?unsubscribe=${signLink(tenantId, 'unsub')}`,
     ...(verifyToken ? { verify: `${base}/?verify_token=${verifyToken}` } : {}),

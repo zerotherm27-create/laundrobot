@@ -7,7 +7,7 @@ function getFrom() {
   return process.env.RESEND_FROM || 'LaundroBot <noreply@laundrobot.app>';
 }
 
-async function sendEmail({ to, subject, html, text, headers }) {
+async function sendEmail({ to, subject, html, text, headers, replyTo }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn('[email] RESEND_API_KEY not set — skipping email');
@@ -17,7 +17,8 @@ async function sendEmail({ to, subject, html, text, headers }) {
   const payload = { from: getFrom(), to, subject, html };
   if (text) payload.text = text;
   if (headers) payload.headers = headers; // e.g. List-Unsubscribe on the automated trial emails
-  if (process.env.RESEND_REPLY_TO) payload.reply_to = process.env.RESEND_REPLY_TO;
+  // Per-email replyTo wins (the trial emails invite replies); otherwise the global setting, if any.
+  if (replyTo || process.env.RESEND_REPLY_TO) payload.reply_to = replyTo || process.env.RESEND_REPLY_TO;
   await axios.post(RESEND_API, payload, {
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
   });

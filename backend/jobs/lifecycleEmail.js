@@ -16,6 +16,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const WINDOW = 2 * DAY;
 const MIN_GAP = 20 * 60 * 60 * 1000; // never two emails to one shop inside 20h
 const SEND_HOUR_MANILA = 10;
+const TRIAL_DAYS = 14; // must match the trial length set in routes/auth.js + routes/verifyEmail.js
+const REPLY_TO = () => process.env.LIFECYCLE_REPLY_TO || 'hello@laundrobot.app';
 
 const ms = d => (d ? new Date(d).getTime() : null);
 
@@ -49,6 +51,9 @@ function pickStep(row, now = new Date()) {
   // Already used the 7 extra days: one closing email when they run out, nothing else.
   if (row.trial_extended_at) return first([['ext_ended', end]]);
 
+  // The trial clock starts when the owner confirms their email (verifyEmail.js resets trial_ends_at).
+  const start = end - TRIAL_DAYS * DAY;
+
   // Latest step first, so a shop is never sent an out-of-date earlier step.
   return first([
     ['ended_14', end + 14 * DAY],
@@ -57,6 +62,10 @@ function pickStep(row, now = new Date()) {
     ['ended_0',  end],
     ['trial_1d', end - 1 * DAY],
     ['trial_3d', end - 3 * DAY],
+    // How-to emails while the trial is running (day 1, 4 and 8).
+    ['tips_3',   start + 8 * DAY],
+    ['tips_2',   start + 4 * DAY],
+    ['tips_1',   start + 1 * DAY],
   ]);
 }
 
@@ -118,6 +127,7 @@ async function runLifecycleEmail({ now = new Date(), force = false } = {}) {
         to: row.email,
         ...render(step, { shopName: row.name, links }),
         headers: { 'List-Unsubscribe': `<${links.unsubscribe}>` },
+        replyTo: REPLY_TO(), // the emails say "reply to this email" — never let that go to noreply@
       });
       sent++;
       console.log(`[lifecycle] sent ${step} to ${row.email} (${row.name})`);
@@ -132,4 +142,5 @@ async function runLifecycleEmail({ now = new Date(), force = false } = {}) {
 
 module.exports = runLifecycleEmail;
 module.exports.pickStep = pickStep;
+module.exports.REPLY_TO = REPLY_TO;
 module.exports.CANDIDATES_SQL = CANDIDATES_SQL;

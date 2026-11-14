@@ -38,6 +38,17 @@ export default function UpgradeModal() {
     }
   }, [upgradeModalOpen, defaultUpgradeTier]);
 
+  // "Choose a plan" links in the trial emails point at /login?choose_plan=1: once the owner is signed
+  // in, open the plan chooser and drop the flag so a refresh does not reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('choose_plan')) return;
+    params.delete('choose_plan');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    setUpgradeModalOpen(true);
+  }, [setUpgradeModalOpen]);
+
   if (!upgradeModalOpen) return null;
 
   const chosen = PLANS.find(p => p.tier === upgradeTier);
